@@ -4,7 +4,7 @@ import { getDb } from "@/db";
 import { adjudications, corrections, publications, representations, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { editorJson } from "@/lib/editor-auth";
 import { loadCase } from "@/app/api/editor/cases/_shared";
-import { PUBLIC_READ_DISABLED_MESSAGE, PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
+import { PUBLIC_READ_DISABLED_MESSAGE, PUBLIC_READ_FLAG, passageAround, publicReadEnabled } from "@/lib/public-access";
 
 export const runtime = "edge";
 export async function GET() {
@@ -30,7 +30,7 @@ export async function GET() {
       if (correctionRows.length || retractions.length) return null;
       return { id: item.id, publicationId: row.publicationId, publishedAt: row.publishedAt, status: "CHECKING" as const,
         communicationId: item.communicationId, speakerName: item.speakerName,
-        source: { canonicalUrl: item.canonicalUrl, originalContent: item.originalContent,
+        source: { canonicalUrl: item.canonicalUrl, passage: passageAround(item.originalContent, item.exactText),
           sourceVerification: { recordedAt: item.sourceAuthentication.verifiedAt, method: item.sourceAuthentication.method } },
         representation: { exactText: item.exactText }, proposition: { text: item.canonicalProposition, issue: item.issue },
         evidence: item.evidence.filter(e => item.adjudication?.consideredEvidenceIds.includes(e.propositionEvidenceId))

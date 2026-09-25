@@ -37,23 +37,22 @@ Audit of every route with no `editorialAuth()` call, as of this commit.
 
 | Route | Before this commit | After this commit |
 | --- | --- | --- |
-| `GET /api/representations` | Every machine-captured `discovered:*` representation, including ones a reviewer had **rejected**: AI-attributed speaker name, verbatim quote, AI-written proposition, AI-assigned issue, party lane label, source URL and dates. No assessments, citations, materiality or drafts. | Closed (403) unless `PUBLIC_READ_ENABLED` is truthy. When open, rejected representations are excluded. |
-| `GET /api/records` | Only published, reviewed CHECKING records, but each carries the **full captured source text** (up to 90,000 characters), human search summaries and evidence excerpts. | Closed (403) unless `PUBLIC_READ_ENABLED` is truthy. Payload unchanged when open. |
-| `/records` | The published list plus the incoming inventory. | A "not yet public" notice unless the switch is set. |
+| `GET /api/representations` | Every machine-captured `discovered:*` representation, including ones a reviewer had **rejected**: AI-attributed speaker name, verbatim quote, AI-written proposition, AI-assigned issue, party lane label, source URL and dates. No assessments, citations, materiality or drafts. | Closed (403) unless `PUBLIC_READ_ENABLED` is truthy **and** at least 20 reviewed CHECKING records are published (`PUBLIC_INVENTORY_MIN_PUBLISHED`). When open, rejected representations are excluded. |
+| `GET /api/records` | Only published, reviewed CHECKING records, but each carries the **full captured source text** (up to 90,000 characters), human search summaries and evidence excerpts. | Closed (403) unless `PUBLIC_READ_ENABLED` is truthy. When open, `source.passage` carries only the text around the exact quote (600 characters each side, cut on word boundaries); the full capture stays in the private editorial record. |
+| `/records` | The published list plus the incoming inventory. | A "not yet public" notice unless the switch is set. The inventory section renders nothing while it is withheld. |
 | `/editor` | The workspace shell rendered for anyone; data calls then failed with 401. | Anonymous visitors are redirected to Sign in with ChatGPT before any markup is served. |
 | `/` | Redirects to `/editor`. | Unchanged: an anonymous visitor lands on sign-in. |
 | `GET /api/automation/health` | Did not exist. | Reports reachability and whether the tick secret is provisioned. Holds no data. |
 | `POST /api/automation/tick` | Secret-gated; 401 when the secret is unset. | Unchanged. |
 | `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback` | Platform-owned. | Unchanged. |
 
-Points the founder should weigh before ever setting `PUBLIC_READ_ENABLED`:
+Founder decisions recorded on 2026-09-25, now enforced in code:
 
 1. The incoming inventory publishes AI attribution and AI paraphrase before a
-   human has checked either. A misattributed quote under a party label is the
-   likeliest harm. Rejected items now disappear, but unreviewed ones still show.
-2. `/api/records` republishes whole captured statements. Official government
-   text is generally free to reuse; other sources may not be. Consider trimming
-   `originalContent` to the passage around the quote before public launch.
+   human has checked either. It stays withheld until 20 reviewed records are
+   published, whatever the switch says. Rejected items never appear.
+2. `/api/records` no longer republishes whole captured statements; it shows the
+   passage around the quote with a link to the original.
 3. Both routes are unauthenticated JSON. Anything they return can be scraped.
 
 ## Switch: `PUBLIC_READ_ENABLED`
@@ -102,7 +101,7 @@ change; the switch and the secret can stay.
 | Item | Coded | Deployed to Site | Ran manually | Verified on schedule |
 | --- | --- | --- | --- | --- |
 | Tick job, ledger, hour slot, daily cap | yes | yes (per handoff) | locally only, against local D1 (COMPLETE, ALREADY_RUNNING_OR_COMPLETE, DAILY_LIMIT all observed) | no |
-| `PUBLIC_READ_ENABLED` switch, rejected-quote filter, editor sign-in wall, health probe | yes | no | locally only | not applicable |
+| `PUBLIC_READ_ENABLED` switch, rejected-quote filter, 20-record inventory gate, passage trimming, editor sign-in wall, health probe | yes | no | locally only | not applicable |
 | Cron adapter Worker | yes | Hello World only on Cloudflare | no | no |
 | Ingress probe Worker | yes | no | no | not applicable |
 | Tick secret | not applicable | not provisioned | not applicable | not applicable |

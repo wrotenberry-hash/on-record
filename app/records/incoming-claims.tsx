@@ -7,11 +7,15 @@ type Item = { id: string; lane: string; medium: string; era: string; speakerName
 export default function IncomingClaims() {
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState("");
+  const [withheld, setWithheld] = useState(false);
   useEffect(() => { void fetch("/api/representations", { cache: "no-store" }).then(async response => {
+    // A 403 means the inventory is deliberately not public yet; show nothing rather than an error.
+    if (response.status === 403) { setWithheld(true); return; }
     if (!response.ok) throw Error("Incoming claims are temporarily unavailable");
     const result = await response.json() as { representations: Item[] };
     setItems(result.representations);
   }).catch(caught => setError(caught instanceof Error ? caught.message : "Incoming claims unavailable")); }, []);
+  if (withheld) return null;
   return <section className="incoming-claims" aria-label="Incoming representations">
     <div className="section-title"><h2>Incoming representations</h2><span>{items.length} awaiting review</span></div>
     <p>Captured source passages across current and historical coverage. Attribution, context and accuracy await independent editorial review; no finding is implied.</p>
