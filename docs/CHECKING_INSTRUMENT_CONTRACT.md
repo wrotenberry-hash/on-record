@@ -1,0 +1,35 @@
+# Checking instrument implementation contract
+
+An editorial case consists of one preserved source communication and its captured exact representation linked to one normalized proposition. The case progresses through source authentication, representation approval, materiality lock, evidence collection on both sides, adjudication, human review, then optional publication. Each case exposes the current stage and the requirements still missing. The viewer must never infer a rating from a draft.
+
+POST `/api/editor/automate` with `{sourceUrl}` requires the editor allowlist and server-side `OPENAI_API_KEY`. It fetches a readable public HTTPS original, preserves its hash and extracts up to three exact factual representations as private candidates. It suggests materiality but does not lock it. POST `/api/editor/cases/[id]/draft-research` performs separate live searches on both sides and stores a provisional assessment in a private machine draft before review gates. Once a human compares the source, approves the representation and locks materiality, POST `/api/editor/cases/[id]/apply-draft` copies that draft into canonical searches, unverified citation leads and a scoring proposal. The older `/research` action can also run then. Neither path creates a human adjudication, review or publication. Exact proposition text can reuse a canonical proposition; semantic matching across different wording is not implemented.
+
+## Stages and actions
+
+1. **Capture**: existing POST `/api/editor/drafts` writes original text, exact quote, source URL and time. It never rates or publishes.
+2. **Authenticate source**: reviewer records what original URL/content they personally checked, time and content digest in an append-only attestation. Merely typing a URL at intake is not authentication.
+3. **Approve representation**: an editor checks exact wording/context and selects APPROVED or REJECTED. A rejected representation cannot advance.
+4. **Lock materiality**: a reviewer supplies M0, M1, M2 or M3 and rationale, under explicit methodology version. Existing persistence names map respectively to NOT_MATERIAL, SUPPORTING, MAJOR and CRITICAL. M0 is excluded from scoring. Lock precedes any evidence search or evidence record considered for the case.
+5. **Search and collect evidence**: record separate immutable supporting and contrary searches after materiality lock, even when a search finds no applicable evidence. Create reusable evidence objects and proposition links with SUPPORTS, CONTRADICTS or CONTEXT, applicability explanation, source URL, title and dates.
+6. **Assess**: after both searches, save an append-only proposal with Accuracy 100/95/85/65/35/15/0/U, Context Integrity 100/85/60/30/0/N/A, four Evidence Confidence components each 0–25 (Authority, Sufficiency/Corroboration, Directness, Temporal/Methodological Fit), and explanation. Code validates and calculates confidence sum; no narrative may assign arbitrary numeric scores. Then create CHECKING adjudication with considered evidence IDs. RATED publication stays disabled pending migration of the legacy rating constraint and approved sufficiency policy.
+7. **Review**: a human records APPROVED, REJECTED or CHANGES_REQUESTED with notes after adjudication and evidence consideration.
+8. **Publish**: only explicit editor action after a source authentication, approved review, complete applicable gates and status checks. Publication is an append-only event. This private build should keep publication of numerical verdicts disabled until founder-owned anchor definitions and evidence sufficiency standards are finalized; CHECKING may be published as a traceable open investigation after authenticated source and review.
+
+## API contract for UI
+
+- GET `/api/editor/cases` returns one entry per representation; `id` is representation ID and `communicationId` identifies the shared source communication: `{cases:[{id,communicationId,representationId,propositionId,speakerName,canonicalUrl,originalContent,exactText,canonicalProposition,issue,status,sourceAuthentication,materiality,evidence,searches,assessment,adjudication,review,publication,missingRequirements}]}`.
+- POST `/api/editor/cases/[id]/source-auth` body `{method,notes,reviewedUrl,reviewedContent}`. For automated captures, the reviewer independently copies a passage containing the exact quote; manual captures require the complete matching text. The API records an append-only attestation tied to the preserved capture digest and includes the separately hashed copied content in notes. This is a human declaration, not automated external verification.
+- POST `/api/editor/cases/[id]/representation` body `{decision,notes}` where decision APPROVED or REJECTED.
+- POST `/api/editor/cases/[id]/materiality` body `{tier,rationale}`, tier M0/M1/M2/M3.
+- POST `/api/editor/cases/[id]/research` body `{}` launches bilateral AI search and a provisional assessment after the human source, representation and materiality gates. Cited URLs are unverified leads, and the editor must inspect them before adjudication and review.
+- POST `/api/editor/cases/[id]/search` body `{side,strategy,resultsSummary}` where side `SUPPORTS` or `CONTRADICTS`; the server records reviewer identity and search time after materiality lock. Both directions are required before an assessment or adjudication.
+- POST `/api/editor/cases/[id]/evidence` body `{title,sourceName,sourceUrl,sourceType,excerpt,stance,applicability,publishedAt?}`.
+- POST `/api/editor/cases/[id]/search` body `{side:"SUPPORTS"|"CONTRADICTS",strategy,resultsSummary}`. Each response records a server timestamp and reviewer ID.
+- POST `/api/editor/cases/[id]/assessment` body `{accuracyAnchor,contextIntegrity,authority,sufficiency,directness,temporalFit,explanation}`. Accuracy anchor is `100|95|85|65|35|15|0|U`; context is `100|85|60|30|0|N/A`; each evidence confidence component is an integer 0–25. This is a provisional proposal, never a public verdict.
+- POST `/api/editor/cases/[id]/adjudication` body `{state:"CHECKING",explanation,consideredEvidenceIds}`. Stored search summaries and search start time derive exclusively from prior logged searches.
+- POST `/api/editor/cases/[id]/review` body `{decision,notes}`.
+- POST `/api/editor/cases/[id]/publish` only for reviewed CHECKING records in this private version.
+
+Every mutation requires the server-side editor allowlist. No API accepts speaker party as an input to factual adjudication. The UI displays unmet gates and never labels a case as verified merely because the draft was entered.
+
+In the current private version the API rejects all RATED adjudications and publication. GET `/api/records` lists only explicit published CHECKING records with authenticated source and approved review; candidate drafts are excluded.
