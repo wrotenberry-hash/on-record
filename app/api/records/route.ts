@@ -1,11 +1,15 @@
+import { env } from "cloudflare:workers";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { adjudications, corrections, publications, representations, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { editorJson } from "@/lib/editor-auth";
 import { loadCase } from "@/app/api/editor/cases/_shared";
+import { PUBLIC_READ_DISABLED_MESSAGE, PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
 
 export const runtime = "edge";
 export async function GET() {
+  if (!publicReadEnabled((env as unknown as Record<string, string | undefined>)[PUBLIC_READ_FLAG]))
+    return editorJson({ error: PUBLIC_READ_DISABLED_MESSAGE }, 403);
   try {
     const db = getDb();
     const rows = await db.select({ publicationId: publications.id, representationId: representations.id,

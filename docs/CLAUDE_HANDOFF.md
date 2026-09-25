@@ -45,3 +45,7 @@ Node >=22.13.0; `package.json` uses pnpm, vinext/Next, Cloudflare Workers and D1
 ## Integration directions for Claude Code
 
 Open the attached repository archive as a directory. Read this file, `docs/UNATTENDED_INTAKE.md`, `docs/DECISIONS.md`, `docs/BUILD_CONTRACT.md`, and the relevant route/source files first. Audit the private-ingress blocker and propose a concrete supported deployment path with privacy impact, migration steps, rollback, and cost. Implement code changes and tests in the repo, then connect to the user's Cloudflare Worker and Site only through authorized account tooling or the user's local authenticated CLI. Ask the user for the minimum required account action only after the code and configuration are prepared. Never ask them to paste an OpenAI key, Cloudflare token, or tick secret into Claude chat. Report evidence of a real scheduled invocation before saying unattended is live.
+
+## Update 2026-09-25, later: ingress decision prepared
+
+The public read surface is now closed by default behind `PUBLIC_READ_ENABLED`, `/editor` has a sign-in wall, rejected quotes leave the inventory, and a reachability probe plus a throwaway ingress-probe Worker exist. `docs/PUBLIC_ACCESS.md` holds the route comparison, the exposure audit, the ordered account steps and the state ladder. Nothing in that update has been deployed; the Site is still owner-private and no secret has been provisioned.

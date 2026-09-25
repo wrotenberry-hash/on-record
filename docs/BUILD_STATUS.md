@@ -1,5 +1,10 @@
 # On Record build status — 2026-09-25
 
+## Changed later on 2026-09-25 (not yet deployed)
+
+- Anonymous read access is now a server switch, `PUBLIC_READ_ENABLED`, off by default. `/api/records`, `/api/representations` and `/records` refuse anonymous readers until it is set, so the Site audience can be widened for the scheduler without publishing anything. `/editor` redirects anonymous visitors to Sign in with ChatGPT before rendering. Human-rejected representations no longer appear in the incoming inventory. `GET /api/automation/health` reports reachability and whether the tick secret is bound. See `PUBLIC_ACCESS.md` for the audit, the ordered account steps and the state ladder.
+- Locally, against a migrated local D1, the tick returned COMPLETE, then ALREADY_RUNNING_OR_COMPLETE in the same hour, then DAILY_LIMIT after a second slot. That is code behaviour, not production evidence.
+
 ## Implemented in the owner-private Site
 
 - `/editor` scans original-source indexes on opening and seeds eight historical archive/transcript leads. Separate run rows expose adapter failures; an idempotent private queue holds original URLs and statuses. Current official sources span House and Senate party leaders, a Senate independent, White House statements and White House video leads. Original video pages are withheld from extraction until a checked transcript is available. Multi-speaker transcripts require attribution review.

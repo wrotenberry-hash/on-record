@@ -1,6 +1,11 @@
 /** Cloudflare Cron Trigger adapter for a Site reachable by an authorized machine client. */
-export default {
-  async scheduled(_event, env, ctx) {
+const scheduledIntake = {
+  /** The Worker's own URL does nothing; only the schedule calls the Site. */
+  async fetch() {
+    return new Response("On Record scheduled intake runs on a cron schedule only.", { status: 404,
+      headers: { "Cache-Control": "no-store", "Content-Type": "text/plain" } });
+  },
+  async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       if (!env.ON_RECORD_URL || !env.ON_RECORD_TICK_SECRET) throw Error("Scheduler secrets are missing");
       const base = new URL(env.ON_RECORD_URL);
@@ -11,8 +16,9 @@ export default {
         "Cache-Control": "no-store",
       }, signal: AbortSignal.timeout(110000) });
       const payload = await response.text();
-      if (!response.ok) throw Error(`On Record job failed (${response.status}): ${payload.slice(0, 300)}`);
-      console.log(`On Record job: ${payload.slice(0, 500)}`);
+      if (!response.ok) throw Error(`On Record job failed (${response.status}) for cron "${event.cron}": ${payload.slice(0, 300)}`);
+      console.log(`On Record job (${response.status}) for cron "${event.cron}": ${payload.slice(0, 500)}`);
     })());
   },
 };
+export default scheduledIntake;

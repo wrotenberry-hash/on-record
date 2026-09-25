@@ -1,0 +1,6 @@
+name = "on-record-ingress-probe"
+main = "worker.js"
+compatibility_date = "2026-09-25"
+
+# Temporary. Set ON_RECORD_URL as a plain variable (not a secret) to the Site's
+# https origin, open the Worker URL once, read the verdict, then delete the Worker.
