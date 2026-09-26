@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { and, eq, lt, or } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -8,7 +7,8 @@ import { proposeAssessment, searchSide } from "@/lib/automated-research";
 import { reservePrivateResearch } from "@/lib/research-budget";
 import { loadCase } from "../../_shared";
 
-export const runtime = "edge";
+export const maxDuration = 300;
+
 
 /** Private machine analysis: deliberately outside the canonical evidence and scoring tables. */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -23,7 +23,7 @@ export async function runMachineResearch(id: string) {
   const current = await loadCase(id);
   if (!current) return editorJson({ error: "Case not found" }, 404);
   if (current.status === "REJECTED") return editorJson({ error: "Rejected representations cannot be researched" }, 409);
-  const settings = env as unknown as { OPENAI_API_KEY?: string; OPENAI_RESEARCH_MODEL?: string };
+  const settings = process.env;
   if (!settings.OPENAI_API_KEY) return editorJson({ error: "Research credential is unavailable" }, 503);
   const db = getDb(), now = Date.now();
   const inserted = await db.insert(machineResearchDrafts).values({ representationId: id, status: "PROCESSING", attemptedAt: now })

@@ -5,7 +5,6 @@ import { adjudicationEvidence, adjudications, evidenceObjects, evidenceSearches,
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { loadCase } from "../../_shared";
 
-export const runtime = "edge";
 const nonempty = (limit: number) => z.string().trim().min(1).max(limit);
 const https = z.string().url().max(2000).refine(x => new URL(x).protocol === "https:", "HTTPS URL required");
 const schemas = {

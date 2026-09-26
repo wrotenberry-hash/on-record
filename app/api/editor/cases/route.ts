@@ -4,7 +4,6 @@ import { representations } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { loadCase } from "./_shared";
 
-export const runtime = "edge";
 export async function GET() {
   const auth = await editorialAuth();
   if (!auth.user) return auth.error!;

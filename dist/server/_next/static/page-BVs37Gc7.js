@@ -1,0 +1,1 @@
+import{n as e}from"./navigation-errors-CwXpjjwU.js";import"./navigation.react-server-cNYD0Ces.js";function t(){e(`/editor`)}export{t as default};

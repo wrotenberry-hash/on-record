@@ -1,11 +1,10 @@
-import { env } from "cloudflare:workers";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { researchDailyBudgets } from "@/db/schema";
 
 /** Counts failed and successful starts; an atomic reservation bounds model spend. */
 export async function reservePrivateResearch() {
-  const raw = Number((env as unknown as { AUTOMATION_DAILY_LIMIT?: string }).AUTOMATION_DAILY_LIMIT ?? "2");
+  const raw = Number(process.env.AUTOMATION_DAILY_LIMIT ?? "2");
   const limit = Number.isSafeInteger(raw) ? Math.max(1, Math.min(raw, 5)) : 2;
   const day = new Date().toISOString().slice(0, 10);
   const db = getDb();

@@ -1,6 +1,6 @@
 # Editorial intake and case API
 
-`GET /api/editor/drafts` and `POST /api/editor/drafts` require the hosting layer's authenticated ChatGPT user identity **and** an explicit editor allowlist. Set `EDITOR_USER_IDS` or `EDITOR_EMAILS` as comma-separated environment bindings containing the authorized user's ChatGPT ID or email. An unset or empty allowlist fails closed (HTTP 403). Missing identity returns HTTP 401. The API does not accept an actor ID from the request body. Deployment must ensure clients cannot forge the authentication headers; a plain public server that forwards those headers unchanged is not a secure deployment of this API.
+`GET /api/editor/drafts` and `POST /api/editor/drafts` require a signed-in editor **and** an explicit editor allowlist. Identity comes from a Supabase Auth magic-link session read server-side from an HttpOnly cookie (`lib/auth.ts`); nothing from the request body or a client header is trusted. Set `EDITOR_USER_IDS` or `EDITOR_EMAILS` as comma-separated environment variables containing the authorized reviewer's Supabase user ID or email. An unset or empty allowlist fails closed (HTTP 403). Missing identity returns HTTP 401.
 
 ## POST
 

@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -6,7 +5,8 @@ import { people, propositions, representations, sourceCaptures, sourceCommunicat
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { extractClaims, fetchSource } from "@/lib/automated-research";
 
-export const runtime = "edge";
+export const maxDuration = 300;
+
 const inputSchema = z.object({ sourceUrl: z.string().url().max(2000) }).strict();
 
 async function sha256(value: string) {
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
 /** Shared intake for a submitted original and for balanced source discovery. */
 export async function runAutomatedReview(sourceUrl: string, actor: string, sourceType = "web", maxClaims = 3) {
-  const settings = env as unknown as { OPENAI_API_KEY?: string; OPENAI_EXTRACT_MODEL?: string };
+  const settings = process.env;
   if (!settings.OPENAI_API_KEY) return editorJson({ error: "Automated research is not connected. A server-side AI research credential is required." }, 503);
   const db = getDb();
   const caseIds: string[] = [];

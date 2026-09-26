@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { evidenceObjects, evidenceSearches, propositionEvidence, scoringProposals } from "@/db/schema";
@@ -6,7 +5,8 @@ import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { proposeAssessment, searchSide } from "@/lib/automated-research";
 import { loadCase } from "../../_shared";
 
-export const runtime = "edge";
+export const maxDuration = 300;
+
 
 /** Research begins only after a person compares and approves the source claim and locks materiality. */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -21,7 +21,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   if (current.materiality.tier === "NOT_MATERIAL") return editorJson({ error: "M0 claims are excluded from factual research" }, 409);
   if (current.searches.length || current.assessment || current.adjudication)
     return editorJson({ error: "Research has already begun; inspect the saved searches before any further work" }, 409);
-  const settings = env as unknown as { OPENAI_API_KEY?: string; OPENAI_RESEARCH_MODEL?: string };
+  const settings = process.env;
   if (!settings.OPENAI_API_KEY) return editorJson({ error: "Research credential is unavailable" }, 503);
   try {
     const model = settings.OPENAI_RESEARCH_MODEL || "gpt-5.5";

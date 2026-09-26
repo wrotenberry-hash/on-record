@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -7,7 +6,8 @@ import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { extractClaims } from "@/lib/automated-research";
 import { loadCase } from "../../_shared";
 
-export const runtime = "edge";
+export const maxDuration = 300;
+
 
 /** Find stronger exact claims in a preserved capture without duplicating its source. */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -17,7 +17,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   if (!z.string().uuid().safeParse(id).success) return editorJson({ error: "Invalid case ID" }, 400);
   const current = await loadCase(id);
   if (!current) return editorJson({ error: "Case not found" }, 404);
-  const settings = env as unknown as { OPENAI_API_KEY?: string; OPENAI_EXTRACT_MODEL?: string };
+  const settings = process.env;
   if (!settings.OPENAI_API_KEY) return editorJson({ error: "Extraction credential is unavailable" }, 503);
   try {
     const extracted = await extractClaims(settings.OPENAI_API_KEY, settings.OPENAI_EXTRACT_MODEL || "gpt-5.4-mini",

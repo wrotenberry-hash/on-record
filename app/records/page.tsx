@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import Link from "next/link";
 import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
 import PublishedRecords from "./published-records";
@@ -7,7 +6,7 @@ import PublishedRecords from "./published-records";
 export const dynamic = "force-dynamic";
 
 export default function RecordsPage() {
-  const enabled = publicReadEnabled((env as unknown as Record<string, string | undefined>)[PUBLIC_READ_FLAG]);
+  const enabled = publicReadEnabled(process.env[PUBLIC_READ_FLAG]);
   if (enabled) return <PublishedRecords />;
   return <>
     <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Checking instrument</Link><small>PRIVATE REVIEW BUILD</small></nav></header>

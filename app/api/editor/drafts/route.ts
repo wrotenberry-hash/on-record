@@ -1,11 +1,10 @@
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
-import { type ChatGPTUser } from "@/app/chatgpt-auth";
+import { type EditorUser } from "@/lib/auth";
 import { editorialAuth, editorJson as json } from "@/lib/editor-auth";
 import { getDb } from "@/db";
 import { people, propositions, representations, sourceCaptures, sourceCommunications } from "@/db/schema";
 
-export const runtime = "edge";
 
 const intake = z.object({
   speakerName: z.string().trim().min(1).max(200),
@@ -58,7 +57,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const auth = await editorialAuth();
   if (!auth.user) return auth.error!;
-  const editor: ChatGPTUser = auth.user;
+  const editor: EditorUser = auth.user;
 
   let raw: unknown;
   try {

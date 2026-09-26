@@ -1,4 +1,8 @@
-# On Record build status — 2026-09-25
+# On Record build status — 2026-09-26
+
+## Hosting moved to Vercel (2026-09-26, code complete, not yet deployed)
+
+- Next.js on Vercel's Node runtime; Turso database with the same migrations; Supabase magic-link sign-in; Vercel Cron at 13:00 and 19:00 UTC calling `/api/automation/tick` with `CRON_SECRET`. Twenty tests, typecheck and `next build` pass. Nothing is deployed until the Vercel project, Turso database and Supabase Auth project exist and their settings are entered; see `PUBLIC_ACCESS.md`.
 
 ## Changed later on 2026-09-25 (not yet deployed)
 

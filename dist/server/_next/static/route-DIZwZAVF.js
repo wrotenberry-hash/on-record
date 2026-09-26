@@ -1,0 +1,1 @@
+import{env as e}from"cloudflare:workers";var t=`edge`;async function n(){let t=!!e.AUTOMATION_TICK_SECRET;return Response.json({service:`on-record`,status:`reachable`,tickSecretConfigured:t,time:new Date().toISOString()},{headers:{"Cache-Control":`no-store`}})}export{n as GET,t as runtime};

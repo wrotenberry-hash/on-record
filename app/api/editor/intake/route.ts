@@ -4,7 +4,8 @@ import { intakeCandidates } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { runAutomatedReview } from "@/app/api/editor/automate/route";
 
-export const runtime = "edge";
+export const maxDuration = 300;
+
 
 export async function GET() {
   const auth = await editorialAuth();

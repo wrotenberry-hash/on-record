@@ -1,6 +1,0 @@
-name = "on-record-scheduled-intake"
-main = "worker.js"
-compatibility_date = "2026-09-25"
-
-[triggers]
-crons = ["0 13,19 * * *"]

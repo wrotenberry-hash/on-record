@@ -49,3 +49,15 @@ Open the attached repository archive as a directory. Read this file, `docs/UNATT
 ## Update 2026-09-25, later: ingress decision prepared
 
 The public read surface is now closed by default behind `PUBLIC_READ_ENABLED`, `/editor` has a sign-in wall, rejected quotes leave the inventory, and a reachability probe plus a throwaway ingress-probe Worker exist. `docs/PUBLIC_ACCESS.md` holds the route comparison, the exposure audit, the ordered account steps and the state ladder. Nothing in that update has been deployed; the Site is still owner-private and no secret has been provisioned.
+
+## Update 2026-09-26: moved to Vercel
+
+Hosting moved from the ChatGPT Site to Vercel (Next.js, Node runtime), with
+Turso for the unchanged SQLite schema, Supabase Auth magic link for editor
+sign-in behind the same allowlist, and Vercel Cron for the unattended job.
+The Cloudflare adapter, the ingress probe and every Sites-specific file are
+gone. `README.md` describes the new stack and local workflow;
+`docs/PUBLIC_ACCESS.md` records the decision and the ordered account steps.
+The Site at `on-record-review.n46csd5yyk.chatgpt.site` is superseded and can
+be deleted once the Vercel deployment has completed one scheduled run.
+

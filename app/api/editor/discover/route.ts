@@ -4,7 +4,8 @@ import { intakeCandidates, intakeRuns, sourceCommunications } from "@/db/schema"
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { discoverOriginalLinks, historicLeads, sourceCatalog, type Source } from "@/lib/source-discovery";
 
-export const runtime = "edge";
+export const maxDuration = 300;
+
 
 async function enqueue(sourceId: string, url: string, lane: string, medium: string, era: string) {
   const db = getDb();

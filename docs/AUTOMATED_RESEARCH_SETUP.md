@@ -10,8 +10,8 @@ The site does not use the ChatGPT subscription as an API credential. API billing
 
 1. In the OpenAI API dashboard, create a dedicated **On Record pilot** project. Add a payment method or prepaid balance as needed.
 2. Monitor usage and configure project budget alerts. For an enforced monthly ceiling, select **Enforce a hard limit** under the API project's Spend settings; alerts alone do not stop requests and enforcement can lag slightly. The app also reserves at most two private bilateral research attempts per UTC day by default, including editor-initiated drafts. An authenticated editor opening captures at most one current lead and starts at most one draft. Research may use multiple model calls and web searches.
-3. Create a project-scoped secret API key with an expiration date. Store it in the Site's server-side secret binding as `OPENAI_API_KEY`. The integration reads that binding only on the server.
-4. Build and privately deploy. Run one complete real-source case. A configured key alone is not proof the research workflow works.
+3. Create a project-scoped secret API key with an expiration date. Store it in Vercel → Project → Settings → Environment Variables as `OPENAI_API_KEY` (production). The integration reads it only on the server.
+4. Deploy. Run one complete real-source case. A configured key alone is not proof the research workflow works.
 
 ## First pilot acceptance check
 
@@ -24,4 +24,4 @@ Choose a short, publicly readable original statement with a precise factual clai
 - The original and citations are inspected by a person before any review approval. Publication is a separate action; drafts and incomplete cases do not appear in public records.
 - Response failures preserve any private case already created and surface it for investigation. Watch actual API usage and latency before raising the pilot's spend limit.
 
-The submitted-URL intake processes at most three claims per source. Opening the authenticated private editorial workspace checks original House and Senate leadership indexes once per UTC day per lane, captures one current lead and runs one private bilateral draft. Exact source URLs are checked before capture; failures are logged and throttled. New representations appear in the public incoming-claims inventory with no verdict, while evidence and AI assessments remain private. The current hosting does not run an unattended scheduler. It does not autonomously discover social posts, handle video/audio transcription, or semantically deduplicate differently worded propositions. Those are separate product milestones.
+The submitted-URL intake processes at most three claims per source. Opening the authenticated private editorial workspace checks original House and Senate leadership indexes once per UTC day per lane, captures one current lead and runs one private bilateral draft. Exact source URLs are checked before capture; failures are logged and throttled. New representations appear in the public incoming-claims inventory with no verdict, while evidence and AI assessments remain private. Vercel Cron runs the unattended job twice a day once `CRON_SECRET` is set; see `UNATTENDED_INTAKE.md`. It does not autonomously discover social posts, handle video/audio transcription, or semantically deduplicate differently worded propositions. Those are separate product milestones.

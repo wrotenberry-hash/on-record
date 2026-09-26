@@ -4,7 +4,6 @@ import { evidenceObjects, evidenceSearches, propositionEvidence, scoringProposal
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { loadCase } from "../../_shared";
 
-export const runtime = "edge";
 
 /** Promotion copies machine leads into the checking instrument only after human gates. */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {

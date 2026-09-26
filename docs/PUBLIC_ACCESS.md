@@ -1,4 +1,4 @@
-# Public access, ingress and the scheduler path (2026-09-25)
+# Public access, ingress and the scheduler path (2026-09-25, revised 2026-09-26)
 
 This document records why the Site audience has to change for unattended intake
 to run, what an anonymous visitor can and cannot read once it does, and the
@@ -6,30 +6,25 @@ exact order of account steps. It is the reference for the founder decision in
 `CLAUDE_HANDOFF.md` step 1. Nothing here has been applied to the production
 Site; see "State ladder" at the end for what is coded, deployed, run and verified.
 
-## Why the audience has to change
+## Decision of 2026-09-26: host on Vercel
 
-`POST /api/automation/tick` is protected by `AUTOMATION_TICK_SECRET` inside the
-app. The owner-private Site never lets an outside request reach the app: the
-platform edge answers 401 first. A Cloudflare Worker, or any other scheduler,
-therefore cannot call the job however it authenticates. The platform's exposed
-bypass value is not a documented service credential and did not work as a
-bearer; it must not be copied into a secret store, a prompt or this repository.
+The owner-private ChatGPT Site never let an outside request reach the app, so
+no scheduler could call the job. Three routes were compared on 2026-09-25 (widen
+the Site audience; move hosting; stay browser-driven). On 2026-09-26 the founder
+chose to move hosting to Vercel, where the scheduler is built in:
 
-Three routes were considered.
+| Concern | ChatGPT Site (before) | Vercel (now) |
+| --- | --- | --- |
+| Scheduler | none; needed a Cloudflare Worker that could not get past the edge | Vercel Cron in `vercel.json`, authenticated with `CRON_SECRET` |
+| Ingress | platform edge 401 before the app | requests reach the app; every lock is in the app |
+| Editor identity | ChatGPT identity headers injected by the platform | Supabase Auth magic link, HttpOnly cookie, server-side only |
+| Database | Cloudflare D1, no documented export | Turso, same SQLite schema and migrations |
+| Deploys | through a Codex session | on every push to the production branch |
 
-| Route | What changes | Privacy impact | Effort | Verdict |
-| --- | --- | --- | --- | --- |
-| A. Widen the Site audience to anonymous, keep every protection in the app | One dashboard setting, plus the `PUBLIC_READ_ENABLED` switch below | Anonymous visitors reach the app; every data route is closed unless the switch is set; editor pages redirect to sign-in; the tick needs the secret | Small | **Recommended** |
-| B. Move hosting to Cloudflare Workers + D1 with its own cron | New Worker, new D1, D1 export/import of production tables, ChatGPT sign-in replaced or re-implemented, new domain | No dependence on Site audience; a full data and auth migration with rollback planning | Large | Fallback if the platform does not strip identity headers (see verification) |
-| C. Keep the Site private and drive intake from the owner's browser | Nothing | None | None | Already the status quo; not unattended |
-
-Route A depends on one platform property that this repository cannot prove from
-code: on a public Site the edge must strip visitor-supplied
-`oai-authenticated-user-*` headers, so that `lib/editor-auth.ts` only ever sees
-identities the platform injected. The starter README states that anonymous
-visitors carry neither header, and the vendored dev plugin strips them locally,
-but the production edge has to be tested once, before any secret is provisioned
-and before the scheduler is connected. `ops/ingress-probe` exists for that test.
+The Cloudflare adapter and the ingress-probe Worker were removed with this
+change; the platform-header assumption they existed to test no longer applies.
+The seven candidates captured on the Site were not migrated; discovery refills
+the queue on the first scheduled run.
 
 ## What anonymous visitors can read
 
@@ -63,38 +58,25 @@ public read surface closed. It is independent of the platform audience setting:
 a public Site with the switch unset shows nothing but the notice page, the
 health probe and the sign-in wall. Setting it is a publication decision.
 
-## Order of operations
+## Order of operations on Vercel
 
-Each step names who acts. Nothing after step 2 should happen if step 3 fails.
+1. **Create the database** (Turso) and the sign-in project (Supabase Auth) and
+   put their settings in Vercel environment variables. Names in `.env.example`.
+2. **Set `EDITOR_EMAILS`** to the reviewer's email. Empty fails closed.
+3. **Set `OPENAI_API_KEY`** (project-scoped key with an expiry) and, in the
+   OpenAI dashboard, enforce a hard monthly spend limit on that project.
+4. **Set `CRON_SECRET`** to a fresh random value. Vercel Cron sends it on every
+   scheduled call. `AUTOMATION_TICK_SECRET` is optional and only for manual POSTs.
+5. **Deploy.** The build applies migrations, then `GET /api/automation/health`
+   should report `cronSecretConfigured: true` and `database: "turso"`.
+6. **Sign in** at `/login`, open `/editor`, confirm the source queue fills.
+7. **Verify a scheduled run** the next day in the editor's "Scheduled intake"
+   panel (`automation_runs`), then a `DAILY_LIMIT` response on a third call.
+   Only then is unattended intake live.
 
-1. **Deploy this commit to the Site** (Sites deploy workflow). It is safe on the
-   private Site: with the audience unchanged nothing is reachable from outside,
-   and with the switch unset nothing new is exposed to the owner either.
-2. **Change the Site audience** so anyone on the internet can reach it (Sites
-   dashboard). Do not set any secret yet.
-3. **Run the ingress probe** (Cloudflare dashboard): create a temporary Worker
-   from `ops/ingress-probe/worker.js`, set the plain variable `ON_RECORD_URL`
-   to the Site origin, open the Worker URL, read the verdict, delete the Worker.
-   A FAIL on the forged-header check means: return the Site to private at once
-   and fall back to route B. A FAIL on the reachability check means the edge
-   still blocks machine callers and route A is not available on this plan.
-4. **Provision the tick secret** (two dashboards, same value, never in chat):
-   Site secret `AUTOMATION_TICK_SECRET`; Worker secret `ON_RECORD_TICK_SECRET`.
-   Redeploy the Site so the secret binds. `/api/automation/health` then reports
-   `tickSecretConfigured: true`.
-5. **Install the scheduler** (Cloudflare dashboard): replace the Hello World
-   code of `on-record-scheduled-intake` with `ops/scheduled-intake/worker.js`,
-   set the plain variable `ON_RECORD_URL`, and add a temporary Cron Trigger
-   every ten minutes. The app's unique hour slot makes the extra firings return
-   `ALREADY_RUNNING_OR_COMPLETE`, which is itself the repeat-slot test.
-6. **Verify one run** in the Worker's logs and in the editor's "Scheduled
-   intake" panel (`automation_runs`). Then replace the temporary trigger with
-   the two production triggers, `0 13 * * *` and `0 19 * * *` UTC.
-7. **Verify a real scheduled run** the next day, plus a `DAILY_LIMIT` response
-   on a third call. Only then is unattended intake live.
-
-Rollback at any point: set the Site audience back to private. The app needs no
-change; the switch and the secret can stay.
+Leave `PUBLIC_READ_ENABLED` unset until the founder decides to publish.
+Rollback: pause the crons by removing them from `vercel.json`, or set the
+project's deployment protection; the data stays in Turso.
 
 ## State ladder
 
@@ -102,7 +84,8 @@ change; the switch and the secret can stay.
 | --- | --- | --- | --- | --- |
 | Tick job, ledger, hour slot, daily cap | yes | yes (per handoff) | locally only, against local D1 (COMPLETE, ALREADY_RUNNING_OR_COMPLETE, DAILY_LIMIT all observed) | no |
 | `PUBLIC_READ_ENABLED` switch, rejected-quote filter, 20-record inventory gate, passage trimming, editor sign-in wall, health probe | yes | no | locally only | not applicable |
-| Cron adapter Worker | yes | Hello World only on Cloudflare | no | no |
-| Ingress probe Worker | yes | no | no | not applicable |
-| Tick secret | not applicable | not provisioned | not applicable | not applicable |
+| Vercel Cron entries (13:00, 19:00 UTC) | yes | no | no | no |
+| Supabase magic-link sign-in | yes | no | not testable without a project | not applicable |
+| Turso database | migrations unchanged | no | local file only | not applicable |
+| CRON_SECRET | not applicable | not provisioned | not applicable | not applicable |
 | One complete private draft after credit top-up | not applicable | not applicable | not established | not applicable |

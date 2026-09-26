@@ -1,0 +1,1 @@
+import{E as e,n as t,o as n,r,t as i}from"./editor-auth-BiIjhgDV.js";var a=`edge`;async function o(){let a=await t();return a.user?i({runs:await r().select().from(n).orderBy(e(n.startedAt)).limit(20)}):a.error}export{o as GET,a as runtime};

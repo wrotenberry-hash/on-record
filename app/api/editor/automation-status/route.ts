@@ -3,7 +3,6 @@ import { getDb } from "@/db";
 import { automationRuns } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 
-export const runtime = "edge";
 
 export async function GET() {
   const auth = await editorialAuth();

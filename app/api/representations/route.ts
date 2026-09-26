@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { and, desc, inArray, like, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { people, propositions, representations, sourceCaptures, sourceCommunications } from "@/db/schema";
@@ -6,11 +5,10 @@ import { editorJson } from "@/lib/editor-auth";
 import { INVENTORY_WITHHELD_REASON, PUBLIC_INVENTORY_MIN_PUBLISHED, PUBLIC_INVENTORY_STATUSES, PUBLIC_READ_DISABLED_MESSAGE, PUBLIC_READ_FLAG, inventoryVisible, publicReadEnabled } from "@/lib/public-access";
 import { countPublishedRecords } from "@/lib/published-records";
 
-export const runtime = "edge";
 
 /** Public quote inventory: no private evidence, provisional assessments or verdicts. */
 export async function GET() {
-  const publicRead = publicReadEnabled((env as unknown as Record<string, string | undefined>)[PUBLIC_READ_FLAG]);
+  const publicRead = publicReadEnabled(process.env[PUBLIC_READ_FLAG]);
   if (!publicRead) return editorJson({ error: PUBLIC_READ_DISABLED_MESSAGE }, 403);
   try {
     // Unreviewed machine captures are withheld until the published record is large
