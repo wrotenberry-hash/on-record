@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return <>
     <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><small>PRIVATE REVIEW BUILD</small></nav></header>
     <main><div className="intro"><div className="eyebrow">EDITOR SIGN-IN</div><h1>Sign in to the checking instrument.</h1>
-      <p>Enter the editor access key. It is kept in the project's settings, not in any email. You stay signed in on this device for 30 days.</p></div>
+      <p>Enter the editor access key. It is kept in the project&apos;s settings, not in any email. You stay signed in on this device for 30 days.</p></div>
       {status && <div role={status === "signedout" ? "status" : "alert"} className={status === "signedout" ? "form-success" : "form-error"}>{messages[status]}</div>}
       <form action={signInWithKey} className="intake-panel" style={{ maxWidth: 480 }}>
         <input type="hidden" name="return_to" value={returnTo} />
