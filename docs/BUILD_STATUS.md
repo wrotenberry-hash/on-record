@@ -1,8 +1,12 @@
 # On Record build status — 2026-09-26
 
-## Hosting moved to Vercel (2026-09-26, code complete, not yet deployed)
+## Unattended intake ran on schedule (2026-09-26 13:00 UTC)
 
-- Next.js on Vercel's Node runtime; Turso database with the same migrations; Supabase magic-link sign-in; Vercel Cron at 13:00 and 19:00 UTC calling `/api/automation/tick` with `CRON_SECRET`. Twenty tests, typecheck and `next build` pass. Nothing is deployed until the Vercel project, Turso database and Supabase Auth project exist and their settings are entered; see `PUBLIC_ACCESS.md`.
+- Vercel Cron called `/api/automation/tick` at 13:00:38 UTC; the ledger row for slot `2026-09-26T13` is COMPLETE with capture CAPTURED and research COMPLETE in 109 s, against the stable Turso database. This is the first unattended pass in production. What it captured and drafted has not yet been inspected by a person: editor sign-in is not configured, so the founder's sign-in decision is the next gate.
+
+## Hosting moved to Vercel (2026-09-26)
+
+- Next.js on Vercel's Node runtime; Turso database with the same migrations; Supabase magic-link sign-in; Vercel Cron at 13:00 and 19:00 UTC calling `/api/automation/tick` with `CRON_SECRET`. Twenty-three tests, typecheck and `next build` pass. Deployed at `https://on-record-wrotenberry.vercel.app`; see `PUBLIC_ACCESS.md` for the state ladder.
 
 ## Changed later on 2026-09-25 (not yet deployed)
 

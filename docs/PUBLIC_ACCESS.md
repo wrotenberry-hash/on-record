@@ -85,10 +85,10 @@ project's deployment protection; the data stays in Turso.
 
 | Item | Coded | Deployed to Site | Ran manually | Verified on schedule |
 | --- | --- | --- | --- | --- |
-| Tick job, ledger, hour slot, daily cap | yes | yes (per handoff) | locally only, against local D1 (COMPLETE, ALREADY_RUNNING_OR_COMPLETE, DAILY_LIMIT all observed) | no |
+| Tick job, ledger, hour slot, daily cap | yes | yes (Vercel) | locally: COMPLETE, ALREADY_RUNNING_OR_COMPLETE, DAILY_LIMIT all observed | **yes**: Vercel Cron GET at 13:00:38 UTC on 2026-09-26 returned 200; ledger row slot `2026-09-26T13`, COMPLETE, capture CAPTURED, research COMPLETE, 109 s |
 | `PUBLIC_READ_ENABLED` switch, rejected-quote filter, 20-record inventory gate, passage trimming, editor sign-in wall, health probe | yes | no | locally only | not applicable |
-| Vercel Cron entries (13:00, 19:00 UTC) | yes | no | no | no |
+| Vercel Cron entries (13:00, 19:00 UTC) | yes | yes | not applicable | first firing verified 2026-09-26 13:00 UTC |
 | Supabase magic-link sign-in | yes | no | not testable without a project | not applicable |
-| Turso database | migrations unchanged | no | local file only | not applicable |
-| CRON_SECRET | not applicable | not provisioned | not applicable | not applicable |
-| One complete private draft after credit top-up | not applicable | not applicable | not established | not applicable |
+| Turso database (stable `on-record`, hand-set) | migrations unchanged | yes, migrated at build | yes | same hostname across three deploys |
+| CRON_SECRET, OPENAI_API_KEY | not applicable | provisioned | not applicable | used by the 13:00 run |
+| One complete private draft after credit top-up | not applicable | not applicable | produced by the 13:00 scheduled run (research COMPLETE); human inspection pending | not applicable |
