@@ -1,5 +1,10 @@
 export const dynamic = "force-dynamic";
 
+/** Hostname only, never the token. Lets an operator confirm every deploy uses the same database. */
+function databaseHost(): string | null {
+  try { const url = process.env.TURSO_DATABASE_URL?.trim(); return url ? new URL(url).hostname : null; } catch { return "unparseable"; }
+}
+
 
 
 /**
@@ -9,6 +14,6 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const tick = Boolean(process.env.AUTOMATION_TICK_SECRET?.trim()), cron = Boolean(process.env.CRON_SECRET?.trim());
-  return Response.json({ service: "on-record", status: "reachable", tickSecretConfigured: tick, cronSecretConfigured: cron, database: process.env.TURSO_DATABASE_URL ? "turso" : "local-file", time: new Date().toISOString() },
+  return Response.json({ service: "on-record", status: "reachable", tickSecretConfigured: tick, cronSecretConfigured: cron, database: process.env.TURSO_DATABASE_URL ? "turso" : "local-file", databaseHost: databaseHost(), time: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } });
 }
