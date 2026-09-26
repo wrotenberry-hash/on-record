@@ -39,6 +39,9 @@ async function runTick(request: Request) {
     if (!discovered.ok) throw Error(`Source discovery returned ${discovered.status}`);
     const captured = await processOneCandidate({}, "scheduled-worker");
     const result = await captured.json() as { id?: string; status?: string; caseIds?: string[]; error?: string };
+    // Keep what the capture step established even if research fails afterwards.
+    await db.update(automationRuns).set({ candidateId: result.id, captureStatus: result.status ?? (captured.ok ? "NONE" : "FAILED") })
+      .where(eq(automationRuns.id, id));
     if (!captured.ok) throw Error(`Capture: ${result.error ?? captured.status}`);
     const pending = await db.select({ id: representations.id }).from(representations)
       .leftJoin(machineResearchDrafts, eq(machineResearchDrafts.representationId, representations.id))
@@ -50,8 +53,11 @@ async function runTick(request: Request) {
     if (representationId) {
       const researched = await runMachineResearch(representationId);
       const draft = await researched.json() as { status?: string; error?: string };
-      if (!researched.ok) throw Error(`Research: ${draft.error ?? researched.status}`);
-      researchStatus = draft.status ?? "COMPLETE";
+      // The daily research budget is shared with the editor. Reaching it is a
+      // bounded, expected outcome, not a failure of the job.
+      if (researched.status === 429) researchStatus = "DAILY_RESEARCH_LIMIT";
+      else if (!researched.ok) throw Error(`Research: ${draft.error ?? researched.status}`);
+      else researchStatus = draft.status ?? "COMPLETE";
     }
     await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(),
       candidateId: result.id, representationId, captureStatus: result.status, researchStatus })

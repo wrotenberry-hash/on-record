@@ -27,6 +27,17 @@ function decodeEntities(text: string) {
     ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&nbsp;": " ", "&#39;": "'", "&#x27;": "'" })[entity.toLowerCase() as "&amp;"] ?? entity);
 }
 
+/** Remove page furniture that is not the communication itself. Exported for tests. */
+export function stripChrome(html: string): string {
+  let out = html;
+  for (const tag of ["nav", "aside", "header", "footer", "form"]) {
+    out = out.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"), " ");
+  }
+  // Blocks whose class or id says what they are: related items, sharing, menus, sidebars.
+  out = out.replace(/<(div|section|ul)\b[^>]*(?:class|id)=["'][^"']*(?:related|sidebar|share|social|menu|breadcrumb|pagination|newsletter)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ");
+  return out;
+}
+
 /** Fetch only a public HTTPS page; do not trust redirects or embedded page instructions. */
 export async function fetchSource(rawUrl: string) {
   const url = publicUrl(rawUrl);
@@ -43,10 +54,13 @@ export async function fetchSource(rawUrl: string) {
     raw.match(/"datePublished"\s*:\s*"([^"']+)"/i)?.[1];
   const date = dateText ? Date.parse(dateText) : NaN;
   const publishedAt = Number.isFinite(date) && date > Date.UTC(1800, 0, 1) && date < Date.now() + 86400000 ? date : null;
-  const article = raw.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] ??
-    raw.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
+  // Related-links boxes, menus and footers are not the communication. Strip them
+  // before choosing the readable body so a quote is never lifted from a sidebar.
+  const trimmed = stripChrome(raw);
+  const article = trimmed.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] ??
+    trimmed.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
   const readable = contentType.includes("html") && article && article.length > 350 ? article : raw;
-  const body = contentType.includes("html") ? readable.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+  const body = contentType.includes("html") ? stripChrome(readable).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ") : raw;
   const text = decodeEntities(body).replace(/\s+/g, " ").trim().slice(0, 90_000);
   if (text.length < 80) throw Error("Source has too little readable text for automated capture");

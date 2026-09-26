@@ -42,3 +42,16 @@ test("bilateral research requires an actual web search and public citation", asy
     assert.match(result.strategy, /official statistical source/);
   } finally { globalThis.fetch = original; }
 });
+
+test("page furniture is stripped before the readable body is chosen", async () => {
+  const { stripChrome } = await import("../lib/automated-research.ts");
+  const html = `<html><body><nav><a href="/x">Other release about Plattsburgh</a></nav>
+    <main><article><p>Statement body sentence one. Statement body sentence two.</p></article>
+    <div class="related-posts"><p>Sidebar quote that must not be extracted.</p></div></main>
+    <footer>Contact</footer></body></html>`;
+  const out = stripChrome(html);
+  assert.match(out, /Statement body sentence one/);
+  assert.doesNotMatch(out, /Sidebar quote/);
+  assert.doesNotMatch(out, /Other release/);
+  assert.doesNotMatch(out, /Contact/);
+});

@@ -1,8 +1,9 @@
-import { and, desc, eq, lt, notLike, or } from "drizzle-orm";
+import { and, desc, eq, lt, max, notLike, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import { intakeCandidates } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { runAutomatedReview } from "@/app/api/editor/automate/route";
+import { pickNextLead } from "@/lib/lead-selection";
 
 export const maxDuration = 300;
 
@@ -23,6 +24,19 @@ export async function POST(request: Request) {
   return processOneCandidate(body, auth.user.userId);
 }
 
+/** Unattended capture rotates across lanes; see lib/lead-selection.ts. */
+async function nextQueuedLead() {
+  const db = getDb();
+  const [queued, captured] = await Promise.all([
+    db.select().from(intakeCandidates).where(and(eq(intakeCandidates.status, "QUEUED"), eq(intakeCandidates.era, "current"),
+      notLike(intakeCandidates.medium, "%needs-transcript%"))).orderBy(desc(intakeCandidates.discoveredAt)).limit(200),
+    db.select({ lane: intakeCandidates.lane, last: max(intakeCandidates.completedAt) }).from(intakeCandidates)
+      .where(eq(intakeCandidates.status, "CAPTURED")).groupBy(intakeCandidates.lane),
+  ]);
+  const lastCaptureByLane = new Map(captured.map(row => [row.lane, Number(row.last ?? 0)]));
+  return pickNextLead(queued, lastCaptureByLane);
+}
+
 export async function processOneCandidate(body: { id?: unknown; retry?: unknown }, actor: string) {
   if (body.id !== undefined && (typeof body.id !== "string" || body.id.length > 100)) return editorJson({ error: "Invalid candidate" }, 400);
   if (body.retry === true && !body.id) return editorJson({ error: "Select a failed lead to retry" }, 400);
@@ -34,10 +48,9 @@ export async function processOneCandidate(body: { id?: unknown; retry?: unknown 
       .returning({ id: intakeCandidates.id });
     if (!changed.length) return editorJson({ error: "Only failed or stale processing leads can be retried" }, 409);
   }
-  const pending = await db.select().from(intakeCandidates).where(body.id
-    ? and(eq(intakeCandidates.id, body.id), eq(intakeCandidates.status, "QUEUED"))
-    : and(eq(intakeCandidates.status, "QUEUED"), eq(intakeCandidates.era, "current"),
-      notLike(intakeCandidates.medium, "%needs-transcript%"))).orderBy(desc(intakeCandidates.discoveredAt)).limit(1).get();
+  const pending = body.id
+    ? await db.select().from(intakeCandidates).where(and(eq(intakeCandidates.id, body.id), eq(intakeCandidates.status, "QUEUED"))).limit(1).get()
+    : await nextQueuedLead();
   if (!pending) return editorJson({ message: "No queued lead remains" });
   if (pending.lane === "Multi-speaker" || pending.medium.includes("needs-transcript"))
     return editorJson({ error: "Original recording or speaker turns require a checked transcript before extraction" }, 422);
