@@ -12,6 +12,8 @@ Read `docs/CLAUDE_HANDOFF.md` first, then `docs/DECISIONS.md`,
 
 ## Hosting (since 2026-09-26)
 
+Production: `https://on-record-wrotenberry.vercel.app` (Vercel project `on-record`, deploys from `main`).
+
 | Layer | Choice | Notes |
 | --- | --- | --- |
 | App | Next.js 16 (App Router) on Vercel | Node runtime; no edge functions |

@@ -61,3 +61,19 @@ gone. `README.md` describes the new stack and local workflow;
 The Site at `on-record-review.n46csd5yyk.chatgpt.site` is superseded and can
 be deleted once the Vercel deployment has completed one scheduled run.
 
+## Deployment record (2026-09-26)
+
+- Repository: `wrotenberry-hash/on-record`, production branch `main`.
+- Vercel project `on-record` (team `wrotenberry`), production URL
+  `https://on-record-wrotenberry.vercel.app`. First production deploy from
+  commit 2e608ce built in 33 s. Vercel Authentication is kept on preview
+  deployments only; production relies on the app's own locks, which were
+  verified live: `/api/automation/health` 200, `/api/representations` 403,
+  `/api/editor/cases` 401.
+- Environment set so far: `CRON_SECRET` (sensitive, production and preview)
+  and `AUTOMATION_DAILY_LIMIT=2`. Still to set: Turso, Supabase, the editor
+  allowlist and `OPENAI_API_KEY`. A redeploy after those binds them.
+- The branch `claude/on-record-handoff-l9o89x` in `wrotenberry-hash/gravel`
+  was the temporary home before this repository existed and is now a stale
+  mirror; do not develop there.
+
