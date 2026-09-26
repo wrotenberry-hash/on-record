@@ -77,3 +77,7 @@ be deleted once the Vercel deployment has completed one scheduled run.
   was the temporary home before this repository existed and is now a stale
   mirror; do not develop there.
 
+## Update 2026-09-26, later: sign-in and first scheduled run
+
+The founder chose the free access-key sign-in over a paid Supabase project, with their own email as the reviewer identity. `lib/auth.ts` and `lib/session-token.ts` implement it; Supabase is gone from the dependencies. The first Vercel Cron run (13:00 UTC) completed with a capture and a research draft; see `BUILD_STATUS.md`.
+

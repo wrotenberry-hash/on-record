@@ -18,7 +18,7 @@ Production: `https://on-record-wrotenberry.vercel.app` (Vercel project `on-recor
 | --- | --- | --- |
 | App | Next.js 16 (App Router) on Vercel | Node runtime; no edge functions |
 | Database | Turso (hosted SQLite) via Drizzle | Same schema and migrations as the earlier D1 build |
-| Editor sign-in | Supabase Auth magic link | Server-side only; allowlist in `EDITOR_EMAILS` |
+| Editor sign-in | Access key, signed 30-day cookie | `EDITOR_ACCESS_KEY`; reviewer identity from `EDITOR_EMAILS` |
 | Scheduler | Vercel Cron | `vercel.json`: 13:00 and 19:00 UTC → `/api/automation/tick` |
 | Models | OpenAI Responses API | `OPENAI_API_KEY` server-side only |
 
@@ -34,8 +34,8 @@ pnpm run db:migrate          # creates ./.data/on-record.db from ./drizzle
 pnpm run dev                 # http://localhost:3000
 ```
 
-Without Supabase settings, sign-in is disabled and every editor route answers
-401. Without `OPENAI_API_KEY`, capture and research answer 503. Without
+Without `EDITOR_ACCESS_KEY` and `EDITOR_EMAILS`, sign-in is disabled and every
+editor route answers 401. Without `OPENAI_API_KEY`, capture and research answer 503. Without
 `CRON_SECRET` or `AUTOMATION_TICK_SECRET`, the tick answers 401. Without
 `PUBLIC_READ_ENABLED=1`, the public routes answer 403 and `/records` shows a
 private-review notice. All of that is by design: a fresh checkout exposes nothing.
@@ -56,14 +56,13 @@ Environment Variables. Never put a key in source, a chat message or a client bun
 | --- | --- |
 | `ON_RECORD_DATABASE_URL`, `ON_RECORD_DATABASE_TOKEN` | The stable Turso database, set by hand. Preferred. |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Injected by the Vercel Marketplace integration; a different database per deployment, so only a fallback. Unset locally means a file under `.data/`. |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Editor sign-in only. Both server-side. |
-| `EDITOR_EMAILS`, `EDITOR_USER_IDS` | Editor allowlist. Empty fails closed. |
+| `EDITOR_ACCESS_KEY` | Typed once at `/login`; rotating it signs everyone out. |
+| `EDITOR_EMAILS`, `EDITOR_USER_IDS` | Reviewer identity (first email) and allowlist. Empty fails closed. |
 | `OPENAI_API_KEY`, `OPENAI_EXTRACT_MODEL`, `OPENAI_RESEARCH_MODEL` | Extraction and research. |
 | `CRON_SECRET` | Vercel Cron sends it as a bearer on the scheduled GET. |
 | `AUTOMATION_TICK_SECRET` | Bearer for a manual `POST /api/automation/tick`. |
 | `AUTOMATION_DAILY_LIMIT` | Job and research attempts per UTC day (default 2, max 5). |
 | `PUBLIC_READ_ENABLED` | Anonymous reading of `/records` and its APIs. Off unless `1`. |
-| `NEXT_PUBLIC_SITE_URL` | Absolute origin for magic-link redirects; optional on Vercel. |
 
 ## Database migrations
 
@@ -77,7 +76,7 @@ methodology gates and must stay in the migration history.
 ## Routes
 
 - `/editor`: the checking instrument. Sign-in required; allowlist enforced by every API.
-- `/login`, `/auth/callback`, `/auth/signout`: magic-link sign-in.
+- `/login`, `/auth/signout`: access-key sign-in and sign-out.
 - `/records`: published CHECKING records and, once 20 exist, the incoming inventory. Closed unless `PUBLIC_READ_ENABLED=1`.
 - `/api/automation/tick`: the unattended job (GET from Vercel Cron, POST manually).
 - `/api/automation/health`: reachability and which secrets are bound. No data.

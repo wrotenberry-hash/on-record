@@ -17,7 +17,7 @@ chose to move hosting to Vercel, where the scheduler is built in:
 | --- | --- | --- |
 | Scheduler | none; needed a Cloudflare Worker that could not get past the edge | Vercel Cron in `vercel.json`, authenticated with `CRON_SECRET` |
 | Ingress | platform edge 401 before the app | requests reach the app; every lock is in the app |
-| Editor identity | ChatGPT identity headers injected by the platform | Supabase Auth magic link, HttpOnly cookie, server-side only |
+| Editor identity | ChatGPT identity headers injected by the platform | Access key exchanged at `/login` for a signed HttpOnly cookie; reviewer identity from `EDITOR_EMAILS` |
 | Database | Cloudflare D1, no documented export | Turso, same SQLite schema and migrations |
 | Deploys | through a Codex session | on every push to the production branch |
 
@@ -64,15 +64,15 @@ health probe and the sign-in wall. Setting it is a publication decision.
    `ON_RECORD_DATABASE_URL` and `ON_RECORD_DATABASE_TOKEN`. The Marketplace
    integration's own `TURSO_*` pair names a different database per deployment
    (verified on 2026-09-26 by comparing two deploys), so it must not be relied on.
-   Then the sign-in settings. Names in `.env.example`.
-2. **Set `EDITOR_EMAILS`** to the reviewer's email. Empty fails closed.
+   Names in `.env.example`.
+2. **Set `EDITOR_ACCESS_KEY`** (long random value) and `EDITOR_EMAILS` (the reviewer's email). Empty fails closed.
 3. **Set `OPENAI_API_KEY`** (project-scoped key with an expiry) and, in the
    OpenAI dashboard, enforce a hard monthly spend limit on that project.
 4. **Set `CRON_SECRET`** to a fresh random value. Vercel Cron sends it on every
    scheduled call. `AUTOMATION_TICK_SECRET` is optional and only for manual POSTs.
 5. **Deploy.** The build applies migrations, then `GET /api/automation/health`
    should report `cronSecretConfigured: true` and `database: "turso"`.
-6. **Sign in** at `/login`, open `/editor`, confirm the source queue fills.
+6. **Sign in** at `/login` with the access key, open `/editor`, confirm the source queue fills.
 7. **Verify a scheduled run** the next day in the editor's "Scheduled intake"
    panel (`automation_runs`), then a `DAILY_LIMIT` response on a third call.
    Only then is unattended intake live.
@@ -88,7 +88,7 @@ project's deployment protection; the data stays in Turso.
 | Tick job, ledger, hour slot, daily cap | yes | yes (Vercel) | locally: COMPLETE, ALREADY_RUNNING_OR_COMPLETE, DAILY_LIMIT all observed | **yes**: Vercel Cron GET at 13:00:38 UTC on 2026-09-26 returned 200; ledger row slot `2026-09-26T13`, COMPLETE, capture CAPTURED, research COMPLETE, 109 s |
 | `PUBLIC_READ_ENABLED` switch, rejected-quote filter, 20-record inventory gate, passage trimming, editor sign-in wall, health probe | yes | no | locally only | not applicable |
 | Vercel Cron entries (13:00, 19:00 UTC) | yes | yes | not applicable | first firing verified 2026-09-26 13:00 UTC |
-| Supabase magic-link sign-in | yes | no | not testable without a project | not applicable |
+| Access-key sign-in (founder chose free over Supabase, 2026-09-26) | yes | pending | local only | not applicable |
 | Turso database (stable `on-record`, hand-set) | migrations unchanged | yes, migrated at build | yes | same hostname across three deploys |
 | CRON_SECRET, OPENAI_API_KEY | not applicable | provisioned | not applicable | used by the 13:00 run |
 | One complete private draft after credit top-up | not applicable | not applicable | produced by the 13:00 scheduled run (research COMPLETE); human inspection pending | not applicable |

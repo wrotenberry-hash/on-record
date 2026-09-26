@@ -1,6 +1,6 @@
 # Editorial intake and case API
 
-`GET /api/editor/drafts` and `POST /api/editor/drafts` require a signed-in editor **and** an explicit editor allowlist. Identity comes from a Supabase Auth magic-link session read server-side from an HttpOnly cookie (`lib/auth.ts`); nothing from the request body or a client header is trusted. Set `EDITOR_USER_IDS` or `EDITOR_EMAILS` as comma-separated environment variables containing the authorized reviewer's Supabase user ID or email. An unset or empty allowlist fails closed (HTTP 403). Missing identity returns HTTP 401.
+`GET /api/editor/drafts` and `POST /api/editor/drafts` require a signed-in editor **and** an explicit editor allowlist. Identity comes from a signed, expiring HttpOnly session cookie issued at `/login` in exchange for `EDITOR_ACCESS_KEY` (`lib/auth.ts`, `lib/session-token.ts`); nothing from the request body or a client header is trusted. The reviewer identity recorded on attestations is the first entry of `EDITOR_EMAILS`. This is a single-reviewer arrangement; per-person accounts replace `lib/auth.ts` only. An unset or empty allowlist fails closed (HTTP 403). Missing identity returns HTTP 401.
 
 ## POST
 

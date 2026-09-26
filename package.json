@@ -20,8 +20,6 @@
     "@hookform/resolvers": "^5.7.1",
     "@libsql/client": "^0.15.15",
     "@shadcn/react": "^0.3.0",
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.58.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "^1.1.1",
