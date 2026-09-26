@@ -44,7 +44,7 @@ private-review notice. All of that is by design: a fresh checkout exposes nothin
 pnpm test        # node --test tests/*.test.mjs
 pnpm typecheck   # tsc --noEmit
 pnpm lint
-pnpm build       # runs migrations (when TURSO_DATABASE_URL is set), then next build
+pnpm build       # runs migrations (when a database URL is set), then next build
 ```
 
 ## Environment variables
@@ -54,7 +54,8 @@ Environment Variables. Never put a key in source, a chat message or a client bun
 
 | Variable | Purpose |
 | --- | --- |
-| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Database. Unset locally means a file under `.data/`. |
+| `ON_RECORD_DATABASE_URL`, `ON_RECORD_DATABASE_TOKEN` | The stable Turso database, set by hand. Preferred. |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Injected by the Vercel Marketplace integration; a different database per deployment, so only a fallback. Unset locally means a file under `.data/`. |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Editor sign-in only. Both server-side. |
 | `EDITOR_EMAILS`, `EDITOR_USER_IDS` | Editor allowlist. Empty fails closed. |
 | `OPENAI_API_KEY`, `OPENAI_EXTRACT_MODEL`, `OPENAI_RESEARCH_MODEL` | Extraction and research. |
@@ -69,7 +70,7 @@ Environment Variables. Never put a key in source, a chat message or a client bun
 Schema lives in `db/schema.ts`; SQL migrations in `drizzle/` with Drizzle's
 journal. `pnpm run db:generate` writes a new migration after a schema change;
 `pnpm run db:migrate` applies pending ones. The Vercel build applies them
-before `next build` whenever `TURSO_DATABASE_URL` is set. Never edit the
+before `next build` whenever a database URL is set. Never edit the
 database by hand; the triggers in `drizzle/0000`–`0003` enforce the
 methodology gates and must stay in the migration history.
 

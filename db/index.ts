@@ -2,26 +2,19 @@ import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { mkdirSync } from "node:fs";
 import * as schema from "./schema";
+import { databaseSettings } from "./settings";
 
-/**
- * Turso (hosted SQLite) in production; a local SQLite file for development and
- * tests. The schema and every migration are unchanged from the D1 build.
- */
-export const LOCAL_DATABASE_URL = "file:./.data/on-record.db";
+export { databaseSettings, LOCAL_DATABASE_URL } from "./settings";
 
-export function databaseUrl(): string {
-  const url = process.env.TURSO_DATABASE_URL?.trim();
-  if (url) return url;
-  mkdirSync(".data", { recursive: true });
-  return LOCAL_DATABASE_URL;
-}
-
+/** Turso (hosted SQLite) in production; a local SQLite file otherwise. See ./settings.ts. */
 let client: Client | undefined;
 let db: LibSQLDatabase<typeof schema> | undefined;
 
 export function getDb() {
   if (!db) {
-    client = createClient({ url: databaseUrl(), authToken: process.env.TURSO_AUTH_TOKEN || undefined });
+    const settings = databaseSettings();
+    if (settings.source === "local") mkdirSync(".data", { recursive: true });
+    client = createClient({ url: settings.url, authToken: settings.authToken });
     db = drizzle(client, { schema });
   }
   return db;

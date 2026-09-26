@@ -60,8 +60,11 @@ health probe and the sign-in wall. Setting it is a publication decision.
 
 ## Order of operations on Vercel
 
-1. **Create the database** (Turso) and the sign-in project (Supabase Auth) and
-   put their settings in Vercel environment variables. Names in `.env.example`.
+1. **Create the database** (Turso) and put its stable URL and token in Vercel as
+   `ON_RECORD_DATABASE_URL` and `ON_RECORD_DATABASE_TOKEN`. The Marketplace
+   integration's own `TURSO_*` pair names a different database per deployment
+   (verified on 2026-09-26 by comparing two deploys), so it must not be relied on.
+   Then the sign-in settings. Names in `.env.example`.
 2. **Set `EDITOR_EMAILS`** to the reviewer's email. Empty fails closed.
 3. **Set `OPENAI_API_KEY`** (project-scoped key with an expiry) and, in the
    OpenAI dashboard, enforce a hard monthly spend limit on that project.
