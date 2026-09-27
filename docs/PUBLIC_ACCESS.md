@@ -91,4 +91,5 @@ project's deployment protection; the data stays in Turso.
 | Access-key sign-in (founder chose free over Supabase, 2026-09-26) | yes | pending | local only | not applicable |
 | Turso database (stable `on-record`, hand-set) | migrations unchanged | yes, migrated at build | yes | same hostname across three deploys |
 | CRON_SECRET, OPENAI_API_KEY | not applicable | provisioned | not applicable | used by the 13:00 run |
+| Exception-only monitoring (Resend) | yes | yes | test alert received 2026-09-27 | evaluates after every scheduled run; no real alert has fired yet |
 | One complete private draft after credit top-up | not applicable | not applicable | produced by the 13:00 scheduled run (research COMPLETE); human inspection pending | not applicable |
