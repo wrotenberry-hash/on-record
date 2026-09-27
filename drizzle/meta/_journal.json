@@ -64,6 +64,13 @@
       "when": 1790372120553,
       "tag": "0008_quiet_selene",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790545738733,
+      "tag": "0009_alert_events",
+      "breakpoints": true
     }
   ]
 }

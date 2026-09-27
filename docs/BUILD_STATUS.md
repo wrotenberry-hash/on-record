@@ -1,5 +1,9 @@
 # On Record build status — 2026-09-27
 
+## Exception-only monitoring (2026-09-27)
+
+- After every scheduled run the app evaluates four conditions against the run ledger and emails wrotenberry@gmail.com through Resend only when one holds: two consecutive failed runs, no capture in 72 h, month-to-date OpenAI spend above 75% of `OPENAI_MONTHLY_LIMIT_USD`, or the key within 21 days of `OPENAI_KEY_EXPIRES`. Each kind at most once per 24 h, recorded in the new `alert_events` table (migration 0009; no other schema change). Test alert from the editor button or `POST /api/automation/alerts/test`. Details in `MONITORING.md`. Needs `RESEND_API_KEY` in Vercel to deliver.
+
 ## Second day of scheduled runs (2026-09-27)
 
 - 13:00 UTC: COMPLETE, but the capture of the rotated-lane lead FAILED and research ran on a leftover candidate. Fix shipped the same morning: the job tries up to three leads, fetches carry a descriptive User-Agent, and the run's error note is visible on the health probe.

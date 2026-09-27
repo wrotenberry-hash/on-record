@@ -221,3 +221,10 @@ export const corrections = sqliteTable("corrections", {
   replacementPublicationId: text("replacement_publication_id").references(() => publications.id),
   reason: text("reason").notNull(), correctedAt: integer("corrected_at").notNull(), correctedBy: text("corrected_by").notNull(),
 }, t => [index("corrections_publication_idx").on(t.publicationId)]);
+
+// Exception-only monitoring: one row per alert email actually sent. Used to
+// fire each alert kind at most once per 24 hours. Never read by the public site.
+export const alertEvents = sqliteTable("alert_events", {
+  id: text("id").primaryKey(), kind: text("kind").notNull(), sentAt: integer("sent_at").notNull(),
+  detail: text("detail").notNull(), recipient: text("recipient").notNull(),
+}, t => [index("alert_events_kind_sent_idx").on(t.kind, t.sentAt)]);

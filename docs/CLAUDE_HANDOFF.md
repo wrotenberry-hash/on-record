@@ -81,3 +81,7 @@ be deleted once the Vercel deployment has completed one scheduled run.
 
 The founder chose the free access-key sign-in over a paid Supabase project, with their own email as the reviewer identity. `lib/auth.ts` and `lib/session-token.ts` implement it; Supabase is gone from the dependencies. The first Vercel Cron run (13:00 UTC) completed with a capture and a research draft; see `BUILD_STATUS.md`.
 
+## Update 2026-09-27: monitoring
+
+Exception-only email monitoring after each scheduled run (`docs/MONITORING.md`, `lib/monitoring.ts`, `lib/monitoring-runtime.ts`). One additive table, `alert_events`, for the 24-hour dedupe. Review-gate triggers untouched.
+

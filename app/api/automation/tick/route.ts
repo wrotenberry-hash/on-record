@@ -5,6 +5,7 @@ import { runDiscovery } from "@/app/api/editor/discover/route";
 import { processOneCandidate } from "@/app/api/editor/intake/route";
 import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/route";
 import { tickAuthorized } from "@/lib/tick-auth";
+import { runMonitoring, type MonitoringOutcome } from "@/lib/monitoring-runtime";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -73,11 +74,17 @@ async function runTick(request: Request) {
     await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(), representationId, researchStatus })
       .where(eq(automationRuns.id, id));
     return Response.json({ status: "COMPLETE", slot, via, candidateId: result.id,
-      representationId, captureStatus: result.status, captureAttempts: attempts, researchStatus });
+      representationId, captureStatus: result.status, captureAttempts: attempts, researchStatus, monitoring: await monitorAfterRun() });
   } catch (caught) {
     const error = (caught instanceof Error ? caught.message : "Job failed").slice(0, 400);
     await db.update(automationRuns).set({ status: "FAILED", finishedAt: Date.now(), error })
       .where(eq(automationRuns.id, id));
-    return Response.json({ status: "FAILED", slot, error }, { status: 502 });
+    return Response.json({ status: "FAILED", slot, error, monitoring: await monitorAfterRun() }, { status: 502 });
   }
+}
+
+/** Exception-only monitoring runs after the ledger row is final. A monitoring fault never changes the run's result. */
+async function monitorAfterRun(): Promise<MonitoringOutcome | { evaluated: false; error: string }> {
+  try { return await runMonitoring(); }
+  catch (error) { return { evaluated: false, error: (error instanceof Error ? error.message : "monitoring failed").slice(0, 200) }; }
 }

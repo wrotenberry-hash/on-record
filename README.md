@@ -63,6 +63,8 @@ Environment Variables. Never put a key in source, a chat message or a client bun
 | `AUTOMATION_TICK_SECRET` | Bearer for a manual `POST /api/automation/tick`. |
 | `AUTOMATION_DAILY_LIMIT` | Job and research attempts per UTC day (default 2, max 5). |
 | `PUBLIC_READ_ENABLED` | Anonymous reading of `/records` and its APIs. Off unless `1`. |
+| `RESEND_API_KEY`, `ALERT_TO_EMAIL`, `ALERT_FROM_EMAIL` | Exception-only alert email. See `docs/MONITORING.md`. |
+| `OPENAI_MONTHLY_LIMIT_USD`, `OPENAI_KEY_EXPIRES`, `OPENAI_ADMIN_KEY` | Spend and key-expiry alert inputs. Admin key optional; without it spend is estimated from the ledger. |
 
 ## Database migrations
 
@@ -79,4 +81,5 @@ methodology gates and must stay in the migration history.
 - `/login`, `/auth/signout`: access-key sign-in and sign-out.
 - `/records`: published CHECKING records and, once 20 exist, the incoming inventory. Closed unless `PUBLIC_READ_ENABLED=1`.
 - `/api/automation/tick`: the unattended job (GET from Vercel Cron, POST manually).
-- `/api/automation/health`: reachability and which secrets are bound. No data.
+- `/api/automation/health`: reachability, which secrets are bound, last run, last alert. No data.
+- `/api/automation/alerts/test`: POST with the cron or tick bearer to send a test alert email.
