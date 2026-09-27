@@ -14,16 +14,20 @@ function databaseHost(): string | null {
 async function lastRun() {
   try {
     const row = await getDb().select({ slot: automationRuns.slot, status: automationRuns.status, captureStatus: automationRuns.captureStatus,
-      researchStatus: automationRuns.researchStatus, startedAt: automationRuns.startedAt, finishedAt: automationRuns.finishedAt })
+      researchStatus: automationRuns.researchStatus, startedAt: automationRuns.startedAt, finishedAt: automationRuns.finishedAt,
+      error: automationRuns.error })
       .from(automationRuns).orderBy(desc(automationRuns.startedAt)).limit(1).get();
-    return row ? { ...row, hadError: row.status === "FAILED" } : null;
+    if (!row) return null;
+    // Error text is status words and generic fetch/extraction messages; strip anything URL-shaped defensively.
+    const note = row.error ? row.error.replace(/https?:\/\/\S+/g, "[url]").slice(0, 300) : null;
+    return { ...row, error: note, hadError: row.status === "FAILED" };
   } catch { return "unavailable" as const; }
 }
 
 /**
  * Anonymous reachability probe for the scheduler path. It reports only whether
  * the request reached the app, which secrets are provisioned, which database is
- * in use and the status words of the last scheduled run. It never reveals a
+ * in use and the status words (plus generic error notes) of the last scheduled run. It never reveals a
  * secret, a captured statement, or spends model budget.
  */
 export async function GET() {

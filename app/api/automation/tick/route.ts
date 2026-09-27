@@ -9,6 +9,7 @@ import { tickAuthorized } from "@/lib/tick-auth";
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
 export const maxDuration = 300;
+const MAX_CAPTURE_ATTEMPTS = 3;
 export const dynamic = "force-dynamic";
 
 /** Vercel Cron calls the job with GET and the CRON_SECRET bearer. */
@@ -37,12 +38,22 @@ async function runTick(request: Request) {
   try {
     const discovered = await runDiscovery();
     if (!discovered.ok) throw Error(`Source discovery returned ${discovered.status}`);
-    const captured = await processOneCandidate({}, "scheduled-worker");
-    const result = await captured.json() as { id?: string; status?: string; caseIds?: string[]; error?: string };
+    // A lead can fail to fetch (blocked host, redirect, thin page) or yield no
+    // claim. Move on to the next lead rather than lose the slot; each attempt is
+    // one page fetch and at most one extraction call, so three is a modest cap.
+    let result: { id?: string; status?: string; caseIds?: string[]; error?: string; message?: string } = {};
+    let captured: Response | undefined;
+    const attempts: string[] = [];
+    for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt++) {
+      captured = await processOneCandidate({}, "scheduled-worker");
+      result = await captured.json();
+      attempts.push(`${result.status ?? (captured.ok ? "NONE" : "ERROR")}${result.error ? `: ${result.error.slice(0, 120)}` : ""}`);
+      if (!captured.ok) throw Error(`Capture: ${result.error ?? captured.status}`);
+      if (!result.id || result.status === "CAPTURED") break; // captured, or the queue is empty
+    }
     // Keep what the capture step established even if research fails afterwards.
-    await db.update(automationRuns).set({ candidateId: result.id, captureStatus: result.status ?? (captured.ok ? "NONE" : "FAILED") })
-      .where(eq(automationRuns.id, id));
-    if (!captured.ok) throw Error(`Capture: ${result.error ?? captured.status}`);
+    await db.update(automationRuns).set({ candidateId: result.id, captureStatus: result.id ? (result.status ?? "NONE") : "NO_QUEUED_LEAD",
+      error: result.status === "CAPTURED" ? null : attempts.join(" | ").slice(0, 400) }).where(eq(automationRuns.id, id));
     const pending = await db.select({ id: representations.id }).from(representations)
       .leftJoin(machineResearchDrafts, eq(machineResearchDrafts.representationId, representations.id))
       .where(and(eq(representations.status, "CANDIDATE"), isNull(machineResearchDrafts.representationId),
@@ -59,11 +70,10 @@ async function runTick(request: Request) {
       else if (!researched.ok) throw Error(`Research: ${draft.error ?? researched.status}`);
       else researchStatus = draft.status ?? "COMPLETE";
     }
-    await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(),
-      candidateId: result.id, representationId, captureStatus: result.status, researchStatus })
+    await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(), representationId, researchStatus })
       .where(eq(automationRuns.id, id));
     return Response.json({ status: "COMPLETE", slot, via, candidateId: result.id,
-      representationId, captureStatus: result.status, researchStatus });
+      representationId, captureStatus: result.status, captureAttempts: attempts, researchStatus });
   } catch (caught) {
     const error = (caught instanceof Error ? caught.message : "Job failed").slice(0, 400);
     await db.update(automationRuns).set({ status: "FAILED", finishedAt: Date.now(), error })

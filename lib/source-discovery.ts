@@ -22,6 +22,10 @@ export const historicLeads = [
 ] as const;
 
 export type Source = typeof sourceCatalog[number];
+// Same value as lib/automated-research.ts. Kept local so this module has no
+// relative imports, which lets Node's test runner load it without a bundler.
+const SOURCE_USER_AGENT = "Mozilla/5.0 (compatible; OnRecordBot/0.2; +https://on-record-wrotenberry.vercel.app/records) source-preservation for editorial review";
+
 export function originalLinks(html: string, index: string, host: string, path: RegExp) {
   const links = new Set<string>();
   for (const match of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi)) {
@@ -36,7 +40,7 @@ export function originalLinks(html: string, index: string, host: string, path: R
 }
 
 export async function discoverOriginalLinks(source: Source) {
-  const response = await fetch(source.index, { redirect: "manual", headers: { Accept: "text/html" }, signal: AbortSignal.timeout(10000) });
+  const response = await fetch(source.index, { redirect: "manual", headers: { Accept: "text/html", "User-Agent": SOURCE_USER_AGENT, "Accept-Language": "en-US,en;q=0.8" }, signal: AbortSignal.timeout(10000) });
   if (!response.ok || !response.headers.get("content-type")?.includes("html")) throw Error(`Index returned HTTP ${response.status}`);
   if (Number(response.headers.get("content-length")) > 600_000) throw Error("Index too large");
   const html = await response.text();

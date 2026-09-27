@@ -13,6 +13,9 @@ type ResponseItem = { type: string; action?: { type?: string; query?: string; qu
 type ModelResponse = { id: string; status: string; output: ResponseItem[]; error?: { message: string } };
 type Citation = { url: string; title: string };
 
+/** Official sites often refuse anonymous clients. Say who is asking and why. */
+export const SOURCE_USER_AGENT = "Mozilla/5.0 (compatible; OnRecordBot/0.2; +https://on-record-wrotenberry.vercel.app/records) source-preservation for editorial review";
+
 function publicUrl(value: string) {
   const url = new URL(value);
   const host = url.hostname.toLowerCase();
@@ -41,7 +44,7 @@ export function stripChrome(html: string): string {
 /** Fetch only a public HTTPS page; do not trust redirects or embedded page instructions. */
 export async function fetchSource(rawUrl: string) {
   const url = publicUrl(rawUrl);
-  const response = await fetch(url.toString(), { redirect: "manual", headers: { Accept: "text/html,text/plain" }, signal: AbortSignal.timeout(12000) });
+  const response = await fetch(url.toString(), { redirect: "manual", headers: { Accept: "text/html,text/plain", "User-Agent": SOURCE_USER_AGENT, "Accept-Language": "en-US,en;q=0.8" }, signal: AbortSignal.timeout(12000) });
   if (response.status >= 300 && response.status < 400) throw Error("Redirected source: submit its final public HTTPS URL");
   if (!response.ok) throw Error(`Source request failed (${response.status})`);
   const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
