@@ -85,3 +85,7 @@ The founder chose the free access-key sign-in over a paid Supabase project, with
 
 Exception-only email monitoring after each scheduled run (`docs/MONITORING.md`, `lib/monitoring.ts`, `lib/monitoring-runtime.ts`). One additive table, `alert_events`, for the 24-hour dedupe. Review-gate triggers untouched.
 
+## Update 2026-09-27: review flow
+
+The case screen is four cards (`app/editor/review-flow.tsx`, `docs/REVIEW_FLOW.md`) posting to the unchanged gates. `scripts/seed-review-case.mjs` seeds a local case for testing.
+

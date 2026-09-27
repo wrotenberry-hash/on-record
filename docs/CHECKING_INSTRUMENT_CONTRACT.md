@@ -33,3 +33,5 @@ POST `/api/editor/automate` with `{sourceUrl}` requires the editor allowlist and
 Every mutation requires the server-side editor allowlist. No API accepts speaker party as an input to factual adjudication. The UI displays unmet gates and never labels a case as verified merely because the draft was entered.
 
 In the current private version the API rejects all RATED adjudications and publication. GET `/api/records` lists only explicit published CHECKING records with authenticated source and approved review; candidate drafts are excluded. It answers anonymous readers only when the Site sets `PUBLIC_READ_ENABLED`, and shows the passage around the quote rather than the full capture. `/api/representations` additionally waits until 20 reviewed records are published (see `PUBLIC_ACCESS.md`).
+
+The editor's presentation of these stages is described in `REVIEW_FLOW.md`; the API contract above is unchanged by it.

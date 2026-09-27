@@ -1,5 +1,9 @@
 # On Record build status — 2026-09-27
 
+## Review flow rebuilt (2026-09-27)
+
+- The eight forms per case are now four cards, mostly taps, posting to the same gates; see `REVIEW_FLOW.md`. The source desk is collapsed below the cases. Verified end to end in a headless browser with a seeded case.
+
 ## Exception-only monitoring (2026-09-27)
 
 - After every scheduled run the app evaluates four conditions against the run ledger and emails wrotenberry@gmail.com through Resend only when one holds: two consecutive failed runs, no capture in 72 h, month-to-date OpenAI spend above 75% of `OPENAI_MONTHLY_LIMIT_USD`, or the key within 21 days of `OPENAI_KEY_EXPIRES`. Each kind at most once per 24 h, recorded in the new `alert_events` table (migration 0009; no other schema change). Test alert from the editor button or `POST /api/automation/alerts/test`. Details in `MONITORING.md`. Delivery verified 2026-09-27 22:06 UTC: `RESEND_API_KEY` set, test alert sent from the editor and received in the founder's inbox; the health probe's `monitoring.lastAlert` shows kind `TEST`.

@@ -9,7 +9,7 @@ export async function loadCase(id: string) {
     propositionId: propositions.id, speakerName: people.displayName, canonicalUrl: sourceCommunications.canonicalUrl,
     sourceType: sourceCommunications.sourceType, publishedAt: sourceCommunications.publishedAt,
     originalContent: sourceCaptures.originalContent, exactText: representations.exactText,
-    canonicalProposition: propositions.canonicalText, issue: propositions.issue, status: representations.status,
+    canonicalProposition: propositions.canonicalText, issue: propositions.issue, status: representations.status, context: representations.context,
     contentHash: sourceCaptures.contentHash, capturedAt: sourceCaptures.capturedAt,
   }).from(sourceCommunications).innerJoin(people, eq(sourceCommunications.speakerId, people.id))
     .innerJoin(sourceCaptures, eq(sourceCaptures.communicationId, sourceCommunications.id))
