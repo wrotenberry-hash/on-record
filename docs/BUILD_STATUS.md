@@ -1,4 +1,9 @@
-# On Record build status — 2026-09-26
+# On Record build status — 2026-09-27
+
+## Second day of scheduled runs (2026-09-27)
+
+- 13:00 UTC: COMPLETE, but the capture of the rotated-lane lead FAILED and research ran on a leftover candidate. Fix shipped the same morning: the job tries up to three leads, fetches carry a descriptive User-Agent, and the run's error note is visible on the health probe.
+- 19:00 UTC: COMPLETE, capture CAPTURED, research COMPLETE, 91 s, no error note. Three of four scheduled runs so far produced a capture; the one FAILED run (26th, 19:00) was the shared research budget being spent by the editor's old auto-research on open, which is removed.
 
 ## Unattended intake ran on schedule (2026-09-26 13:00 UTC)
 
