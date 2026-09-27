@@ -11,7 +11,7 @@
 
 ## Unattended intake ran on schedule (2026-09-26 13:00 UTC)
 
-- Vercel Cron called `/api/automation/tick` at 13:00:38 UTC; the ledger row for slot `2026-09-26T13` is COMPLETE with capture CAPTURED and research COMPLETE in 109 s, against the stable Turso database. This is the first unattended pass in production. The OpenAI dashboard showed $0.61 on the new key after that one pass (extraction, two web-search research calls, assessment), so two runs a day is roughly $37 a month before editor-triggered work. The project's hard spend limit is set by the founder. The old Site key was revoked on 2026-09-26; the new key `on-record-vercel` expires about 2026-12-02 and must be rotated before then (three steps in `AUTOMATED_RESEARCH_SETUP.md`). What it captured and drafted has not yet been inspected by a person: editor sign-in is not configured, so the founder's sign-in decision is the next gate.
+- Vercel Cron called `/api/automation/tick` at 13:00:38 UTC; the ledger row for slot `2026-09-26T13` is COMPLETE with capture CAPTURED and research COMPLETE in 109 s, against the stable Turso database. This is the first unattended pass in production. The OpenAI dashboard showed $0.61 on the new key after that one pass (extraction, two web-search research calls, assessment), so two runs a day is roughly $37 a month before editor-triggered work. The project's hard spend limit is set by the founder. The old Site key was revoked on 2026-09-26; the new key `on-record-vercel` expires 2026-12-25 and must be rotated before then (three steps in `AUTOMATED_RESEARCH_SETUP.md`). What it captured and drafted has not yet been inspected by a person: editor sign-in is not configured, so the founder's sign-in decision is the next gate.
 
 ## Hosting moved to Vercel (2026-09-26)
 

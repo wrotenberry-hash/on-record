@@ -10,7 +10,7 @@ The site does not use the ChatGPT subscription as an API credential. API billing
 
 1. In the OpenAI API dashboard, create a dedicated **On Record pilot** project. Add a payment method or prepaid balance as needed.
 2. Monitor usage and configure project budget alerts. For an enforced monthly ceiling, select **Enforce a hard limit** under the API project's Spend settings; alerts alone do not stop requests and enforcement can lag slightly. The app also reserves at most two private bilateral research attempts per UTC day by default, including editor-initiated drafts. An authenticated editor opening captures at most one current lead and starts at most one draft. Research may use multiple model calls and web searches.
-3. Create a project-scoped secret API key with an expiration date (the current one, `on-record-vercel`, expires about 2026-12-02; create a new one, put it in Vercel as `OPENAI_API_KEY`, redeploy, then revoke the old one). Store it in Vercel → Project → Settings → Environment Variables as `OPENAI_API_KEY` (production). The integration reads it only on the server.
+3. Create a project-scoped secret API key with an expiration date (the current one, `on-record-vercel`, expires 2026-12-25; create a new one, put it in Vercel as `OPENAI_API_KEY`, redeploy, then revoke the old one). Store it in Vercel → Project → Settings → Environment Variables as `OPENAI_API_KEY` (production). The integration reads it only on the server.
 4. Deploy. Run one complete real-source case. A configured key alone is not proof the research workflow works.
 
 ## First pilot acceptance check
