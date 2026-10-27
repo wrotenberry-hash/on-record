@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { alertEvents, automationRuns, machineResearchDrafts, sourceCaptures } from "@/db/schema";
-import { ALERT_KINDS, evaluate, formatAlertEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type Spend } from "@/lib/monitoring";
+import { adjudications, alertEvents, automationRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
+import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend } from "@/lib/monitoring";
 
 /**
  * Gathers the inputs for lib/monitoring.ts, evaluates, and sends alert emails
@@ -90,17 +90,91 @@ async function recordSent(alert: Alert, recipient: string) {
 export type MonitoringOutcome = { evaluated: true; sent: Array<{ kind: AlertKind; id?: string }>; failed: Array<{ kind: AlertKind; error: string }>;
   suppressed: AlertKind[]; checks: Record<string, string> };
 
-/** Evaluate and send. Called after every scheduled run. */
+/** Evaluate and send. Called after every scheduled run. All alerts raised by one run go in one email. */
 export async function runMonitoring(now = Date.now()): Promise<MonitoringOutcome> {
   const result = await evaluateNow(now);
   const outcome: MonitoringOutcome = { evaluated: true, sent: [], failed: [], suppressed: result.suppressed.map(a => a.kind), checks: result.checks };
+  if (!result.alerts.length) return outcome;
+  const mail = formatAlertEmail(result.alerts, result.checks, SITE_URL, now);
+  const delivery = await sendEmail(mail.subject, mail.text);
   for (const alert of result.alerts) {
-    const mail = formatAlertEmail(alert, result.checks, SITE_URL, now);
-    const delivery = await sendEmail(mail.subject, mail.text);
     if (delivery.ok) { await recordSent(alert, result.configured.recipient); outcome.sent.push({ kind: alert.kind, id: delivery.id }); }
     else outcome.failed.push({ kind: alert.kind, error: delivery.error });
   }
   return outcome;
+}
+
+/* ---------------------------------------------------------------------------
+ * Daily review rhythm (docs/MONITORING.md, "Daily rhythm").
+ * ------------------------------------------------------------------------- */
+
+/** Representations a reviewer can still act on: not rejected, not M0, not published. */
+function openCaseFilter() {
+  const published = getDb().select({ one: sql`1` }).from(publications).innerJoin(adjudications, eq(adjudications.id, publications.adjudicationId))
+    .where(eq(adjudications.representationId, representations.id));
+  const notMaterial = getDb().select({ one: sql`1` }).from(materialityDecisions)
+    .where(and(eq(materialityDecisions.representationId, representations.id), eq(materialityDecisions.tier, "NOT_MATERIAL")));
+  return and(ne(representations.status, "REJECTED"), notExists(published), notExists(notMaterial));
+}
+
+/**
+ * The one case the morning email points at. Cases whose machine research is
+ * complete come first (the reviewer only reads and ticks); within that, the
+ * oldest capture first so the backlog clears before fresh material. The order
+ * is a default, not a rule: the editor still lists every open case.
+ */
+export async function pickDailyCase(): Promise<{ readyCase: ReadyCase | null; waitingCount: number }> {
+  const db = getDb();
+  const rows = await db.select({ id: representations.id, speakerName: people.displayName, exactText: representations.exactText,
+    issue: sql<string | null>`(select issue from propositions where propositions.id = ${representations.propositionId})`,
+    capturedAt: sourceCaptures.capturedAt, draftStatus: machineResearchDrafts.status })
+    .from(representations).innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId))
+    .innerJoin(sourceCommunications, eq(sourceCommunications.id, sourceCaptures.communicationId))
+    .innerJoin(people, eq(people.id, sourceCommunications.speakerId))
+    .leftJoin(machineResearchDrafts, eq(machineResearchDrafts.representationId, representations.id))
+    .where(openCaseFilter()).orderBy(asc(sourceCaptures.capturedAt)).limit(200);
+  const ready = rows.filter(r => r.draftStatus === "COMPLETE")[0] ?? rows[0];
+  return { waitingCount: rows.length,
+    readyCase: ready ? { id: ready.id, speakerName: ready.speakerName, exactText: ready.exactText, issue: ready.issue, capturedAt: ready.capturedAt, researchReady: ready.draftStatus === "COMPLETE" } : null };
+}
+
+export async function publishedCount(): Promise<number> {
+  const row = await getDb().select({ n: sql<number>`count(*)` }).from(publications).get();
+  return Number(row?.n ?? 0);
+}
+
+/** True when a reviewer recorded any human gate after `since`. Automated fetch attestations do not count. */
+export async function humanActedSince(since: number): Promise<boolean> {
+  const db = getDb();
+  const [auth, mat, rev, pub] = await Promise.all([
+    db.select({ n: sql<number>`count(*)` }).from(sourceAuthentications).where(and(gte(sourceAuthentications.verifiedAt, since), ne(sourceAuthentications.method, "automated-http-fetch"))).get(),
+    db.select({ n: sql<number>`count(*)` }).from(materialityDecisions).where(gte(materialityDecisions.lockedAt, since)).get(),
+    db.select({ n: sql<number>`count(*)` }).from(reviews).where(gte(reviews.createdAt, since)).get(),
+    db.select({ n: sql<number>`count(*)` }).from(publications).where(gte(publications.publishedAt, since)).get(),
+  ]);
+  return [auth, mat, rev, pub].some(r => Number(r?.n ?? 0) > 0);
+}
+
+export type RhythmOutcome = RhythmDecision & { caseId: string | null; sent?: { id?: string }; failed?: string };
+
+/** Decide without sending (editor preview). */
+export async function previewRhythm(now = Date.now()): Promise<RhythmOutcome> {
+  const [{ readyCase, waitingCount }, published, lastSent] = await Promise.all([pickDailyCase(), publishedCount(), lastSentByKind()]);
+  // The decision needs a synchronous predicate; resolve it once for the only moment it is asked about.
+  const lastCase = lastSent.get("DAILY_CASE");
+  const acted = lastCase !== undefined ? await humanActedSince(lastCase) : false;
+  const decision = decideRhythm({ readyCase, waitingCount, publishedCount: published, humanActedSince: () => acted, lastSent }, now);
+  return { ...decision, caseId: readyCase?.id ?? null };
+}
+
+/** Decide and send. Called after every scheduled run, whether or not the run itself succeeded. */
+export async function runRhythm(now = Date.now()): Promise<RhythmOutcome> {
+  const outcome = await previewRhythm(now);
+  if (!outcome.email || !outcome.caseId) return outcome;
+  const mail = formatRhythmEmail(outcome.email, outcome.caseId, SITE_URL);
+  const delivery = await sendEmail(mail.subject, mail.text);
+  if (delivery.ok) { await recordSent(outcome.email, process.env.ALERT_TO_EMAIL?.trim() || DEFAULT_ALERT_TO); return { ...outcome, sent: { id: delivery.id } }; }
+  return { ...outcome, failed: delivery.error };
 }
 
 /** A deliberate test message. Always sends; recorded like any other alert. */

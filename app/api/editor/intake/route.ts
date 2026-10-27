@@ -1,9 +1,9 @@
-import { and, desc, eq, lt, max, notLike, or } from "drizzle-orm";
+import { and, desc, eq, gte, lt, max, notLike, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import { intakeCandidates } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { runAutomatedReview } from "@/app/api/editor/automate/route";
-import { pickNextLead } from "@/lib/lead-selection";
+import { BLOCKED_HOST_WINDOW_MS, blockedHosts, pickNextLead } from "@/lib/lead-selection";
 
 export const maxDuration = 300;
 
@@ -27,14 +27,16 @@ export async function POST(request: Request) {
 /** Unattended capture rotates across lanes; see lib/lead-selection.ts. */
 async function nextQueuedLead() {
   const db = getDb();
-  const [queued, captured] = await Promise.all([
+  const [queued, captured, failed] = await Promise.all([
     db.select().from(intakeCandidates).where(and(eq(intakeCandidates.status, "QUEUED"), eq(intakeCandidates.era, "current"),
       notLike(intakeCandidates.medium, "%needs-transcript%"))).orderBy(desc(intakeCandidates.discoveredAt)).limit(200),
     db.select({ lane: intakeCandidates.lane, last: max(intakeCandidates.completedAt) }).from(intakeCandidates)
       .where(eq(intakeCandidates.status, "CAPTURED")).groupBy(intakeCandidates.lane),
+    db.select({ canonicalUrl: intakeCandidates.canonicalUrl, error: intakeCandidates.error, completedAt: intakeCandidates.completedAt }).from(intakeCandidates)
+      .where(and(eq(intakeCandidates.status, "FAILED"), gte(intakeCandidates.completedAt, Date.now() - BLOCKED_HOST_WINDOW_MS))).limit(500),
   ]);
   const lastCaptureByLane = new Map(captured.map(row => [row.lane, Number(row.last ?? 0)]));
-  return pickNextLead(queued, lastCaptureByLane);
+  return pickNextLead(queued, lastCaptureByLane, blockedHosts(failed));
 }
 
 export async function processOneCandidate(body: { id?: unknown; retry?: unknown }, actor: string) {

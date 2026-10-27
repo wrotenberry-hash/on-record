@@ -39,3 +39,19 @@
 - Live source scans and extraction produced seven candidate representations. The prior automated research path collided with the evidence-search database gate; private machine drafts now allow early research while retaining the canonical gate. Verify one complete live draft and its later human promotion before claiming launch coverage. Review and check a representative real corpus.
 - The bounded `/api/automation/tick` job, run ledger and Cloudflare cron adapter are implemented, but not operating unattended: Sites has no scheduler, no job secret has been provisioned, and owner-only ingress rejects external callers before the app. An authenticated editor opening still triggers a scan, one capture and one private research request. Complete the scheduler and machine-access steps in [UNATTENDED_INTAKE.md](UNATTENDED_INTAKE.md) before claiming 24/7 operation. Social feeds, audiovisual capture, transcripts and OCR require further adapters. If a browser shows Authentication required, sign in there; the queue is not empty merely because a request returned 401.
 - Rated adjudication, correction/retraction UX, production roles/audit and founder coverage/evidence rules remain pending. Numerical verdicts and aggregates stay withheld.
+
+## 2026-10-27 · Daily review rhythm
+
+- Coded and verified locally: the 13:00 UTC run emails one pre-chosen case
+  (`DAILY_CASE`) with a one-tap link `/editor?case=<id>`; the 19:00 run sends one
+  nudge (`DAILY_NUDGE`) if no human gate was recorded since. No case ready means
+  no email. Rules in `lib/monitoring.ts` (`decideRhythm`), selection in
+  `lib/monitoring-runtime.ts` (`pickDailyCase`), 42 tests passing.
+- Exception alerts: one email per run, repeated every 72 h while a problem
+  continues (was 24 h; the October budget outage sent 21 unread emails).
+- Scheduler skips hosts that answered 403 twice in two weeks
+  (`lib/lead-selection.ts`, `blockedHosts`).
+- Health probe reports `rhythm` and `throughput` (counts only) for the Monday report.
+- Editor shows "n of 20 published toward launch · k waiting" above the case list.
+- Not changed: schema, review-gate triggers, cron entries, public switch.
+- Still blocked on the founder: OpenAI monthly limit ($20 exhausted 19 Oct).

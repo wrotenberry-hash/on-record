@@ -1,5 +1,5 @@
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
-import { evaluateNow, sendTestAlert } from "@/lib/monitoring-runtime";
+import { evaluateNow, previewRhythm, sendTestAlert } from "@/lib/monitoring-runtime";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -8,8 +8,9 @@ export const maxDuration = 60;
 export async function GET() {
   const auth = await editorialAuth();
   if (!auth.user) return auth.error!;
-  const result = await evaluateNow();
-  return editorJson({ configured: result.configured, checks: result.checks, wouldAlert: result.alerts.map(a => a.kind), suppressed: result.suppressed.map(a => a.kind) });
+  const [result, rhythm] = await Promise.all([evaluateNow(), previewRhythm()]);
+  return editorJson({ configured: result.configured, checks: result.checks, wouldAlert: result.alerts.map(a => a.kind), suppressed: result.suppressed.map(a => a.kind),
+    rhythm: { phase: rhythm.phase, wouldSend: rhythm.email?.kind ?? null, reason: rhythm.reason, caseId: rhythm.caseId } });
 }
 
 /** Sends a test alert to the configured recipient. */

@@ -5,7 +5,7 @@ import { runDiscovery } from "@/app/api/editor/discover/route";
 import { processOneCandidate } from "@/app/api/editor/intake/route";
 import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/route";
 import { tickAuthorized } from "@/lib/tick-auth";
-import { runMonitoring, type MonitoringOutcome } from "@/lib/monitoring-runtime";
+import { runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -83,8 +83,17 @@ async function runTick(request: Request) {
   }
 }
 
-/** Exception-only monitoring runs after the ledger row is final. A monitoring fault never changes the run's result. */
-async function monitorAfterRun(): Promise<MonitoringOutcome | { evaluated: false; error: string }> {
-  try { return await runMonitoring(); }
-  catch (error) { return { evaluated: false, error: (error instanceof Error ? error.message : "monitoring failed").slice(0, 200) }; }
+/**
+ * After the ledger row is final: exception-only monitoring, then the daily
+ * review email. Both run whether the job succeeded or failed (a case from the
+ * backlog is reviewable even on a day intake broke). A fault in either never
+ * changes the run's result.
+ */
+async function monitorAfterRun(): Promise<{ alerts: MonitoringOutcome | { evaluated: false; error: string }; rhythm: RhythmOutcome | { error: string } }> {
+  let alerts: MonitoringOutcome | { evaluated: false; error: string }, rhythm: RhythmOutcome | { error: string };
+  try { alerts = await runMonitoring(); }
+  catch (error) { alerts = { evaluated: false, error: (error instanceof Error ? error.message : "monitoring failed").slice(0, 200) }; }
+  try { rhythm = await runRhythm(); }
+  catch (error) { rhythm = { error: (error instanceof Error ? error.message : "rhythm failed").slice(0, 200) }; }
+  return { alerts, rhythm };
 }

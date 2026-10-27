@@ -75,6 +75,13 @@ before `next build` whenever a database URL is set. Never edit the
 database by hand; the triggers in `drizzle/0000`–`0003` enforce the
 methodology gates and must stay in the migration history.
 
+## Daily review rhythm
+
+Each morning's scheduled run emails one case with a one-tap link; the afternoon
+run nudges once if nothing has been reviewed since. See docs/MONITORING.md,
+"Daily rhythm". Hosts that block the crawler twice in two weeks are skipped by
+the scheduler (lib/lead-selection.ts).
+
 ## Routes
 
 - `/editor`: the checking instrument. Sign-in required; allowlist enforced by every API.
