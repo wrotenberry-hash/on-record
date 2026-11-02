@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { intakeCandidates } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { runAutomatedReview } from "@/app/api/editor/automate/route";
-import { BLOCKED_HOST_WINDOW_MS, blockedHosts, pickNextLead } from "@/lib/lead-selection";
+import { BLOCKED_HOST_WINDOW_MS, blockedHosts, isBudgetError, pickNextLead } from "@/lib/lead-selection";
 
 export const maxDuration = 300;
 
@@ -64,6 +64,11 @@ export async function processOneCandidate(body: { id?: unknown; retry?: unknown 
     const response = await runAutomatedReview(pending.canonicalUrl, `discovery:${actor}`, `discovered:${pending.lane}:${pending.medium}:${pending.era}`, 2);
     const result = await response.json() as { caseIds?: string[]; error?: string; status?: string };
     const count = result.caseIds?.length ?? 0;
+    if (!response.ok && !count && isBudgetError(result.error)) {
+      // The model API refused payment: keep the lead for when budget returns, and tell the caller to stop trying others.
+      await db.update(intakeCandidates).set({ status: "QUEUED", attemptedAt: null, error: (result.error ?? "Budget exhausted").slice(0, 400) }).where(eq(intakeCandidates.id, pending.id));
+      return editorJson({ id: pending.id, status: "BUDGET", error: result.error }, 502);
+    }
     const status = result.status === "ALREADY_CAPTURED" ? "SKIPPED" : count ? "CAPTURED"
       : response.status === 409 || response.status === 422 ? "SKIPPED" : "FAILED";
     await db.update(intakeCandidates).set({ status, caseCount: count, completedAt: Date.now(),

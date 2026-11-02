@@ -42,3 +42,12 @@ export function pickNextLead<T extends QueuedLead>(queued: readonly T[], lastCap
   });
   return sorted[0];
 }
+
+/**
+ * A capture that failed because the model API refused payment is not the
+ * lead's fault. During the October–November 2026 outage every run burned three
+ * leads this way and emptied the queue. Such leads go back to QUEUED.
+ */
+export function isBudgetError(message: string | null | undefined): boolean {
+  return /billing or usage limit|credit_balance_exhausted|insufficient_quota|spend_limit_exceeded|usage_limit_exceeded/i.test(message ?? "");
+}

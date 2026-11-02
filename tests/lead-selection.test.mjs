@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { pickNextLead, blockedHosts, hostOf, BLOCKED_HOST_WINDOW_MS } from "../lib/lead-selection.ts";
+import { pickNextLead, blockedHosts, hostOf, isBudgetError, BLOCKED_HOST_WINDOW_MS } from "../lib/lead-selection.ts";
 
 const queued = [
   { id: "d1", lane: "Democratic", discoveredAt: 300 },
@@ -44,4 +44,12 @@ test("hosts that blocked the crawler twice in two weeks are skipped; one block o
   assert.equal(pickNextLead(leads, new Map(), blockedHosts(failed, now))?.id, "y");
   assert.equal(pickNextLead(leads, new Map())?.id, "x");
   assert.equal(pickNextLead([leads[0]], new Map(), blockedHosts(failed, now)), undefined);
+});
+
+test("a payment refusal from the model API is recognised; ordinary capture failures are not", () => {
+  assert.equal(isBudgetError("Research API billing or usage limit (credit_balance_exhausted). Check the API project's billing and limits before retrying."), true);
+  assert.equal(isBudgetError("project_spend_limit_exceeded"), true);
+  assert.equal(isBudgetError("Source request failed (403)"), false);
+  assert.equal(isBudgetError("No claim candidates"), false);
+  assert.equal(isBudgetError(null), false);
 });
