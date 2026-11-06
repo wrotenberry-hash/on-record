@@ -48,11 +48,24 @@ async function throughput() {
       count(db.select({ n: sql<number>`count(*)` }).from(representations).where(eq(representations.status, "REJECTED")).get()),
       pickDailyCase().then(x => x.waitingCount),
     ]);
+    // Capture outcome by source lane over 30 days: which sources are worth keeping.
+    const month = now - 30 * 24 * 3600 * 1000;
+    const laneRows = await db.select({ lane: intakeCandidates.lane, status: intakeCandidates.status, n: sql<number>`count(*)` })
+      .from(intakeCandidates).where(and(gte(intakeCandidates.discoveredAt, month), sql`${intakeCandidates.status} in ('CAPTURED', 'FAILED', 'SKIPPED', 'QUEUED')`))
+      .groupBy(intakeCandidates.lane, intakeCandidates.status);
+    const lanes: Record<string, { captured: number; failed: number; skipped: number; queued: number; successRate: number | null }> = {};
+    for (const r of laneRows) {
+      const l = (lanes[r.lane] ??= { captured: 0, failed: 0, skipped: 0, queued: 0, successRate: null });
+      if (r.status === "CAPTURED") l.captured += Number(r.n); else if (r.status === "FAILED") l.failed += Number(r.n);
+      else if (r.status === "SKIPPED") l.skipped += Number(r.n); else l.queued += Number(r.n);
+    }
+    for (const l of Object.values(lanes)) { const tried = l.captured + l.failed; l.successRate = tried ? Math.round(100 * l.captured / tried) / 100 : null; }
     // Quote fidelity: how many extracted representations appear verbatim in their own capture.
     const quote = await db.select({ total: sql<number>`count(*)`, matched: sql<number>`sum(case when instr(${sourceCaptures.originalContent}, ${representations.exactText}) > 0 then 1 else 0 end)` })
       .from(representations).innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId)).get();
     return { publishedTotal: published, launchTarget: LAUNCH_TARGET, casesWaiting: waiting, representationsRejectedTotal: rejectedReps,
       quoteMatch: { matched: Number(quote?.matched ?? 0), total: Number(quote?.total ?? 0) },
+      lanes30d: lanes,
       last7d: { published: publishedWeek, reviews: reviewsWeek, reviewsApproved: approvedWeek, reviewsRejected: rejectedWeek, captures: capturesWeek,
         runs: runsWeek, runsFailed: failedWeek, leadsFailed: leadsFailedWeek, leadsBlocked403: leadsBlockedWeek } };
   } catch { return "unavailable" as const; }

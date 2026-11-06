@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-06 (round 4 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-06 (round 5 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -21,6 +21,7 @@ A private checking instrument for political representations: a source's exact qu
 - Scheduler skips hosts that block the crawler twice in two weeks; a payment refusal no longer burns a lead (27 Oct, 2 Nov).
 - Public page: browse by speaker; leak-check script passes (27 Oct).
 - 1 CHECKING record published in production. 89 cases open in the editor.
+- Health probe reports capture success by source lane over 30 days (captured, failed, skipped, queued, success rate); the Monday report reads it (6 Nov).
 - Public records show evidence-search notes without the machine timestamp; legacy dist folder removed, lint clean with zero warnings from it (6 Nov).
 - Each published record has its own address, /records/<id>, with a permanent-link line; the list links to it. Verified: 200 with the switch on, 404 for an unknown id, private notice with the switch off; leak check passes (6 Nov).
 - Public landing page at the site root when the switch is on; with it off the root still opens the private editor (6 Nov).
