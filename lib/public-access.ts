@@ -62,5 +62,5 @@ export function passageAround(originalContent: string, exactText: string, radius
  * timestamp stays in the private record.
  */
 export function displaySearchNote(text: string | null | undefined): string {
-  return (text ?? "").replace(/^\s*\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*\|\s*/, "").trim();
+  return (text ?? "").replace(/^\s*\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*\|\s*/gm, "").trim();
 }
