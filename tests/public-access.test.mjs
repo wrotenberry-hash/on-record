@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { publicReadEnabled, publiclyListable, PUBLIC_INVENTORY_STATUSES, inventoryVisible,
-  PUBLIC_INVENTORY_MIN_PUBLISHED, passageAround } from "../lib/public-access.ts";
+  PUBLIC_INVENTORY_MIN_PUBLISHED, passageAround, displaySearchNote } from "../lib/public-access.ts";
 
 test("anonymous read access is off unless the flag is explicitly truthy", () => {
   for (const value of [undefined, null, "", "0", "false", "off", "no", "public", " "]) assert.equal(publicReadEnabled(value), false, String(value));
@@ -47,4 +47,10 @@ test("a short capture or an unfound quote still yields a non-empty passage", () 
   assert.ok(fallback.startsWith("w0 "));
   assert.ok(fallback.endsWith(" …"));
   assert.equal(passageAround("", ""), "");
+});
+
+test("public records drop the machine timestamp from evidence-search notes", () => {
+  assert.equal(displaySearchNote("2026-10-27T11:30:50.009Z | agency reports 2025 wait times: A report cites a 38 percent reduction."), "agency reports 2025 wait times: A report cites a 38 percent reduction.");
+  assert.equal(displaySearchNote("No timestamp here"), "No timestamp here");
+  assert.equal(displaySearchNote(null), "");
 });

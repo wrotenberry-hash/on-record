@@ -2,7 +2,7 @@ import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { adjudications, corrections, publications, representations, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { loadCase } from "@/app/api/editor/cases/_shared";
-import { passageAround } from "@/lib/public-access";
+import { displaySearchNote, passageAround } from "@/lib/public-access";
 
 /** Published, reviewed CHECKING records that are neither corrected nor retracted. */
 export async function countPublishedRecords(): Promise<number> {
@@ -54,7 +54,7 @@ async function toPublicRecord(row: PublishedRow): Promise<PublicRecord | null> {
         sourceUrl: e.sourceUrl, sourceType: e.sourceType, excerpt: e.excerpt, stance: e.stance, applicability: e.applicability,
         publishedAt: e.publishedAt })),
     adjudication: { state: "CHECKING", explanation: item.adjudication.explanation,
-      supportingSearch: item.adjudication.supportingSearch, contrarySearch: item.adjudication.contrarySearch,
+      supportingSearch: displaySearchNote(item.adjudication.supportingSearch), contrarySearch: displaySearchNote(item.adjudication.contrarySearch),
       evidenceCutoffAt: item.adjudication.evidenceCutoffAt },
     review: { decision: item.review.decision, reviewedAt: item.review.createdAt },
     corrections: correctionRows };
