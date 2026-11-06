@@ -1,1 +1,0 @@
-import{n as e}from"./chatgpt-auth-VHwh-wnO.js";var t=`force-dynamic`;async function n({children:t}){return await e(`/editor`),t}export{n as default,t as dynamic};

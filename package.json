@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "node scripts/migrate.mjs && next build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern .next --ignore-pattern dist",
+    "lint": "eslint . --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "db:generate": "drizzle-kit generate",
