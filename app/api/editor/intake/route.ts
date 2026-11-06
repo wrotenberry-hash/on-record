@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, max, notLike, or } from "drizzle-orm";
+import { and, desc, eq, gte, like, lt, max, notLike, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import { intakeCandidates } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
@@ -37,6 +37,19 @@ async function nextQueuedLead() {
   ]);
   const lastCaptureByLane = new Map(captured.map(row => [row.lane, Number(row.last ?? 0)]));
   return pickNextLead(queued, lastCaptureByLane, blockedHosts(failed));
+}
+
+/**
+ * Leads the budget outage marked FAILED before 2 Nov 2026 are not bad leads.
+ * Every scheduled run puts them back in the queue (idempotent; a no-op once
+ * none remain). Founder decision of 5 Nov 2026.
+ */
+export async function requeueBudgetFailures(): Promise<number> {
+  const rows = await getDb().update(intakeCandidates).set({ status: "QUEUED", attemptedAt: null, completedAt: null })
+    .where(and(eq(intakeCandidates.status, "FAILED"), or(like(intakeCandidates.error, "%billing or usage limit%"), like(intakeCandidates.error, "%credit_balance_exhausted%"),
+      like(intakeCandidates.error, "%spend_limit_exceeded%"), like(intakeCandidates.error, "%insufficient_quota%"))))
+    .returning({ id: intakeCandidates.id });
+  return rows.length;
 }
 
 export async function processOneCandidate(body: { id?: unknown; retry?: unknown }, actor: string) {

@@ -2,7 +2,7 @@ import { and, desc, eq, isNull, like } from "drizzle-orm";
 import { getDb } from "@/db";
 import { automationRuns, machineResearchDrafts, representations } from "@/db/schema";
 import { runDiscovery } from "@/app/api/editor/discover/route";
-import { processOneCandidate } from "@/app/api/editor/intake/route";
+import { processOneCandidate, requeueBudgetFailures } from "@/app/api/editor/intake/route";
 import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/route";
 import { tickAuthorized } from "@/lib/tick-auth";
 import { runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
@@ -37,6 +37,7 @@ async function runTick(request: Request) {
     .onConflictDoNothing().returning({ id: automationRuns.id });
   if (!claimed.length) return Response.json({ status: "ALREADY_RUNNING_OR_COMPLETE", slot });
   try {
+    const requeued = await requeueBudgetFailures();
     const discovered = await runDiscovery();
     if (!discovered.ok) throw Error(`Source discovery returned ${discovered.status}`);
     // A lead can fail to fetch (blocked host, redirect, thin page) or yield no
@@ -73,7 +74,7 @@ async function runTick(request: Request) {
     }
     await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(), representationId, researchStatus })
       .where(eq(automationRuns.id, id));
-    return Response.json({ status: "COMPLETE", slot, via, candidateId: result.id,
+    return Response.json({ status: "COMPLETE", slot, via, requeued, candidateId: result.id,
       representationId, captureStatus: result.status, captureAttempts: attempts, researchStatus, monitoring: await monitorAfterRun() });
   } catch (caught) {
     const error = (caught instanceof Error ? caught.message : "Job failed").slice(0, 400);

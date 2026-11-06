@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-05 (round 1 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-06 (round 2 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -21,6 +21,9 @@ A private checking instrument for political representations: a source's exact qu
 - Scheduler skips hosts that block the crawler twice in two weeks; a payment refusal no longer burns a lead (27 Oct, 2 Nov).
 - Public page: browse by speaker; leak-check script passes (27 Oct).
 - 1 CHECKING record published in production. 89 cases open in the editor.
+- Public landing page at the site root when the switch is on; with it off the root still opens the private editor (6 Nov).
+- Health probe reports quote fidelity (representations found verbatim in their capture) for the readiness report (6 Nov).
+- Every scheduled run puts leads the budget outage marked failed back in the queue; verified on a local run (6 Nov).
 - Three public pages drafted behind the public switch: /method (how a claim is checked), /about (who runs this), /corrections. Verified: render with the switch on, show the private notice with it off (5 Nov).
 
 ## In Progress
@@ -45,7 +48,6 @@ A private checking instrument for political representations: a source's exact qu
 ## Waiting on Wilson
 
 - Add OpenAI credit ($40) and set the on-record-vercel project limit to 40: OpenAI → Settings → Billing, then Limits. Reply "40".
-- Optional: requeue the 22 leads the outage marked failed (production data). Reply "requeue".
 - Review one case: open the morning email's link and go through the four cards.
 - Fill the bracketed placeholders on /about and /corrections: your name and base, funding sentence, contact address, and whether to promise a response time. Reply with the text; I will drop it in.
 - Later: register a domain.
