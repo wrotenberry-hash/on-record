@@ -48,7 +48,11 @@ async function throughput() {
       count(db.select({ n: sql<number>`count(*)` }).from(representations).where(eq(representations.status, "REJECTED")).get()),
       pickDailyCase().then(x => x.waitingCount),
     ]);
+    // Quote fidelity: how many extracted representations appear verbatim in their own capture.
+    const quote = await db.select({ total: sql<number>`count(*)`, matched: sql<number>`sum(case when instr(${sourceCaptures.originalContent}, ${representations.exactText}) > 0 then 1 else 0 end)` })
+      .from(representations).innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId)).get();
     return { publishedTotal: published, launchTarget: LAUNCH_TARGET, casesWaiting: waiting, representationsRejectedTotal: rejectedReps,
+      quoteMatch: { matched: Number(quote?.matched ?? 0), total: Number(quote?.total ?? 0) },
       last7d: { published: publishedWeek, reviews: reviewsWeek, reviewsApproved: approvedWeek, reviewsRejected: rejectedWeek, captures: capturesWeek,
         runs: runsWeek, runsFailed: failedWeek, leadsFailed: leadsFailedWeek, leadsBlocked403: leadsBlockedWeek } };
   } catch { return "unavailable" as const; }
