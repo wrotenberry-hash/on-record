@@ -23,3 +23,12 @@ with public reading off.
 
 Time per case: a few minutes, dominated by reading the original and the leads,
 which is the part that must stay human.
+
+## Not now (since 2026-11-08)
+
+Above the cards on any open case: **Not now** defers the case (`POST
+/api/editor/cases/<id>/defer`, `{}`), which sets `representations.deferred_at`
+and moves it to the back of the morning-email order. **Bring it back** clears
+it (`{ "undo": true }`). No gate is touched; a deferred case is still listed
+and can be reviewed at any time. Migration `0010_representation_deferred.sql`
+adds the nullable column; nothing else in the schema changed.

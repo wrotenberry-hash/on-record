@@ -80,6 +80,8 @@ export const representations = sqliteTable("representations", {
   propositionId: text("proposition_id").references(() => propositions.id), exactText: text("exact_text").notNull(),
   startOffset: integer("start_offset"), endOffset: integer("end_offset"), context: text("context"),
   extractedAt: integer("extracted_at").notNull(), status: text("status", { enum: ["CANDIDATE", "APPROVED", "REJECTED"] }).notNull().default("CANDIDATE"),
+  // "Not now": a reviewer defers a case without judging it. Deferred cases go to the back of the daily-email order. Nullable, additive (2026-11-08).
+  deferredAt: integer("deferred_at"),
 }, t => [index("representations_capture_idx").on(t.captureId), index("representations_proposition_idx").on(t.propositionId),
   check("representation_status_allowed", sql`${t.status} IN ('CANDIDATE', 'APPROVED', 'REJECTED')`),
   check("representation_offset_order", sql`${t.startOffset} IS NULL OR ${t.endOffset} IS NULL OR (${t.startOffset} >= 0 AND ${t.startOffset} <= ${t.endOffset})`)]);

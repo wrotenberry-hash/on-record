@@ -33,8 +33,9 @@ reviewable on a day intake broke).
 | `DAILY_NUDGE` | the 19:00 UTC run | a case email went out today and no human gate (source check, materiality, review, publication) has been recorded since it; at most one a day |
 
 The case is chosen by `pickDailyCase`: open cases (not rejected, not M0, not
-published) with complete machine research first, oldest capture first, so the
-backlog clears before fresh material. The email carries the speaker, the exact
+published), with cases the reviewer marked "Not now" (`representations.deferred_at`,
+migration 0010) last; among the rest, complete machine research first, then
+the oldest capture, so the backlog clears before fresh material. The email carries the speaker, the exact
 quote, the progress count and a link `/editor?case=<id>` that opens the editor
 on that case. No case ready means no email. Missed days are visible in
 `GET /api/automation/health` → `throughput` and are reported in the Monday

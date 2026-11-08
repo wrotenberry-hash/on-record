@@ -16,7 +16,7 @@ export type Case = { id: string; captureId: string; representationId: string; pr
   sourceAuthentication: null | { verifiedAt: number; method: string }; materiality: null | { level: string; rationale: string; lockedAt: number }; searches: SearchLog[]; evidence: Evidence[];
   researchDraft: null | { status: string; error: string | null; supportingSummary: string | null; contrarySummary: string | null; citations: Array<{ url: string; title: string; side: string }> | null; assessment: null | { accuracyAnchor: string; contextIntegrity?: string; authority?: number; sufficiency?: number; directness?: number; temporalFit?: number; explanation: string } };
   assessment?: null | { accuracyAnchor: string; contextIntegrity: string; authority: number; sufficiency: number; directness: number; temporalFit: number; explanation: string };
-  adjudication: null | { id: string; state: string; explanation: string }; review: null | { decision: string; notes: string }; publication: null | { id: string; publishedAt: number }; missingRequirements: string[] };
+  adjudication: null | { id: string; state: string; explanation: string }; review: null | { decision: string; notes: string }; publication: null | { id: string; publishedAt: number }; deferredAt?: number | null; missingRequirements: string[] };
 
 type Post = (path: string, payload: Record<string, unknown>, message: string) => Promise<boolean>;
 type Props = { current: Case; busy: boolean; post: Post };
@@ -53,7 +53,11 @@ function QuoteWindow({ text, quote }: { text: string; quote: string }) {
 export default function ReviewFlow({ current, busy, post }: Props) {
   const step = flowStep(current);
   const base = "/api/editor/cases/" + encodeURIComponent(current.id);
+  const open = !current.publication && current.status !== "REJECTED" && current.materiality?.level !== "M0";
   return <div className="review-flow">
+    {open && <div className="not-now">{current.deferredAt
+      ? <><span>Deferred {new Date(current.deferredAt).toLocaleDateString()}: it waits at the back of the morning-email order.</span><Button type="button" disabled={busy} onClick={() => void post(base + "/defer", { undo: true }, "Case brought back.")}>Bring it back</Button></>
+      : <><span>Not the right case today?</span><Button type="button" disabled={busy} onClick={() => void post(base + "/defer", {}, "Case deferred.")}>Not now</Button></>}</div>}
     <div className="flow-track">{FLOW_STEPS.map(([key, label], i) => <div key={key} className={step === key ? "now" : (FLOW_STEPS.findIndex(s => s[0] === step) > i || step === "done") ? "done" : ""}><span>{i + 1}</span>{label}</div>)}</div>
     {step === "source" && <SourceCard current={current} busy={busy} post={post} base={base} />}
     {step === "judge" && <JudgeCard current={current} busy={busy} post={post} base={base} />}

@@ -25,6 +25,7 @@ const schemas = {
   review: z.object({ decision: z.enum(["APPROVED", "REJECTED", "CHANGES_REQUESTED"]), notes: nonempty(4000),
     verifiedSource: z.boolean().optional(), verifiedEvidence: z.boolean().optional() }).strict(),
   publish: z.object({}).strict(),
+  defer: z.object({ undo: z.boolean().optional() }).strict(),
 } as const;
 type Action = keyof typeof schemas;
 const failure = (error: string, status = 409, missingRequirements?: string[]) => editorJson({ error, ...(missingRequirements ? { missingRequirements } : {}) }, status);
@@ -154,6 +155,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         notes: v.decision === "APPROVED"
           ? `Human inspected source and cited evidence. ${v.notes}` : v.notes,
         createdAt: Math.max(now, current.adjudication.createdAt) });
+    } else if (action === "defer") {
+      // "Not now": no gate is touched. The case drops to the back of the daily-email order until brought back or reviewed.
+      if (current.publication) return failure("A published case cannot be deferred");
+      const undo = (input as z.infer<typeof schemas["defer"]>).undo === true;
+      await db.update(representations).set({ deferredAt: undo ? null : now }).where(eq(representations.id, current.representationId));
+      return editorJson({ message: undo ? "Case brought back into the daily order." : "Case deferred; it goes to the back of the daily order." });
     } else if (action === "publish") {
       if (current.publication) return failure("Already published");
       if (!current.sourceAuthentication || current.status !== "APPROVED" || !current.materiality || !current.adjudication || !current.review)

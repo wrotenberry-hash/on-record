@@ -118,22 +118,24 @@ function openCaseFilter() {
 }
 
 /**
- * The one case the morning email points at. Cases whose machine research is
- * complete come first (the reviewer only reads and ticks); within that, the
- * oldest capture first so the backlog clears before fresh material. The order
- * is a default, not a rule: the editor still lists every open case.
+ * The one case the morning email points at. Cases the reviewer deferred come
+ * last; among the rest, complete machine research first (the reviewer only
+ * reads and ticks), then the oldest capture so the backlog clears before fresh
+ * material. The order is a default, not a rule: the editor lists every case.
  */
 export async function pickDailyCase(): Promise<{ readyCase: ReadyCase | null; waitingCount: number }> {
   const db = getDb();
   const rows = await db.select({ id: representations.id, speakerName: people.displayName, exactText: representations.exactText,
     issue: sql<string | null>`(select issue from propositions where propositions.id = ${representations.propositionId})`,
-    capturedAt: sourceCaptures.capturedAt, draftStatus: machineResearchDrafts.status })
+    capturedAt: sourceCaptures.capturedAt, draftStatus: machineResearchDrafts.status, deferredAt: representations.deferredAt })
     .from(representations).innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId))
     .innerJoin(sourceCommunications, eq(sourceCommunications.id, sourceCaptures.communicationId))
     .innerJoin(people, eq(people.id, sourceCommunications.speakerId))
     .leftJoin(machineResearchDrafts, eq(machineResearchDrafts.representationId, representations.id))
-    .where(openCaseFilter()).orderBy(asc(sourceCaptures.capturedAt)).limit(200);
-  const ready = rows.filter(r => r.draftStatus === "COMPLETE")[0] ?? rows[0];
+    .where(openCaseFilter()).orderBy(sql`${representations.deferredAt} is not null`, asc(sourceCaptures.capturedAt)).limit(200);
+  // A case the reviewer marked "not now" is chosen only when nothing else is open.
+  const fresh = rows.filter(r => r.deferredAt === null);
+  const ready = fresh.find(r => r.draftStatus === "COMPLETE") ?? fresh[0] ?? rows.find(r => r.draftStatus === "COMPLETE") ?? rows[0];
   return { waitingCount: rows.length,
     readyCase: ready ? { id: ready.id, speakerName: ready.speakerName, exactText: ready.exactText, issue: ready.issue, capturedAt: ready.capturedAt, researchReady: ready.draftStatus === "COMPLETE" } : null };
 }

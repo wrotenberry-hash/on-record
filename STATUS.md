@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-08 (round 9 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-08 (round 10 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -21,6 +21,7 @@ A private checking instrument for political representations: a source's exact qu
 - Scheduler skips hosts that block the crawler twice in two weeks; a payment refusal no longer burns a lead (27 Oct, 2 Nov).
 - Public page: browse by speaker; leak-check script passes (27 Oct).
 - 1 CHECKING record published in production. 89 cases open in the editor.
+- "Not now" on any open case defers it to the back of the morning-email order without judging it; "Bring it back" undoes. Verified end to end locally (8 Nov).
 - Published list can be narrowed by issue as well as by speaker; chips appear once more than one issue is published (8 Nov).
 - The corrections page lists real corrections and retractions from the database, newest first, with the reason and a link to the replacement record; reviewer identity stays private. Verified locally with a seeded correction (8 Nov).
 - The morning email link survives sign-in: an expired session is sent to sign in and lands back on the linked case. Verified end to end locally (8 Nov).
