@@ -129,6 +129,8 @@ export type RhythmInput = {
   publishedCount: number;
   /** Any human gate (source check, materiality, review, publication) recorded after `since`. */
   humanActedSince: (since: number) => boolean;
+  /** Distinct days with a human gate in the last 7, for the streak line. Optional; 0 shows no streak. */
+  daysWithReviewLast7?: number;
   lastSent: ReadonlyMap<AlertKind, number>;
 };
 export type RhythmDecision = { email: Alert | null; reason: string; phase: "morning" | "afternoon" };
@@ -152,10 +154,17 @@ function progress(input: RhythmInput) {
   return `Published records: ${input.publishedCount} of ${LAUNCH_TARGET} toward launch. Cases waiting: ${input.waitingCount}.`;
 }
 
+/** The streak line: only when there is one. Silence is not a reproach. */
+function streak(input: RhythmInput): string[] {
+  const days = input.daysWithReviewLast7 ?? 0;
+  if (days <= 0) return [];
+  return [days >= 7 ? "Reviewed every day this week." : days === 1 ? "Reviewed on 1 of the last 7 days. Keep it going." : `Reviewed on ${days} of the last 7 days. Keep it going.`, ""];
+}
+
 function dailyCaseAlert(input: RhythmInput): Alert {
   const c = input.readyCase!;
   return { kind: "DAILY_CASE", subject: `Today's case: ${c.speakerName}`,
-    detail: [`"${c.exactText}"`, `${c.issue ?? "Unclassified"} · captured ${iso(c.capturedAt).slice(0, 10)} · ${c.researchReady ? "machine research is ready" : "machine research pending; you can run it from the case"}.`, "",
+    detail: [...streak(input), `"${c.exactText}"`, `${c.issue ?? "Unclassified"} · captured ${iso(c.capturedAt).slice(0, 10)} · ${c.researchReady ? "machine research is ready" : "machine research pending; you can run it from the case"}.`, "",
       "Four cards, about five minutes: check the source, judge it, tick the evidence, finish. Rejecting is a valid outcome and counts as today's review.", "", progress(input)].join("\n") };
 }
 

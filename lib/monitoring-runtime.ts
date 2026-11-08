@@ -158,15 +158,28 @@ export async function humanActedSince(since: number): Promise<boolean> {
   return [auth, mat, rev, pub].some(r => Number(r?.n ?? 0) > 0);
 }
 
+/** Distinct UTC days in the last 7 with a human gate recorded. */
+export async function daysWithReviewLast7(now = Date.now()): Promise<number> {
+  const db = getDb(), week = now - 7 * 24 * 3600 * 1000;
+  const dayOf = (col: unknown) => sql<string>`date(${col} / 1000, 'unixepoch')`;
+  const groups = await Promise.all([
+    db.select({ d: dayOf(sourceAuthentications.verifiedAt) }).from(sourceAuthentications).where(and(gte(sourceAuthentications.verifiedAt, week), ne(sourceAuthentications.method, "automated-http-fetch"))).groupBy(sql`1`),
+    db.select({ d: dayOf(materialityDecisions.lockedAt) }).from(materialityDecisions).where(gte(materialityDecisions.lockedAt, week)).groupBy(sql`1`),
+    db.select({ d: dayOf(reviews.createdAt) }).from(reviews).where(gte(reviews.createdAt, week)).groupBy(sql`1`),
+    db.select({ d: dayOf(publications.publishedAt) }).from(publications).where(gte(publications.publishedAt, week)).groupBy(sql`1`),
+  ]);
+  return new Set(groups.flat().map(r => r.d)).size;
+}
+
 export type RhythmOutcome = RhythmDecision & { caseId: string | null; sent?: { id?: string }; failed?: string };
 
 /** Decide without sending (editor preview). */
 export async function previewRhythm(now = Date.now()): Promise<RhythmOutcome> {
-  const [{ readyCase, waitingCount }, published, lastSent] = await Promise.all([pickDailyCase(), publishedCount(), lastSentByKind()]);
+  const [{ readyCase, waitingCount }, published, lastSent, days] = await Promise.all([pickDailyCase(), publishedCount(), lastSentByKind(), daysWithReviewLast7(now)]);
   // The decision needs a synchronous predicate; resolve it once for the only moment it is asked about.
   const lastCase = lastSent.get("DAILY_CASE");
   const acted = lastCase !== undefined ? await humanActedSince(lastCase) : false;
-  const decision = decideRhythm({ readyCase, waitingCount, publishedCount: published, humanActedSince: () => acted, lastSent }, now);
+  const decision = decideRhythm({ readyCase, waitingCount, publishedCount: published, humanActedSince: () => acted, lastSent, daysWithReviewLast7: days }, now);
   return { ...decision, caseId: readyCase?.id ?? null };
 }
 

@@ -132,3 +132,12 @@ test("limit parsing and email formatting", () => {
   assert.match(mail.text, /- spend: ok/);
   assert.match(mail.text, /https:\/\/x\.test\/editor/);
 });
+
+test("the morning email opens with the streak only when there is one", () => {
+  assert.doesNotMatch(decideRhythm(rhythm(), morning).email.detail, /Reviewed/);
+  assert.match(decideRhythm(rhythm({ daysWithReviewLast7: 1 }), morning).email.detail, /^Reviewed on 1 of the last 7 days\. Keep it going\./);
+  assert.match(decideRhythm(rhythm({ daysWithReviewLast7: 4 }), morning).email.detail, /^Reviewed on 4 of the last 7 days/);
+  assert.match(decideRhythm(rhythm({ daysWithReviewLast7: 7 }), morning).email.detail, /^Reviewed every day this week\./);
+  // The nudge never carries a streak line; it is about today's case only.
+  assert.doesNotMatch(decideRhythm(rhythm({ daysWithReviewLast7: 4, lastSent: new Map([["DAILY_CASE", morning]]) }), afternoon).email.detail, /Reviewed on/);
+});
