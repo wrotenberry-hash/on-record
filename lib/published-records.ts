@@ -82,3 +82,39 @@ export async function getPublicRecord(id: string): Promise<PublicRecord | null> 
   const row = rows.find(r => r.representationId === id);
   return row ? toPublicRecord(row) : null;
 }
+
+export type PublicCorrection = { kind: "correction" | "retraction"; at: number; speakerName: string; exactText: string; reason: string;
+  originalRecordId: string; replacementRecordId: string | null };
+
+/**
+ * Every correction and retraction, newest first, for the public corrections
+ * page. Reviewer identity stays private; the reason and dates are public.
+ */
+export async function listPublicCorrections(): Promise<PublicCorrection[]> {
+  const db = getDb();
+  const [corrected, retracted] = await Promise.all([
+    db.select({ at: corrections.correctedAt, reason: corrections.reason, representationId: representations.id, exactText: representations.exactText,
+      speakerName: sql<string>`(select display_name from people where people.id = ${sourceCommunications.speakerId})`,
+      replacementRepresentationId: sql<string | null>`(select a2.representation_id from publications p2 join adjudications a2 on a2.id = p2.adjudication_id where p2.id = ${corrections.replacementPublicationId})` })
+      .from(corrections).innerJoin(publications, eq(publications.id, corrections.publicationId))
+      .innerJoin(adjudications, eq(adjudications.id, publications.adjudicationId))
+      .innerJoin(representations, eq(representations.id, adjudications.representationId))
+      .innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId))
+      .innerJoin(sourceCommunications, eq(sourceCommunications.id, sourceCaptures.communicationId))
+      .orderBy(desc(corrections.correctedAt)).limit(200),
+    db.select({ at: publications.publishedAt, reason: publications.note, representationId: representations.id, exactText: representations.exactText,
+      speakerName: sql<string>`(select display_name from people where people.id = ${sourceCommunications.speakerId})` })
+      .from(publications).innerJoin(adjudications, eq(adjudications.id, publications.adjudicationId))
+      .innerJoin(representations, eq(representations.id, adjudications.representationId))
+      .innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId))
+      .innerJoin(sourceCommunications, eq(sourceCommunications.id, sourceCaptures.communicationId))
+      .where(sql`${publications.retractionOfId} is not null`).orderBy(desc(publications.publishedAt)).limit(200),
+  ]);
+  const items: PublicCorrection[] = [
+    ...corrected.map(c => ({ kind: "correction" as const, at: c.at, speakerName: c.speakerName, exactText: c.exactText, reason: c.reason,
+      originalRecordId: c.representationId, replacementRecordId: c.replacementRepresentationId ?? null })),
+    ...retracted.map(r => ({ kind: "retraction" as const, at: r.at, speakerName: r.speakerName, exactText: r.exactText,
+      reason: r.reason ?? "Retracted.", originalRecordId: r.representationId, replacementRecordId: null })),
+  ];
+  return items.sort((a, b) => b.at - a.at);
+}

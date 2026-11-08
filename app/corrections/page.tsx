@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { PublicShell } from "@/components/public/public-shell";
+import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
+import { listPublicCorrections } from "@/lib/published-records";
 
 export const dynamic = "force-dynamic";
 
-export default function CorrectionsPage() {
+export default async function CorrectionsPage() {
+  const items = publicReadEnabled(process.env[PUBLIC_READ_FLAG]) ? await listPublicCorrections() : [];
   return <PublicShell current="/corrections">
     <article className="prose">
       <div className="eyebrow">CORRECTIONS · DRAFT FOR THE FOUNDER&apos;S EDIT</div>
@@ -31,7 +35,13 @@ export default function CorrectionsPage() {
       <p>[Founder: decide whether to publish a response time, and whether declined requests are summarized publicly. Neither is promised here until decided.]</p>
 
       <h2>Corrections so far</h2>
-      <p>None. This section will list every correction and retraction, newest first, once there is one.</p>
+      {items.length ? <ol className="corrections-list">{items.map((c, i) => <li key={i}>
+        <div className="eyebrow">{c.kind === "correction" ? "CORRECTION" : "RETRACTION"} · {new Date(c.at).toLocaleDateString()}</div>
+        <p><b>{c.speakerName}</b>: &ldquo;{c.exactText.length > 160 ? `${c.exactText.slice(0, 157).trimEnd()}…` : c.exactText}&rdquo;</p>
+        <p>{c.reason}</p>
+        <p className="fine-links">{c.replacementRecordId ? <Link href={`/records/${c.replacementRecordId}`}>Corrected record</Link> : <span>No replacement record.</span>} <span>Original record id {c.originalRecordId}.</span></p>
+      </li>)}</ol>
+      : <p>None. This section lists every correction and retraction, newest first, as soon as there is one.</p>}
     </article>
   </PublicShell>;
 }
