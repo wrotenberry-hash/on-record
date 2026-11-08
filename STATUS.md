@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-08 (round 10 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-08 (round 11 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -33,6 +33,12 @@ A private checking instrument for political representations: a source's exact qu
 - Health probe reports quote fidelity (representations found verbatim in their capture) for the readiness report (6 Nov).
 - Every scheduled run puts leads the budget outage marked failed back in the queue; verified on a local run (6 Nov).
 - Three public pages drafted behind the public switch: /method (how a claim is checked), /about (who runs this), /corrections. Verified: render with the switch on, show the private notice with it off (5 Nov).
+
+## Verified in production (8 Nov)
+
+- All 12 deployments since 5 Nov are READY; the live site runs commit 6bc4f2a (Not now). Migration 0010 applied: the probe's case selection reads the new column and answers.
+- Public pages, landing and record permalinks show the private notice (switch off). Probe reports quote fidelity 90 of 90, lanes over 30 days (Executive 5 captured / 1 failed, Democratic 5 / 3, Independent 1 / 0, Republican 0 tried, 8 queued), 89 cases open, 1 published.
+- Daily emails sending (case 7 Nov 13:00 UTC, nudge 7 Nov 19:00 UTC). Zero reviews in the last 7 days. Only runtime error is the expected OpenAI credit refusal; no leads lost to it since the fix.
 
 ## In Progress
 
