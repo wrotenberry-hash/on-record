@@ -116,6 +116,9 @@ test("the rhythm email carries a one-tap link to the case", () => {
   assert.equal(mail.subject, "[On Record] Today's case: Gov. A. Example");
   assert.match(mail.text, /https:\/\/x\.test\/editor\?case=case-1/);
   assert.doesNotMatch(mail.text, /Current checks/);
+  assert.doesNotMatch(mail.text, /Not today/);
+  const withSkip = formatRhythmEmail(out.email, "case-1", "https://x.test", "https://x.test/skip?t=abc");
+  assert.match(withSkip.text, /Not today\? https:\/\/x\.test\/skip\?t=abc/);
 });
 
 test("limit parsing and email formatting", () => {

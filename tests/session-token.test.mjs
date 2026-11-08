@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sameAccessKey, signSession, verifySession } from "../lib/session-token.ts";
+import { sameAccessKey, signSession, verifySession, signAction, verifyAction } from "../lib/session-token.ts";
 
 const key = "a-long-random-access-key-for-tests";
 const later = Date.now() + 60_000;
@@ -28,4 +28,16 @@ test("the access key comparison is exact and fails closed", async () => {
   assert.equal(await sameAccessKey(key.slice(0, -1), key), false);
   assert.equal(await sameAccessKey(key, ""), false);
   assert.equal(await sameAccessKey("", key), false);
+});
+
+test("action tokens are single-purpose, expire, and are not interchangeable with sessions", async () => {
+  const token = await signAction(key, "defer", "case-1", later);
+  assert.deepEqual(await verifyAction(key, "defer", token), { purpose: "defer", subject: "case-1", expiresAt: later });
+  assert.equal(await verifyAction(key, "publish", token), null, "wrong purpose");
+  assert.equal(await verifyAction("another-key", "defer", token), null, "wrong key");
+  assert.equal(await verifyAction(key, "defer", token, later + 1), null, "expired");
+  assert.equal(await verifyAction(key, "defer", token.slice(0, -2) + "xx"), null, "tampered signature");
+  assert.equal(await verifySession(key, token), null, "an action token is not a session");
+  assert.equal(await verifyAction(key, "defer", await signSession(key, "a@b.c", later)), null, "a session token is not an action");
+  await assert.rejects(() => signAction(key, "Not Valid", "x", later));
 });

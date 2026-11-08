@@ -165,8 +165,10 @@ function nudgeAlert(input: RhythmInput): Alert {
     detail: [`This morning's case has not been reviewed yet.`, `"${c.exactText}"`, "", "One nudge a day, no more. Missed days are counted in Monday's report.", "", progress(input)].join("\n") };
 }
 
-export function formatRhythmEmail(alert: Alert, caseId: string, siteUrl: string): { subject: string; text: string } {
-  const lines = [alert.detail, "", `Open the case: ${siteUrl}/editor?case=${encodeURIComponent(caseId)}`, "", "Sent by On Record's scheduled run. No case ready means no email."];
+export function formatRhythmEmail(alert: Alert, caseId: string, siteUrl: string, skipUrl?: string | null): { subject: string; text: string } {
+  const lines = [alert.detail, "", `Open the case: ${siteUrl}/editor?case=${encodeURIComponent(caseId)}`,
+    ...(skipUrl ? ["", `Not today? ${skipUrl}`, "One tap moves this case to the back of the order; tomorrow's email picks another. The link works for 48 hours and changes nothing until you confirm."] : []),
+    "", "Sent by On Record's scheduled run. No case ready means no email."];
   return { subject: `[On Record] ${alert.subject}`, text: lines.join("\n") };
 }
 

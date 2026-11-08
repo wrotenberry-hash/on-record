@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { adjudications, alertEvents, automationRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
+import { signAction } from "@/lib/session-token";
 import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend } from "@/lib/monitoring";
 
 /**
@@ -173,7 +174,7 @@ export async function previewRhythm(now = Date.now()): Promise<RhythmOutcome> {
 export async function runRhythm(now = Date.now()): Promise<RhythmOutcome> {
   const outcome = await previewRhythm(now);
   if (!outcome.email || !outcome.caseId) return outcome;
-  const mail = formatRhythmEmail(outcome.email, outcome.caseId, SITE_URL);
+  const mail = formatRhythmEmail(outcome.email, outcome.caseId, SITE_URL, await skipLink(outcome.caseId, now));
   const delivery = await sendEmail(mail.subject, mail.text);
   if (delivery.ok) { await recordSent(outcome.email, process.env.ALERT_TO_EMAIL?.trim() || DEFAULT_ALERT_TO); return { ...outcome, sent: { id: delivery.id } }; }
   return { ...outcome, failed: delivery.error };
@@ -187,4 +188,13 @@ export async function sendTestAlert(requestedBy: string, now = Date.now()) {
   const delivery = await sendEmail(mail.subject, mail.text);
   if (delivery.ok) await recordSent(alert, result.configured.recipient);
   return { delivery, checks: result.checks, wouldAlert: result.alerts.map(a => a.kind), suppressed: result.suppressed.map(a => a.kind) };
+}
+
+export const SKIP_LINK_TTL_MS = 48 * 60 * 60 * 1000;
+
+/** A signed, 48-hour "not today" link for the emailed case; null when sign-in is not configured. */
+export async function skipLink(caseId: string, now = Date.now()): Promise<string | null> {
+  const key = process.env.EDITOR_ACCESS_KEY?.trim();
+  if (!key) return null;
+  return `${SITE_URL}/skip?t=${encodeURIComponent(await signAction(key, "defer", caseId, now + SKIP_LINK_TTL_MS))}`;
 }

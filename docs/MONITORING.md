@@ -41,6 +41,13 @@ on that case. No case ready means no email. Missed days are visible in
 `GET /api/automation/health` → `throughput` and are reported in the Monday
 status, not nagged about.
 
+Each email also carries a **"Not today?"** link: `/skip?t=<token>`, a
+single-purpose HMAC token (`signAction` in lib/session-token.ts, purpose
+`defer`, 48-hour expiry, keyed separately from sessions). Opening the link
+shows a confirmation page and changes nothing; the button POSTs and sets
+`representations.deferred_at`, so tomorrow's email picks a different case.
+The link is omitted when `EDITOR_ACCESS_KEY` is not set.
+
 `GET /api/editor/alerts` includes `rhythm: { phase, wouldSend, reason, caseId }`
 so the decision can be inspected without sending.
 

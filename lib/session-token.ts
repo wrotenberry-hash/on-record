@@ -69,3 +69,46 @@ function timingSafeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return difference === 0;
 }
+
+/* ---------------------------------------------------------------------------
+ * Single-purpose action tokens (e.g. "defer this case") for links in email.
+ * Same key material as sessions but a different derivation, so a session
+ * cookie can never be replayed as an action and an action link never grants
+ * a session. The action is confirmed with a POST; the link itself changes
+ * nothing, so a mail client that prefetches it does no harm.
+ * ------------------------------------------------------------------------- */
+const ACTION_VERSION = "a1";
+
+async function actionKey(accessKey: string): Promise<CryptoKey> {
+  const material = await crypto.subtle.digest("SHA-256", encoder.encode(`on-record-action:${accessKey}`));
+  return crypto.subtle.importKey("raw", material, { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+}
+
+function actionPayload(purpose: string, subject: string, expiresAt: number): string {
+  return `${ACTION_VERSION}.${purpose}.${base64url(encoder.encode(subject))}.${expiresAt}`;
+}
+
+export async function signAction(accessKey: string, purpose: string, subject: string, expiresAt: number): Promise<string> {
+  if (!/^[a-z-]{1,32}$/.test(purpose)) throw Error("Action purpose must be a short lowercase word");
+  const body = actionPayload(purpose, subject, expiresAt);
+  const signature = await crypto.subtle.sign("HMAC", await actionKey(accessKey.trim()), encoder.encode(body));
+  return `${body}.${base64url(signature)}`;
+}
+
+export type VerifiedAction = { purpose: string; subject: string; expiresAt: number };
+
+/** The action when the signature is valid, the purpose matches and the token has not expired; otherwise null. */
+export async function verifyAction(accessKey: string | undefined | null, purpose: string, token: string | undefined | null, now = Date.now()): Promise<VerifiedAction | null> {
+  if (!accessKey?.trim() || !token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 5 || parts[0] !== ACTION_VERSION || parts[1] !== purpose) return null;
+  const [, , encodedSubject, expiryText, signature] = parts;
+  const expiresAt = Number(expiryText);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= now) return null;
+  let subject: string;
+  try { subject = new TextDecoder().decode(fromBase64url(encodedSubject)); } catch { return null; }
+  if (!subject) return null;
+  const expected = await crypto.subtle.sign("HMAC", await actionKey(accessKey.trim()), encoder.encode(actionPayload(purpose, subject, expiresAt)));
+  if (!timingSafeEqual(base64url(expected), signature)) return null;
+  return { purpose, subject, expiresAt };
+}
