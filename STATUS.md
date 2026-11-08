@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-08 (round 13 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-08 (round 14 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -21,6 +21,7 @@ A private checking instrument for political representations: a source's exact qu
 - Scheduler skips hosts that block the crawler twice in two weeks; a payment refusal no longer burns a lead (27 Oct, 2 Nov).
 - Public page: browse by speaker; leak-check script passes (27 Oct).
 - 1 CHECKING record published in production. 89 cases open in the editor.
+- Probe reports the habit over 7 days: days with a review, case emails and nudges sent, cases deferred, deferred open now. Monday report reads it and flags when deferrals outnumber reviews (8 Nov).
 - Status dashboard republished with rounds 1–12 and the production check (8 Nov). Same link: https://claude.ai/artifact/BkdBcsZEgDYiW4q93cbMTm
 - The morning email carries a one-tap "Not today?" link: a signed 48-hour token opens a confirmation page, the button defers the case, no sign-in needed. Verified end to end locally from a real tick email (8 Nov).
 - "Not now" on any open case defers it to the back of the morning-email order without judging it; "Bring it back" undoes. Verified end to end locally (8 Nov).

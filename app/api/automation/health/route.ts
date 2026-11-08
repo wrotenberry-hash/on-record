@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { databaseSettings } from "@/db/settings";
-import { alertEvents, automationRuns, intakeCandidates, publications, representations, reviews, sourceCaptures } from "@/db/schema";
+import { alertEvents, automationRuns, intakeCandidates, materialityDecisions, publications, representations, reviews, sourceAuthentications, sourceCaptures } from "@/db/schema";
 import { LAUNCH_TARGET } from "@/lib/monitoring";
 import { monitoringConfigured, pickDailyCase } from "@/lib/monitoring-runtime";
 
@@ -48,6 +48,19 @@ async function throughput() {
       count(db.select({ n: sql<number>`count(*)` }).from(representations).where(eq(representations.status, "REJECTED")).get()),
       pickDailyCase().then(x => x.waitingCount),
     ]);
+    // The habit: did the reviewer act, on how many days, and how often did they say "not today".
+    const dayOf = (col: unknown) => sql<string>`date(${col} / 1000, 'unixepoch')`;
+    const [authDays, matDays, reviewDays, pubDays, deferredWeek, deferredOpen, caseMails, nudgeMails] = await Promise.all([
+      db.select({ d: dayOf(sourceAuthentications.verifiedAt) }).from(sourceAuthentications).where(and(gte(sourceAuthentications.verifiedAt, week), ne(sourceAuthentications.method, "automated-http-fetch"))).groupBy(sql`1`),
+      db.select({ d: dayOf(materialityDecisions.lockedAt) }).from(materialityDecisions).where(gte(materialityDecisions.lockedAt, week)).groupBy(sql`1`),
+      db.select({ d: dayOf(reviews.createdAt) }).from(reviews).where(gte(reviews.createdAt, week)).groupBy(sql`1`),
+      db.select({ d: dayOf(publications.publishedAt) }).from(publications).where(gte(publications.publishedAt, week)).groupBy(sql`1`),
+      count(db.select({ n: sql<number>`count(*)` }).from(representations).where(gte(representations.deferredAt, week)).get()),
+      count(db.select({ n: sql<number>`count(*)` }).from(representations).where(and(sql`${representations.deferredAt} is not null`, ne(representations.status, "REJECTED"))).get()),
+      count(db.select({ n: sql<number>`count(*)` }).from(alertEvents).where(and(eq(alertEvents.kind, "DAILY_CASE"), gte(alertEvents.sentAt, week))).get()),
+      count(db.select({ n: sql<number>`count(*)` }).from(alertEvents).where(and(eq(alertEvents.kind, "DAILY_NUDGE"), gte(alertEvents.sentAt, week))).get()),
+    ]);
+    const daysWithReview = new Set([...authDays, ...matDays, ...reviewDays, ...pubDays].map(r => r.d)).size;
     // Capture outcome by source lane over 30 days: which sources are worth keeping.
     const month = now - 30 * 24 * 3600 * 1000;
     const laneRows = await db.select({ lane: intakeCandidates.lane, status: intakeCandidates.status, n: sql<number>`count(*)` })
@@ -66,6 +79,7 @@ async function throughput() {
     return { publishedTotal: published, launchTarget: LAUNCH_TARGET, casesWaiting: waiting, representationsRejectedTotal: rejectedReps,
       quoteMatch: { matched: Number(quote?.matched ?? 0), total: Number(quote?.total ?? 0) },
       lanes30d: lanes,
+      habit7d: { daysWithReview, caseEmails: caseMails, nudges: nudgeMails, deferred: deferredWeek, deferredOpenNow: deferredOpen },
       last7d: { published: publishedWeek, reviews: reviewsWeek, reviewsApproved: approvedWeek, reviewsRejected: rejectedWeek, captures: capturesWeek,
         runs: runsWeek, runsFailed: failedWeek, leadsFailed: leadsFailedWeek, leadsBlocked403: leadsBlockedWeek } };
   } catch { return "unavailable" as const; }
