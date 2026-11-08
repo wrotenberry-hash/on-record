@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-08 (round 15 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-08 (round 16 of /next). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -21,6 +21,7 @@ A private checking instrument for political representations: a source's exact qu
 - Scheduler skips hosts that block the crawler twice in two weeks; a payment refusal no longer burns a lead (27 Oct, 2 Nov).
 - Public page: browse by speaker; leak-check script passes (27 Oct).
 - 1 CHECKING record published in production. 89 cases open in the editor.
+- Probe reports time per case: median minutes from the source check to publication, sample count, and the share under 10 minutes. Verified locally with one published case (8 Nov).
 - The morning email opens with a streak line ("Reviewed on 3 of the last 7 days. Keep it going.") only when there is one; silent otherwise. Text covered by tests; the count query runs on a local tick (8 Nov).
 - Probe reports the habit over 7 days: days with a review, case emails and nudges sent, cases deferred, deferred open now. Monday report reads it and flags when deferrals outnumber reviews (8 Nov).
 - Status dashboard republished with rounds 1–12 and the production check (8 Nov). Same link: https://claude.ai/artifact/BkdBcsZEgDYiW4q93cbMTm

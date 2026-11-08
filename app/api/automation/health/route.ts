@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { databaseSettings } from "@/db/settings";
-import { alertEvents, automationRuns, intakeCandidates, materialityDecisions, publications, representations, reviews, sourceAuthentications, sourceCaptures } from "@/db/schema";
+import { adjudications, alertEvents, automationRuns, intakeCandidates, materialityDecisions, publications, representations, reviews, sourceAuthentications, sourceCaptures } from "@/db/schema";
 import { LAUNCH_TARGET } from "@/lib/monitoring";
 import { monitoringConfigured, pickDailyCase } from "@/lib/monitoring-runtime";
 
@@ -48,6 +48,14 @@ async function throughput() {
       count(db.select({ n: sql<number>`count(*)` }).from(representations).where(eq(representations.status, "REJECTED")).get()),
       pickDailyCase().then(x => x.waitingCount),
     ]);
+    // Time per case: minutes from the first human gate (source check) to publication, median over published records.
+    const spans = await db.select({ publishedAt: publications.publishedAt,
+      firstHumanAt: sql<number | null>`(select min(sa.verified_at) from source_authentications sa where sa.capture_id = ${representations.captureId} and sa.method <> 'automated-http-fetch')` })
+      .from(publications).innerJoin(adjudications, eq(adjudications.id, publications.adjudicationId))
+      .innerJoin(representations, eq(representations.id, adjudications.representationId)).orderBy(desc(publications.publishedAt)).limit(500);
+    const minutes = spans.filter(r => r.firstHumanAt !== null && r.publishedAt >= Number(r.firstHumanAt)).map(r => (r.publishedAt - Number(r.firstHumanAt)) / 60000).sort((a, b) => a - b);
+    const median = minutes.length ? Math.round(minutes[Math.floor((minutes.length - 1) / 2)] * 10) / 10 : null;
+    const timePerCase = { samples: minutes.length, medianMinutes: median, under10MinutesShare: minutes.length ? Math.round(100 * minutes.filter(m => m <= 10).length / minutes.length) / 100 : null };
     // The habit: did the reviewer act, on how many days, and how often did they say "not today".
     const dayOf = (col: unknown) => sql<string>`date(${col} / 1000, 'unixepoch')`;
     const [authDays, matDays, reviewDays, pubDays, deferredWeek, deferredOpen, caseMails, nudgeMails] = await Promise.all([
@@ -79,6 +87,7 @@ async function throughput() {
     return { publishedTotal: published, launchTarget: LAUNCH_TARGET, casesWaiting: waiting, representationsRejectedTotal: rejectedReps,
       quoteMatch: { matched: Number(quote?.matched ?? 0), total: Number(quote?.total ?? 0) },
       lanes30d: lanes,
+      timePerCase,
       habit7d: { daysWithReview, caseEmails: caseMails, nudges: nudgeMails, deferred: deferredWeek, deferredOpenNow: deferredOpen },
       last7d: { published: publishedWeek, reviews: reviewsWeek, reviewsApproved: approvedWeek, reviewsRejected: rejectedWeek, captures: capturesWeek,
         runs: runsWeek, runsFailed: failedWeek, leadsFailed: leadsFailedWeek, leadsBlocked403: leadsBlockedWeek } };
