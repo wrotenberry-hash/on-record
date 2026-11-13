@@ -72,6 +72,8 @@ A private checking instrument for political representations: a source's exact qu
 - Bill headline is Analysis; official title is the Official line (13 Nov).
 - Statement intake once a day, 13:00 UTC (13 Nov).
 - Reader sign-in: email magic link via Resend; verified domain is a pre-launch task (13 Nov).
+- Phase B (13 Nov): a summary picked for the 1-in-5 audit stays visible until checked; after Wilson has read the first 5, caps go to 40 summaries / $5 (ANALYSIS_MAX_SUMMARIES, ANALYSIS_SPEND_CAP_USD); costs stay estimated from listed prices, no OpenAI admin key.
+- On Record work runs in its own cloud environment, "On Record", not "Unofficial" (13 Nov).
 
 ## Waiting on Wilson
 

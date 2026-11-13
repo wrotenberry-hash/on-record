@@ -205,6 +205,11 @@ otherwise visible, and every 5th summary generated is also queued for an
 audit. Held summaries are shown only to the signed-in editor, labelled "Held
 for review". All of it stays behind `PUBLIC_READ_ENABLED`.
 
+Owner decisions on Phase B (2026-11-13): a sampled summary stays visible
+until the editor checks it; after the owner has read the first 5, the caps
+rise to 40 summaries and $5; cost stays estimated from listed prices (no
+OpenAI admin key).
+
 ## Phases and checkpoints
 
 | Phase | Builds | Checkpoint on the phone |
