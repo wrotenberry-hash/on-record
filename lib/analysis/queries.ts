@@ -64,11 +64,20 @@ export async function analysisCounts() {
     db.select({ usd: sql<number>`coalesce(sum(cost_usd), 0)`, calls: sql<number>`count(*)` }).from(sql`model_calls`).where(sql`purpose = 'analysis'`).get(),
     db.select().from(ingestRuns).where(eq(ingestRuns.job, "analysis")).orderBy(desc(ingestRuns.startedAt)).limit(1).get(),
   ]);
+  // One line per summary for the probe: order, category, status, checker result and cost. No bill text, no summary text.
+  const each = await db.select({ sequence: analysisBillSummaries.sequence, status: analysisBillSummaries.status, checkPassed: analysisBillSummaries.checkPassed,
+    attempts: analysisBillSummaries.attempts, confidence: analysisBillSummaries.confidence, costUsd: analysisBillSummaries.costUsd,
+    inputTokens: analysisBillSummaries.inputTokens, outputTokens: analysisBillSummaries.outputTokens,
+    category: sql<string | null>`(select bc.category_slug from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${analysisBillSummaries.billId} order by ic.sort_order limit 1)`,
+    queue: analysisReviewQueue.reason })
+    .from(analysisBillSummaries).leftJoin(analysisReviewQueue, eq(analysisReviewQueue.summaryId, analysisBillSummaries.id))
+    .orderBy(analysisBillSummaries.sequence).limit(50);
   const count = (s: string) => Number(byStatus.find(r => r.status === s)?.n ?? 0);
   const detail = (last?.detail ?? {}) as { stoppedBy?: string | null; made?: unknown[] };
   return { summaries: byStatus.reduce((n, r) => n + Number(r.n), 0), visible: count("visible"), held: count("held"), rejected: count("rejected"),
     openReviews: Number(open?.n ?? 0), summaryCostUsd: Math.round(byStatus.reduce((n, r) => n + Number(r.usd), 0) * 10000) / 10000,
     analysisCallsUsd: Math.round(Number(spend?.usd ?? 0) * 10000) / 10000, analysisCalls: Number(spend?.calls ?? 0),
+    each: each.map(e => ({ ...e, checkPassed: e.checkPassed === 1, costUsd: Math.round(e.costUsd * 10000) / 10000 })),
     lastRun: last ? { status: last.status, startedAt: new Date(last.startedAt).toISOString(), made: Array.isArray(detail.made) ? detail.made.length : 0, stoppedBy: detail.stoppedBy ?? null,
       error: last.error ? last.error.replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) : null } : null };
 }
