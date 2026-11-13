@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { evaluate, daysUntil, parseMonthlyLimit, formatAlertEmail, decideRhythm, formatRhythmEmail, rhythmPhase, DEDUPE_WINDOW_MS, HOUR_MS, DAY_MS } from "../lib/monitoring.ts";
+import { evaluate, daysUntil, parseMonthlyLimit, formatAlertEmail, decideRhythm, formatRhythmEmail, rhythmPhase, DEDUPE_WINDOW_MS, HOUR_MS, DAY_MS,
+  parseCredit, parseLowBalance, billingCodeIn, intakeAllowed, intakeHours } from "../lib/monitoring.ts";
 
 const now = Date.parse("2026-09-28T13:05:00Z");
 const run = (status, captureStatus, hoursAgo) => ({ status, captureStatus, startedAt: now - hoursAgo * HOUR_MS, finishedAt: now - hoursAgo * HOUR_MS + 90_000 });
@@ -149,4 +150,43 @@ test("federal ingestion alerts only after two outright failures in a row", () =>
   assert.deepEqual(evaluate({ ...healthy(), ingestRuns: [r("FAILED", 1), r("PARTIAL", 7)] }, now).alerts, [], "a partial run stored something");
   assert.deepEqual(evaluate({ ...healthy(), ingestRuns: [r("RUNNING", 0), r("FAILED", 1), r("COMPLETE", 7)] }, now).alerts, []);
   assert.deepEqual(evaluate(healthy(), now).alerts, [], "no ingestion runs is not an alert");
+});
+
+test("estimated OpenAI credit under $3 raises LOW_BALANCE; unset credit is reported, not alerted", () => {
+  const credit = (spentUsd) => ({ creditUsd: 10, setAt: now - 5 * DAY_MS, spentUsd, source: "model-call-ledger" });
+  assert.deepEqual(evaluate({ ...healthy(), credit: credit(6.5) }, now).alerts, []);
+  const low = evaluate({ ...healthy(), credit: credit(7.25) }, now);
+  assert.deepEqual(low.alerts.map(a => a.kind), ["LOW_BALANCE"]);
+  assert.match(low.alerts[0].subject, /about \$2\.75 left/);
+  assert.match(low.checks.openaiCredit, /about \$2\.75 left of \$10\.00/);
+  assert.deepEqual(evaluate({ ...healthy(), credit: credit(6.5), lowBalanceUsd: 4 }, now).alerts.map(a => a.kind), ["LOW_BALANCE"]);
+  const unset = evaluate({ ...healthy(), credit: parseCredit(undefined, undefined) }, now);
+  assert.deepEqual(unset.alerts, []);
+  assert.match(unset.checks.openaiCredit, /OPENAI_CREDIT_USD not set/);
+  assert.deepEqual(parseCredit("10", "2026-11-13T14:00:00Z"), { creditUsd: 10, setAt: Date.parse("2026-11-13T14:00:00Z") });
+  assert.equal(parseCredit("10", "").creditUsd, null);
+  assert.equal(parseLowBalance(undefined), 3);
+  assert.equal(parseLowBalance("5"), 5);
+});
+
+test("a billing refusal alerts at once, from the call ledger or the newest failed run", () => {
+  assert.equal(billingCodeIn("Capture: Research API billing or usage limit (credit_balance_exhausted). Check"), "credit_balance_exhausted");
+  assert.equal(billingCodeIn("Source has too little readable text"), null);
+  const failedRun = { ...run("FAILED", null, 0.1), error: "Capture: Research API billing or usage limit (credit_balance_exhausted)." };
+  const fromRun = evaluate({ ...healthy(), runs: [failedRun, run("COMPLETE", "CAPTURED", 18)] }, now);
+  assert.deepEqual(fromRun.alerts.map(a => a.kind), ["BILLING_REFUSED"]);
+  assert.match(fromRun.alerts[0].detail, /credit_balance_exhausted/);
+  const fromLedger = evaluate({ ...healthy(), billingRefusal: { at: now - 2 * HOUR_MS, code: "insufficient_quota" } }, now);
+  assert.deepEqual(fromLedger.alerts.map(a => a.kind), ["BILLING_REFUSED"]);
+  assert.deepEqual(evaluate({ ...healthy(), billingRefusal: { at: now - 30 * HOUR_MS, code: "insufficient_quota" } }, now).alerts, [], "older than 24 h");
+  const deduped = evaluate({ ...healthy(), billingRefusal: { at: now - HOUR_MS, code: "insufficient_quota" }, lastSent: new Map([["BILLING_REFUSED", now - 10 * HOUR_MS]]) }, now);
+  assert.deepEqual(deduped.suppressed.map(a => a.kind), ["BILLING_REFUSED"]);
+});
+
+test("statement intake runs once a day at 13:00 UTC unless configured otherwise", () => {
+  assert.deepEqual(intakeHours(undefined), [13]);
+  assert.ok(intakeAllowed(Date.parse("2026-11-13T13:00:40Z"), undefined));
+  assert.ok(!intakeAllowed(Date.parse("2026-11-13T19:00:40Z"), undefined));
+  assert.ok(intakeAllowed(Date.parse("2026-11-13T19:00:40Z"), "13,19"));
+  assert.deepEqual(intakeHours("nonsense"), [13]);
 });

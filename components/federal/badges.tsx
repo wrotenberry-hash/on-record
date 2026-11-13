@@ -29,3 +29,8 @@ export function shortDate(ms: number | string | null | undefined) {
   const d = typeof ms === "number" ? new Date(ms) : new Date(`${ms}T12:00:00Z`);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" });
 }
+
+/** AI-written content. Always shown next to the section it labels; never mixed into an Official section. */
+export function AnalysisBadge({ title = "Written by AI from the bill text, checked by rules and sampled by an editor" }: { title?: string }) {
+  return <span className="ctype ctype-analysis" title={title}>Analysis</span>;
+}

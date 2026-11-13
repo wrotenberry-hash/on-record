@@ -6,7 +6,7 @@ The app has a bounded `/api/automation/tick` job. Vercel Cron calls it with GET 
 
 ## Complete deployment (Vercel, since 2026-09-26)
 
-1. `vercel.json` declares two cron entries for `/api/automation/tick` at 13:00 and 19:00 UTC. Vercel provides `CRON_SECRET` as a project environment variable; the job refuses any call without it. On the Hobby plan a cron may fire anywhere within its scheduled hour, which the hour-slot ledger tolerates.
+1. `vercel.json` declares two cron entries for `/api/automation/tick` at 13:00 and 19:00 UTC. Vercel provides `CRON_SECRET` as a project environment variable; the job refuses any call without it. On the Hobby plan a cron may fire anywhere within its scheduled hour, which the hour-slot ledger tolerates. Since 2026-11-13 statement intake runs only at the 13:00 run (`STATEMENT_INTAKE_HOURS_UTC`); the 19:00 run does the federal update, bill summaries, alerts and the afternoon nudge, and writes no intake ledger row.
 2. Set `CRON_SECRET`, the Turso and Supabase settings, `EDITOR_EMAILS` and `OPENAI_API_KEY` in Vercel, then deploy. `GET /api/automation/health` reports which secrets are bound without revealing them.
 3. Verify a COMPLETE or an actionable FAILED row in `automation_runs`, the capture state, the draft citations and actual model usage. Confirm a second call within the hour returns ALREADY_RUNNING_OR_COMPLETE and a third call in the day returns DAILY_LIMIT. Then monitor the run ledger and OpenAI billing. A deployed code path by itself is not unattended operation.
 

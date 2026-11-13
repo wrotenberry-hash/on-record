@@ -5,6 +5,9 @@ import { adjudications, alertEvents, automationRuns, intakeCandidates, materiali
 import { LAUNCH_TARGET } from "@/lib/monitoring";
 import { monitoringConfigured, pickDailyCase } from "@/lib/monitoring-runtime";
 import { federalCounts, lastFederalRun } from "@/lib/federal/queries";
+import { analysisCounts } from "@/lib/analysis/queries";
+import { billingCodeIn, intakeHours, parseLowBalance } from "@/lib/monitoring";
+import { creditEstimate } from "@/lib/monitoring-runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +118,39 @@ async function federal() {
   } catch { return "unavailable" as const; }
 }
 
+/**
+ * Every scheduled run in the last 14 days: slot, status and an error class only
+ * (a billing code, or a few generic words). No candidate, statement or URL.
+ */
+async function recentRuns() {
+  try {
+    const since = Date.now() - 14 * 24 * 3600 * 1000;
+    const rows = await getDb().select({ slot: automationRuns.slot, status: automationRuns.status, captureStatus: automationRuns.captureStatus, error: automationRuns.error })
+      .from(automationRuns).where(gte(automationRuns.startedAt, since)).orderBy(desc(automationRuns.startedAt)).limit(40);
+    return rows.map(r => ({ slot: r.slot, status: r.status, capture: r.captureStatus,
+      errorClass: r.error ? (billingCodeIn(r.error) ?? r.error.replace(/https?:\/\/\S+/g, "[url]").split(/[.:|(]/)[0].trim().slice(0, 60)) : null }));
+  } catch { return "unavailable" as const; }
+}
+
+/** Alert emails sent in the last 30 days: kind and time only. */
+async function recentAlerts() {
+  try {
+    const since = Date.now() - 30 * 24 * 3600 * 1000;
+    const rows = await getDb().select({ kind: alertEvents.kind, sentAt: alertEvents.sentAt }).from(alertEvents)
+      .where(and(gte(alertEvents.sentAt, since), sql`${alertEvents.kind} not in ('DAILY_CASE', 'DAILY_NUDGE')`)).orderBy(desc(alertEvents.sentAt)).limit(40);
+    return rows.map(r => ({ kind: r.kind, sentAt: new Date(r.sentAt).toISOString() }));
+  } catch { return "unavailable" as const; }
+}
+
+async function openaiCredit() {
+  try {
+    const c = await creditEstimate();
+    if (c.creditUsd === null) return { configured: false, reason: c.reason, lowBalanceUsd: parseLowBalance(process.env.OPENAI_LOW_BALANCE_USD) };
+    return { configured: true, creditUsd: c.creditUsd, setAt: new Date(c.setAt).toISOString(), spentSinceUsd: Math.round(c.spentUsd * 10000) / 10000,
+      estimatedLeftUsd: Math.round((c.creditUsd - c.spentUsd) * 100) / 100, source: c.source, lowBalanceUsd: parseLowBalance(process.env.OPENAI_LOW_BALANCE_USD) };
+  } catch { return "unavailable" as const; }
+}
+
 async function lastAlert() {
   try {
     const row = await getDb().select({ kind: alertEvents.kind, sentAt: alertEvents.sentAt }).from(alertEvents).orderBy(desc(alertEvents.sentAt)).limit(1).get();
@@ -135,6 +171,8 @@ export async function GET() {
     database: databaseSettings().source, databaseHost: databaseHost(), lastRun: await lastRun(),
     monitoring: { resendConfigured: monitoringConfigured().resend, spendSource: monitoringConfigured().spendSource, keyExpires: monitoringConfigured().keyExpires, lastAlert: await lastAlert() },
     rhythm: await rhythm(), throughput: await throughput(), federal: await federal(),
+    intakeHoursUtc: intakeHours(process.env.STATEMENT_INTAKE_HOURS_UTC), recentRuns: await recentRuns(), recentAlerts: await recentAlerts(),
+    openaiCredit: await openaiCredit(), analysis: await analysisCounts().catch(() => "unavailable" as const),
     time: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } });
 }

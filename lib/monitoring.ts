@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "LOW_BALANCE", "BILLING_REFUSED"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -24,8 +24,36 @@ export const LAUNCH_TARGET = 20;
 export const KEY_EXPIRY_WARNING_DAYS = 21;
 export const SPEND_ALERT_FRACTION = 0.75;
 export const DEFAULT_MONTHLY_LIMIT_USD = 20;
+/** Email when the estimated OpenAI prepaid credit falls below this (OPENAI_LOW_BALANCE_USD). */
+export const DEFAULT_LOW_BALANCE_USD = 3;
+/** A billing refusal this recent raises BILLING_REFUSED. */
+export const BILLING_REFUSAL_WINDOW_MS = 24 * HOUR_MS;
 
-export type LedgerRun = { status: "RUNNING" | "COMPLETE" | "FAILED"; captureStatus: string | null; startedAt: number; finishedAt: number | null };
+/** Billing codes OpenAI returns when the account cannot pay (lib/automated-research.ts). */
+export const BILLING_CODES = ["insufficient_quota", "credit_balance_exhausted", "organization_usage_limit_exceeded",
+  "organization_spend_limit_exceeded", "project_spend_limit_exceeded"] as const;
+/** The billing code inside a run's error text, or null. */
+export function billingCodeIn(error: string | null | undefined): string | null {
+  if (!error) return null;
+  return BILLING_CODES.find(c => error.includes(c)) ?? null;
+}
+
+/**
+ * Prepaid credit left: the credit the owner added (OPENAI_CREDIT_USD, on
+ * OPENAI_CREDIT_SET_AT) minus every priced call recorded since. OpenAI has no
+ * balance API, so this is an estimate; it errs high only if a call is missed.
+ */
+export type Credit = { creditUsd: number; setAt: number; spentUsd: number; source: "model-call-ledger" | "openai-costs-api" } | { creditUsd: null; reason: string };
+export function parseCredit(amount: string | undefined | null, setAt: string | undefined | null): { creditUsd: number; setAt: number } | { creditUsd: null; reason: string } {
+  const usd = Number(amount);
+  if (!amount?.trim() || !Number.isFinite(usd) || usd < 0) return { creditUsd: null, reason: "OPENAI_CREDIT_USD not set" };
+  const at = Date.parse(setAt?.trim() ?? "");
+  if (!Number.isFinite(at)) return { creditUsd: null, reason: "OPENAI_CREDIT_SET_AT not set" };
+  return { creditUsd: usd, setAt: at };
+}
+export function parseLowBalance(value: string | undefined | null) { const n = Number(value); return value?.trim() && Number.isFinite(n) && n >= 0 ? n : DEFAULT_LOW_BALANCE_USD; }
+
+export type LedgerRun = { status: "RUNNING" | "COMPLETE" | "FAILED"; captureStatus: string | null; startedAt: number; finishedAt: number | null; error?: string | null };
 export type Spend = { monthToDateUsd: number; source: "openai-costs-api" | "ledger-estimate" } | { monthToDateUsd: null; source: "unavailable"; reason: string };
 
 export type MonitoringInput = {
@@ -39,10 +67,27 @@ export type MonitoringInput = {
   lastSent: ReadonlyMap<AlertKind, number>;
   /** Federal official-record ingestion runs, newest first (optional). */
   ingestRuns?: ReadonlyArray<{ status: "RUNNING" | "COMPLETE" | "PARTIAL" | "FAILED"; startedAt: number; error: string | null }>;
+  /** Estimated prepaid OpenAI credit (optional). */
+  credit?: Credit;
+  lowBalanceUsd?: number;
+  /** Newest billing refusal recorded by the model-call ledger (optional). */
+  billingRefusal?: { at: number; code: string } | null;
 };
 
 export type Alert = { kind: AlertKind; subject: string; detail: string };
 export type Evaluation = { alerts: Alert[]; suppressed: Alert[]; checks: Record<string, string> };
+
+/**
+ * Statement intake (capture and research, the model-bearing part of the
+ * scheduled run) runs only in these UTC hours. Owner decision 2026-11-13: once
+ * a day, at the 13:00 run. Federal ingestion, bill summaries, alerts and the
+ * afternoon nudge still run at every scheduled run.
+ */
+export function intakeHours(value: string | undefined | null): number[] {
+  const hours = (value ?? "13").split(",").map(x => Number(x.trim())).filter(h => Number.isInteger(h) && h >= 0 && h <= 23);
+  return hours.length ? hours : [13];
+}
+export function intakeAllowed(now: number, value: string | undefined | null) { return intakeHours(value).includes(new Date(now).getUTCHours()); }
 
 export function parseMonthlyLimit(value: string | undefined | null): number {
   const n = Number(value);
@@ -100,6 +145,25 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   checks.federalIngest = ingest.length ? ingest.map(r => r.status).join(", ") : "no runs yet";
   if (ingestFailing) found.push({ kind: "INGEST_FAILING", subject: "federal vote and bill ingestion failed twice in a row",
     detail: `The last two federal ingestion runs (started ${iso(ingest[1].startedAt)} and ${iso(ingest[0].startedAt)}) both failed. Latest error: ${(ingest[0].error ?? "none recorded").slice(0, 300)}` });
+
+  // (6) Estimated OpenAI credit below the low-balance line.
+  const floor = input.lowBalanceUsd ?? DEFAULT_LOW_BALANCE_USD;
+  if (!input.credit) checks.openaiCredit = "not evaluated";
+  else if (input.credit.creditUsd === null) checks.openaiCredit = `unknown (${input.credit.reason})`;
+  else {
+    const left = Math.round((input.credit.creditUsd - input.credit.spentUsd) * 100) / 100;
+    checks.openaiCredit = `about $${left.toFixed(2)} left of $${input.credit.creditUsd.toFixed(2)} added ${iso(input.credit.setAt).slice(0, 10)}`;
+    if (left < floor) found.push({ kind: "LOW_BALANCE", subject: `OpenAI credit is low (about $${Math.max(0, left).toFixed(2)} left)`,
+      detail: `Estimated OpenAI prepaid credit is about $${left.toFixed(2)}, below $${floor.toFixed(2)}. Estimate: $${input.credit.creditUsd.toFixed(2)} added on ${iso(input.credit.setAt).slice(0, 10)} minus $${input.credit.spentUsd.toFixed(2)} of calls recorded since (${input.credit.source === "openai-costs-api" ? "OpenAI Costs API" : "On Record's call ledger"}). Add credit at platform.openai.com > Settings > Billing, then update OPENAI_CREDIT_USD and OPENAI_CREDIT_SET_AT in Vercel.` });
+  }
+
+  // (7) OpenAI refused a call for billing: in the call ledger, or in the newest finished run's error.
+  const runCode = finished[0] && finished[0].status === "FAILED" ? billingCodeIn(finished[0].error) : null;
+  const ledgerRefusal = input.billingRefusal && now - input.billingRefusal.at < BILLING_REFUSAL_WINDOW_MS ? input.billingRefusal : null;
+  const refusalCode = ledgerRefusal?.code ?? runCode;
+  checks.billing = refusalCode ? `refused (${refusalCode})` : "no billing refusal in the last 24 h";
+  if (refusalCode) found.push({ kind: "BILLING_REFUSED", subject: "OpenAI refused a call for billing",
+    detail: `OpenAI answered "${refusalCode}"${ledgerRefusal ? ` at ${iso(ledgerRefusal.at)}` : ` on the scheduled run started ${iso(finished[0].startedAt)}`}. Statement capture, research and bill summaries stop until billing is fixed. Check platform.openai.com > Settings > Billing (credit balance) and > Limits (project and organisation spend limits).` });
 
   // Each kind at most once per DEDUPE_WINDOW_MS.
   const alerts: Alert[] = [], suppressed: Alert[] = [];

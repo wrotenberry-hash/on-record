@@ -85,6 +85,13 @@
       "when": 1794573677537,
       "tag": "0011_federal_record",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794577031795,
+      "tag": "0012_analysis_summaries",
+      "breakpoints": true
     }
   ]
 }

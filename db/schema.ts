@@ -331,3 +331,63 @@ export const ingestRuns = sqliteTable("ingest_runs", {
 export const ingestCursors = sqliteTable("ingest_cursors", {
   key: text("key").primaryKey(), value: text("value").notNull(), updatedAt: integer("updated_at").notNull(),
 });
+
+/* ===========================================================================
+ * Phase B: AI-written bill summaries (docs/TALK_IS_CHEAP_PLAN.md). New tables
+ * only. analysis_* rows are labelled Analysis wherever they appear and are
+ * checked by lib/analysis/checker.ts before anyone sees them.
+ * ========================================================================= */
+
+// Every OpenAI call, from any job: tokens, priced cost, and billing refusals. The
+// low-balance alert and per-summary cost read this ledger.
+export const modelCalls = sqliteTable("model_calls", {
+  id: text("id").primaryKey(), purpose: text("purpose").notNull(), model: text("model").notNull(), refId: text("ref_id"),
+  inputTokens: integer("input_tokens").notNull().default(0), cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0), webSearchCalls: integer("web_search_calls").notNull().default(0),
+  costUsd: real("cost_usd").notNull().default(0), responseId: text("response_id"), error: text("error"), createdAt: integer("created_at").notNull(),
+}, t => [index("model_calls_created_idx").on(t.createdAt), index("model_calls_ref_idx").on(t.refId)]);
+
+export const officialCostEstimates = sqliteTable("official_cost_estimates", {
+  billId: text("bill_id").references(() => officialBills.id).notNull(), url: text("url").notNull(),
+  pubDate: text("pub_date").notNull(), title: text("title").notNull(), description: text("description").notNull(),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.url] })]);
+
+export const analysisBillSummaries = sqliteTable("analysis_bill_summaries", {
+  id: text("id").primaryKey(), billId: text("bill_id").references(() => officialBills.id).notNull(),
+  sequence: integer("sequence").notNull(), // 0-based order of generation, for 1-in-5 sampling
+  textVersion: text("text_version").notNull(), textVersionLabel: text("text_version_label").notNull(), textDate: text("text_date"),
+  textUrl: text("text_url").notNull(), textChars: integer("text_chars").notNull(), truncated: integer("truncated").notNull().default(0),
+  headline: text("headline").notNull(),
+  whatItDoes: text("what_it_does", { mode: "json" }).$type<Array<{ text: string; section: string }>>().notNull(),
+  whoItAffects: text("who_it_affects", { mode: "json" }).$type<Array<{ text: string; section: string }>>().notNull(),
+  whatChangesForYou: text("what_changes_for_you").notNull(),
+  caseFor: text("case_for", { mode: "json" }).$type<Array<{ argument: string; attribution: string }>>().notNull(),
+  caseAgainst: text("case_against", { mode: "json" }).$type<Array<{ argument: string; attribution: string }>>().notNull(),
+  unknowns: text("unknowns", { mode: "json" }).$type<string[]>().notNull(),
+  confidence: text("confidence", { enum: ["high", "medium", "low"] }).notNull(), confidenceReason: text("confidence_reason").notNull(),
+  checkPassed: integer("check_passed").notNull(), attempts: integer("attempts").notNull(),
+  status: text("status", { enum: ["visible", "held", "rejected"] }).notNull(),
+  model: text("model").notNull(), promptVersion: text("prompt_version").notNull(),
+  inputTokens: integer("input_tokens").notNull(), outputTokens: integer("output_tokens").notNull(), costUsd: real("cost_usd").notNull(),
+  sources: text("sources", { mode: "json" }).$type<Array<{ label: string; url: string }>>().notNull(),
+  createdAt: integer("created_at").notNull(), reviewedAt: integer("reviewed_at"),
+}, t => [uniqueIndex("analysis_summaries_bill_version_uq").on(t.billId, t.textVersion), index("analysis_summaries_status_idx").on(t.status),
+  check("analysis_summaries_status", sql`${t.status} IN ('visible', 'held', 'rejected')`),
+  check("analysis_summaries_confidence", sql`${t.confidence} IN ('high', 'medium', 'low')`)]);
+
+export const analysisChecks = sqliteTable("analysis_checks", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => analysisBillSummaries.id).notNull(),
+  attempt: integer("attempt").notNull(), passed: integer("passed").notNull(),
+  failures: text("failures", { mode: "json" }).$type<string[]>().notNull(), warnings: text("warnings", { mode: "json" }).$type<string[]>().notNull(),
+  metrics: text("metrics", { mode: "json" }).$type<Record<string, number>>().notNull(), createdAt: integer("created_at").notNull(),
+}, t => [index("analysis_checks_summary_idx").on(t.summaryId)]);
+
+export const analysisReviewQueue = sqliteTable("analysis_review_queue", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => analysisBillSummaries.id).notNull(),
+  reason: text("reason", { enum: ["sample", "low_confidence", "check_failed"] }).notNull(),
+  status: text("status", { enum: ["open", "approved", "rejected"] }).notNull().default("open"),
+  note: text("note"), reviewerKey: text("reviewer_key"), createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
+}, t => [uniqueIndex("analysis_queue_summary_uq").on(t.summaryId), index("analysis_queue_status_idx").on(t.status),
+  check("analysis_queue_reason", sql`${t.reason} IN ('sample', 'low_confidence', 'check_failed')`),
+  check("analysis_queue_status", sql`${t.status} IN ('open', 'approved', 'rejected')`)]);

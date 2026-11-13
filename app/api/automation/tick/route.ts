@@ -7,6 +7,8 @@ import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/r
 import { tickAuthorized } from "@/lib/tick-auth";
 import { runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
+import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
+import { intakeAllowed } from "@/lib/monitoring";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -27,6 +29,14 @@ async function runTick(request: Request) {
   if (!via) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const now = Date.now(), slot = new Date(now).toISOString().slice(0, 13), day = slot.slice(0, 10);
   const db = getDb();
+  // Outside the intake hour (once a day, STATEMENT_INTAKE_HOURS_UTC, default 13) the run does only the
+  // model-free federal update, bill summaries within their own caps, and monitoring. It writes no
+  // ledger row, so it does not count toward the daily intake limit or the failure alerts.
+  if (!intakeAllowed(now, process.env.STATEMENT_INTAKE_HOURS_UTC)) {
+    const federal = await federalStep();
+    const analysis = await analysisStep(now);
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, monitoring: await monitorAfterRun() });
+  }
   const today = await db.select({ id: automationRuns.id }).from(automationRuns)
     .where(eq(automationRuns.day, day)).limit(6);
   // Cap model-bearing invocations even if an external scheduler retries or runs hourly.
@@ -38,9 +48,7 @@ async function runTick(request: Request) {
     .onConflictDoNothing().returning({ id: automationRuns.id });
   if (!claimed.length) return Response.json({ status: "ALREADY_RUNNING_OR_COMPLETE", slot });
   // The federal official record uses no model calls, so it runs first and on its own, even when the OpenAI budget is exhausted.
-  let federal: IngestSummary | { status: "FAILED"; error: string };
-  try { federal = await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
-  catch (error) { federal = { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
+  const federal = await federalStep();
   try {
     const requeued = await requeueBudgetFailures();
     const discovered = await runDiscovery();
@@ -87,6 +95,19 @@ async function runTick(request: Request) {
       .where(eq(automationRuns.id, id));
     return Response.json({ status: "FAILED", slot, error, federal, monitoring: await monitorAfterRun() }, { status: 502 });
   }
+}
+
+async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error: string }> {
+  try { return await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
+  catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
+}
+
+/** Bill summaries get what is left of the 300 s, less a margin for monitoring. Their own caps bound spend. */
+async function analysisStep(startedAt: number): Promise<AnalysisRun | { status: "FAILED"; error: string }> {
+  const budgetMs = Math.min(170_000, 300_000 - (Date.now() - startedAt) - 35_000);
+  if (budgetMs < 50_000) return { status: "FAILED", error: "no time left in this run" };
+  try { return await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
+  catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
 }
 
 /**

@@ -1,6 +1,6 @@
 # Talk is cheap: legislation and issues module
 
-Plan of 2026-11-13. Brand line: "Talk is cheap. The record isn't."
+Plan of 2026-11-13, updated the same day with the owner's decisions (headline is Analysis; statement intake once a day; reader sign-in by email magic link) and Phase B as built. Brand line: "Talk is cheap. The record isn't."
 Everything here ships behind `PUBLIC_READ_ENABLED` (off). While it is off,
 the new pages are visible only to a signed-in editor, as a private preview.
 
@@ -55,14 +55,18 @@ columns or new tables, never by changing an existing one.
 | `user_follows` | User → politician. |
 | `ingest_runs`, `ingest_cursors` | Ledger of each ingestion job and where each chamber's cursor stands. |
 
+### Phase B (migration 0012, built 2026-11-13)
+
+| Table | Holds |
+| --- | --- |
+| `analysis_bill_summaries` | One row per bill text version: headline, what it does (≤3, each with a section cite), who it affects, what changes for you, case for ×2 and against ×2 with attribution, what we don't know, confidence and reason, checker result, attempts, status (visible, held, rejected), model, prompt version, tokens, cost, sources. |
+| `analysis_checks` | Every checker run: attempt, pass or fail, each failure and warning, word count, reading grade, for/against word counts. |
+| `analysis_review_queue` | Summaries waiting for the editor: the 1-in-5 sample, every low-confidence one, every one that failed the checker twice. Decision, note, reviewer. |
+| `official_cost_estimates` | CBO cost estimates listed for a bill (date, title, link), from govinfo BILLSTATUS. |
+| `model_calls` | Every OpenAI call from any job: purpose, model, tokens, web searches, priced cost, billing refusals. Feeds per-summary cost and the low-balance alert. |
+
 ### Later phases (planned, not built)
 
-- **B** `analysis_bill_summaries` (one row per bill version: headline, what it
-  does ×3 with section cites, who it affects, what changes for you, case for ×2
-  and against ×2 with attribution, what we don't know, model, cost, checker
-  result, confidence), `analysis_checks` (every checker run and failure reason),
-  `analysis_review_queue` (sampled and low-confidence items, decision, reviewer),
-  `official_cost_estimates` (CBO).
 - **C** `app_users` gains nullable `email_hash`, `display_name`, `district`;
   `user_issue_prefs` (top 3), `opinion_user_votes` (user × bill → Support or
   Oppose), `friend_invites`, `friendships`, `share_cards` (opt-in per card).
@@ -79,6 +83,17 @@ ingestion runs at the start of the two existing scheduled runs (13:00 and
 19:00 UTC, about 8am and 2pm Eastern), uses no OpenAI, and runs even when the
 OpenAI budget is exhausted. Each run has a 120-second budget and resumes from
 its cursors next time.
+
+Owner decision 2026-11-13: statement intake (capture and research, the
+model-bearing part) runs once a day, at the 13:00 run (`STATEMENT_INTAKE_HOURS_UTC`,
+default `13`). The 19:00 run does the federal update, bill summaries,
+monitoring and the afternoon nudge, and writes no intake ledger row.
+
+Bill summaries (Phase B) run in the 19:00 run with the time left after the
+federal update, and from the editor's "Write summaries now" button. Each run
+stops at the summary cap (`ANALYSIS_MAX_SUMMARIES`, default 5 during the test)
+or the spend cap (`ANALYSIS_SPEND_CAP_USD`, default $3, all summary calls ever),
+checked against the worst case before every model call.
 
 1. Members: once a day.
 2. Senate: read the session's vote list, fetch votes newer than the cursor
@@ -103,11 +118,12 @@ recorded in `ingest_runs` and two failures in a row raise one exception email.
 | `/following` | A | Signed-in editor |
 | `POST /api/ingest/federal` | A | Scheduler secret only |
 | `POST /api/editor/federal-ingest` | A | Editor session |
+| `/editor/analysis`, `POST /api/editor/analysis/generate` | B | Editor session |
 | `/join`, `/me`, `/friends`, `/share/[card]` | C | Nobody until the switch is on |
 
-## Auth proposal (Phase C)
+## Reader sign-in (Phase C; approved 2026-11-13)
 
-Email magic link, sent through the Resend account already in use, with a signed
+Approved: email magic link, sent through the Resend account already in use, with a signed
 HttpOnly session cookie built on the same HMAC pattern as the editor session
 but a separate secret. No passwords, no third-party login SDK, no new vendor.
 Stored: a hash of the email for lookup, the email itself only for sending the
@@ -118,26 +134,27 @@ card or a friend can see them (friends only by default). A privacy notice
 ships with sign-up.
 
 Constraint: Resend sends to anyone only from a verified domain, and the free
-tier allows 100 emails a day. Launch needs the domain (MANUAL) and possibly the
-$20 Resend plan.
+tier allows 100 emails a day. Launch needs the domain (MANUAL, a pre-launch task that does not block
+building) and possibly the $20 Resend plan.
 
 ## Cost estimate
 
 - **Phase A and E ingestion:** no model calls. Free sources. Turso and Vercel
   stay inside the current plans: roughly 1,000 roll calls a year × 535 members
   ≈ 535,000 vote rows a year.
-- **Phase B summaries (estimate, to be measured):** each summary reads the
-  official summary plus the bill's section headings and cited sections (capped
-  near 30,000 input tokens), writes about 1,500 tokens, runs the rule checker
-  (no model) and the neutrality pass (one smaller model call), and regenerates
-  at most once. The only measured reference point is a research draft with web
-  search at about $0.55. Without web search a summary should cost less; the
-  working estimate is **$0.05 to $0.30 each**, and Phase B records the real cost
-  of every summary.
+- **Phase B summaries (as built):** one gpt-5.4-mini call reads the CRS
+  summary, the CBO listing, the section list and up to 40,000 characters of
+  bill text (about 10,000 tokens), writes up to 4,000 tokens, and regenerates at
+  most once. No web search and no second model pass: the neutrality check is the
+  rule checker plus the editor's sampling. Worst case about $0.03 a call, so
+  about $0.06 a summary. Real cost per summary is stored from token usage
+  (lib/model-cost.ts; prices from third-party listings of OpenAI's list prices
+  because openai.com could not be read from the build machine; `OPENAI_PRICES_JSON`
+  overrides them).
 - **Monthly:** explaining only bills that get a roll-call vote is roughly 30 to
-  60 bills a month: **about $2 to $18**. That does not fit beside the existing
-  statement intake (about $37 a month) under the current $20 cap; Phase B needs
-  the cap raised or intake reduced (owner decision).
+  60 bills a month: at about $0.01 to $0.06 each, **under $4 a month**. Owner
+  decision 2026-11-13: intake cut to once a day (about $18 a month at the
+  measured $0.61 per captured and researched statement).
 
 ## Risks
 
@@ -153,8 +170,40 @@ $20 Resend plan.
   friends-only default, opt-in per share, a deletion path.
 - **Said vs. Did (D).** A wrong pairing is a public accusation. Only people and
   documented party-blind rules create links; never free-form AI.
-- **Headline label.** The brief marks the headline Official, but a "Would [do X]
-  for [whom]" sentence is written, not ingested. Owner decision.
+- **Headline label (decided 2026-11-13).** The headline is Analysis: a "Would
+  [do X] for [whom]" sentence is written, not ingested. The bill's official
+  title is shown above it as the Official line.
+
+## Summary template (Phase B, as built)
+
+| Section | Badge | Source |
+| --- | --- | --- |
+| Official line: the bill's title | Official | Congress.gov |
+| Headline: "Would …", ≤20 words | Analysis | Model |
+| Status: latest action, sponsor, introduced | Official | Congress.gov |
+| What it does: ≤3 points, each citing a section | Analysis | Model, cites checked against the text |
+| Who it affects: 1–3 points with cites | Analysis | Model |
+| Cost: CBO estimates with links, or "none published" | Official | govinfo BILLSTATUS |
+| What changes for you: ≤45 words | Analysis | Model |
+| The case for and against: exactly 2 each, attributed, within 25% in length | Analysis | Model |
+| What we don't know: 1–3 points | Analysis | Model |
+| How your politicians voted, then all recorded votes | Official | House Clerk, senate.gov |
+| Sources | — | Links to every record used, model and checker result |
+
+The rule checker (lib/analysis/checker.ts, tested in tests/analysis.test.mjs)
+fails a draft for: a headline not starting "Would" or over 20 words; a missing
+cite or a cite to a section the text does not contain; more than 3 points; not
+exactly 2 arguments a side; an empty or vague attribution ("critics"); for and
+against more than 25% (at least 8 words) apart; loaded words (list in the
+file); first-person opinion or grades; more than 360 words; reading grade
+above 12 (warning above 9; target about 8); high confidence on a bill read
+only in part. A failed draft is regenerated once with the failures as
+feedback; a second failure is held for the editor.
+
+Routing: failed twice → held and queued; low confidence → held and queued;
+otherwise visible, and every 5th summary generated is also queued for an
+audit. Held summaries are shown only to the signed-in editor, labelled "Held
+for review". All of it stays behind `PUBLIC_READ_ENABLED`.
 
 ## Phases and checkpoints
 
