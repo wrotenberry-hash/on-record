@@ -141,3 +141,12 @@ test("the morning email opens with the streak only when there is one", () => {
   // The nudge never carries a streak line; it is about today's case only.
   assert.doesNotMatch(decideRhythm(rhythm({ daysWithReviewLast7: 4, lastSent: new Map([["DAILY_CASE", morning]]) }), afternoon).email.detail, /Reviewed on/);
 });
+
+test("federal ingestion alerts only after two outright failures in a row", () => {
+  const r = (status, h) => ({ status, startedAt: now - h * HOUR_MS, error: status === "FAILED" ? "senate.gov refused vote 240 (403) twice" : null });
+  assert.deepEqual(evaluate({ ...healthy(), ingestRuns: [r("FAILED", 1), r("FAILED", 7)] }, now).alerts.map(a => a.kind), ["INGEST_FAILING"]);
+  assert.match(evaluate({ ...healthy(), ingestRuns: [r("FAILED", 1), r("FAILED", 7)] }, now).alerts[0].detail, /403/);
+  assert.deepEqual(evaluate({ ...healthy(), ingestRuns: [r("FAILED", 1), r("PARTIAL", 7)] }, now).alerts, [], "a partial run stored something");
+  assert.deepEqual(evaluate({ ...healthy(), ingestRuns: [r("RUNNING", 0), r("FAILED", 1), r("COMPLETE", 7)] }, now).alerts, []);
+  assert.deepEqual(evaluate(healthy(), now).alerts, [], "no ingestion runs is not an alert");
+});

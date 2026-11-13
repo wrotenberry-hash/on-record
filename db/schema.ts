@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { type AnySQLiteColumn, check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { type AnySQLiteColumn, check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // Application-assigned string IDs; all timestamps are Unix milliseconds.
 export const people = sqliteTable("people", {
@@ -230,3 +230,104 @@ export const alertEvents = sqliteTable("alert_events", {
   id: text("id").primaryKey(), kind: text("kind").notNull(), sentAt: integer("sent_at").notNull(),
   detail: text("detail").notNull(), recipient: text("recipient").notNull(),
 }, t => [index("alert_events_kind_sent_idx").on(t.kind, t.sentAt)]);
+
+/* ===========================================================================
+ * Legislation and issues module (docs/TALK_IS_CHEAP_PLAN.md), Phase A.
+ * Three content types stay separate by table prefix: official_* (ingested
+ * government records, auto-published behind the public switch), analysis_*
+ * (Phase B) and opinion_* (Phase C). Every table here is new; no existing
+ * table or review-gate trigger is altered.
+ * ========================================================================= */
+
+export const issueCategories = sqliteTable("issue_categories", {
+  slug: text("slug").primaryKey(), name: text("name").notNull(), sortOrder: integer("sort_order").notNull(),
+});
+
+// Editable: Congress.gov policy area or legislative subject → category. Seeding inserts only missing rows.
+export const categoryMappings = sqliteTable("category_mappings", {
+  id: text("id").primaryKey(),
+  sourceKind: text("source_kind", { enum: ["policy_area", "subject"] }).notNull(),
+  matchKind: text("match_kind", { enum: ["exact", "contains"] }).notNull(),
+  sourceValue: text("source_value").notNull(),
+  categorySlug: text("category_slug").references(() => issueCategories.slug).notNull(),
+  note: text("note"), active: integer("active").notNull().default(1), createdAt: integer("created_at").notNull(),
+}, t => [uniqueIndex("category_mappings_uq").on(t.sourceKind, t.matchKind, t.sourceValue, t.categorySlug),
+  check("category_mappings_kind", sql`${t.sourceKind} IN ('policy_area', 'subject') AND ${t.matchKind} IN ('exact', 'contains')`)]);
+
+export const officialPoliticians = sqliteTable("official_politicians", {
+  id: text("id").primaryKey(), // bioguide id
+  lisId: text("lis_id"), govtrackId: integer("govtrack_id"),
+  fullName: text("full_name").notNull(), firstName: text("first_name").notNull(), lastName: text("last_name").notNull(),
+  party: text("party").notNull(), state: text("state").notNull(), district: integer("district"),
+  chamber: text("chamber", { enum: ["house", "senate"] }).notNull(),
+  termStart: text("term_start"), termEnd: text("term_end"), officialUrl: text("official_url"),
+  isCurrent: integer("is_current").notNull().default(1),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [uniqueIndex("official_politicians_lis_uq").on(t.lisId), index("official_politicians_state_idx").on(t.state, t.chamber),
+  check("official_politicians_chamber", sql`${t.chamber} IN ('house', 'senate')`)]);
+
+export const officialBills = sqliteTable("official_bills", {
+  id: text("id").primaryKey(), // e.g. 119-hr-2102
+  congress: integer("congress").notNull(), billType: text("bill_type").notNull(), number: integer("number").notNull(),
+  title: text("title").notNull(), policyArea: text("policy_area"), introducedAt: text("introduced_at"),
+  latestActionText: text("latest_action_text"), latestActionAt: text("latest_action_at"), sponsorId: text("sponsor_id"),
+  congressUrl: text("congress_url").notNull(),
+  detailStatus: text("detail_status", { enum: ["stub", "complete"] }).notNull().default("stub"),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("official_bills_action_idx").on(t.latestActionAt), index("official_bills_detail_idx").on(t.detailStatus),
+  check("official_bills_detail", sql`${t.detailStatus} IN ('stub', 'complete')`)]);
+
+export const officialBillSubjects = sqliteTable("official_bill_subjects", {
+  billId: text("bill_id").references(() => officialBills.id).notNull(), subject: text("subject").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.subject] })]);
+
+export const billCategories = sqliteTable("bill_categories", {
+  billId: text("bill_id").references(() => officialBills.id).notNull(),
+  categorySlug: text("category_slug").references(() => issueCategories.slug).notNull(),
+  method: text("method", { enum: ["mapping", "editor", "ai"] }).notNull(),
+  mappingId: text("mapping_id"), confidence: real("confidence"), createdAt: integer("created_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.categorySlug] }), index("bill_categories_slug_idx").on(t.categorySlug),
+  check("bill_categories_method", sql`${t.method} IN ('mapping', 'editor', 'ai')`)]);
+
+export const officialRollCalls = sqliteTable("official_roll_calls", {
+  id: text("id").primaryKey(), // house-2026-323 | senate-119-2-262
+  chamber: text("chamber", { enum: ["house", "senate"] }).notNull(),
+  congress: integer("congress").notNull(), session: integer("session").notNull(), rollNumber: integer("roll_number").notNull(),
+  votedAt: integer("voted_at").notNull(), question: text("question").notNull(), title: text("title"), result: text("result"),
+  documentLabel: text("document_label"), billId: text("bill_id"),
+  yea: integer("yea").notNull().default(0), nay: integer("nay").notNull().default(0),
+  present: integer("present").notNull().default(0), notVoting: integer("not_voting").notNull().default(0),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("official_roll_calls_voted_idx").on(t.votedAt), index("official_roll_calls_bill_idx").on(t.billId),
+  check("official_roll_calls_chamber", sql`${t.chamber} IN ('house', 'senate')`)]);
+
+export const officialMemberVotes = sqliteTable("official_member_votes", {
+  rollCallId: text("roll_call_id").references(() => officialRollCalls.id).notNull(),
+  politicianId: text("politician_id").notNull(), // bioguide id; members who left keep their id
+  position: text("position", { enum: ["Yea", "Nay", "Present", "Not Voting"] }).notNull(),
+  rawPosition: text("raw_position").notNull(),
+}, t => [primaryKey({ columns: [t.rollCallId, t.politicianId] }), index("official_member_votes_politician_idx").on(t.politicianId),
+  check("official_member_votes_position", sql`${t.position} IN ('Yea', 'Nay', 'Present', 'Not Voting')`)]);
+
+// Viewer identities. Phase A: the editor only (keyed by a hash of the editor email). Phase C adds public users.
+export const appUsers = sqliteTable("app_users", {
+  id: text("id").primaryKey(), kind: text("kind", { enum: ["editor", "public"] }).notNull(),
+  externalKey: text("external_key").notNull(), createdAt: integer("created_at").notNull(),
+}, t => [uniqueIndex("app_users_external_uq").on(t.externalKey), check("app_users_kind", sql`${t.kind} IN ('editor', 'public')`)]);
+
+export const userFollows = sqliteTable("user_follows", {
+  userId: text("user_id").references(() => appUsers.id).notNull(), politicianId: text("politician_id").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.politicianId] })]);
+
+export const ingestRuns = sqliteTable("ingest_runs", {
+  id: text("id").primaryKey(), job: text("job").notNull(),
+  status: text("status", { enum: ["RUNNING", "COMPLETE", "PARTIAL", "FAILED"] }).notNull(),
+  startedAt: integer("started_at").notNull(), finishedAt: integer("finished_at"),
+  detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(), error: text("error"),
+}, t => [index("ingest_runs_job_idx").on(t.job, t.startedAt),
+  check("ingest_runs_status", sql`${t.status} IN ('RUNNING', 'COMPLETE', 'PARTIAL', 'FAILED')`)]);
+
+export const ingestCursors = sqliteTable("ingest_cursors", {
+  key: text("key").primaryKey(), value: text("value").notNull(), updatedAt: integer("updated_at").notNull(),
+});

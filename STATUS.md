@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-08 (round 18 of /next, loop stopped). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-13 (Talk is cheap module, Phase A). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
 
 ## Goal
 
@@ -11,6 +11,8 @@ A private checking instrument for political representations: a source's exact qu
 20 human-reviewed CHECKING records across several issues, plus 10 historical records if sources permit, with the three public pages (who runs this, how a claim is checked, corrections) live. Then the public switch goes on. (confirm)
 
 ## Done
+
+- **Talk is cheap, Phase A (13 Nov):** federal official record behind the public switch. New tables only (migration 0011). Members (539), House and Senate roll calls and member votes ingested from the House Clerk, senate.gov and congress-legislators; bills from votes, completed from Congress.gov when its key is set; 14 issue categories with a published, editable mapping (docs/ISSUE_MAPPING.md). Pages: Politicians, a member's last 10 votes, Follow, Following, Issues, an issue's bills, a bill's official facts. Ingestion runs first in each scheduled run, uses no OpenAI, and alerts after two outright failures. Verified locally against live House and Senate data: 80 roll calls, every tally matches. Bill sorting verified only against a local stand-in for Congress.gov until the key is added. Plan for B–E: docs/TALK_IS_CHEAP_PLAN.md.
 
 - Hosting on Vercel with a Turso database, access-key sign-in, Vercel Cron twice a day (26 Sep).
 - Unattended intake: discovery, capture, machine research, lane rotation, three capture attempts per run (27 Sep).
@@ -67,6 +69,9 @@ A private checking instrument for political representations: a source's exact qu
 - OpenAI limit stays $20 until Wilson raises it.
 
 ## Waiting on Wilson
+
+- MANUAL (blocks "browse Health care"): get a free key at api.congress.gov/sign-up, then Vercel → on-record → Settings → Environment Variables → add CONGRESS_GOV_API_KEY (Production and Preview), then redeploy.
+- Phase A checkpoint: sign in to the editor on your phone, open Politicians, filter TX + Senate, open a senator, tap Follow, then open Following.
 
 - Add OpenAI credit ($40) and set the on-record-vercel project limit to 40: OpenAI → Settings → Billing, then Limits. Reply "40".
 - Review one case: open the morning email's link and go through the four cards.

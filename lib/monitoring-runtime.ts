@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { adjudications, alertEvents, automationRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
+import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { signAction } from "@/lib/session-token";
 import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend } from "@/lib/monitoring";
 
@@ -62,12 +62,14 @@ export async function lastSentByKind(): Promise<Map<AlertKind, number>> {
 
 export async function evaluateNow(now = Date.now()): Promise<Evaluation & { configured: ReturnType<typeof monitoringConfigured> }> {
   const configured = monitoringConfigured();
-  const [runs, spend, lastSent] = await Promise.all([
+  const [runs, spend, lastSent, ingest] = await Promise.all([
     getDb().select({ status: automationRuns.status, captureStatus: automationRuns.captureStatus, startedAt: automationRuns.startedAt, finishedAt: automationRuns.finishedAt })
       .from(automationRuns).orderBy(desc(automationRuns.startedAt)).limit(50),
     monthToDateSpend(now), lastSentByKind(),
+    getDb().select({ status: ingestRuns.status, startedAt: ingestRuns.startedAt, error: ingestRuns.error }).from(ingestRuns)
+      .where(eq(ingestRuns.job, "federal")).orderBy(desc(ingestRuns.startedAt)).limit(5).catch(() => []),
   ]);
-  return { ...evaluate({ runs, spend, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent }, now), configured };
+  return { ...evaluate({ runs, spend, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest }, now), configured };
 }
 
 async function sendEmail(subject: string, text: string): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {

@@ -6,6 +6,7 @@ import { processOneCandidate, requeueBudgetFailures } from "@/app/api/editor/int
 import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/route";
 import { tickAuthorized } from "@/lib/tick-auth";
 import { runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
+import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -36,6 +37,10 @@ async function runTick(request: Request) {
   const claimed = await db.insert(automationRuns).values({ id, slot, day, status: "RUNNING", startedAt: now })
     .onConflictDoNothing().returning({ id: automationRuns.id });
   if (!claimed.length) return Response.json({ status: "ALREADY_RUNNING_OR_COMPLETE", slot });
+  // The federal official record uses no model calls, so it runs first and on its own, even when the OpenAI budget is exhausted.
+  let federal: IngestSummary | { status: "FAILED"; error: string };
+  try { federal = await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
+  catch (error) { federal = { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
   try {
     const requeued = await requeueBudgetFailures();
     const discovered = await runDiscovery();
@@ -74,13 +79,13 @@ async function runTick(request: Request) {
     }
     await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(), representationId, researchStatus })
       .where(eq(automationRuns.id, id));
-    return Response.json({ status: "COMPLETE", slot, via, requeued, candidateId: result.id,
+    return Response.json({ status: "COMPLETE", slot, via, federal, requeued, candidateId: result.id,
       representationId, captureStatus: result.status, captureAttempts: attempts, researchStatus, monitoring: await monitorAfterRun() });
   } catch (caught) {
     const error = (caught instanceof Error ? caught.message : "Job failed").slice(0, 400);
     await db.update(automationRuns).set({ status: "FAILED", finishedAt: Date.now(), error })
       .where(eq(automationRuns.id, id));
-    return Response.json({ status: "FAILED", slot, error, monitoring: await monitorAfterRun() }, { status: 502 });
+    return Response.json({ status: "FAILED", slot, error, federal, monitoring: await monitorAfterRun() }, { status: 502 });
   }
 }
 

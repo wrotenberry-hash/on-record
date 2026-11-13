@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -37,6 +37,8 @@ export type MonitoringInput = {
   keyExpires: string | null;
   /** Last time each kind was sent, or undefined. */
   lastSent: ReadonlyMap<AlertKind, number>;
+  /** Federal official-record ingestion runs, newest first (optional). */
+  ingestRuns?: ReadonlyArray<{ status: "RUNNING" | "COMPLETE" | "PARTIAL" | "FAILED"; startedAt: number; error: string | null }>;
 };
 
 export type Alert = { kind: AlertKind; subject: string; detail: string };
@@ -91,6 +93,13 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   checks.keyExpiry = days === null ? "OPENAI_KEY_EXPIRES not set" : `${days} days`;
   if (days !== null && days <= KEY_EXPIRY_WARNING_DAYS) found.push({ kind: "KEY_EXPIRING", subject: days < 0 ? "OpenAI API key has expired" : `OpenAI API key expires in ${days} days`,
     detail: `OPENAI_KEY_EXPIRES is ${input.keyExpires}. Create a new key in the OpenAI dashboard, put it in Vercel as OPENAI_API_KEY, redeploy, revoke the old key, then update OPENAI_KEY_EXPIRES.` });
+
+  // (5) Federal ingestion: the two most recent finished runs both FAILED outright (PARTIAL is a run that stored something).
+  const ingest = (input.ingestRuns ?? []).filter(r => r.status !== "RUNNING").slice(0, 2);
+  const ingestFailing = ingest.length === 2 && ingest.every(r => r.status === "FAILED");
+  checks.federalIngest = ingest.length ? ingest.map(r => r.status).join(", ") : "no runs yet";
+  if (ingestFailing) found.push({ kind: "INGEST_FAILING", subject: "federal vote and bill ingestion failed twice in a row",
+    detail: `The last two federal ingestion runs (started ${iso(ingest[1].startedAt)} and ${iso(ingest[0].startedAt)}) both failed. Latest error: ${(ingest[0].error ?? "none recorded").slice(0, 300)}` });
 
   // Each kind at most once per DEDUPE_WINDOW_MS.
   const alerts: Alert[] = [], suppressed: Alert[] = [];
