@@ -8,6 +8,7 @@ import { tickAuthorized } from "@/lib/tick-auth";
 import { runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
+import { sendSummariesReadyIfDue } from "@/lib/analysis/report";
 import { intakeAllowed } from "@/lib/monitoring";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
@@ -35,7 +36,8 @@ async function runTick(request: Request) {
   if (!intakeAllowed(now, process.env.STATEMENT_INTAKE_HOURS_UTC)) {
     const federal = await federalStep();
     const analysis = await analysisStep(now);
-    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, monitoring: await monitorAfterRun() });
+    const summariesEmail = await sendSummariesReadyIfDue();
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, summariesEmail, monitoring: await monitorAfterRun() });
   }
   const today = await db.select({ id: automationRuns.id }).from(automationRuns)
     .where(eq(automationRuns.day, day)).limit(6);
@@ -102,9 +104,13 @@ async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error:
   catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
 }
 
-/** Bill summaries get what is left of the 300 s, less a margin for monitoring. Their own caps bound spend. */
+/**
+ * Bill summaries get what is left of the 300 s, less 40 s for monitoring and the
+ * nudge (the batch stops starting new summaries 45 s before its deadline and
+ * each model call is capped to the time left). Their own caps bound spend.
+ */
 async function analysisStep(startedAt: number): Promise<AnalysisRun | { status: "FAILED"; error: string }> {
-  const budgetMs = Math.min(170_000, 300_000 - (Date.now() - startedAt) - 35_000);
+  const budgetMs = 300_000 - (Date.now() - startedAt) - 40_000;
   if (budgetMs < 50_000) return { status: "FAILED", error: "no time left in this run" };
   try { return await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
   catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }

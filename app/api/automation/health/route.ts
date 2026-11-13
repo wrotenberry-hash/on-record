@@ -6,8 +6,9 @@ import { LAUNCH_TARGET } from "@/lib/monitoring";
 import { monitoringConfigured, pickDailyCase } from "@/lib/monitoring-runtime";
 import { federalCounts, lastFederalRun } from "@/lib/federal/queries";
 import { analysisCounts } from "@/lib/analysis/queries";
-import { billingCodeIn, intakeHours, parseLowBalance } from "@/lib/monitoring";
-import { creditEstimate } from "@/lib/monitoring-runtime";
+import { billingCodeIn, intakeHours } from "@/lib/monitoring";
+import { spendReport } from "@/lib/monitoring-runtime";
+import { analysisLimits } from "@/lib/analysis/generate";
 
 export const dynamic = "force-dynamic";
 
@@ -142,13 +143,15 @@ async function recentAlerts() {
   } catch { return "unavailable" as const; }
 }
 
-async function openaiCredit() {
-  try {
-    const c = await creditEstimate();
-    if (c.creditUsd === null) return { configured: false, reason: c.reason, lowBalanceUsd: parseLowBalance(process.env.OPENAI_LOW_BALANCE_USD) };
-    return { configured: true, creditUsd: c.creditUsd, setAt: new Date(c.setAt).toISOString(), spentSinceUsd: Math.round(c.spentUsd * 10000) / 10000,
-      estimatedLeftUsd: Math.round((c.creditUsd - c.spentUsd) * 100) / 100, source: c.source, lowBalanceUsd: parseLowBalance(process.env.OPENAI_LOW_BALANCE_USD) };
-  } catch { return "unavailable" as const; }
+/** Month-to-date OpenAI spend from the call ledger, against the owner's monthly limit. Dollars and counts only. */
+async function openaiSpend() {
+  try { return await spendReport(); } catch { return "unavailable" as const; }
+}
+
+/** Bill summaries: counts, cost and the caps in force. No bill text, no summary text. */
+async function analysis() {
+  try { const { maxSummaries, spendCapUsd, model } = analysisLimits(); return { ...(await analysisCounts()), limits: { maxSummaries, spendCapUsd, model } }; }
+  catch { return "unavailable" as const; }
 }
 
 async function lastAlert() {
@@ -172,7 +175,7 @@ export async function GET() {
     monitoring: { resendConfigured: monitoringConfigured().resend, spendSource: monitoringConfigured().spendSource, keyExpires: monitoringConfigured().keyExpires, lastAlert: await lastAlert() },
     rhythm: await rhythm(), throughput: await throughput(), federal: await federal(),
     intakeHoursUtc: intakeHours(process.env.STATEMENT_INTAKE_HOURS_UTC), recentRuns: await recentRuns(), recentAlerts: await recentAlerts(),
-    openaiCredit: await openaiCredit(), analysis: await analysisCounts().catch(() => "unavailable" as const),
+    openaiSpend: await openaiSpend(), analysis: await analysis(),
     time: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } });
 }

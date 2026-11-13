@@ -1,7 +1,7 @@
 # Exception-only monitoring
 
-After every scheduled run (`/api/automation/tick`), the app evaluates four
-conditions against the run ledger and sends an email through Resend only when
+After every scheduled run (`/api/automation/tick`), the app evaluates six
+conditions against the run and call ledgers and sends an email through Resend only when
 one holds. Healthy runs send nothing. A monitoring fault never changes a run's
 result; it is reported in the run's JSON as `monitoring.alerts.error` (and the daily email as `monitoring.rhythm`).
 
@@ -9,8 +9,16 @@ result; it is reported in the run's JSON as `monitoring.alerts.error` (and the d
 | --- | --- | --- |
 | `CONSECUTIVE_FAILURES` | the two most recent finished runs are both FAILED | `automation_runs` |
 | `NO_CAPTURE_72H` | the newest run with `capture_status = CAPTURED` finished more than 72 h ago, or there has never been a capture and the first run is older than 72 h | `automation_runs` |
-| `SPEND_75_PERCENT` | month-to-date OpenAI spend exceeds 75% of `OPENAI_MONTHLY_LIMIT_USD` (default 20) | OpenAI Costs API when `OPENAI_ADMIN_KEY` is set; otherwise an estimate: completed research drafts × $0.55 + captures × $0.06 this calendar month (UTC), tunable with `OPENAI_EST_COST_PER_DRAFT_USD` / `OPENAI_EST_COST_PER_CAPTURE_USD` |
+| `SPEND_75_PERCENT` | month-to-date OpenAI spend exceeds 75% of `OPENAI_MONTHLY_LIMIT_USD` (default 40, the owner's OpenAI monthly usage limit) | the `model_calls` ledger: every OpenAI call the app makes, priced from token usage (`lib/model-cost.ts`), summed over the calendar month (UTC); the OpenAI Costs API instead when `OPENAI_ADMIN_KEY` is set |
 | `KEY_EXPIRING` | today is within 21 days of `OPENAI_KEY_EXPIRES` (ISO date), including after expiry | environment |
+| `INGEST_FAILING` | the two most recent federal ingestion runs both FAILED outright | `ingest_runs` |
+| `BILLING_REFUSED` | OpenAI refused a call for billing (`insufficient_quota`, `credit_balance_exhausted`, a spend-limit code) in the last 24 h, and no call has succeeded since | `model_calls` (error `billing:<code>`), or the newest failed run's error |
+
+There is no estimated-balance alert. Since 2026-11-13 OpenAI auto recharge is
+on ($10 when the balance falls under $3) with a $40 monthly usage limit, so a
+refusal means auto recharge or the limit failed, and the refusal alert says so.
+The health probe reports month-to-date spend (`openaiSpend`: total, by purpose,
+call count, the limit and the 75% line) from the same ledger.
 
 A problem is reported the first time it is seen, then repeated every 72 hours
 while it continues (changed from 24 hours on 2026-10-27: a week-long budget
@@ -51,6 +59,16 @@ The link is omitted when `EDITOR_ACCESS_KEY` is not set.
 `GET /api/editor/alerts` includes `rhythm: { phase, wouldSend, reason, caseId }`
 so the decision can be inspected without sending.
 
+## Phase B checkpoint email (`SUMMARIES_READY`)
+
+Once the first 5 bill summaries exist (`lib/analysis/report-format.ts`,
+`CHECKPOINT_SUMMARIES`), the run that completed them sends one email with every
+summary in full, each section badged [Analysis], the rule checker's verdict,
+warnings, reading grade, cost, and the page link. Sent once, recorded in
+`alert_events`. The editor's "Write summaries now" button sends it too if it is
+the one that reaches 5. It exists so the owner can read the summaries on the
+phone and a session can review the text from the inbox without any new secret.
+
 ## Delivery
 
 Resend, `POST https://api.resend.com/emails`, with `RESEND_API_KEY`. Recipient
@@ -73,7 +91,8 @@ links to the editor and the health probe.
 ## Verification
 
 1. `pnpm test`: `tests/monitoring.test.mjs` covers every rule, the boundary
-   values, and the dedupe window.
+   values, and the dedupe window; `tests/analysis.test.mjs` covers the
+   checkpoint email.
 2. After deploy, `GET /api/automation/health` shows `monitoring.resendConfigured`
    and `monitoring.keyExpires`.
 3. Tap "Send test alert" in the editor: an email arrives with subject

@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { evaluate, daysUntil, parseMonthlyLimit, formatAlertEmail, decideRhythm, formatRhythmEmail, rhythmPhase, DEDUPE_WINDOW_MS, HOUR_MS, DAY_MS,
-  parseCredit, parseLowBalance, billingCodeIn, intakeAllowed, intakeHours } from "../lib/monitoring.ts";
+  ALERT_KINDS, billingCodeIn, intakeAllowed, intakeHours } from "../lib/monitoring.ts";
 
 const now = Date.parse("2026-09-28T13:05:00Z");
 const run = (status, captureStatus, hoursAgo) => ({ status, captureStatus, startedAt: now - hoursAgo * HOUR_MS, finishedAt: now - hoursAgo * HOUR_MS + 90_000 });
 const healthy = () => ({
   runs: [run("COMPLETE", "CAPTURED", 0.1), run("COMPLETE", "CAPTURED", 18), run("FAILED", null, 24), run("COMPLETE", "CAPTURED", 42)],
-  spend: { monthToDateUsd: 3.2, source: "ledger-estimate" }, monthlyLimitUsd: 20, keyExpires: "2026-12-02", lastSent: new Map(),
+  spend: { monthToDateUsd: 3.2, source: "model-call-ledger" }, monthlyLimitUsd: 20, keyExpires: "2026-12-02", lastSent: new Map(),
 });
 
 test("a healthy ledger produces no alerts", () => {
@@ -123,10 +123,10 @@ test("the rhythm email carries a one-tap link to the case", () => {
 });
 
 test("limit parsing and email formatting", () => {
-  assert.equal(parseMonthlyLimit(undefined), 20);
-  assert.equal(parseMonthlyLimit("abc"), 20);
-  assert.equal(parseMonthlyLimit("40"), 40);
-  assert.equal(parseMonthlyLimit("-3"), 20);
+  assert.equal(parseMonthlyLimit(undefined), 40);
+  assert.equal(parseMonthlyLimit("abc"), 40);
+  assert.equal(parseMonthlyLimit("20"), 20);
+  assert.equal(parseMonthlyLimit("-3"), 40);
   const mail = formatAlertEmail({ kind: "TEST", subject: "test alert", detail: "Hello." }, { spend: "ok" }, "https://x.test", now);
   assert.equal(mail.subject, "[On Record] test alert");
   assert.match(mail.text, /Hello\./);
@@ -152,21 +152,17 @@ test("federal ingestion alerts only after two outright failures in a row", () =>
   assert.deepEqual(evaluate(healthy(), now).alerts, [], "no ingestion runs is not an alert");
 });
 
-test("estimated OpenAI credit under $3 raises LOW_BALANCE; unset credit is reported, not alerted", () => {
-  const credit = (spentUsd) => ({ creditUsd: 10, setAt: now - 5 * DAY_MS, spentUsd, source: "model-call-ledger" });
-  assert.deepEqual(evaluate({ ...healthy(), credit: credit(6.5) }, now).alerts, []);
-  const low = evaluate({ ...healthy(), credit: credit(7.25) }, now);
-  assert.deepEqual(low.alerts.map(a => a.kind), ["LOW_BALANCE"]);
-  assert.match(low.alerts[0].subject, /about \$2\.75 left/);
-  assert.match(low.checks.openaiCredit, /about \$2\.75 left of \$10\.00/);
-  assert.deepEqual(evaluate({ ...healthy(), credit: credit(6.5), lowBalanceUsd: 4 }, now).alerts.map(a => a.kind), ["LOW_BALANCE"]);
-  const unset = evaluate({ ...healthy(), credit: parseCredit(undefined, undefined) }, now);
-  assert.deepEqual(unset.alerts, []);
-  assert.match(unset.checks.openaiCredit, /OPENAI_CREDIT_USD not set/);
-  assert.deepEqual(parseCredit("10", "2026-11-13T14:00:00Z"), { creditUsd: 10, setAt: Date.parse("2026-11-13T14:00:00Z") });
-  assert.equal(parseCredit("10", "").creditUsd, null);
-  assert.equal(parseLowBalance(undefined), 3);
-  assert.equal(parseLowBalance("5"), 5);
+test("month-to-date spend is priced from the call ledger against a $40 default limit; there is no balance alert", () => {
+  const spend = usd => ({ monthToDateUsd: usd, source: "model-call-ledger" });
+  const out = evaluate({ ...healthy(), spend: spend(12.5), monthlyLimitUsd: 40 }, now);
+  assert.deepEqual(out.alerts, []);
+  assert.match(out.checks.spend, /\$12\.50 of \$40\.00 \(model-call-ledger\)/);
+  assert.equal(out.checks.openaiCredit, undefined, "the estimated-balance check is gone");
+  const over = evaluate({ ...healthy(), spend: spend(30.01), monthlyLimitUsd: 40 }, now);
+  assert.deepEqual(over.alerts.map(a => a.kind), ["SPEND_75_PERCENT"]);
+  assert.match(over.alerts[0].detail, /priced from On Record's ledger of every model call/);
+  assert.ok(!ALERT_KINDS.includes("LOW_BALANCE"));
+  assert.equal(parseMonthlyLimit(undefined), 40);
 });
 
 test("a billing refusal alerts at once, from the call ledger or the newest failed run", () => {
@@ -179,8 +175,9 @@ test("a billing refusal alerts at once, from the call ledger or the newest faile
   const fromLedger = evaluate({ ...healthy(), billingRefusal: { at: now - 2 * HOUR_MS, code: "insufficient_quota" } }, now);
   assert.deepEqual(fromLedger.alerts.map(a => a.kind), ["BILLING_REFUSED"]);
   assert.deepEqual(evaluate({ ...healthy(), billingRefusal: { at: now - 30 * HOUR_MS, code: "insufficient_quota" } }, now).alerts, [], "older than 24 h");
-  const credited = { creditUsd: 10, setAt: now - 0.05 * HOUR_MS, spentUsd: 0, source: "model-call-ledger" };
-  assert.deepEqual(evaluate({ ...healthy(), credit: credited, runs: [failedRun, run("COMPLETE", "CAPTURED", 18)] }, now).alerts, [], "a refusal before credit was added is not re-raised");
+  assert.deepEqual(evaluate({ ...healthy(), lastSuccessfulCallAt: now - 0.05 * HOUR_MS, runs: [failedRun, run("COMPLETE", "CAPTURED", 18)] }, now).alerts, [], "a refusal followed by a successful call is over");
+  assert.deepEqual(evaluate({ ...healthy(), lastSuccessfulCallAt: now - HOUR_MS, billingRefusal: { at: now - 2 * HOUR_MS, code: "insufficient_quota" } }, now).alerts, [], "auto recharge covered it");
+  assert.deepEqual(evaluate({ ...healthy(), lastSuccessfulCallAt: now - 3 * HOUR_MS, billingRefusal: { at: now - 2 * HOUR_MS, code: "insufficient_quota" } }, now).alerts.map(a => a.kind), ["BILLING_REFUSED"], "a refusal newer than the last success is live");
   const deduped = evaluate({ ...healthy(), billingRefusal: { at: now - HOUR_MS, code: "insufficient_quota" }, lastSent: new Map([["BILLING_REFUSED", now - 10 * HOUR_MS]]) }, now);
   assert.deepEqual(deduped.suppressed.map(a => a.kind), ["BILLING_REFUSED"]);
 });

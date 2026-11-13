@@ -22,3 +22,18 @@ This log separates established product constraints from choices the implementati
 5. Define correction, challenge, and appeal procedures and the public display of prior versions.
 
 Technical implementation decisions may be made locally if they preserve M-01 through M-08 and are recorded with rationale, affected interfaces, and tests. A technical choice that changes substantive methodology must be escalated as a founder decision.
+
+## Operating decisions
+
+Defaults a session took under `docs/OPERATING_RULES.md` rule 1, and owner decisions on the Talk is cheap module. Newest last.
+
+| ID | Date | Decision | Basis |
+| --- | --- | --- | --- |
+| O-01 | 2026-11-13 | **Owner:** Phase B as built is approved: headline is Analysis, official title is the Official line; a sampled summary stays visible until checked; after the owner has read the first 5 summaries the caps rise to 40 summaries / $5; cost stays estimated from listed prices, no OpenAI admin key. | STATUS.md "Decisions Made" of the same day. |
+| O-02 | 2026-11-13 | **Owner:** statement intake once a day (13:00 UTC); reader sign-in by email magic link through Resend; On Record runs in its own cloud environment. | Same. |
+| O-03 | 2026-11-13 | **Owner:** OpenAI auto recharge on ($10 under $3), $40 monthly usage limit. The estimated-balance alert and `OPENAI_CREDIT_USD` / `OPENAI_CREDIT_SET_AT` are removed; the billing-refusal alert stays; the health probe reports month-to-date spend. | Operating rules, rule 4. |
+| O-04 | 2026-11-13 | **Default:** the code default for `OPENAI_MONTHLY_LIMIT_USD` is 40, matching the OpenAI limit. The Vercel setting, if still 20, overrides it and only makes the alert earlier; changing it is a MANUAL item, not urgent. | No new secret; the alert errs early, not late. |
+| O-05 | 2026-11-13 | **Default:** month-to-date spend is priced from the `model_calls` ledger (every OpenAI call since Phase B) instead of the old per-draft/per-capture estimate. | The ledger prices every call from token usage; the estimate guessed from counts. |
+| O-06 | 2026-11-13 | **Default:** a billing refusal counts only while no call has succeeded since it (and within 24 h). Replaces "ignore refusals from before the credit was added", which needed the removed credit setting. | Auto recharge resolves refusals without a settings change. |
+| O-07 | 2026-11-13 | **Default:** the 19:00 run gives bill summaries all the time left in its 300 s minus 40 s, not at most 170 s. | The batch already stops 45 s before its deadline and caps each model call to the time left; more time means the 5 test summaries land in one run. |
+| O-08 | 2026-11-13 | **Default:** when the first 5 summaries exist, one email carries them in full with the checker's verdict (`SUMMARIES_READY`, sent once). | Rule 3: lets the owner read them on the phone and a session review them from the inbox with no new secret or endpoint. Nothing becomes public. |

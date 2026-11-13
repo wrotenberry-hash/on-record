@@ -149,3 +149,22 @@ test("cost per call from token usage, cached input and web searches", () => {
   assert.equal(priceTable("not json"), DEFAULT_PRICES);
   assert.ok(maxCallCost("gpt-5.4-mini", 45_000, 4000) < 0.05, "a test summary's worst case is a few cents");
 });
+
+test("the checkpoint email carries every summary in full, badged, with the checker's verdict; sent once at 5", async () => {
+  const { formatSummariesEmail, summariesEmailDue } = await import("../lib/analysis/report-format.ts");
+  const row = { label: "H.R. 2102", title: "Veterans' Transportation Act", billId: "119-hr-2102", category: "veterans", headline: "Would let veterans ride for free.",
+    whatItDoes: [{ text: "Pays for rides.", section: "Sec. 2" }], whoItAffects: [{ text: "Rural veterans.", section: "Sec. 2" }], whatChangesForYou: "Nothing for most people.",
+    caseFor: [{ argument: "Rides help veterans reach care.", attribution: "veterans' groups" }, { argument: "Costs are small.", attribution: "the bill's sponsor" }],
+    caseAgainst: [{ argument: "Money could go elsewhere.", attribution: "budget analysts" }, { argument: "Rules are unclear.", attribution: "state officials" }],
+    unknowns: ["The cost."], confidence: "medium", confidenceReason: "Parts depend on other laws.", status: "visible", queue: "sample", checkPassed: true, attempts: 1,
+    failures: [], warnings: ["reading grade 9.4 is above the target of 8"], readingGrade: 9.4, totalWords: 210, costUsd: 0.0123, truncated: false };
+  const mail = formatSummariesEmail([row], "https://example.test");
+  assert.equal(mail.subject, "[On Record] 1 bill summaries are ready to read");
+  for (const needle of ["H.R. 2102: Veterans' Transportation Act", "[Analysis] Headline: Would let veterans ride for free.", "Pays for rides. (Sec. 2)",
+    "(veterans' groups)", "(budget analysts)", "Checker: passed after 1 attempt · reading grade 9.4 · 210 words · $0.0123", "In your queue (sample)",
+    "Warnings: reading grade 9.4", "https://example.test/bills/119-hr-2102", "approve or reject the 1 waiting"]) assert.ok(mail.text.includes(needle), needle);
+  assert.ok(!mail.text.includes("[Official] Headline"), "the headline is Analysis");
+  assert.equal(summariesEmailDue(4, false), false);
+  assert.equal(summariesEmailDue(5, false), true);
+  assert.equal(summariesEmailDue(9, true), false, "sent once");
+});

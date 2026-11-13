@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-13 (Talk is cheap module, Phase B). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md.
+Updated 2026-11-13 (operating rules; billing simplified). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
@@ -12,6 +12,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Done
 
+- **Operating rules and billing (13 Nov, on branch `claude/on-record-operating-rules-vy3vfm`, not yet on main):** the six standing rules saved as docs/OPERATING_RULES.md and pointed at from CLAUDE.md. Estimated-balance alert and the OPENAI_CREDIT_USD / OPENAI_CREDIT_SET_AT settings removed; the billing-refusal alert stays and now clears itself once a later call succeeds; month-to-date OpenAI spend (total, by purpose, against the $40 limit) added to the health probe as `openaiSpend`; the probe's `analysis` section shows the caps in force. The 19:00 run gives summaries all its spare time (was capped at 170 s). When the first 5 summaries exist, one email carries them in full with the checker's verdict, so you can read them on your phone and a session can review them from the inbox. 75 tests, typecheck, lint and build pass.
 - **Talk is cheap, Phase B (13 Nov):** AI bill summaries in the approved template, every section badged Official or Analysis (headline is Analysis, official title is the Official line). New tables only (migration 0012). Rule checker (loaded words, cites, length caps, for/against parity, reading level), one regeneration, 1-in-5 audit queue plus every low-confidence or twice-failed summary held for the editor (/editor/analysis). Cost of every OpenAI call recorded; per-summary cost shown. Test caps: 5 summaries, $3. Verified locally against real govinfo bill texts with a stand-in for OpenAI; real summaries are written in production by the 19:00 UTC run.
 - **Intake once a day and credit alerts (13 Nov):** statement capture and research run only at 13:00 UTC. New alerts: estimated OpenAI credit below $3, and any billing refusal (at once). Health probe lists every run of the last 14 days and every alert of the last 30.
 - **Talk is cheap, Phase A (13 Nov):** federal official record behind the public switch. New tables only (migration 0011). Members (539), House and Senate roll calls and member votes ingested from the House Clerk, senate.gov and congress-legislators; bills from votes, completed from Congress.gov when its key is set; 14 issue categories with a published, editable mapping (docs/ISSUE_MAPPING.md). Pages: Politicians, a member's last 10 votes, Follow, Following, Issues, an issue's bills, a bill's official facts. Ingestion runs first in each scheduled run, uses no OpenAI, and alerts after two outright failures. Verified locally against live House and Senate data: 80 roll calls, every tally matches. Bill sorting verified only against a local stand-in for Congress.gov until the key is added. Plan for B–E: docs/TALK_IS_CHEAP_PLAN.md.
@@ -68,7 +69,7 @@ A private checking instrument for political representations: a source's exact qu
 - The daily unit of work is one case reviewed, not published; a rejection counts.
 - Daily emails ride the two existing scheduled runs; no new cron entries.
 - Alerts repeat every 72 h, not daily. Dark mode deferred until the switch is on.
-- OpenAI limit stays $20 until Wilson raises it. $10 prepaid credit added 13 Nov (API billing had been on an expired free trial).
+- OpenAI: auto recharge on ($10 when under $3) with a $40 monthly usage limit (13 Nov). No balance estimate in the app; the spend alert fires at $30 month to date.
 - Bill headline is Analysis; official title is the Official line (13 Nov).
 - Statement intake once a day, 13:00 UTC (13 Nov).
 - Reader sign-in: email magic link via Resend; verified domain is a pre-launch task (13 Nov).
@@ -79,7 +80,7 @@ A private checking instrument for political representations: a source's exact qu
 
 - Phase A checkpoint: sign in to the editor on your phone, open Politicians, filter TX + Senate, open a senator, tap Follow, then open Following.
 
-- When you add OpenAI credit again: Vercel → on-record → Settings → Environment Variables → set OPENAI_CREDIT_USD to the new balance and OPENAI_CREDIT_SET_AT to the time (e.g. 2026-12-01T15:00:00Z), then redeploy. The low-balance alert counts down from there.
+- MANUAL batch (13 Nov): (1) merge branch `claude/on-record-operating-rules-vy3vfm` into main so the billing change and the summaries email deploy; (2) in Vercel → on-record → Settings → Environment Variables, delete OPENAI_CREDIT_USD, OPENAI_CREDIT_SET_AT and OPENAI_LOW_BALANCE_USD (unused now) and set OPENAI_MONTHLY_LIMIT_USD to 40 (if left at 20 the spend alert simply fires earlier, at $15), then redeploy.
 - Phase B checkpoint: on your phone, Editor → Bill summaries; open each of the 5 summaries; approve or reject the queued ones.
 - Review one case: open the morning email's link and go through the four cards.
 - Fill the bracketed placeholders on /about and /corrections: your name and base, funding sentence, contact address, and whether to promise a response time. Reply with the text; I will drop it in.

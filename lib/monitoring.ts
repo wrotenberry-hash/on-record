@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "LOW_BALANCE", "BILLING_REFUSED"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -23,9 +23,8 @@ export const RHYTHM_WINDOW_MS = 20 * HOUR_MS;
 export const LAUNCH_TARGET = 20;
 export const KEY_EXPIRY_WARNING_DAYS = 21;
 export const SPEND_ALERT_FRACTION = 0.75;
-export const DEFAULT_MONTHLY_LIMIT_USD = 20;
-/** Email when the estimated OpenAI prepaid credit falls below this (OPENAI_LOW_BALANCE_USD). */
-export const DEFAULT_LOW_BALANCE_USD = 3;
+/** The owner's OpenAI monthly usage limit (auto recharge on since 2026-11-13: $10 when under $3). OPENAI_MONTHLY_LIMIT_USD overrides. */
+export const DEFAULT_MONTHLY_LIMIT_USD = 40;
 /** A billing refusal this recent raises BILLING_REFUSED. */
 export const BILLING_REFUSAL_WINDOW_MS = 24 * HOUR_MS;
 
@@ -38,23 +37,9 @@ export function billingCodeIn(error: string | null | undefined): string | null {
   return BILLING_CODES.find(c => error.includes(c)) ?? null;
 }
 
-/**
- * Prepaid credit left: the credit the owner added (OPENAI_CREDIT_USD, on
- * OPENAI_CREDIT_SET_AT) minus every priced call recorded since. OpenAI has no
- * balance API, so this is an estimate; it errs high only if a call is missed.
- */
-export type Credit = { creditUsd: number; setAt: number; spentUsd: number; source: "model-call-ledger" | "openai-costs-api" } | { creditUsd: null; reason: string };
-export function parseCredit(amount: string | undefined | null, setAt: string | undefined | null): { creditUsd: number; setAt: number } | { creditUsd: null; reason: string } {
-  const usd = Number(amount);
-  if (!amount?.trim() || !Number.isFinite(usd) || usd < 0) return { creditUsd: null, reason: "OPENAI_CREDIT_USD not set" };
-  const at = Date.parse(setAt?.trim() ?? "");
-  if (!Number.isFinite(at)) return { creditUsd: null, reason: "OPENAI_CREDIT_SET_AT not set" };
-  return { creditUsd: usd, setAt: at };
-}
-export function parseLowBalance(value: string | undefined | null) { const n = Number(value); return value?.trim() && Number.isFinite(n) && n >= 0 ? n : DEFAULT_LOW_BALANCE_USD; }
-
 export type LedgerRun = { status: "RUNNING" | "COMPLETE" | "FAILED"; captureStatus: string | null; startedAt: number; finishedAt: number | null; error?: string | null };
-export type Spend = { monthToDateUsd: number; source: "openai-costs-api" | "ledger-estimate" } | { monthToDateUsd: null; source: "unavailable"; reason: string };
+/** Month-to-date OpenAI spend: priced from On Record's ledger of every model call, or the OpenAI Costs API when an admin key is set. */
+export type Spend = { monthToDateUsd: number; source: "openai-costs-api" | "model-call-ledger" } | { monthToDateUsd: null; source: "unavailable"; reason: string };
 
 export type MonitoringInput = {
   /** Ledger rows, newest first. */
@@ -67,11 +52,10 @@ export type MonitoringInput = {
   lastSent: ReadonlyMap<AlertKind, number>;
   /** Federal official-record ingestion runs, newest first (optional). */
   ingestRuns?: ReadonlyArray<{ status: "RUNNING" | "COMPLETE" | "PARTIAL" | "FAILED"; startedAt: number; error: string | null }>;
-  /** Estimated prepaid OpenAI credit (optional). */
-  credit?: Credit;
-  lowBalanceUsd?: number;
   /** Newest billing refusal recorded by the model-call ledger (optional). */
   billingRefusal?: { at: number; code: string } | null;
+  /** When OpenAI last answered a call successfully (optional). A refusal older than this has been resolved. */
+  lastSuccessfulCallAt?: number | null;
 };
 
 export type Alert = { kind: AlertKind; subject: string; detail: string };
@@ -130,7 +114,7 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   else {
     checks.spend = `$${input.spend.monthToDateUsd.toFixed(2)} of $${input.monthlyLimitUsd.toFixed(2)} (${input.spend.source})`;
     if (input.spend.monthToDateUsd > threshold) found.push({ kind: "SPEND_75_PERCENT", subject: "OpenAI spend above 75% of the monthly limit",
-      detail: `Month-to-date OpenAI spend is $${input.spend.monthToDateUsd.toFixed(2)} (${input.spend.source === "openai-costs-api" ? "from the OpenAI Costs API" : "estimated from the run ledger"}), above 75% of the $${input.monthlyLimitUsd.toFixed(2)} limit (OPENAI_MONTHLY_LIMIT_USD). Check the OpenAI usage page and the project's hard limit.` });
+      detail: `Month-to-date OpenAI spend is ${input.spend.monthToDateUsd.toFixed(2)} (${input.spend.source === "openai-costs-api" ? "from the OpenAI Costs API" : "priced from On Record's ledger of every model call"}), above 75% of the ${input.monthlyLimitUsd.toFixed(2)} limit (OPENAI_MONTHLY_LIMIT_USD). Check the OpenAI usage page and the organisation's monthly limit.` });
   }
 
   // (4) API key expiring within 21 days (or already expired).
@@ -146,27 +130,16 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   if (ingestFailing) found.push({ kind: "INGEST_FAILING", subject: "federal vote and bill ingestion failed twice in a row",
     detail: `The last two federal ingestion runs (started ${iso(ingest[1].startedAt)} and ${iso(ingest[0].startedAt)}) both failed. Latest error: ${(ingest[0].error ?? "none recorded").slice(0, 300)}` });
 
-  // (6) Estimated OpenAI credit below the low-balance line.
-  const floor = input.lowBalanceUsd ?? DEFAULT_LOW_BALANCE_USD;
-  if (!input.credit) checks.openaiCredit = "not evaluated";
-  else if (input.credit.creditUsd === null) checks.openaiCredit = `unknown (${input.credit.reason})`;
-  else {
-    const left = Math.round((input.credit.creditUsd - input.credit.spentUsd) * 100) / 100;
-    checks.openaiCredit = `about $${left.toFixed(2)} left of $${input.credit.creditUsd.toFixed(2)} added ${iso(input.credit.setAt).slice(0, 10)}`;
-    if (left < floor) found.push({ kind: "LOW_BALANCE", subject: `OpenAI credit is low (about $${Math.max(0, left).toFixed(2)} left)`,
-      detail: `Estimated OpenAI prepaid credit is about $${left.toFixed(2)}, below $${floor.toFixed(2)}. Estimate: $${input.credit.creditUsd.toFixed(2)} added on ${iso(input.credit.setAt).slice(0, 10)} minus $${input.credit.spentUsd.toFixed(2)} of calls recorded since (${input.credit.source === "openai-costs-api" ? "OpenAI Costs API" : "On Record's call ledger"}). Add credit at platform.openai.com > Settings > Billing, then update OPENAI_CREDIT_USD and OPENAI_CREDIT_SET_AT in Vercel.` });
-  }
-
-  // (7) OpenAI refused a call for billing: in the call ledger, or in the newest finished run's error.
-  // A refusal from before the owner last added credit is already dealt with; so is one older than 24 h.
-  const creditAt = input.credit && input.credit.creditUsd !== null ? input.credit.setAt : 0;
-  const recent = (at: number) => now - at < BILLING_REFUSAL_WINDOW_MS && at >= creditAt;
+  // (6) OpenAI refused a call for billing: in the call ledger, or in the newest finished run's error.
+  // A refusal is over once a later call succeeded (auto recharge is on); so is one older than 24 h.
+  const resolvedAt = input.lastSuccessfulCallAt ?? 0;
+  const recent = (at: number) => now - at < BILLING_REFUSAL_WINDOW_MS && at > resolvedAt;
   const runCode = finished[0] && finished[0].status === "FAILED" && recent(finished[0].startedAt) ? billingCodeIn(finished[0].error) : null;
   const ledgerRefusal = input.billingRefusal && recent(input.billingRefusal.at) ? input.billingRefusal : null;
   const refusalCode = ledgerRefusal?.code ?? runCode;
-  checks.billing = refusalCode ? `refused (${refusalCode})` : "no billing refusal in the last 24 h";
+  checks.billing = refusalCode ? `refused (${refusalCode})` : "no unresolved billing refusal in the last 24 h";
   if (refusalCode) found.push({ kind: "BILLING_REFUSED", subject: "OpenAI refused a call for billing",
-    detail: `OpenAI answered "${refusalCode}"${ledgerRefusal ? ` at ${iso(ledgerRefusal.at)}` : ` on the scheduled run started ${iso(finished[0].startedAt)}`}. Statement capture, research and bill summaries stop until billing is fixed. Check platform.openai.com > Settings > Billing (credit balance) and > Limits (project and organisation spend limits).` });
+    detail: `OpenAI answered "${refusalCode}"${ledgerRefusal ? ` at ${iso(ledgerRefusal.at)}` : ` on the scheduled run started ${iso(finished[0].startedAt)}`}. Statement capture, research and bill summaries stop until billing is fixed. Auto recharge should have covered this: check platform.openai.com > Settings > Billing (payment method, auto recharge) and > Limits (the ${input.monthlyLimitUsd.toFixed(0)} monthly usage limit).` });
 
   // Each kind at most once per DEDUPE_WINDOW_MS.
   const alerts: Alert[] = [], suppressed: Alert[] = [];

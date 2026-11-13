@@ -2,8 +2,8 @@ import { and, asc, desc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { signAction } from "@/lib/session-token";
-import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseCredit, parseLowBalance, parseMonthlyLimit, type Alert, type AlertKind, type Credit, type Evaluation, type ReadyCase, type RhythmDecision, type Spend } from "@/lib/monitoring";
-import { lastBillingRefusal, spendSince } from "@/lib/model-calls";
+import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend } from "@/lib/monitoring";
+import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince } from "@/lib/model-calls";
 
 /**
  * Gathers the inputs for lib/monitoring.ts, evaluates, and sends alert emails
@@ -13,44 +13,22 @@ import { lastBillingRefusal, spendSince } from "@/lib/model-calls";
 export const DEFAULT_ALERT_TO = "wrotenberry@gmail.com";
 const DEFAULT_ALERT_FROM = "On Record <onboarding@resend.dev>";
 const RESEND_API_URL = process.env.RESEND_API_URL?.trim() || "https://api.resend.com/emails";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
-
-// Ledger-based estimate when no OpenAI admin key is available. Observed on
-// 2026-09-26: about $0.61 for one capture plus one bilateral research draft.
-const EST_COST_PER_DRAFT_USD = Number(process.env.OPENAI_EST_COST_PER_DRAFT_USD ?? "0.55") || 0.55;
-const EST_COST_PER_CAPTURE_USD = Number(process.env.OPENAI_EST_COST_PER_CAPTURE_USD ?? "0.06") || 0.06;
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 
 export function monitoringConfigured() {
   return { resend: Boolean(process.env.RESEND_API_KEY?.trim()), recipient: process.env.ALERT_TO_EMAIL?.trim() || DEFAULT_ALERT_TO,
     monthlyLimitUsd: parseMonthlyLimit(process.env.OPENAI_MONTHLY_LIMIT_USD), keyExpires: process.env.OPENAI_KEY_EXPIRES?.trim() || null,
-    spendSource: process.env.OPENAI_ADMIN_KEY?.trim() ? "openai-costs-api" : "ledger-estimate" };
+    spendSource: process.env.OPENAI_ADMIN_KEY?.trim() ? "openai-costs-api" : "model-call-ledger" };
 }
 
-/** Prepaid credit estimate: OPENAI_CREDIT_USD minus calls since OPENAI_CREDIT_SET_AT (Costs API when an admin key is set). */
-export async function creditEstimate(): Promise<Credit> {
-  const parsed = parseCredit(process.env.OPENAI_CREDIT_USD, process.env.OPENAI_CREDIT_SET_AT);
-  if (parsed.creditUsd === null) return parsed;
-  const adminKey = process.env.OPENAI_ADMIN_KEY?.trim();
-  if (adminKey) {
-    const spent = await costsApiSince(adminKey, parsed.setAt).catch(() => null);
-    if (spent !== null) return { ...parsed, spentUsd: spent, source: "openai-costs-api" };
-  }
-  try { return { ...parsed, spentUsd: await spendSince(parsed.setAt), source: "model-call-ledger" }; }
-  catch { return { creditUsd: null, reason: "call ledger unavailable" }; }
-}
+export function monthStart(now: number) { const d = new Date(now); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); }
 
-async function costsApiSince(adminKey: string, since: number): Promise<number | null> {
-  const params = new URLSearchParams({ start_time: String(Math.floor(since / 1000)), bucket_width: "1d", limit: "31" });
-  if (process.env.OPENAI_PROJECT_ID?.trim()) params.append("project_ids[]", process.env.OPENAI_PROJECT_ID.trim());
-  const response = await fetch(`https://api.openai.com/v1/organization/costs?${params}`, { headers: { Authorization: `Bearer ${adminKey}` }, signal: AbortSignal.timeout(15000) });
-  if (!response.ok) return null;
-  const body = await response.json() as { data?: Array<{ results?: Array<{ amount?: { value?: number } }> }> };
-  return (body.data ?? []).flatMap(b => b.results ?? []).reduce((sum, r) => sum + (Number(r.amount?.value) || 0), 0);
-}
-
-function monthStart(now: number) { const d = new Date(now); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); }
-
-/** Month-to-date spend: the OpenAI Costs API when an admin key is set, else an estimate from the ledger. */
+/**
+ * Month-to-date spend (calendar month, UTC): priced from the ledger of every
+ * model call (lib/model-calls.ts), or the OpenAI Costs API when an admin key
+ * is set. The owner keeps no admin key, so the ledger is the usual source; it
+ * misses nothing the app itself called, and prices come from lib/model-cost.ts.
+ */
 export async function monthToDateSpend(now = Date.now()): Promise<Spend> {
   const adminKey = process.env.OPENAI_ADMIN_KEY?.trim();
   const start = Math.floor(monthStart(now) / 1000);
@@ -67,13 +45,18 @@ export async function monthToDateSpend(now = Date.now()): Promise<Spend> {
       return { monthToDateUsd: null, source: "unavailable", reason: error instanceof Error ? error.message.slice(0, 80) : "costs API error" };
     }
   }
-  const db = getDb(), since = monthStart(now);
-  const [drafts, captures] = await Promise.all([
-    db.select({ n: sql<number>`count(*)` }).from(machineResearchDrafts).where(and(eq(machineResearchDrafts.status, "COMPLETE"), gte(machineResearchDrafts.completedAt, since))).get(),
-    db.select({ n: sql<number>`count(*)` }).from(sourceCaptures).where(gte(sourceCaptures.capturedAt, since)).get(),
-  ]);
-  const estimate = Number(drafts?.n ?? 0) * EST_COST_PER_DRAFT_USD + Number(captures?.n ?? 0) * EST_COST_PER_CAPTURE_USD;
-  return { monthToDateUsd: Math.round(estimate * 100) / 100, source: "ledger-estimate" };
+  try { return { monthToDateUsd: Math.round(await spendSince(monthStart(now)) * 100) / 100, source: "model-call-ledger" }; }
+  catch (error) { return { monthToDateUsd: null, source: "unavailable", reason: error instanceof Error ? error.message.slice(0, 80) : "call ledger unavailable" }; }
+}
+
+/** The health probe's spend line: month to date, by purpose, against the limit. Counts and dollars only. */
+export async function spendReport(now = Date.now()) {
+  const since = monthStart(now), spend = await monthToDateSpend(now);
+  const byPurpose = await spendByPurposeSince(since).catch(() => ({} as Record<string, { usd: number; calls: number }>));
+  const limit = parseMonthlyLimit(process.env.OPENAI_MONTHLY_LIMIT_USD);
+  return { monthToDateUsd: spend.monthToDateUsd, source: spend.source, ...(spend.monthToDateUsd === null ? { reason: spend.reason } : {}),
+    since: new Date(since).toISOString().slice(0, 10), byPurpose, calls: Object.values(byPurpose).reduce((n, p) => n + p.calls, 0),
+    monthlyLimitUsd: limit, alertAtUsd: Math.round(limit * 0.75 * 100) / 100, lastSuccessfulCallAt: await lastSuccessfulCallAt().then(t => t ? new Date(t).toISOString() : null).catch(() => null) };
 }
 
 export async function lastSentByKind(): Promise<Map<AlertKind, number>> {
@@ -85,19 +68,19 @@ export async function lastSentByKind(): Promise<Map<AlertKind, number>> {
 
 export async function evaluateNow(now = Date.now()): Promise<Evaluation & { configured: ReturnType<typeof monitoringConfigured> }> {
   const configured = monitoringConfigured();
-  const [runs, spend, lastSent, ingest, credit, refusal] = await Promise.all([
+  const [runs, spend, lastSent, ingest, refusal, lastOk] = await Promise.all([
     getDb().select({ status: automationRuns.status, captureStatus: automationRuns.captureStatus, startedAt: automationRuns.startedAt, finishedAt: automationRuns.finishedAt, error: automationRuns.error })
       .from(automationRuns).orderBy(desc(automationRuns.startedAt)).limit(50),
     monthToDateSpend(now), lastSentByKind(),
     getDb().select({ status: ingestRuns.status, startedAt: ingestRuns.startedAt, error: ingestRuns.error }).from(ingestRuns)
       .where(eq(ingestRuns.job, "federal")).orderBy(desc(ingestRuns.startedAt)).limit(5).catch(() => []),
-    creditEstimate(), lastBillingRefusal(now - 24 * 3600 * 1000).catch(() => null),
+    lastBillingRefusal(now - 24 * 3600 * 1000).catch(() => null), lastSuccessfulCallAt().catch(() => null),
   ]);
   return { ...evaluate({ runs, spend, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest,
-    credit, lowBalanceUsd: parseLowBalance(process.env.OPENAI_LOW_BALANCE_USD), billingRefusal: refusal }, now), configured };
+    billingRefusal: refusal, lastSuccessfulCallAt: lastOk }, now), configured };
 }
 
-async function sendEmail(subject: string, text: string): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
+export async function sendEmail(subject: string, text: string): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
   const key = process.env.RESEND_API_KEY?.trim();
   if (!key) return { ok: false, error: "RESEND_API_KEY is not set" };
   const to = process.env.ALERT_TO_EMAIL?.trim() || DEFAULT_ALERT_TO;
@@ -111,7 +94,7 @@ async function sendEmail(subject: string, text: string): Promise<{ ok: true; id?
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message.slice(0, 200) : "send failed" }; }
 }
 
-async function recordSent(alert: Alert, recipient: string) {
+export async function recordSent(alert: Alert, recipient: string) {
   await getDb().insert(alertEvents).values({ id: crypto.randomUUID(), kind: alert.kind, sentAt: Date.now(), detail: alert.detail.slice(0, 1000), recipient });
 }
 

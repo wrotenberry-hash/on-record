@@ -210,6 +210,12 @@ until the editor checks it; after the owner has read the first 5, the caps
 rise to 40 summaries and $5; cost stays estimated from listed prices (no
 OpenAI admin key).
 
+Checkpoint delivery: the run that completes the first 5 summaries emails all
+5 in full, each section badged, with the rule checker's verdict and the page
+link (`SUMMARIES_READY`, docs/MONITORING.md). The owner reads them on the
+phone; a session reviews the same text from the inbox against the template
+rules above before raising the caps.
+
 ## Phases and checkpoints
 
 | Phase | Builds | Checkpoint on the phone |
