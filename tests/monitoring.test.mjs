@@ -179,6 +179,8 @@ test("a billing refusal alerts at once, from the call ledger or the newest faile
   const fromLedger = evaluate({ ...healthy(), billingRefusal: { at: now - 2 * HOUR_MS, code: "insufficient_quota" } }, now);
   assert.deepEqual(fromLedger.alerts.map(a => a.kind), ["BILLING_REFUSED"]);
   assert.deepEqual(evaluate({ ...healthy(), billingRefusal: { at: now - 30 * HOUR_MS, code: "insufficient_quota" } }, now).alerts, [], "older than 24 h");
+  const credited = { creditUsd: 10, setAt: now - 0.05 * HOUR_MS, spentUsd: 0, source: "model-call-ledger" };
+  assert.deepEqual(evaluate({ ...healthy(), credit: credited, runs: [failedRun, run("COMPLETE", "CAPTURED", 18)] }, now).alerts, [], "a refusal before credit was added is not re-raised");
   const deduped = evaluate({ ...healthy(), billingRefusal: { at: now - HOUR_MS, code: "insufficient_quota" }, lastSent: new Map([["BILLING_REFUSED", now - 10 * HOUR_MS]]) }, now);
   assert.deepEqual(deduped.suppressed.map(a => a.kind), ["BILLING_REFUSED"]);
 });

@@ -158,8 +158,11 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   }
 
   // (7) OpenAI refused a call for billing: in the call ledger, or in the newest finished run's error.
-  const runCode = finished[0] && finished[0].status === "FAILED" ? billingCodeIn(finished[0].error) : null;
-  const ledgerRefusal = input.billingRefusal && now - input.billingRefusal.at < BILLING_REFUSAL_WINDOW_MS ? input.billingRefusal : null;
+  // A refusal from before the owner last added credit is already dealt with; so is one older than 24 h.
+  const creditAt = input.credit && input.credit.creditUsd !== null ? input.credit.setAt : 0;
+  const recent = (at: number) => now - at < BILLING_REFUSAL_WINDOW_MS && at >= creditAt;
+  const runCode = finished[0] && finished[0].status === "FAILED" && recent(finished[0].startedAt) ? billingCodeIn(finished[0].error) : null;
+  const ledgerRefusal = input.billingRefusal && recent(input.billingRefusal.at) ? input.billingRefusal : null;
   const refusalCode = ledgerRefusal?.code ?? runCode;
   checks.billing = refusalCode ? `refused (${refusalCode})` : "no billing refusal in the last 24 h";
   if (refusalCode) found.push({ kind: "BILLING_REFUSED", subject: "OpenAI refused a call for billing",
