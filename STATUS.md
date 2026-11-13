@@ -54,11 +54,13 @@ A private checking instrument for political representations: a source's exact qu
 
 ## In Progress
 
+- Phase B checkpoint: the 19:00 UTC run on 13 Nov completed 40 bills from Congress.gov (15 categorised) but OpenAI refused the first summary call (credit_balance_exhausted at 19:01 UTC), so 0 of 5 summaries exist. The billing-refusal alert went out at once. Next attempt: the 19:00 run on 14 Nov, or sooner from Editor → Bill summaries → "Write summaries now" once billing works.
+
 - Building the review habit: zero cases reviewed in the week to 2 Nov. The daily email is the trigger; the first real review is the test.
 
 ## Blocked
 
-- Intake stopped since 19 Oct. The OpenAI monthly limit reset on 1 Nov, but the account's prepaid credit balance is $0, so every call is refused. Needs credit added (Wilson).
+- OpenAI still refuses every call as of 19:01 UTC on 13 Nov (credit_balance_exhausted), six hours after the $10 credit and auto recharge were set up. The API sees a $0 balance. Needs Wilson: on platform.openai.com → Settings → Billing, check that the credit balance shows the $10 and that the API key's project belongs to that same organisation; if the balance is $0, buy $10 of credit by hand once (auto recharge only tops up after a balance has been spent down). Intake (stopped since 19 Oct) and summaries both wait on this.
 - Source widening and quote-match measures (phase 4) need working intake.
 
 ## Decisions Made
