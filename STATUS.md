@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-13 (operating rules; billing simplified). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-14 (OpenAI still refusing; federal record growing). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
@@ -60,7 +60,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Blocked
 
-- OpenAI still refuses every call as of 19:01 UTC on 13 Nov (credit_balance_exhausted), six hours after the $10 credit and auto recharge were set up. The API sees a $0 balance. Needs Wilson: on platform.openai.com → Settings → Billing, check that the credit balance shows the $10 and that the API key's project belongs to that same organisation; if the balance is $0, buy $10 of credit by hand once (auto recharge only tops up after a balance has been spent down). Intake (stopped since 19 Oct) and summaries both wait on this.
+- OpenAI still refuses every call as of 19:00 UTC on 14 Nov (credit_balance_exhausted; refused again at 13:00 and 19:00 on 14 Nov), more than a day after the $10 credit and auto recharge were set up. Federal ingestion is unaffected: 120 bills complete, 69 categorised, ready for summaries. The API sees a $0 balance. Needs Wilson: on platform.openai.com → Settings → Billing, check that the credit balance shows the $10 and that the API key's project belongs to that same organisation; if the balance is $0, buy $10 of credit by hand once (auto recharge only tops up after a balance has been spent down). Intake (stopped since 19 Oct) and summaries both wait on this.
 - Source widening and quote-match measures (phase 4) need working intake.
 
 ## Decisions Made
