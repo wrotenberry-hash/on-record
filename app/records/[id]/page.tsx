@@ -28,7 +28,7 @@ export default async function RecordPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const record = enabled ? await getPublicRecord(id) : null;
   if (enabled && !record) notFound();
-  return <PublicShell current="/records">
+  return <PublicShell current="/records" page="/records/[id]">
     {record && <div className="record-page"><p className="crumbs"><Link href="/records">← All records</Link></p>
       <article className="detail standalone"><RecordDetail record={record} permalink={`${SITE_URL}/records/${record.id}`} /></article></div>}
   </PublicShell>;

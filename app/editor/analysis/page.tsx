@@ -21,7 +21,7 @@ export default async function AnalysisReviewPage() {
 
   return <>
     <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link>
-      <nav><Link href="/editor">Cases</Link><Link href="/politicians">Politicians</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+      <nav><Link href="/editor">Cases</Link><Link href="/editor/trial">Trial invites</Link><Link href="/politicians">Politicians</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <p className="crumbs"><Link href="/editor">← Cases</Link></p>
       <div className="eyebrow">EDITOR · BILL SUMMARIES <AnalysisBadge /></div>

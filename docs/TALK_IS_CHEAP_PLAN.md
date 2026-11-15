@@ -67,9 +67,11 @@ columns or new tables, never by changing an existing one.
 
 ### Later phases (planned, not built)
 
-- **C** `app_users` gains nullable `email_hash`, `display_name`, `district`;
-  `user_issue_prefs` (top 3), `opinion_user_votes` (user × bill → Support or
-  Oppose), `friend_invites`, `friendships`, `share_cards` (opt-in per card).
+- **C (cut on 2026-11-15)** reader accounts by email magic link, follows, and a
+  weekly "how your members voted" email (new tables for accounts, sends and
+  clicks; a verified sending domain is required to email anyone but the owner).
+  Deferred until a retention checkpoint: `user_issue_prefs`, `opinion_user_votes`,
+  `friend_invites`, `friendships`, agreement score, `share_cards`.
 - **D** `people_politicians` (crosswalk from captured speakers to members),
   `said_did_rules` (documented, party-blind rules), `said_did_links` (statement
   × vote or promise, `match` or `contradiction`, rule id or editor, evidence).
@@ -222,6 +224,6 @@ rules above before raising the caps.
 | --- | --- | --- |
 | A | Schema, ingestion, politician pages, issue pages, follows | Follow one senator and see their last 10 votes; browse Health care and see recent bills |
 | B | Summary template, rule checker, badges, sampling queue, cost tracking | 5 real bills with complete summaries |
-| C | Accounts, top-3 issues, user votes, friends, agreement score, share cards | Share one card to Instagram Stories |
+| C | Accounts, follows, weekly "how your members voted" email (cut 15 Nov) | Sign up on the phone, follow your members, receive the Monday email and open it |
 | D | Said vs. Did links and cards | One match and one contradiction, both rule-documented |
 | E | Texas via Open States, LegiScan fallback | A Texas legislator page with real votes |

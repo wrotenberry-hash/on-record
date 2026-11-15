@@ -5,11 +5,13 @@ import { runDiscovery } from "@/app/api/editor/discover/route";
 import { processOneCandidate, requeueBudgetFailures } from "@/app/api/editor/intake/route";
 import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/route";
 import { tickAuthorized } from "@/lib/tick-auth";
-import { runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
+import { intakePauseState, runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
 import { sendSummariesReadyIfDue } from "@/lib/analysis/report";
 import { intakeAllowed } from "@/lib/monitoring";
+import { sendEmail } from "@/lib/monitoring-runtime";
+import { sendTrialOpenIfDue } from "@/lib/trial";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -38,6 +40,18 @@ async function runTick(request: Request) {
     const analysis = await analysisStep(now);
     const summariesEmail = await sendSummariesReadyIfDue();
     return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, summariesEmail, monitoring: await monitorAfterRun() });
+  }
+  // Owner decision 2026-11-15: no new statements while the review backlog is at or above
+  // INTAKE_PAUSE_BACKLOG (default 20). The run still drafts research for one waiting case,
+  // which makes the backlog quicker to review, then gives bill summaries the time left.
+  // Like the off-hour run it writes no ledger row; intake resumes on its own below the line.
+  const pause = await intakePauseState().catch(() => null);
+  if (pause?.paused) {
+    const federal = await federalStep();
+    const research = await researchOneWaitingCase().catch(error => ({ status: "FAILED", error: (error instanceof Error ? error.message : "research failed").slice(0, 200) }));
+    const analysis = await analysisStep(now);
+    const summariesEmail = await sendSummariesReadyIfDue();
+    return Response.json({ status: "INTAKE_PAUSED_BACKLOG", slot, via, waiting: pause.waiting, threshold: pause.threshold, federal, research, analysis, summariesEmail, monitoring: await monitorAfterRun() });
   }
   const today = await db.select({ id: automationRuns.id }).from(automationRuns)
     .where(eq(automationRuns.day, day)).limit(6);
@@ -99,6 +113,21 @@ async function runTick(request: Request) {
   }
 }
 
+/** One private research draft for the most recently captured waiting case without one. Never publishes anything. */
+async function researchOneWaitingCase(): Promise<{ status: string; representationId?: string; error?: string }> {
+  const pending = await getDb().select({ id: representations.id }).from(representations)
+    .leftJoin(machineResearchDrafts, eq(machineResearchDrafts.representationId, representations.id))
+    .where(and(eq(representations.status, "CANDIDATE"), isNull(machineResearchDrafts.representationId),
+      like(representations.context, "AI-extracted. Suggested pre-research%")))
+    .orderBy(desc(representations.extractedAt)).limit(1).get();
+  if (!pending) return { status: "NO_CASE_NEEDS_RESEARCH" };
+  const researched = await runMachineResearch(pending.id);
+  const draft = await researched.json() as { status?: string; error?: string };
+  if (researched.status === 429) return { status: "DAILY_RESEARCH_LIMIT", representationId: pending.id };
+  if (!researched.ok) return { status: "FAILED", representationId: pending.id, error: (draft.error ?? String(researched.status)).slice(0, 200) };
+  return { status: draft.status ?? "COMPLETE", representationId: pending.id };
+}
+
 async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error: string }> {
   try { return await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
   catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
@@ -122,11 +151,13 @@ async function analysisStep(startedAt: number): Promise<AnalysisRun | { status: 
  * backlog is reviewable even on a day intake broke). A fault in either never
  * changes the run's result.
  */
-async function monitorAfterRun(): Promise<{ alerts: MonitoringOutcome | { evaluated: false; error: string }; rhythm: RhythmOutcome | { error: string } }> {
+async function monitorAfterRun(): Promise<{ alerts: MonitoringOutcome | { evaluated: false; error: string }; rhythm: RhythmOutcome | { error: string }; trial: unknown }> {
   let alerts: MonitoringOutcome | { evaluated: false; error: string }, rhythm: RhythmOutcome | { error: string };
   try { alerts = await runMonitoring(); }
   catch (error) { alerts = { evaluated: false, error: (error instanceof Error ? error.message : "monitoring failed").slice(0, 200) }; }
   try { rhythm = await runRhythm(); }
   catch (error) { rhythm = { error: (error instanceof Error ? error.message : "rhythm failed").slice(0, 200) }; }
-  return { alerts, rhythm };
+  // The invite-only trial opens on its own once OpenAI calls succeed; say so once, by email.
+  const trial = await sendTrialOpenIfDue(sendEmail);
+  return { alerts, rhythm, trial };
 }

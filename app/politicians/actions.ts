@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 import { officialPoliticians, userFollows } from "@/db/schema";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
+import { countEvent } from "@/lib/events";
 
-/** Follow or unfollow a member. Phase A: the signed-in editor only. Phase C opens this to public accounts. */
+/** Follow or unfollow a member: the signed-in editor or a trial reader. Phase C opens this to public accounts. */
 export async function toggleFollow(formData: FormData) {
   const politicianId = String(formData.get("politicianId") ?? "");
   const access = await viewerAccess();
@@ -18,5 +19,6 @@ export async function toggleFollow(formData: FormData) {
   const following = await db.select().from(userFollows).where(and(eq(userFollows.userId, userId), eq(userFollows.politicianId, politicianId))).get();
   if (following) await db.delete(userFollows).where(and(eq(userFollows.userId, userId), eq(userFollows.politicianId, politicianId)));
   else await db.insert(userFollows).values({ userId, politicianId, createdAt: Date.now() }).onConflictDoNothing();
+  await countEvent(following ? "follow_remove" : "follow_add", access.audience);
   revalidatePath(`/politicians/${politicianId}`); revalidatePath("/politicians"); revalidatePath("/following");
 }

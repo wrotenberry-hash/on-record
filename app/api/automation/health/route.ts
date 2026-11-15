@@ -4,8 +4,11 @@ import { databaseSettings } from "@/db/settings";
 import { adjudications, alertEvents, automationRuns, intakeCandidates, materialityDecisions, publications, representations, reviews, sourceAuthentications, sourceCaptures } from "@/db/schema";
 import { LAUNCH_TARGET } from "@/lib/monitoring";
 import { monitoringConfigured, pickDailyCase } from "@/lib/monitoring-runtime";
-import { federalCounts, lastFederalRun } from "@/lib/federal/queries";
+import { federalCounts, lastFederalRun, uncategorisedPolicyAreas } from "@/lib/federal/queries";
 import { analysisCounts } from "@/lib/analysis/queries";
+import { eventTotals } from "@/lib/events";
+import { trialCounts } from "@/lib/trial";
+import { intakePauseState } from "@/lib/monitoring-runtime";
 import { billingCodeIn, intakeHours } from "@/lib/monitoring";
 import { spendReport } from "@/lib/monitoring-runtime";
 import { analysisLimits } from "@/lib/analysis/generate";
@@ -111,9 +114,9 @@ async function rhythm() {
 /** Federal official record: counts and the last ingestion run's status words. No names, votes or bills. */
 async function federal() {
   try {
-    const [counts, run] = await Promise.all([federalCounts(), lastFederalRun()]);
+    const [counts, run, unsorted] = await Promise.all([federalCounts(), lastFederalRun(), uncategorisedPolicyAreas().catch(() => [])]);
     const steps = (run?.detail as { steps?: Record<string, { ok?: boolean; stored?: number; skipped?: string; error?: string }> } | null)?.steps ?? {};
-    return { ...counts, congressKeyConfigured: Boolean(process.env.CONGRESS_GOV_API_KEY?.trim()),
+    return { ...counts, uncategorisedPolicyAreas: unsorted, congressKeyConfigured: Boolean(process.env.CONGRESS_GOV_API_KEY?.trim()),
       lastRun: run ? { status: run.status, startedAt: new Date(run.startedAt).toISOString(),
         steps: Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, { ok: v.ok ?? false, ...(v.stored !== undefined ? { stored: v.stored } : {}), ...(v.skipped ? { skipped: true } : {}), ...(v.error ? { error: String(v.error).replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) } : {}) }])) } : null };
   } catch { return "unavailable" as const; }
@@ -176,6 +179,9 @@ export async function GET() {
     rhythm: await rhythm(), throughput: await throughput(), federal: await federal(),
     intakeHoursUtc: intakeHours(process.env.STATEMENT_INTAKE_HOURS_UTC), recentRuns: await recentRuns(), recentAlerts: await recentAlerts(),
     openaiSpend: await openaiSpend(), analysis: await analysis(),
+    intakePause: await intakePauseState().catch(() => "unavailable" as const),
+    trial: await trialCounts().catch(() => "unavailable" as const),
+    events7d: await eventTotals(7).catch(() => "unavailable" as const),
     time: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } });
 }

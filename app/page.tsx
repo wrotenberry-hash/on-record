@@ -2,25 +2,34 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
 import { PublicShell } from "@/components/public/public-shell";
+import { AnalysisBadge, OfficialBadge } from "@/components/federal/badges";
+import { viewerAccess } from "@/lib/viewer";
 
 export const dynamic = "force-dynamic";
 
-/** The private review build opens on the checking instrument; the public build opens on the record. */
-export default function Home() {
-  if (!publicReadEnabled(process.env[PUBLIC_READ_FLAG])) redirect("/editor");
-  return <PublicShell current="/">
+/**
+ * The home page leads with the voting record (owner decision 2026-11-15); the
+ * claim record follows. Public readers and invite-only trial readers see it.
+ * With public reading off, the editor and anonymous visitors go to the private
+ * checking instrument, as before.
+ */
+export default async function Home() {
+  const publicRead = publicReadEnabled(process.env[PUBLIC_READ_FLAG]);
+  const access = await viewerAccess();
+  if (!publicRead && !access.invite) redirect("/editor");
+  return <PublicShell current="/" access={access} page="/">
     <section className="landing">
-      <div className="eyebrow">A PUBLIC RECORD OF CLAIMS, WITH THE EVIDENCE ATTACHED</div>
-      <h1>What they said. Where they said it. What the evidence shows.</h1>
-      <p className="lede">On Record keeps the chain in one place: a public figure&apos;s exact words, the original communication they came from, the claim written out plainly, and a human reviewer&apos;s search for evidence on both sides. No scores. Every record says what is still being checked.</p>
-      <div className="landing-actions"><Link className="cta" href="/records">Read the records</Link><Link href="/method">How a claim is checked</Link></div>
+      <div className="eyebrow">THE CONGRESSIONAL RECORD, IN PLAIN WORDS</div>
+      <h1>Talk is cheap. The record isn&apos;t.</h1>
+      <p className="lede">See how every senator and representative voted, what each bill would do, and the strongest case for and against it. Every section says where it came from: copied from government records, or written by AI and checked. No scores, no grades.</p>
+      <div className="landing-actions"><Link className="cta" href="/politicians">Find your members of Congress</Link><Link href="/issues">Browse by issue</Link></div>
       <div className="landing-grid">
-        <div><b>The exact words</b><p>A quote is kept verbatim and shown inside the passage it came from. A reviewer confirms it is in the original before anything else happens.</p></div>
-        <div><b>The claim, plainly</b><p>Beside the quote, the factual claim in neutral words with its time, place and scope spelled out.</p></div>
-        <div><b>Evidence both ways</b><p>Every record documents a search for supporting evidence and a search for contrary evidence, with each source linked.</p></div>
-        <div><b>A person, not a machine</b><p>Automation captures sources and proposes leads. Every gate between a captured sentence and a published record is passed by a human.</p></div>
+        <div><b>Every recorded vote <OfficialBadge /></b><p>House and Senate roll calls, copied from the House Clerk and senate.gov, each with a link to its source and a plain line on what the vote was for.</p></div>
+        <div><b>Bills in plain words <AnalysisBadge /></b><p>What a bill would do, who it affects and what we don&apos;t know, cited to its sections. Written by AI, checked by fixed rules, and sampled by a person.</p></div>
+        <div><b>Follow your members</b><p>Follow the people who represent you and see their latest votes in one place.</p></div>
+        <div><b>No grades</b><p>On Record shows what officials did. It does not score, rate or rank anyone, and the case for and against each bill gets equal space.</p></div>
       </div>
-      <p className="landing-note">Records are published in the CHECKING state. That is not a verdict; it is a statement of what was claimed, what was found, and what remains unresolved. <Link href="/corrections">If a record is wrong, say so.</Link></p>
+      <p className="landing-note">Separately, On Record checks what politicians say against the evidence, one claim at a time, with a person reviewing every record. <Link href="/method">How a claim is checked</Link>.</p>
     </section>
   </PublicShell>;
 }

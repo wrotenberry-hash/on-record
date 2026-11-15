@@ -391,3 +391,24 @@ export const analysisReviewQueue = sqliteTable("analysis_review_queue", {
 }, t => [uniqueIndex("analysis_queue_summary_uq").on(t.summaryId), index("analysis_queue_status_idx").on(t.status),
   check("analysis_queue_reason", sql`${t.reason} IN ('sample', 'low_confidence', 'check_failed')`),
   check("analysis_queue_status", sql`${t.status} IN ('open', 'approved', 'rejected')`)]);
+
+/* ===========================================================================
+ * Audit follow-ups (owner decisions 2026-11-15). New tables only.
+ * ========================================================================= */
+
+// First-party, aggregate-only usage counts: one row per day, event and dimension
+// (audience and page template, e.g. "trial:/politicians/[id]"). No reader id, no
+// IP, no user agent, and never which bill, issue or member a reader viewed.
+export const eventCounts = sqliteTable("event_counts", {
+  day: text("day").notNull(), name: text("name").notNull(), dim: text("dim").notNull().default(""),
+  n: integer("n").notNull().default(0),
+}, t => [primaryKey({ columns: [t.day, t.name, t.dim] })]);
+
+// Invite-only trial. The link token is an HMAC of the id (never stored). Per invite
+// only when it was first and last used and on how many days: no record of what
+// the invitee looked at. Revoking ends access on the next request.
+export const betaInvites = sqliteTable("beta_invites", {
+  id: text("id").primaryKey(), number: integer("number").notNull(), label: text("label"),
+  createdAt: integer("created_at").notNull(), firstSeenAt: integer("first_seen_at"), lastSeenAt: integer("last_seen_at"),
+  lastActiveDay: text("last_active_day"), activeDays: integer("active_days").notNull().default(0), revokedAt: integer("revoked_at"),
+}, t => [uniqueIndex("beta_invites_number_uq").on(t.number)]);

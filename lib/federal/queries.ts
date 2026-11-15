@@ -101,3 +101,11 @@ export async function listMappings() {
     .from(categoryMappings).innerJoin(issueCategories, eq(issueCategories.slug, categoryMappings.categorySlug))
     .where(eq(categoryMappings.active, 1)).orderBy(asc(issueCategories.sortOrder), asc(categoryMappings.sourceKind), asc(categoryMappings.sourceValue));
 }
+
+/** Complete bills that no rule sorted into an issue, counted by Congress.gov policy area. Counts only, for the health probe. */
+export async function uncategorisedPolicyAreas() {
+  const rows = await getDb().select({ area: officialBills.policyArea, n: sql<number>`count(*)` }).from(officialBills)
+    .where(and(eq(officialBills.detailStatus, "complete"), sql`not exists (select 1 from bill_categories bc where bc.bill_id = ${officialBills.id})`))
+    .groupBy(officialBills.policyArea).orderBy(sql`count(*) desc`).limit(20);
+  return rows.map(r => ({ policyArea: r.area ?? "(none)", bills: Number(r.n) }));
+}

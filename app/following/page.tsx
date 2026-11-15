@@ -7,6 +7,7 @@ import { followedPoliticians, lastFederalRun, recentVotes } from "@/lib/federal/
 import { UpdateNow } from "./update-now";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Following · On Record", robots: { index: false, follow: false } };
 
 export default async function FollowingPage() {
   const access = await viewerAccess();
@@ -18,7 +19,7 @@ export default async function FollowingPage() {
     <section className="fed-page">
       <div className="eyebrow">YOUR FOLLOWS <OfficialBadge /></div>
       <h1>Following</h1>
-      {access.editor && <div className="run-line"><span>Last update: {run ? `${shortDate(run.startedAt)}, ${new Date(run.startedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} Eastern · ${run.status.toLowerCase()}` : "none yet"}</span><UpdateNow /></div>}
+      <div className="run-line"><span>Votes last updated: {run ? `${shortDate(run.startedAt)}, ${new Date(run.startedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} Eastern` : "not yet"}{access.editor && run ? ` · ${run.status.toLowerCase()}` : ""}</span>{access.editor && <UpdateNow />}</div>
       {!people.length && <p className="empty-note">You are not following anyone yet. <Link href="/politicians">Find a politician</Link> and tap Follow.</p>}
       {feeds.map(({ p, votes }) => <article key={p.id} className="follow-card">
         <h2><Link href={`/politicians/${p.id}`}>{p.fullName}</Link></h2><p className="meta">{memberLine(p)}</p>

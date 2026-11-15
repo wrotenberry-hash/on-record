@@ -12,6 +12,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Done
 
+- **Audit follow-ups (15 Nov):** home page and menu lead with the voting record; plain-language line under every vote (fixed glossary, 20 of 20 stored wordings covered); per-page titles and descriptions shown only to people allowed to see the page, robots.txt and sitemap closed while private, noindex site-wide while private; label contrast, underlined text links and 24 px tap targets (zero axe violations on the trial pages); About and Corrections show the founder prompts only to the editor; first-party aggregate counts (`event_counts`); invite-only trial with 25 revocable links on Editor → Trial invites, opening on its own after the first successful OpenAI call; statement intake paused while 20 or more cases wait. Migration 0013 adds two new tables only. 84 tests, typecheck, lint and build pass; walkthrough with public reading off verified locally.
 - **Operating rules and billing (13 Nov, pushed to main at Wilson's word):** the six standing rules saved as docs/OPERATING_RULES.md and pointed at from CLAUDE.md. Estimated-balance alert and the OPENAI_CREDIT_USD / OPENAI_CREDIT_SET_AT settings removed; the billing-refusal alert stays and now clears itself once a later call succeeds; month-to-date OpenAI spend (total, by purpose, against the $40 limit) added to the health probe as `openaiSpend`; the probe's `analysis` section shows the caps in force. The 19:00 run gives summaries all its spare time (was capped at 170 s). When the first 5 summaries exist, one email carries them in full with the checker's verdict, so you can read them on your phone and a session can review them from the inbox. 75 tests, typecheck, lint and build pass.
 - **Talk is cheap, Phase B (13 Nov):** AI bill summaries in the approved template, every section badged Official or Analysis (headline is Analysis, official title is the Official line). New tables only (migration 0012). Rule checker (loaded words, cites, length caps, for/against parity, reading level), one regeneration, 1-in-5 audit queue plus every low-confidence or twice-failed summary held for the editor (/editor/analysis). Cost of every OpenAI call recorded; per-summary cost shown. Test caps: 5 summaries, $3. Verified locally against real govinfo bill texts with a stand-in for OpenAI; real summaries are written in production by the 19:00 UTC run.
 - **Intake once a day and credit alerts (13 Nov):** statement capture and research run only at 13:00 UTC. New alerts: estimated OpenAI credit below $3, and any billing refusal (at once). Health probe lists every run of the last 14 days and every alert of the last 30.
@@ -56,7 +57,7 @@ A private checking instrument for political representations: a source's exact qu
 
 - Phase B checkpoint: the 19:00 UTC run on 13 Nov completed 40 bills from Congress.gov (15 categorised) but OpenAI refused the first summary call (credit_balance_exhausted at 19:01 UTC), so 0 of 5 summaries exist. The billing-refusal alert went out at once. Next attempt: the 19:00 run on 14 Nov, or sooner from Editor → Bill summaries → "Write summaries now" once billing works.
 
-- Building the review habit: zero cases reviewed in the week to 2 Nov. The daily email is the trigger; the first real review is the test.
+- Building the review habit: zero cases reviewed in the week to 15 Nov. Statement intake is paused until fewer than 20 cases wait (89 now).
 
 ## Blocked
 
@@ -75,6 +76,7 @@ A private checking instrument for political representations: a source's exact qu
 - Bill headline is Analysis; official title is the Official line (13 Nov).
 - Statement intake once a day, 13:00 UTC (13 Nov).
 - Reader sign-in: email magic link via Resend; verified domain is a pre-launch task (13 Nov).
+- Lead with the voting record; Phase C cut to accounts, follows and a weekly email; invite-only trial of 25 links opens on its own once OpenAI works; intake paused while 20+ cases wait; tracking first-party and aggregate only (15 Nov). Details: docs/DECISIONS.md O-09 to O-14.
 - Phase B (13 Nov): a summary picked for the 1-in-5 audit stays visible until checked; after Wilson has read the first 5, caps go to 40 summaries / $5 (ANALYSIS_MAX_SUMMARIES, ANALYSIS_SPEND_CAP_USD); costs stay estimated from listed prices, no OpenAI admin key.
 - On Record work runs in its own cloud environment, "On Record", not "Unofficial" (13 Nov).
 
@@ -85,5 +87,5 @@ A private checking instrument for political representations: a source's exact qu
 - MANUAL batch (13 Nov, not urgent): in Vercel → on-record → Settings → Environment Variables, delete OPENAI_CREDIT_USD, OPENAI_CREDIT_SET_AT and OPENAI_LOW_BALANCE_USD (unused now) and set OPENAI_MONTHLY_LIMIT_USD to 40 (if left at 20 the spend alert simply fires earlier, at $15), then redeploy.
 - Phase B checkpoint: on your phone, Editor → Bill summaries; open each of the 5 summaries; approve or reject the queued ones.
 - Review one case: open the morning email's link and go through the four cards.
-- Fill the bracketed placeholders on /about and /corrections: your name and base, funding sentence, contact address, and whether to promise a response time. Reply with the text; I will drop it in.
+- Fill the bracketed placeholders on /about and /corrections: your name and base, funding sentence, contact address (set it as PUBLIC_CONTACT_EMAIL in Vercel), and whether to promise a response time. Trial readers see neutral wording meanwhile. Reply with the text; I will drop it in.
 - Later: register a domain.

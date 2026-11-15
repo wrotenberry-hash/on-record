@@ -5,6 +5,7 @@ import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, listPoliticians, listStates } from "@/lib/federal/queries";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Politicians · On Record", description: "Every sitting senator and representative, with how they voted. Copied from official roll calls; no grades." };
 
 export default async function PoliticiansPage({ searchParams }: { searchParams: Promise<{ q?: string; state?: string; chamber?: string }> }) {
   const access = await viewerAccess();

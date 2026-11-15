@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { signAction } from "@/lib/session-token";
-import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend } from "@/lib/monitoring";
+import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend, intakePauseThreshold, intakePausedFor } from "@/lib/monitoring";
 import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince } from "@/lib/model-calls";
 
 /**
@@ -76,8 +76,16 @@ export async function evaluateNow(now = Date.now()): Promise<Evaluation & { conf
       .where(eq(ingestRuns.job, "federal")).orderBy(desc(ingestRuns.startedAt)).limit(5).catch(() => []),
     lastBillingRefusal(now - 24 * 3600 * 1000).catch(() => null), lastSuccessfulCallAt().catch(() => null),
   ]);
+  const intakePaused = await intakePauseState().catch(() => null);
   return { ...evaluate({ runs, spend, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest,
-    billingRefusal: refusal, lastSuccessfulCallAt: lastOk }, now), configured };
+    billingRefusal: refusal, lastSuccessfulCallAt: lastOk, intakePaused: intakePaused?.paused ? intakePaused : null }, now), configured };
+}
+
+/** Whether statement intake is paused for the review backlog, and the numbers behind it. */
+export async function intakePauseState(): Promise<{ paused: boolean; waiting: number; threshold: number }> {
+  const threshold = intakePauseThreshold(process.env.INTAKE_PAUSE_BACKLOG);
+  const { waitingCount } = await pickDailyCase();
+  return { paused: intakePausedFor(waitingCount, threshold), waiting: waitingCount, threshold };
 }
 
 export async function sendEmail(subject: string, text: string): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {

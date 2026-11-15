@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { issueMeta } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge, billLabel, shortDate } from "@/components/federal/badges";
@@ -7,14 +9,20 @@ import { billsInCategory, getCategory } from "@/lib/federal/queries";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  if (!(await viewerAccess()).allowed) return { title: "On Record" };
+  const c = await getCategory((await params).slug);
+  return c ? { ...issueMeta(c.name), alternates: { canonical: `/issues/${c.slug}` } } : { title: "Not found · On Record" };
+}
+
 export default async function IssuePage({ params }: { params: Promise<{ slug: string }> }) {
   const access = await viewerAccess();
   const { slug } = await params;
-  if (!access.allowed) return <PublicShell current="/issues" access={access}>{null}</PublicShell>;
+  if (!access.allowed) return <PublicShell current="/issues" access={access} page="/issues/[slug]">{null}</PublicShell>;
   const category = await getCategory(slug);
   if (!category) notFound();
   const bills = await billsInCategory(slug, 30);
-  return <PublicShell current="/issues" access={access}>
+  return <PublicShell current="/issues" access={access} page="/issues/[slug]">
     <section className="fed-page">
       <p className="crumbs"><Link href="/issues">← All issues</Link></p>
       <div className="eyebrow">ISSUE <OfficialBadge /></div>

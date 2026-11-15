@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { evaluate, daysUntil, parseMonthlyLimit, formatAlertEmail, decideRhythm, formatRhythmEmail, rhythmPhase, DEDUPE_WINDOW_MS, HOUR_MS, DAY_MS,
-  ALERT_KINDS, billingCodeIn, intakeAllowed, intakeHours } from "../lib/monitoring.ts";
+  ALERT_KINDS, billingCodeIn, intakeAllowed, intakeHours, intakePausedFor, intakePauseThreshold, DEFAULT_INTAKE_PAUSE_BACKLOG } from "../lib/monitoring.ts";
 
 const now = Date.parse("2026-09-28T13:05:00Z");
 const run = (status, captureStatus, hoursAgo) => ({ status, captureStatus, startedAt: now - hoursAgo * HOUR_MS, finishedAt: now - hoursAgo * HOUR_MS + 90_000 });
@@ -188,4 +188,19 @@ test("statement intake runs once a day at 13:00 UTC unless configured otherwise"
   assert.ok(!intakeAllowed(Date.parse("2026-11-13T19:00:40Z"), undefined));
   assert.ok(intakeAllowed(Date.parse("2026-11-13T19:00:40Z"), "13,19"));
   assert.deepEqual(intakeHours("nonsense"), [13]);
+});
+
+test("statement intake pauses at 20 waiting cases and resumes below; capture alerts stay quiet while paused", () => {
+  assert.equal(DEFAULT_INTAKE_PAUSE_BACKLOG, 20);
+  assert.ok(intakePausedFor(89));
+  assert.ok(intakePausedFor(20));
+  assert.ok(!intakePausedFor(19));
+  assert.equal(intakePauseThreshold(undefined), 20);
+  assert.equal(intakePauseThreshold("30"), 30);
+  assert.equal(intakePauseThreshold("zero"), 20);
+  const stale = { ...healthy(), runs: [run("FAILED", null, 30), run("FAILED", null, 54), run("COMPLETE", "CAPTURED", 100)] };
+  assert.deepEqual(evaluate(stale, now).alerts.map(a => a.kind).sort(), ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H"]);
+  const paused = evaluate({ ...stale, intakePaused: { waiting: 89, threshold: 20 } }, now);
+  assert.deepEqual(paused.alerts, []);
+  assert.match(paused.checks.intake, /paused: 89 cases waiting; resumes under 20/);
 });

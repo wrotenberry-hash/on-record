@@ -1,9 +1,12 @@
 import { PublicShell } from "@/components/public/public-shell";
+import { viewerAccess } from "@/lib/viewer";
 
 export const dynamic = "force-dynamic";
 
-export default function MethodPage() {
-  return <PublicShell current="/method">
+export const metadata = { title: "How a claim is checked · On Record", description: "The six steps from a politician's own words to the evidence a reviewer found for and against them." };
+
+export default async function MethodPage() {
+  return <PublicShell current="/method" access={await viewerAccess()}>
     <article className="prose">
       <div className="eyebrow">HOW A CLAIM IS CHECKED</div>
       <h1>Six steps, every one of them visible on the record.</h1>

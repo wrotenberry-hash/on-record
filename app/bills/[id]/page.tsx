@@ -1,12 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { billMeta } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
 import { AnalysisBadge, OfficialBadge, PositionPill, billLabel, memberLine, shortDate } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, getBill } from "@/lib/federal/queries";
 import { costEstimates, followedVotes, summaryForBill } from "@/lib/analysis/queries";
+import { VoteExplainer } from "@/components/federal/vote-row";
+import { GLOSSARY_URL } from "@/lib/federal/vote-labels";
 
 export const dynamic = "force-dynamic";
+
+/** Bill titles and the Analysis headline reach only viewers allowed to see the page. */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const access = await viewerAccess();
+  if (!access.allowed) return { title: "On Record" };
+  const data = await getBill((await params).id);
+  if (!data) return { title: "Not found · On Record" };
+  const summary = await summaryForBill(data.bill.id, false).catch(() => null);
+  return { ...billMeta({ label: billLabel(data.bill.billType, data.bill.number), title: data.bill.title }, summary?.summary.headline), alternates: { canonical: `/bills/${data.bill.id}` } };
+}
 
 /**
  * The bill page in the approved template (docs/TALK_IS_CHEAP_PLAN.md):
@@ -18,7 +32,7 @@ export const dynamic = "force-dynamic";
 export default async function BillPage({ params }: { params: Promise<{ id: string }> }) {
   const access = await viewerAccess();
   const { id } = await params;
-  if (!access.allowed) return <PublicShell current="/issues" access={access}>{null}</PublicShell>;
+  if (!access.allowed) return <PublicShell current="/issues" access={access} page="/bills/[id]">{null}</PublicShell>;
   const data = await getBill(id);
   if (!data) notFound();
   const { bill, votes, subjects, categories, sponsor } = data;
@@ -33,7 +47,7 @@ export default async function BillPage({ params }: { params: Promise<{ id: strin
   const latestCheck = analysis?.checks[0];
   const cite = (section: string) => <span className="cite">{section}</span>;
 
-  return <PublicShell current="/issues" access={access}>
+  return <PublicShell current="/issues" access={access} page="/bills/[id]">
     <section className="fed-page bill-page">
       <p className="crumbs"><Link href="/issues">← Issues</Link></p>
       <div className="eyebrow">{billLabel(bill.billType, bill.number)} · {bill.congress}th Congress</div>
@@ -85,8 +99,9 @@ export default async function BillPage({ params }: { params: Promise<{ id: strin
         <h3 className="subhead">All recorded votes</h3>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"}</span>
-          <b>{v.question}</b><small>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""} · <a href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
+          <b>{v.question}</b><VoteExplainer question={v.question} /><small>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
+        {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
       </div>
 
       <div className="fed-section"><h2>Sources</h2><ul className="source-list">

@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { memberMeta } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge, memberLine, shortDate } from "@/components/federal/badges";
@@ -9,20 +11,27 @@ import { followedIds, getPolitician, recentVotes } from "@/lib/federal/queries";
 
 export const dynamic = "force-dynamic";
 
+/** Names reach only viewers allowed to see the page; anyone else gets the site name. */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  if (!(await viewerAccess()).allowed) return { title: "On Record" };
+  const p = await getPolitician((await params).id);
+  return p ? { ...memberMeta(p), alternates: { canonical: `/politicians/${p.id}` } } : { title: "Not found · On Record" };
+}
+
 export default async function PoliticianPage({ params }: { params: Promise<{ id: string }> }) {
   const access = await viewerAccess();
   const { id } = await params;
-  if (!access.allowed) return <PublicShell current="/politicians" access={access}>{null}</PublicShell>;
+  if (!access.allowed) return <PublicShell current="/politicians" access={access} page="/politicians/[id]">{null}</PublicShell>;
   const p = await getPolitician(id);
   if (!p) notFound();
   const [votes, followed] = await Promise.all([recentVotes(p.id, 10), currentAppUserId().then(followedIds)]);
-  return <PublicShell current="/politicians" access={access}>
+  return <PublicShell current="/politicians" access={access} page="/politicians/[id]">
     <section className="fed-page">
       <p className="crumbs"><Link href="/politicians">← All politicians</Link></p>
       <div className="member-head">
         <div><div className="eyebrow">{memberLine(p)}</div><h1>{p.fullName}</h1>
           <p className="meta">{p.isCurrent ? `Term ends ${shortDate(p.termEnd)}` : "No longer serving"}{p.officialUrl && <> · <a href={p.officialUrl} target="_blank" rel="noopener noreferrer">Official site</a></>}</p></div>
-        <FollowButton politicianId={p.id} following={followed.has(p.id)} canFollow={!!access.editor} />
+        <FollowButton politicianId={p.id} following={followed.has(p.id)} canFollow={!!access.editor || !!access.invite} />
       </div>
       <h2>Last {votes.length || 10} votes <OfficialBadge /></h2>
       {votes.length ? <ul className="vote-list">{votes.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul>

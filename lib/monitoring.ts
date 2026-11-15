@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -56,6 +56,8 @@ export type MonitoringInput = {
   billingRefusal?: { at: number; code: string } | null;
   /** When OpenAI last answered a call successfully (optional). A refusal older than this has been resolved. */
   lastSuccessfulCallAt?: number | null;
+  /** Statement intake paused because the review backlog is too long (optional). Capture alerts are off while paused. */
+  intakePaused?: { waiting: number; threshold: number } | null;
 };
 
 export type Alert = { kind: AlertKind; subject: string; detail: string };
@@ -71,6 +73,14 @@ export function intakeHours(value: string | undefined | null): number[] {
   const hours = (value ?? "13").split(",").map(x => Number(x.trim())).filter(h => Number.isInteger(h) && h >= 0 && h <= 23);
   return hours.length ? hours : [13];
 }
+/**
+ * Owner decision 2026-11-15: statement intake pauses while the review backlog
+ * (open cases) is at or above this many, and resumes on its own below it.
+ */
+export const DEFAULT_INTAKE_PAUSE_BACKLOG = 20;
+export function intakePauseThreshold(value: string | undefined | null) { const n = Number(value); return value?.trim() && Number.isInteger(n) && n > 0 ? n : DEFAULT_INTAKE_PAUSE_BACKLOG; }
+export function intakePausedFor(waiting: number, threshold = DEFAULT_INTAKE_PAUSE_BACKLOG) { return waiting >= threshold; }
+
 export function intakeAllowed(now: number, value: string | undefined | null) { return intakeHours(value).includes(new Date(now).getUTCHours()); }
 
 export function parseMonthlyLimit(value: string | undefined | null): number {
@@ -89,13 +99,15 @@ export function daysUntil(isoDate: string | null | undefined, now: number): numb
 export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   const found: Alert[] = [];
   const checks: Record<string, string> = {};
+  const paused = input.intakePaused ?? null;
+  if (paused) checks.intake = `paused: ${paused.waiting} cases waiting; resumes under ${paused.threshold}`;
 
   // (1) Two consecutive scheduled runs failed. Only finished runs count.
   const finished = input.runs.filter(r => r.status !== "RUNNING");
   const lastTwo = finished.slice(0, 2);
   const consecutive = lastTwo.length === 2 && lastTwo.every(r => r.status === "FAILED");
   checks.consecutiveFailures = lastTwo.length < 2 ? "fewer than two finished runs" : consecutive ? "last two runs FAILED" : `last two: ${lastTwo.map(r => r.status).join(", ")}`;
-  if (consecutive) found.push({ kind: "CONSECUTIVE_FAILURES", subject: "two scheduled runs in a row failed",
+  if (consecutive && !paused) found.push({ kind: "CONSECUTIVE_FAILURES", subject: "two scheduled runs in a row failed",
     detail: `The last two scheduled runs (started ${iso(lastTwo[1].startedAt)} and ${iso(lastTwo[0].startedAt)}) both ended FAILED. Open the editor's "Scheduled intake" line for the error text.` });
 
   // (2) No successful capture in 72 hours. With no capture ever, the clock starts at the oldest run.
@@ -104,7 +116,7 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   const referenceAt = lastCapture ? (lastCapture.finishedAt ?? lastCapture.startedAt) : oldest?.startedAt;
   const stale = referenceAt !== undefined && now - referenceAt > NO_CAPTURE_WINDOW_MS;
   checks.noCapture72h = referenceAt === undefined ? "no runs yet" : `${lastCapture ? "last capture" : "no capture; first run"} ${Math.round((now - referenceAt) / HOUR_MS)} h ago`;
-  if (stale) found.push({ kind: "NO_CAPTURE_72H", subject: "no successful capture in 72 hours",
+  if (stale && !paused) found.push({ kind: "NO_CAPTURE_72H", subject: "no successful capture in 72 hours",
     detail: lastCapture ? `The last scheduled run that captured a statement finished ${iso(referenceAt!)}. Runs since then completed without a capture or failed.`
       : `No scheduled run has captured a statement since the first run at ${iso(referenceAt!)}.` });
 
