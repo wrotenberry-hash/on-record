@@ -8,7 +8,14 @@ import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, getBill } from "@/lib/federal/queries";
 import { costEstimates, followedVotes, summaryForBill } from "@/lib/analysis/queries";
 import { stanceFor } from "@/lib/opinions";
-import { saveStance } from "./actions";
+import { saveStance, toggleBillFollow } from "./actions";
+import { billAmendments, billTimeline, floorThisWeek, rollCallParties } from "@/lib/federal/bill-depth";
+import { cosponsorPartyCounts } from "@/lib/federal/legislators";
+import { changesFor } from "@/lib/analysis/changes";
+import { isFollowingBill } from "@/lib/bill-follows";
+import { Timeline } from "@/components/federal/timeline";
+import { PartySplit } from "@/components/federal/party-split";
+import { Glossed } from "@/components/ui/glossed";
 import { VoteExplainer } from "@/components/federal/vote-row";
 import { GLOSSARY_URL } from "@/lib/federal/vote-labels";
 import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
@@ -52,6 +59,11 @@ export default async function BillPage({ params, searchParams }: { params: Promi
   ]);
   const mine = await followedVotes(votes.map(v => v.id), followed).catch(() => []);
   const underReview = await import("@/lib/federal/depth").then(d => d.tallyUnderReview(votes.map(v => v.id))).catch(() => new Set<string>());
+  const [timeline, amendments, floor, parties, cosponsors, changes, followingBill] = await Promise.all([
+    billTimeline(bill.id, bill.introducedAt).catch(() => null), billAmendments(bill.id).catch(() => []), floorThisWeek(bill.id).catch(() => []),
+    rollCallParties(votes.map(v => v.id)).catch(() => new Map<string, Record<string, Record<string, number>>>()), cosponsorPartyCounts(bill.id).catch(() => null),
+    changesFor(bill.id).catch(() => null), currentAppUserId().then(u => isFollowingBill(u, bill.id)).catch(() => false)]);
+  const partyName = (p: string) => (p.startsWith("Dem") ? "Democrats" : p.startsWith("Rep") ? "Republicans" : p.startsWith("Ind") ? "Independents" : p);
   const canAnswer = !!access.invite || !!access.editor;
   const stance = canAnswer ? await currentAppUserId().then(u => stanceFor(u, bill.id)).catch(() => null) : null;
   const vc = verificationConfig();
@@ -71,15 +83,21 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       <div className="eyebrow">{billLabel(bill.billType, bill.number)} · {bill.congress}th Congress</div>
       <p className="official-line"><OfficialBadge /> <span>{bill.title}</span></p>
       {s ? <h1 className="bill-headline">{s.headline} <AnalysisBadge /></h1> : <h1>{bill.title}</h1>}
+      {(floor.length > 0 || canAnswer) && <div className="bill-actions-row">
+        {floor.length > 0 && <span className="on-floor">On the {[...new Set(floor.map(f => f.chamber === "senate" ? "Senate" : "House"))].join(" and ")} floor schedule this week</span>}
+        {canAnswer && <form action={toggleBillFollow} className="follow-form"><input type="hidden" name="billId" value={bill.id} />
+          <button type="submit" className={followingBill ? "follow-btn on" : "follow-btn"} aria-pressed={followingBill}>{followingBill ? "Following this bill" : "Follow this bill"}</button></form>}
+      </div>}
       {categories.length > 0 && <ul className="chip-row">{categories.map(c => <li key={c.slug}><Link href={`/issues/${c.slug}`}>{c.name}{c.method === "ai" ? " · sorted by AI" : ""}</Link></li>)}</ul>}
 
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
-        {bill.latestActionText ? <p>{bill.latestActionText} <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
+        {timeline && <Timeline steps={timeline.steps} current={timeline.current} sourceUrl={`${bill.congressUrl}/all-actions`} />}
+        {bill.latestActionText ? <p>Latest action: <Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
           : votes[0] ? <p>Latest recorded vote: {votes[0].question}, {votes[0].result ?? "result not stated"} {underReview.has(votes[0].id) ? "(tally under review)" : `${votes[0].yea}–${votes[0].nay}`} <span className="meta">({shortDate(votes[0].votedAt)})</span></p>
           : <p className="meta">No action recorded yet.</p>}
-        {sponsor && <p className="meta">Sponsor: <Link href={`/politicians/${sponsor.id}`}>{sponsor.fullName}</Link></p>}
+        {sponsor && <p className="meta">Sponsor: <Link href={`/politicians/${sponsor.id}`}>{sponsor.fullName}</Link>{cosponsors?.sponsor ? ` (${cosponsors.sponsor.party})` : ""}{cosponsors && cosponsors.total > 0 ? <> · {cosponsors.total} cosponsor{cosponsors.total === 1 ? "" : "s"}: {Object.entries(cosponsors.byParty).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${partyName(p)} ${n}`).join(", ")}{cosponsors.withdrawn ? ` (${cosponsors.withdrawn} withdrew)` : ""}</> : ""}</p>}
         {bill.introducedAt && <p className="meta">Introduced {shortDate(bill.introducedAt)}</p>}
       </div>
 
@@ -106,6 +124,15 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
       </>}
+
+      {changes && <div className="fed-section"><h2>What changed between versions {changes.bullets ? <AnalysisBadge /> : <OfficialBadge />}</h2>
+        <p className="meta">From the {changes.fromType.toLowerCase()} text to the {changes.toType.toLowerCase()} text.</p>
+        {Array.isArray(changes.bullets) && changes.bullets.length > 0 && <ul className="analysis-list">{(changes.bullets as Array<{ text: string; section: string }>).map((b, i) => <li key={i}>{b.text} {cite(b.section)}</li>)}</ul>}
+        <p className="meta"><OfficialBadge /> Sections added: {(changes.added as string[] | null)?.length ? (changes.added as string[]).map(n => `Sec. ${n}`).join(", ") : "none"} · changed: {(changes.changed as string[] | null)?.length ? (changes.changed as string[]).map(n => `Sec. ${n}`).join(", ") : "none"} · removed: {(changes.removed as string[] | null)?.length ? (changes.removed as string[]).map(n => `Sec. ${n}`).join(", ") : "none"}.</p></div>}
+
+      {amendments.length > 0 && <div className="fed-section"><h2>Amendments <OfficialBadge /></h2>
+        <ul className="analysis-list">{amendments.map(a => <li key={a.id}><b>{a.chamber === "house" ? "House" : "Senate"} amendment {a.number}</b> · <span className={`amd-${a.outcome}`}>{a.outcome === "adopted" ? "Adopted" : a.outcome === "failed" ? "Not adopted" : a.outcome === "withdrawn" ? "Withdrawn" : "Pending"}</span><br />{a.line}{a.latestActionDate ? <span className="meta"> ({shortDate(a.latestActionDate)})</span> : null}</li>)}</ul>
+        <p className="meta">One-line descriptions are the official purpose or description from Congress.gov.</p></div>}
 
       {!s && access.preview && <div className="fed-section placeholder"><h2>Plain-language summary <AnalysisBadge /></h2><p className="meta">Not written yet. Summaries are generated by the scheduled run within their test caps; see <Link href="/editor/analysis">Bill summaries</Link>.</p></div>}
 
@@ -136,7 +163,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         <h3 className="subhead">All recorded votes</h3>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"} · <span className={`vote-kind vote-kind-${voteKind(v.question, v.title ?? bill.title)}`}>{KIND_LABEL[voteKind(v.question, v.title ?? bill.title)]}</span></span>
-          <b>{v.question}</b><VoteExplainer question={v.question} /><small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
+          <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
       </div>

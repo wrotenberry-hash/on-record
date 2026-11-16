@@ -9,6 +9,8 @@ import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
   { href: "/politicians", label: "Politicians" },
+  { href: "/moving", label: "This week" },
+  { href: "/search", label: "Search" },
   { href: "/issues", label: "Issues" },
   { href: "/following", label: "Following" },
   { href: "/account", label: "Account" },

@@ -603,3 +603,9 @@ export const officialFloorSchedule = sqliteTable("official_floor_schedule", {
 export const officialTallyChecks = sqliteTable("official_tally_checks", {
   rollCallId: text("roll_call_id").primaryKey(), ok: integer("ok").notNull(), detail: text("detail", { mode: "json" }), checkedAt: integer("checked_at").notNull(),
 }, t => [index("tally_checks_ok_idx").on(t.ok)]);
+
+// ── Round B: following a bill (migration 0020). A reader's own follows; alerts when the bill's stage changes. ──
+export const billFollows = sqliteTable("bill_follows", {
+  userId: text("user_id").references(() => appUsers.id).notNull(), billId: text("bill_id").notNull(), createdAt: integer("created_at").notNull(),
+  lastStage: text("last_stage"), lastAlertAt: integer("last_alert_at"),
+}, t => [primaryKey({ columns: [t.userId, t.billId] }), index("bill_follows_bill_idx").on(t.billId)]);

@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { getDb } from "@/db";
-import { countedPositions, digestSends, flaggedPositions, integrityCounts, integrityFlags, magicLinks, opinionUserVotes, rateEvents, readerAccounts,
+import { billFollows, countedPositions, digestSends, flaggedPositions, integrityCounts, integrityFlags, magicLinks, opinionUserVotes, rateEvents, readerAccounts,
   sentimentTotals, userFollows, verificationProfiles } from "@/db/schema";
 import { keyedHash } from "@/lib/verify/crypto";
 import { verificationConfig } from "@/lib/verify/config";
@@ -150,6 +150,7 @@ export async function deleteAccountAndPositions(account: Account) {
   await db.delete(countedPositions).where(eq(countedPositions.userId, account.appUserId));
   await db.delete(opinionUserVotes).where(eq(opinionUserVotes.userId, account.appUserId));
   await db.delete(userFollows).where(eq(userFollows.userId, account.appUserId));
+  await db.delete(billFollows).where(eq(billFollows.userId, account.appUserId));
   await db.delete(verificationProfiles).where(eq(verificationProfiles.accountId, account.id));
   await db.delete(digestSends).where(eq(digestSends.accountId, account.id));
   await db.delete(magicLinks).where(eq(magicLinks.emailHash, account.emailHash));
