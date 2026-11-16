@@ -760,3 +760,17 @@ export const analysisRereviews = sqliteTable("analysis_rereviews", {
   passed: integer("passed").notNull(), failures: text("failures", { mode: "json" }).$type<string[]>().notNull(), promptVersion: text("prompt_version").notNull(),
   action: text("action", { enum: ["none", "held"] }).notNull(), error: text("error"),
 }, t => [index("analysis_rereviews_summary_idx").on(t.summaryId, t.at), index("analysis_rereviews_at_idx").on(t.at)]);
+
+// ── Summary rebuild b5 (owner review, 16 Nov 2026; migration 0030). New table only: the parts of the new template
+// that the live summary row has no column for, and the official sources the generator was given. One row per summary,
+// replaced when the summary is rewritten (earlier wording stays in analysis_summary_versions).
+export const analysisSummaryDetails = sqliteTable("analysis_summary_details", {
+  summaryId: text("summary_id").primaryKey().references(() => analysisBillSummaries.id),
+  plainEnglish: text("plain_english").notNull(),
+  background: text("background"),
+  backgroundSources: text("background_sources", { mode: "json" }).$type<string[]>().notNull(),
+  question: text("question").notNull(),
+  sourceDocs: text("source_docs", { mode: "json" }).$type<Array<{ id: string; kind: string; label: string; url: string }>>().notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});

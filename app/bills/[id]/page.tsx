@@ -14,6 +14,7 @@ import { cosponsorPartyCounts } from "@/lib/federal/legislators";
 import { changesFor } from "@/lib/analysis/changes";
 import { isFollowingBill } from "@/lib/bill-follows";
 import { Timeline } from "@/components/federal/timeline";
+import { stanceQuestion } from "@/lib/federal/stance-question";
 import { PartySplit } from "@/components/federal/party-split";
 import { Glossed } from "@/components/ui/glossed";
 import { VoteExplainer, YesNo } from "@/components/federal/vote-row";
@@ -47,6 +48,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
  * Analysis case for and against, "what we don't know", Official votes, sources.
  * Every section carries its badge.
  */
+/** A citation chip's text: "Rule", "Committee report", "CRS", "CBO", "10 U.S.C. 1413a". */
+function shortSource(d: { id: string; kind: string }) {
+  if (d.kind === "us_code") return d.id.replace(/^USC (\d+) §(.+)$/, "$1 U.S.C. $2");
+  return ({ federal_register: "The rule", committee_report: "Committee report", crs: "CRS summary", cbo: "CBO" } as Record<string, string>)[d.kind] ?? d.id;
+}
+
 export default async function BillPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ c?: string }> }) {
   const access = await viewerAccess();
   const { id } = await params;
@@ -83,7 +90,16 @@ export default async function BillPage({ params, searchParams }: { params: Promi
   const s = analysis?.summary;
   const held = s?.status === "held";
   const latestCheck = analysis?.checks[0];
-  const cite = (section: string) => <span className="cite">{section}</span>;
+  const docs = analysis?.details?.sourceDocs ?? [];
+  // A citation names a bill section ("Sec. 2", "Full text") or an official source by id ("RULE", "REPORT", "CRS", "USC 10 §1413a").
+  const cite = (section: string) => {
+    const doc = docs.find(d => d.id.toUpperCase() === section.trim().toUpperCase());
+    return doc ? <a className="cite" href={doc.url} target="_blank" rel="noopener noreferrer" title={doc.label}>{shortSource(doc)}</a> : <span className="cite">{section}</span>;
+  };
+  const sideNote = "No one in the official record we use makes this case yet (no committee minority views, agency position or other stated reason).";
+  // Owner, 16 Nov: ask with the plain headline, official title one tap away. Readers only ever get a reader-visible
+  // summary here (summaryForBill gates it); a held one is used only for the signed-in editor's preview.
+  const ask = stanceQuestion({ question: s && (!held || access.preview) ? analysis?.details?.question ?? null : null, headline: s && (!held || access.preview) ? s.headline : null });
 
   return <PublicShell current="/issues" access={access} page="/bills/[id]">
     <section className="fed-page bill-page">
@@ -98,10 +114,13 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       </div>}
       {categories.length > 0 && <ul className="chip-row">{categories.map(c => <li key={c.slug}><Link href={`/issues/${c.slug}`}>{c.name}{c.method === "ai" ? " · sorted by AI" : ""}</Link></li>)}</ul>}
 
+      {s && analysis?.details?.plainEnglish && <div className="fed-section plain-english"><h2>In plain English <AnalysisBadge /></h2><p>{analysis.details.plainEnglish}</p></div>}
+      {s && analysis?.details?.background && <div className="fed-section"><h2>Background <AnalysisBadge /></h2><p>{analysis.details.background} {analysis.details.backgroundSources.map(id => <span key={id}>{cite(id)} </span>)}</p></div>}
+
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
-        {timeline && <Timeline steps={timeline.steps} current={timeline.current} sourceUrl={`${bill.congressUrl}/all-actions`} />}
+        {timeline && <Timeline steps={timeline.steps} current={timeline.currentStep} sourceUrl={`${bill.congressUrl}/all-actions`} />}
         {bill.latestActionText ? <p>Latest action: <Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
           : votes[0] ? <p>Latest recorded vote: {votes[0].question}, {votes[0].result ?? "result not stated"} {underReview.has(votes[0].id) ? "(tally under review)" : `${votes[0].yea}–${votes[0].nay}`} <span className="meta">({shortDate(votes[0].votedAt)})</span></p>
           : <p className="meta">No action recorded yet.</p>}
@@ -125,10 +144,10 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
         <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2>
           <div className="case-grid">
-            <div><h3>For</h3><ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span></li>)}</ul></div>
-            <div><h3>Against</h3><ul className="analysis-list">{s.caseAgainst.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span></li>)}</ul></div>
+            <div><h3>For</h3>{s.caseFor.length ? <ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
+            <div><h3>Against</h3>{s.caseAgainst.length ? <ul className="analysis-list">{s.caseAgainst.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
           </div>
-          <p className="meta">Both sides are written to the same length and standard. They describe arguments people make; they are not On Record&apos;s view.</p></div>
+          <p className="meta">{analysis?.details ? "Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not On Record's view." : "Both sides are written to the same length and standard. They describe arguments people make; they are not On Record's view."}</p></div>
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
       </>}
@@ -144,7 +163,9 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       {!s && access.preview && <div className="fed-section placeholder"><h2>Plain-language summary <AnalysisBadge /></h2><p className="meta">Not written yet. Summaries are generated by the scheduled run within their test caps; see <Link href="/editor/analysis">Bill summaries</Link>.</p></div>}
 
-      {canAnswer && <div className="fed-section your-view" id="your-view"><h2>Do you support {bill.title.length > 120 ? `${bill.title.slice(0, 118)}…` : bill.title}? <OpinionBadge /></h2>
+      {canAnswer && <div className="fed-section your-view" id="your-view"><h2>{ask.question} <OpinionBadge /></h2>
+        {ask.plain ? <details className="official-title"><summary>Official title</summary><p><OfficialBadge /> {bill.title}</p></details>
+          : <p className="meta"><OfficialBadge /> Official title: {bill.title}</p>}
         {vc.enabled && vtier >= 1
           ? <p className="meta">You are verified, so your answer is added to the totals below <b>without your name</b>. Your own answer is still shown only to you. On a member&apos;s page it is compared with their votes on passing this bill, never with procedural votes.</p>
           : <p className="meta">Only you see this. {vc.enabled ? <>It is not counted in any total until you <Link href="/account#verify">verify you are a real person</Link>. </> : "It is never shown to anyone else or added up into a poll. "}On a member&apos;s page it is compared with their votes on passing this bill, never with procedural votes.</p>}
@@ -172,7 +193,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           <PositionPill position={m.position} raw={m.rawPosition} /></li>)}</ul>
           : <p className="meta">{followed.size ? "None of the members you follow has a recorded vote on this bill." : <><Link href="/legislators">Find your legislators</Link> or follow members on the <Link href="/politicians">Politicians</Link> page to see their votes here.</>}</p>}
         <h3 className="subhead">All recorded votes</h3>
-        {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
+        {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} id={`vote-${v.id}`} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"} · <span className={`vote-kind vote-kind-${voteKind(v.question, v.title ?? bill.title)}`}>{KIND_LABEL[voteKind(v.question, v.title ?? bill.title)]}</span></span>
           <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} /><YesNo question={v.question} title={v.title ?? bill.title} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}

@@ -42,7 +42,8 @@ export async function runRereview(now = Date.now(), budgetMs = 60_000, maxPerRun
       if (!res.ok) throw new Error(`bill text ${res.status}`);
       const parsed = parseBillTextHtml(await res.text());
       const subject = (await db.select({ title: officialBills.title }).from(officialBills).where(eq(officialBills.id, s.billId)).get())?.title ?? "";
-      failures = checkSummary(draftOf(s), parsed.sections, { truncated: parsed.chars > MAX_TEXT_CHARS || !!s.truncated, subject }).failures;
+      // b5 summaries may have 0–2 arguments a side (only actors in the record); the sources are not re-fetched here.
+      failures = checkSummary(draftOf(s), parsed.sections, { truncated: parsed.chars > MAX_TEXT_CHARS || !!s.truncated, subject, fullText: parsed.text, b5Shape: s.promptVersion >= "b5" }).failures;
     } catch (e) { error = (e instanceof Error ? e.message : "fetch failed").slice(0, 200); }
     const passed = !error && !failures.length;
     await db.insert(analysisRereviews).values({ id: crypto.randomUUID(), summaryId: s.id, at: Date.now(), passed: passed ? 1 : 0, failures, promptVersion: s.promptVersion, action: error || passed ? "none" : "held", error });

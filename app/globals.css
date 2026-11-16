@@ -118,6 +118,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .tl-dot{width:14px;height:14px;border-radius:50%;border:2px solid #7a8a84;background:#fff;margin:3px 0 0 3px;box-sizing:border-box}
 .tl-step.done .tl-dot{background:#163b3c;border-color:#163b3c}.tl-step.now .tl-dot{box-shadow:0 0 0 4px #b7d6ca}.tl-step.todo .tl-label{color:#5d6b69}
 .tl-label{font-weight:700}.tl-date{font-size:13px;color:#4b6157;white-space:nowrap}.tl-text{grid-column:2/4;font-size:13px;color:#4b6157;line-height:1.4}
+/* Floor votes as steps (owner, 16 Nov): same marker for every party; a failed vote is an open square, a passed one a filled square. */
+.tl-floor .tl-label{grid-column:2/4;font-weight:600}.tl-floor .tl-dot{border-radius:2px;transform:scale(.8)}.tl-step.done.tl-floor-failed .tl-dot{background:#fff;border-color:#163b3c;border-width:2px}.tl-floor .tl-text a{white-space:nowrap}
+.official-title{margin:2px 0 10px;font-size:14px;color:#4b6157}.official-title summary{cursor:pointer;min-height:24px;padding:2px 0}.official-title p{margin:6px 0 0;overflow-wrap:anywhere}
 .tl-vetoed.done .tl-dot{background:#7a2e22;border-color:#7a2e22}.tl-source{padding-left:30px;font-size:13px}
 .party-split{display:grid;gap:4px;margin:6px 0}.ps-row{display:grid;grid-template-columns:62px 1fr;column-gap:8px;align-items:center;font-size:13px}
 .ps-pos{font-weight:700}.ps-bar{display:flex;height:12px;border-radius:2px;overflow:hidden;min-width:4px;background:#e5e9e7}.ps-text{grid-column:2;color:#3d4f49}

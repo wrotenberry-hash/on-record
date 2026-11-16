@@ -1,4 +1,4 @@
-import { analysisPaused, PUBLIC_MIN_PROMPT } from "@/lib/analysis/publish-gate";
+import { texasSummariesPaused, PUBLIC_MIN_PROMPT } from "@/lib/analysis/publish-gate";
 import { and, desc, eq, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { txBills, txBillSponsors, txBillSummaries, txBillVersions } from "@/db/schema";
@@ -19,7 +19,7 @@ const UA = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 
 export async function runTexasSummaries({ budgetMs = 120_000, max = 3 }: { budgetMs?: number; max?: number } = {}) {
   const key = process.env.OPENAI_API_KEY?.trim();
-  if (analysisPaused()) return { status: "SKIPPED", reason: "paused by the owner (16 Nov) while the generator is rebuilt" };
+  if (texasSummariesPaused()) return { status: "SKIPPED", reason: "paused by the owner (16 Nov) while the generator is rebuilt" };
   if (!key) return { status: "SKIPPED", reason: "OPENAI_API_KEY not set" };
   const db = getDb(), deadline = Date.now() + budgetMs, limits = analysisLimits(), table = priceTable(process.env.OPENAI_PRICES_JSON);
   const monthStart = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1);

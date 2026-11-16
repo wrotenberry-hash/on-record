@@ -8,6 +8,9 @@ export type Section = { num: string; heading: string; text?: string };
 
 /** Normalise a citation such as "Sec. 2", "Section 2(a)" or "§ 3" to its section number, or null. */
 export function citedSection(cite: string): string | null {
+  const id = cite.trim().toUpperCase();
+  if (/^(FULL|RULE|REPORT|CRS|CBO|BILL|USC \d+ §[0-9A-Z-]+)$/.test(id)) return id;
+  if (/^full text$/i.test(cite.trim())) return "FULL";
   const m = cite.match(/(?:sec(?:tion)?s?\.?|§)\s*(\d+[A-Za-z]?)/i);
   return m ? m[1].toUpperCase() : null;
 }
@@ -15,6 +18,7 @@ export function citedSection(cite: string): string | null {
 /** Does the cite point at a section the text contains? Text without numbered sections accepts "Full text". */
 export function citeExists(cite: string, sections: readonly Section[]): boolean {
   if (!sections.length) return /full text|sec(?:tion)?\.?\s*1\b/i.test(cite);
+  if (/^full text$/i.test(cite.trim()) && sections.some(s => s.num === "FULL")) return true;
   const n = citedSection(cite);
   return n !== null && sections.some(s => s.num.toUpperCase() === n);
 }
@@ -46,9 +50,17 @@ export function citeSupports(pointText: string, cite: string, sections: readonly
 }
 
 export type Point = { text: string; section: string };
-export type Argument = { argument: string; attribution: string };
+/** source: the id of the official source the argument comes from (b5+; e.g. "RULE", "REPORT", "CRS", "BILL"). */
+export type Argument = { argument: string; attribution: string; source?: string };
 export type SummaryDraft = {
   headline: string;
+  /** b5+ (owner review, 16 Nov): 2–3 sentences anyone could repeat to a friend. */
+  plainEnglish?: string;
+  /** b5+: what the rule or law the bill changes or blocks does today; required when it changes one. */
+  background?: string;
+  backgroundSources?: string[];
+  /** b5+: the reader's voting question, from the plain headline ("Do you support blocking …?"). */
+  question?: string;
   whatItDoes: Point[];
   whoItAffects: Point[];
   whatChangesForYou: string;
@@ -85,7 +97,7 @@ const OPINION_PATTERNS: Array<[RegExp, string]> = [
 const VAGUE_ATTRIBUTION = /^(some|many|others|people|critics|supporters|opponents|proponents|experts|observers|some people|many people|it is argued)$/i;
 
 export const LIMITS = { headlineWords: 20, pointWords: 35, changesWords: 45, argumentWords: 40, argumentMinWords: 8,
-  unknownWords: 30, totalWords: 360, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
+  unknownWords: 30, totalWords: 360, totalWordsB5: 470, plainWords: 75, backgroundWords: 90, questionWords: 18, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
 
 export function words(text: string): string[] { return text.trim().split(/\s+/).filter(Boolean); }
 const wc = (t: string) => words(t).length;
@@ -152,13 +164,25 @@ export function bannedWordsIn(text: string): string[] {
 /** Every sentence the model wrote, for the word, opinion and reading-level checks. */
 export function proseOf(d: SummaryDraft): string[] {
   const end = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
-  return [end(d.headline), ...d.whatItDoes.map(p => end(p.text)), ...d.whoItAffects.map(p => end(p.text)), end(d.whatChangesForYou),
+  return [end(d.headline), ...(d.plainEnglish ? [d.plainEnglish.trim()] : []), ...(d.background ? [d.background.trim()] : []), ...d.whatItDoes.map(p => end(p.text)), ...d.whoItAffects.map(p => end(p.text)), end(d.whatChangesForYou),
     ...d.caseFor.map(a => end(a.argument)), ...d.caseAgainst.map(a => end(a.argument)), ...d.unknowns.map(end)];
 }
 
-export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts: { truncated?: boolean; subject?: string } = {}): CheckResult {
+/**
+ * What the b5 checks need from the run: the official sources the model was given, the agency names (so an agency's
+ * name is not read as a program), the actors the record supplies for each side, and whether background is required.
+ */
+export type SourceContext = { title: string; docs: ReadonlyArray<{ id: string; text: string }>; agencies: readonly string[];
+  allowedFor: readonly string[]; allowedAgainst: readonly string[]; needsBackground: boolean };
+
+export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], opts: { truncated?: boolean; subject?: string; fullText?: string; sources?: SourceContext; b5Shape?: boolean } = {}): CheckResult {
   const failures: string[] = [], warnings: string[] = [];
   const fail = (m: string) => failures.push(m), warn = (m: string) => warnings.push(m);
+  // Owner review, 16 Nov: a resolution with no numbered sections was checked against nothing. Its full text is now its one section.
+  const sources = opts.sources;
+  const sections: Section[] = [...(sectionsIn.length || !opts.fullText ? sectionsIn : [{ num: "FULL", heading: "Full text", text: opts.fullText }]),
+    ...(sources?.docs ?? []).map(x => ({ num: x.id.toUpperCase(), heading: x.id, text: x.text }))];
+  const cite = (c: string) => /full text/i.test(c) && !sectionsIn.length ? "FULL" : c;
 
   // Headline: a "Would ..." sentence of at most 20 words.
   if (!/^Would\b/.test(d.headline.trim())) fail("Headline must start with \"Would\".");
@@ -169,9 +193,10 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
     list.forEach((p, i) => {
       if (wc(p.text) > LIMITS.pointWords) fail(`${label} point ${i + 1} is ${wc(p.text)} words; the limit is ${LIMITS.pointWords}.`);
       if (!p.section.trim()) fail(`${label} point ${i + 1} cites no section.`);
-      else if (!citeExists(p.section, sections)) fail(`${label} point ${i + 1} cites "${p.section}", which is not a section of this text.`);
-      else if (citeSupports(p.text, p.section, sections) === false) fail(`${label} point ${i + 1} shares no key words with ${p.section}; cite the section that says it.`);
-      else { const share = citeOverlap(p.text, p.section, sections); if (share !== null && share < 0.34) warn(`${label} point ${i + 1} uses mostly words that are not in ${p.section}; check it adds no group or effect the section does not state.`); }
+      else if (opts.b5Shape && !sources && /^(RULE|REPORT|CRS|CBO|USC )/i.test(p.section.trim())) { /* a source citation; sources are not re-fetched on re-review */ }
+      else if (!citeExists(cite(p.section), sections)) fail(`${label} point ${i + 1} cites "${p.section}", which is not a section of this text or one of the sources.`);
+      else if (citeSupports(p.text, cite(p.section), sections) === false) fail(`${label} point ${i + 1} shares no key words with ${p.section}; cite the section or source that says it.`);
+      else { const share = citeOverlap(p.text, cite(p.section), sections); if (share !== null && share < 0.34) warn(`${label} point ${i + 1} uses mostly words that are not in ${p.section}; check it adds no group or effect the section does not state.`); }
     });
   };
   points("What it does", d.whatItDoes);
@@ -182,8 +207,14 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
   if (NO_CHANGE_UNLESS.test(d.whatChangesForYou)) fail("What changes for you says most people see no change, then adds an exception; say the change for the affected group first.");
 
   // The case for and against: exactly two each, attributed, of comparable length.
-  const side = (label: string, list: Argument[]) => {
-    if (list.length !== 2) fail(`${label} needs exactly 2 arguments; it has ${list.length}.`);
+  // b5 (owner review, 16 Nov): 1 or 2 each, attributed only to an actor the official record supplies (the named sponsor,
+  // the agency that issued a rule, the reporting committee, its minority views), each citing the source it comes from.
+  // A side with no actor in the record is left empty and the page says so.
+  const side = (label: string, list: Argument[], allowedActors?: readonly string[]) => {
+    if (!allowedActors && opts.b5Shape) { if (list.length > 2) fail(`${label} needs at most 2 arguments; it has ${list.length}.`); }
+    else if (!allowedActors) { if (list.length !== 2) fail(`${label} needs exactly 2 arguments; it has ${list.length}.`); }
+    else if (!allowedActors.length) { if (list.length) fail(`${label}: the official record names no one who makes this case, so leave it empty; the page says so.`); }
+    else if (list.length < 1 || list.length > 2) fail(`${label} needs 1 or 2 arguments; it has ${list.length}.`);
     list.forEach((a, i) => {
       const n = wc(a.argument);
       if (n > LIMITS.argumentWords) fail(`${label} argument ${i + 1} is ${n} words; the limit is ${LIMITS.argumentWords}.`);
@@ -192,13 +223,20 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
       if (!who) fail(`${label} argument ${i + 1} has no attribution.`);
       else if (VAGUE_ATTRIBUTION.test(who)) fail(`${label} argument ${i + 1} is attributed only to "${who}"; say which kind of supporter or critic.`);
       if (SAYS_FRAME.test(a.argument)) fail(`${label} argument ${i + 1} starts "… could say"; state the reason itself; the attribution already says who.`);
+      if (allowedActors && who && !attributionAllowed(who, allowedActors)) fail(`${label} argument ${i + 1} is attributed to "${who}", who is not in the record; use one of: ${allowedActors.map(x => `"${x}"`).join("; ")}.`);
+      if (allowedActors && sources) {
+        const src = a.source?.trim() ?? "";
+        if (!src) fail(`${label} argument ${i + 1} names no source; cite the official source it comes from.`);
+        else if (!citeExists(src, sections)) fail(`${label} argument ${i + 1} cites "${src}", which is not one of the sources provided.`);
+        else if (citeSupports(a.argument, src, sections) === false) fail(`${label} argument ${i + 1} shares no key words with ${src}; base it on what that source says.`);
+      }
     });
   };
-  side("Case for", d.caseFor);
-  side("Case against", d.caseAgainst);
+  side("Case for", d.caseFor, sources?.allowedFor);
+  side("Case against", d.caseAgainst, sources?.allowedAgainst);
   const forWords = d.caseFor.reduce((n, a) => n + wc(a.argument), 0), againstWords = d.caseAgainst.reduce((n, a) => n + wc(a.argument), 0);
   const gap = Math.abs(forWords - againstWords), allowed = Math.max(8, Math.round(0.25 * Math.max(forWords, againstWords)));
-  if (gap > allowed) fail(`The case for is ${forWords} words and the case against is ${againstWords}; they must be within ${allowed} words of each other.`);
+  if (gap > allowed && (!(sources || opts.b5Shape) || (d.caseFor.length && d.caseAgainst.length))) fail(`The case for is ${forWords} words and the case against is ${againstWords}; they must be within ${allowed} words of each other.`);
 
   if (d.unknowns.length < 1 || d.unknowns.length > LIMITS.maxUnknowns) fail(`What we don't know needs 1 to ${LIMITS.maxUnknowns} points; it has ${d.unknowns.length}.`);
   d.unknowns.forEach((u, i) => { if (wc(u) > LIMITS.unknownWords) fail(`What we don't know point ${i + 1} is ${wc(u)} words; the limit is ${LIMITS.unknownWords}.`); });
@@ -208,8 +246,10 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
   if (banned.length) fail(`Loaded words: ${banned.join(", ")}.`);
   for (const [re, label] of OPINION_PATTERNS) if (re.test(all)) fail(`Contains ${label}.`);
 
+  if (sources) checkB5(d, sources, fail, warn);
+
   const totalWords = prose.reduce((n, s) => n + wc(s), 0);
-  if (totalWords > LIMITS.totalWords) fail(`The summary is ${totalWords} words; the limit is ${LIMITS.totalWords} (about two phone screens).`);
+  if (totalWords > (sources ? LIMITS.totalWordsB5 : LIMITS.totalWords)) fail(`The summary is ${totalWords} words; the limit is ${sources ? LIMITS.totalWordsB5 : LIMITS.totalWords} (about two phone screens).`);
   const grade = plainGrade(prose.join(" "), opts.subject); // official names and the bill's own title words count as one short word each
   if (grade > LIMITS.gradeFail) {
     // Round 1 review: the bare grade gave the model nothing to act on, so its second try stayed dense. Name what to fix.
@@ -251,4 +291,167 @@ export function spreadAcrossCategories<T extends { categorySlug: string }>(ranke
     out.push(pick); counts.set(pick.categorySlug, (counts.get(pick.categorySlug) ?? 0) + 1);
   }
   return out;
+}
+
+/**
+ * Owner review, 16 Nov 2026 (S.J.Res. 197). The new template's rules:
+ * - "In plain English": 2–3 sentences: what it does, to whom, why it matters now; not a restatement of the title.
+ * - "Background": required when the bill changes or blocks an existing rule or law; from the rule or law itself.
+ * - Every named thing in the headline, plain English, background and question must appear in an official source,
+ *   where an agency's name ("Centers for Medicare & Medicaid Services") does not count as a mention of a program.
+ * - "What changes for you": one concrete example of a real kind of person, never "only matters if you are affected".
+ * - The voting question uses the plain headline: "Do you support …?".
+ */
+export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) => void, warn: (m: string) => void) {
+  const texts = [src.title, ...src.docs.map(x => x.text)];
+  const claims = (label: string, text: string) => {
+    const missing = unsupportedClaims(text, texts, src.agencies);
+    if (missing.length) fail(`${label} names ${missing.map(m => `"${m}"`).join(", ")}, which no official source provided says. Use only what the sources say; an agency's name is not a program it runs.`);
+  };
+  claims("The headline", d.headline);
+  if (titleShare(d.headline, src.title) > 0.8 && words(d.headline).length > 6) fail("The headline restates the official title; say what the bill would do in plain words.");
+
+  const plain = d.plainEnglish?.trim() ?? "";
+  if (!plain) fail("In plain English is empty.");
+  else {
+    const n = sentences(plain).length;
+    if (n < 2 || n > 3) fail(`In plain English needs 2 or 3 sentences; it has ${n}.`);
+    if (wc(plain) > LIMITS.plainWords) fail(`In plain English is ${wc(plain)} words; the limit is ${LIMITS.plainWords}.`);
+    if (titleShare(plain, src.title) > 0.6) fail("In plain English mostly restates the official title; explain what it does, to whom, and why it matters now.");
+    claims("In plain English", plain);
+  }
+
+  const bg = d.background?.trim() ?? "";
+  if (src.needsBackground && !bg) fail("Background is required: this bill changes or blocks an existing rule or law; say what that rule or law does today, from its source.");
+  if (bg) {
+    if (wc(bg) > LIMITS.backgroundWords) fail(`Background is ${wc(bg)} words; the limit is ${LIMITS.backgroundWords}.`);
+    const ids = (d.backgroundSources ?? []).map(x => x.trim()).filter(Boolean);
+    if (!ids.length) fail("Background names no source; cite the rule, the law or the report it comes from.");
+    for (const id of ids) if (!src.docs.some(x => x.id.toUpperCase() === id.toUpperCase())) fail(`Background cites "${id}", which is not one of the sources provided.`);
+    claims("Background", bg);
+  }
+
+  const q = d.question?.trim() ?? "";
+  if (!/^Do you support\b.*\?$/.test(q)) fail("The voting question must read \"Do you support …?\".");
+  else {
+    if (wc(q) > LIMITS.questionWords) fail(`The voting question is ${wc(q)} words; the limit is ${LIMITS.questionWords}.`);
+    if (titleShare(q, src.title) > 0.8 && words(q).length > 8) fail("The voting question restates the official title; use the plain headline.");
+    claims("The voting question", q);
+  }
+
+  if (CIRCULAR_CHANGE.test(d.whatChangesForYou)) fail("What changes for you is circular (\"only matters if you are affected\"); give one concrete example of a real person and what would change for them.");
+  else if (!HAS_EXAMPLE.test(d.whatChangesForYou)) fail("What changes for you needs one concrete example of a real kind of person, e.g. \"A family in Ohio buying a 2027 marketplace plan would …\".");
+  if (!d.caseAgainst.length && src.allowedAgainst.length === 0) warn("No one in the official record argues against it; the page says so.");
+}
+
+// ───────────── Claim checks (formerly claims.ts; kept in this file so the tests load it without a bundler) ─────────────
+/**
+ * Owner review, 16 Nov 2026: S.J.Res. 197's headline said the rule was for "Medicare, Medicaid". It is the ACA
+ * marketplace payment rule for 2027 and the Basic Health Program; the model read the agency's name, "Centers for
+ * Medicare & Medicaid Services", as the programs. These pure checks make every named thing in the headline, the
+ * plain-English summary, the background and the voting question appear in an official source, where an agency's
+ * name does not count as a mention of a program. No network, no model.
+ */
+
+const CIVIC = new Set(("would do you support congress senate house representatives representative senator senators president federal government " +
+  "state states united america american americans member members sec section bill bills resolution resolutions act acts law laws rule rules agency " +
+  "department the a an this that these those it its if for and or of to in on by with under from as at is are be not no yes would could should " +
+  "most some many any all each every new current today now under after before when while").split(" "));
+
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** An agency's own name, and the short forms readers know it by, so a mention of the agency is not taken as a mention of a program. */
+export function agencyForms(names: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const raw of names) {
+    const n = raw.trim().replace(/\s+/g, " ");
+    if (!n) continue;
+    out.add(n);
+    const dept = n.match(/^(.+?) Department$/); if (dept) { out.add(dept[1]); out.add(`Department of ${dept[1]}`); }
+    const deptOf = n.match(/^Department of (?:the )?(.+)$/); if (deptOf) { out.add(deptOf[1]); out.add(`${deptOf[1]} Department`); }
+    for (const part of n.split(/\s+of the\s+/)) if (part !== n && part.split(" ").length > 1) out.add(part);
+    const initials = n.split(/\s+/).filter(w => /^[A-Z]/.test(w)).map(w => w[0]).join("");
+    if (initials.length >= 2 && initials.length <= 5) out.add(initials);
+  }
+  if ([...out].some(x => /Health and Human Services/.test(x))) out.add("HHS");
+  if ([...out].some(x => /Centers for Medicare & Medicaid Services/.test(x))) { out.add("CMS"); out.add("Centers for Medicare and Medicaid Services"); }
+  return [...out].sort((a, b) => b.length - a.length);
+}
+
+/** Generic agency and committee names ("Department of …", "… Commission", "Committee on …"). */
+const AGENCY_AFTER = /\b(?:Centers?|Department|Administration|Agency|Commission|Bureau|Office|Service|Services|Board|Corporation|Institutes?|Authority|Council|Committee)\s+(?:of|for|on)\s+(?:the\s+)?[A-Z][\w'’.-]*(?:\s+(?:(?:and|&|of|the|for)\s+)?[A-Z][\w'’.-]*)*/g;
+const AGENCY_BEFORE = /\b(?:[A-Z][\w'’.-]*\s+(?:(?:and|&|of)\s+)?){1,5}(?:Department|Administration|Agency|Commission|Bureau|Office|Service|Board|Corporation|Authority|Council)\b/g;
+
+export function maskAgencies(text: string, agencies: readonly string[]): string {
+  let t = text;
+  for (const a of agencyForms(agencies)) t = t.replace(new RegExp(`\\b${esc(a)}\\b`, "g"), " AGENCYNAME ");
+  return t.replace(AGENCY_AFTER, " AGENCYNAME ").replace(AGENCY_BEFORE, " AGENCYNAME ");
+}
+
+/** Named things a reader would take as facts: capitalised words that do not start a sentence, acronyms, years, money and percentages. */
+export function claimTerms(text: string): string[] {
+  const out = new Set<string>();
+  for (const sentence of text.split(/(?<=[.!?])\s+|;\s+|:\s+/)) {
+    const tokens = sentence.trim().split(/\s+/).filter(Boolean);
+    tokens.forEach((tok, i) => {
+      const w = tok.replace(/^[("“'‘]+|[)"”'’,.;:!?]+$/g, "").replace(/['’]s$/, "");
+      if (!w) return;
+      if (/^\$?\d[\d,.]*(?:%| percent| million| billion)?$/.test(w) && (/^(19|20)\d{2}$/.test(w) || /^\$/.test(w) || /%$/.test(tok))) { out.add(w); return; }
+      if (/^[A-Z]{2,6}s?$/.test(w)) { out.add(w.replace(/s$/, "")); return; } // acronym, even at the start
+      if (i === 0) return; // a sentence's first word is capitalised anyway
+      if (/^[A-Z][a-z][\w.-]*$/.test(w) && w.length >= 3 && !CIVIC.has(w.toLowerCase())) out.add(w);
+    });
+  }
+  return [...out];
+}
+
+function initialsIn(corpus: string): Set<string> {
+  const out = new Set<string>();
+  const words = corpus.split(/[^A-Za-z&]+/).filter(Boolean);
+  for (let i = 0; i < words.length; i++) {
+    let acc = "";
+    for (let j = i; j < Math.min(words.length, i + 7); j++) {
+      const w = words[j];
+      if (/^(of|and|the|for|&|on)$/i.test(w)) continue;
+      if (!/^[A-Z]/.test(w)) break;
+      acc += w[0];
+      if (acc.length >= 2) out.add(acc);
+    }
+  }
+  return out;
+}
+
+/** Terms in `claim` that no official source supports, once agency names are masked on both sides. */
+export function unsupportedClaims(claim: string, sources: readonly string[], agencies: readonly string[]): string[] {
+  const corpusRaw = maskAgencies(sources.join(" \n "), agencies);
+  const corpus = corpusRaw.toLowerCase();
+  const inits = initialsIn(corpusRaw);
+  return claimTerms(maskAgencies(claim, agencies)).filter(t => {
+    if (t === "AGENCYNAME") return false;
+    if (/^[A-Z]{2,6}$/.test(t)) return !(new RegExp(`\\b${esc(t)}\\b`).test(corpusRaw) || inits.has(t));
+    const l = t.toLowerCase();
+    if (/^[\d$]/.test(t)) return !corpus.includes(l.replace(/^\$/, "")) ;
+    const stem = l.replace(/(ies|es|s)$/, "");
+    return !new RegExp(`\\b${esc(stem)}`).test(corpus);
+  });
+}
+
+const CONTENT = (s: string) => new Set((s.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter(w => !CIVIC.has(w) && !["would", "block", "blocks", "blocking", "allow", "require"].includes(w)).map(w => w.replace(/(ies|es|s)$/, "")));
+
+/** Share of a passage's content words that are words of the official title: a high share means it restates the title. */
+export function titleShare(text: string, title: string): number {
+  const t = CONTENT(title), w = [...CONTENT(text)];
+  return w.length ? w.filter(x => t.has(x)).length / w.length : 0;
+}
+
+export const CIRCULAR_CHANGE = /\bonly\s+(?:matter|matters|apply|applies|affect|affects)\b[^.]*\bif\b|\bif you are affected\b|\bwould notice no direct change\b|\bif (?:the|this) (?:rule|bill|law|resolution) (?:applies|affects) (?:to )?you\b|\bdepends on whether you are affected\b/i;
+export const HAS_EXAMPLE = /\bfor (?:example|instance)\b|(?:^|[.!?]\s+)(?:A|An)\s+(?:[a-z0-9-]+\s+){0,5}(?:who|whose|in|with|buying|earning|working|living|receiving|running|filing|paying|retiring|serving|shopping|enrolled|getting|using|covered)\b/;
+
+export function sentences(text: string): string[] { return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean); }
+
+/** Does an attribution name one of the actors the record supplies? Generic labels ("budget analysts") do not. */
+export function attributionAllowed(attribution: string, allowed: readonly string[]): boolean {
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9& ]+/g, " ").replace(/\s+/g, " ").trim();
+  const a = n(attribution);
+  return allowed.some(x => { const b = n(x); return !!b && (a === b || a.includes(b) || b.includes(a) && a.split(" ").length >= 2); });
 }

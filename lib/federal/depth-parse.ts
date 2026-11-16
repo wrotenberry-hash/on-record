@@ -52,9 +52,11 @@ export function parseActions(data: unknown): BillAction[] {
   return rows.map((r, i) => ({ seq: i, ...r }));
 }
 
-export type StageKey = "introduced" | "committee" | "passed_first" | "passed_second" | "resolving" | "president" | "law" | "vetoed" | "failed";
+export type StageKey = "introduced" | "committee" | "passed_first" | "passed_second" | "resolving" | "president" | "law" | "vetoed" | "failed"
+  | "not_taken_up" | "debate_blocked";
 export const STAGE_LABEL: Record<StageKey, string> = { introduced: "Introduced", committee: "In committee", passed_first: "Passed first chamber",
-  passed_second: "Passed second chamber", resolving: "Resolving differences", president: "Sent to the President", law: "Became law", vetoed: "Vetoed", failed: "Failed a vote" };
+  passed_second: "Passed second chamber", resolving: "Resolving differences", president: "Sent to the President", law: "Became law", vetoed: "Vetoed", failed: "Failed a vote",
+  not_taken_up: "Floor vote to take it up failed", debate_blocked: "Vote to end debate failed" };
 
 /** One action's stage, or null for actions that do not move the bill (cosponsor changes, notices). */
 export function stageOf(a: Pick<BillAction, "text" | "type">): StageKey | null {
@@ -64,6 +66,12 @@ export function stageOf(a: Pick<BillAction, "text" | "type">): StageKey | null {
   if (/presented to (the )?president/.test(t) || (type === "president" && !/signed/.test(t))) return "president";
   if (/signed by (the )?president/.test(t)) return "law";
   if (type === "resolvingdifferences" || /conference report|resolving differences|agreed? to the (house|senate) amendment|concur(red)? in the (house|senate) amendment/.test(t)) return "resolving";
+  // Owner, 16 Nov: a failed motion to proceed or cloture vote is a step of its own, not a failed passage vote.
+  const floor = floorKind(a.text);
+  if (floor && floor.kind !== "passage" && floor.kind !== "veto_override") {
+    if (floor.passed) return null;
+    return floor.kind === "cloture" || floor.kind === "cloture_proceed" ? "debate_blocked" : floor.kind === "discharged_petition" ? null : "not_taken_up";
+  }
   if (/not agreed to|failed of passage|on passage failed|motion to suspend the rules and pass.*failed/.test(t)) return /amendment/.test(t) && !/passage/.test(t) ? null : "failed";
   // "Passed/agreed to in House: …" is Congress.gov's passage action (it can mention an amendment: "Passed Senate with an amendment").
   if (/^passed\/agreed to in (house|senate)/.test(t)) return "passed_first";
@@ -75,16 +83,31 @@ export function stageOf(a: Pick<BillAction, "text" | "type">): StageKey | null {
 }
 
 export type Step = { key: StageKey; label: string; date: string | null; text: string | null; done: boolean };
+/** A floor vote shown as its own step between the stages (owner, 16 Nov). */
+export type FloorStep = { key: string; label: string; date: string | null; text: string | null; done: true; floor: FloorVote };
+export type TimelineStep = Step | FloorStep;
+
+const PROGRESS: StageKey[] = ["passed_first", "passed_second", "resolving", "president", "law", "vetoed"];
 
 /**
  * The status timeline: introduced → committee → passed one chamber → passed the
  * other → resolving differences (only when it happened) → President → law or veto.
  * The first passage is the first chamber; a passage in the other chamber is the second.
+ * Floor votes (motion to proceed, cloture, discharge, failed passage, veto override) are
+ * steps of their own, placed by date among the stages that are done. When the latest such
+ * vote failed and nothing moved the bill after it, the bill's stage says so.
  */
-export function lifecycle(actions: BillAction[], introducedAt: string | null = null): { steps: Step[]; current: StageKey } {
+export function lifecycle(actions: BillAction[], introducedAt: string | null = null, rollCalls: RollCallLike[] = []):
+  { steps: TimelineStep[]; current: StageKey; currentStep: string; stageDate: string | null } {
   const hit = new Map<StageKey, BillAction>();
   let firstChamber: string | null = null;
+  let blocked: { key: StageKey; date: string } | null = null;
   for (const a of actions) {
+    const fv = floorKind(a.text);
+    if (fv && fv.kind !== "veto_override") {
+      if (fv.passed && fv.kind !== "passage") blocked = null;
+      else if (!fv.passed) blocked = { key: fv.kind === "passage" ? "failed" : fv.kind === "cloture" || fv.kind === "cloture_proceed" ? "debate_blocked" : "not_taken_up", date: a.actionDate };
+    }
     let s = stageOf(a);
     if (!s) continue;
     if (s === "passed_first") {
@@ -93,16 +116,147 @@ export function lifecycle(actions: BillAction[], introducedAt: string | null = n
       else if (chamber && chamber !== firstChamber) s = "passed_second";
       else continue;
     }
+    if (PROGRESS.includes(s)) blocked = null;
     if (!hit.has(s)) hit.set(s, a);
   }
+  const floor = floorVotes(actions, rollCalls);
+  // A failed procedural vote known only from a roll call (no actions on file yet) still sets the stage.
+  for (const f of floor) if (!actions.length && f.kind !== "veto_override" && f.kind !== "discharged_petition")
+    blocked = f.passed && f.kind !== "passage" ? null : !f.passed ? { key: f.kind === "passage" ? "failed" : f.kind === "cloture" || f.kind === "cloture_proceed" ? "debate_blocked" : "not_taken_up", date: f.date } : blocked;
   const order: StageKey[] = ["introduced", "committee", "passed_first", "passed_second", "resolving", "president", hit.has("vetoed") ? "vetoed" : "law"];
   const lastDone = Math.max(...order.map((k, i) => (hit.has(k) || (k === "introduced" && introducedAt) ? i : -1)));
-  const steps = order.filter(k => k !== "resolving" || hit.has("resolving")).map(k => {
+  const stages: Step[] = order.filter(k => k !== "resolving" || hit.has("resolving")).map(k => {
     const a = hit.get(k), i = order.indexOf(k);
     return { key: k, label: STAGE_LABEL[k], date: a?.actionDate ?? (k === "introduced" ? introducedAt : null), text: a?.text ?? null, done: !!a || i <= lastDone };
   });
-  const current = [...steps].reverse().find(s => s.done)?.key ?? "introduced";
-  return { steps, current: hit.has("failed") && current === "committee" ? "failed" : current };
+  const progress = [...stages].reverse().find(s => s.done)?.key ?? "introduced";
+  // Floor steps go after the last done stage dated on or before them, never among the stages still to come.
+  const steps: TimelineStep[] = [];
+  const done = stages.filter(s => s.done), todo = stages.filter(s => !s.done);
+  const floorSteps: FloorStep[] = floor.map((f, i) => ({ key: `floor-${i}`, label: f.label, date: f.date, text: f.meaning, done: true, floor: f }));
+  let fi = 0;
+  for (let i = 0; i < done.length; i++) {
+    steps.push(done[i]);
+    const nextDate = done.slice(i + 1).find(d => d.date)?.date ?? null;
+    while (fi < floorSteps.length && (!nextDate || (floorSteps[fi].date ?? "") < nextDate)) steps.push(floorSteps[fi++]);
+  }
+  while (fi < floorSteps.length) steps.push(floorSteps[fi++]);
+  steps.push(...todo);
+  const current: StageKey = blocked ? blocked.key : progress;
+  const lastFloor = floorSteps.at(-1);
+  const currentStep = blocked && lastFloor && !lastFloor.floor.passed ? lastFloor.key : progress;
+  const stageDate = blocked ? blocked.date : stages.find(s => s.key === progress)?.date ?? null;
+  return { steps, current, currentStep, stageDate };
+}
+
+/* ----------------------------------------------------------- Floor votes --- */
+
+export type FloorKindKey = "proceed" | "cloture_proceed" | "cloture" | "discharge" | "discharged_petition" | "passage" | "veto_override";
+export type FloorVote = { kind: FloorKindKey; chamber: "house" | "senate" | null; passed: boolean; yeas: number | null; nays: number | null;
+  rollNumber: number | null; twoThirds: boolean; cra: boolean; date: string; label: string; meaning: string; rollCallId: string | null };
+export type RollCallLike = { id: string; chamber: string; rollNumber: number; votedAt: number | string; question: string; title?: string | null; result?: string | null; yea: number; nay: number };
+
+const FAILED = /\bnot agreed to\b|\brejected\b|\bfailed\b|\bnot invoked\b|\bnot passed\b|\bdefeated\b|\bsustained\b/;
+
+/** What kind of floor vote an action's text records, and whether it carried. Null for anything else (filings, notices, amendments). */
+export function floorKind(text: string): { kind: FloorKindKey; passed: boolean } | null {
+  const t = text.toLowerCase();
+  const vetoish = /over (the )?(president'?s )?veto|objections of the president|overrid(e|ing) (of )?(the )?veto|veto override/.test(t);
+  if (/\bamendment\b/.test(t) && !/measure|\bbill\b|resolution|motion to proceed|veto|discharge|passage|passed\/agreed to/.test(t)) return null;
+  if (vetoish) return /passed|agreed to|overridden/.test(t) || FAILED.test(t) ? { kind: "veto_override", passed: !FAILED.test(t) } : null;
+  if (/cloture/.test(t)) {
+    if (!/invoked|cloture motion .*(agreed to|rejected)/.test(t)) return null; // filed, presented or withdrawn: not a vote
+    return { kind: /motion to proceed/.test(t) ? "cloture_proceed" : "cloture", passed: !FAILED.test(t) };
+  }
+  if (/discharged\b.*\bpetition|discharge(d)? by petition|petition .*802\(c\)|802\(c\).*discharged/.test(t)) return { kind: "discharged_petition", passed: true };
+  if (/motion to discharge/.test(t)) return /agreed to|rejected|failed/.test(t) ? { kind: "discharge", passed: !FAILED.test(t) } : null;
+  if (/motion to proceed/.test(t)) return /agreed to|rejected|failed/.test(t) && !/withdrawn/.test(t) ? { kind: "proceed", passed: !FAILED.test(t) } : null;
+  if (/failed of passage|on passage failed|passage failed|joint resolution not passed|bill not passed|resolution not passed|motion to suspend the rules and pass.*failed/.test(t)) return { kind: "passage", passed: false };
+  return null;
+}
+
+function tallyOf(text: string): { yeas: number; nays: number } | null {
+  const m = text.match(/(?:vote|nays)\b[\s\S]*?(\d{1,3})\s*-\s*(\d{1,3})(?!\d)/i);
+  return m ? { yeas: Number(m[1]), nays: Number(m[2]) } : null;
+}
+function rollOf(text: string): number | null {
+  const m = text.match(/record vote (?:number|no\.?):?\s*(\d+)|roll no\.?\s*(\d+)/i);
+  return m ? Number(m[1] ?? m[2]) : null;
+}
+const chamberName = (c: "house" | "senate" | null) => (c === "senate" ? "Senate" : c === "house" ? "House" : "The chamber");
+
+/** The plain-English line for a floor vote. Neutral wording; the same for every party. */
+export function describeFloor(v: Pick<FloorVote, "kind" | "chamber" | "passed" | "yeas" | "nays" | "twoThirds" | "cra">): { label: string; meaning: string } {
+  const C = chamberName(v.chamber), the = v.chamber ? `the ${C}` : "the chamber";
+  const tally = v.yeas !== null && v.nays !== null ? `${v.yeas}–${v.nays}` : null;
+  const voted = (what: string, not: string) => v.passed
+    ? (tally ? `${C} voted ${tally} ${what}` : `${C} agreed ${what}`)
+    : tally && (v.yeas ?? 0) < (v.nays ?? 0) ? `${C} voted ${tally} ${not}` : `${C} vote ${what} failed${tally ? `, ${tally}` : ""}`;
+  switch (v.kind) {
+    case "proceed": return { label: voted("to take it up", "not to take it up"),
+      meaning: v.passed ? "It can now be debated and voted on." : `It cannot be debated unless ${the} votes again to take it up.` };
+    case "cloture_proceed": return { label: voted("to end debate on taking it up", "not to end debate on taking it up"),
+      meaning: v.passed ? "Ending debate needs 60 votes for most measures. A vote on taking it up comes next."
+        : `Ending debate needs 60 votes for most measures. Without that, it cannot be taken up unless ${the} votes again.` };
+    case "cloture": return { label: voted("to end debate", "not to end debate"),
+      meaning: v.passed ? "Ending debate needs 60 votes for most measures. A final vote comes next."
+        : `Ending debate needs 60 votes for most measures. Without that, there is no final vote unless ${the} votes again.` };
+    case "discharge": return { label: voted("to bring it out of committee", "not to bring it out of committee"),
+      meaning: v.passed ? `It can go to the full ${C === "The chamber" ? "chamber" : C} without the committee acting first.` : "It stays in committee unless another vote brings it out." };
+    case "discharged_petition": return { label: v.chamber === "senate" ? "Senators brought it out of committee by petition" : "Brought out of committee by petition",
+      meaning: v.cra ? "Under the Congressional Review Act, 30 senators can sign a petition to bring a resolution out of committee without a committee vote. The full Senate can then vote to take it up."
+        : `A petition brought it out of committee without a committee vote, so ${the} can take it up.` };
+    case "passage": return { label: tally && (v.yeas ?? 0) < (v.nays ?? 0) ? `${C} voted ${tally} against passing it` : `${C} vote to pass it failed${tally ? `, ${tally}` : ""}${v.twoThirds ? " (two-thirds needed)" : ""}`,
+      meaning: `It did not pass ${the}.` };
+    case "veto_override": return { label: v.passed ? voted("to override the veto", "") : `${C} vote to override the veto failed${tally ? `, ${tally}` : ""} (two-thirds needed)`,
+      meaning: v.passed ? "Overriding a veto needs two-thirds of both chambers." : "The veto stands, so it does not become law." };
+  }
+}
+
+/** A floor vote from a Congress.gov action, or null. */
+export function floorVoteOf(a: Pick<BillAction, "text" | "actionDate"> & { chamber?: "house" | "senate" | null; rollCalls?: BillAction["rollCalls"] }): FloorVote | null {
+  const k = floorKind(a.text);
+  if (!k) return null;
+  const t = a.text.toLowerCase();
+  const chamber = a.chamber ?? (/\bin senate\b|senate:|\bsenate\b/.test(t) ? "senate" : /\bin house\b|house:|\bhouse\b/.test(t) ? "house" : null);
+  const tally = tallyOf(a.text), rollNumber = a.rollCalls?.[0]?.rollNumber ?? rollOf(a.text);
+  const base = { kind: k.kind, chamber, passed: k.passed, yeas: tally?.yeas ?? null, nays: tally?.nays ?? null, rollNumber, twoThirds: /2\/3|two-thirds/.test(t),
+    cra: /802|congressional review/.test(t), date: a.actionDate.slice(0, 10), rollCallId: null };
+  return { ...base, ...describeFloor(base) };
+}
+
+/** A procedural floor vote from a roll call on file (question/result wording from the clerk or the Senate), or null for passage votes that carried. */
+export function floorVoteFromRollCall(r: RollCallLike): FloorVote | null {
+  const q = r.question.toLowerCase(), title = (r.title ?? "").toLowerCase(), res = (r.result ?? "").toLowerCase();
+  const failed = FAILED.test(res);
+  let kind: FloorKindKey | null = null;
+  if (/overrid|veto/.test(q)) kind = "veto_override";
+  else if (/cloture/.test(q) || /cloture/.test(title)) kind = /motion to proceed/.test(title) || /motion to proceed/.test(q) ? "cloture_proceed" : "cloture";
+  else if (/motion to discharge/.test(q)) kind = "discharge";
+  else if (/motion to proceed/.test(q)) kind = "proceed";
+  else if (/passage|suspend the rules and pass/.test(q) && failed) kind = "passage";
+  if (!kind) return null;
+  const chamber = r.chamber === "senate" ? "senate" as const : r.chamber === "house" ? "house" as const : null;
+  const date = typeof r.votedAt === "number" ? new Date(r.votedAt).toISOString().slice(0, 10) : String(r.votedAt).slice(0, 10);
+  const base = { kind, chamber, passed: !failed, yeas: r.yea, nays: r.nay, rollNumber: r.rollNumber, twoThirds: /2\/3|two-thirds/.test(`${q} ${res}`), cra: false, date, rollCallId: r.id };
+  return { ...base, ...describeFloor(base) };
+}
+
+/** Floor votes from the actions and the roll calls on file, one per vote, oldest first; a roll call on file is linked. */
+export function floorVotes(actions: BillAction[], rollCalls: RollCallLike[] = []): FloorVote[] {
+  const out: FloorVote[] = [];
+  const fromRoll = rollCalls.map(floorVoteFromRollCall).filter((v): v is FloorVote => !!v);
+  for (const a of actions) {
+    const v = floorVoteOf(a);
+    if (!v) continue;
+    // Congress.gov can list the same floor action twice (once per source system): keep one.
+    if (out.some(o => o.kind === v.kind && o.chamber === v.chamber && o.date === v.date && o.yeas === v.yeas && o.nays === v.nays && o.passed === v.passed)) continue;
+    const match = rollCalls.find(r => r.chamber === v.chamber && ((v.rollNumber !== null && r.rollNumber === v.rollNumber) || (v.yeas !== null && r.yea === v.yeas && r.nay === v.nays)) &&
+      Math.abs(Date.parse(typeof r.votedAt === "number" ? new Date(r.votedAt).toISOString() : String(r.votedAt)) - Date.parse(v.date)) < 3 * 86400e3);
+    out.push(match ? { ...v, rollCallId: match.id, rollNumber: v.rollNumber ?? match.rollNumber } : v);
+  }
+  for (const v of fromRoll) if (!out.some(o => o.rollCallId === v.rollCallId || (o.chamber === v.chamber && o.kind === v.kind && o.date === v.date && o.yeas === v.yeas))) out.push(v);
+  return out.sort((x, y) => x.date.localeCompare(y.date));
 }
 
 /* ------------------------------------------------------------ Amendments --- */

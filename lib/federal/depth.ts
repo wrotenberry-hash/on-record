@@ -67,7 +67,7 @@ export async function ingestDepth(db: Db, deadline: number, cap = DEPTH_PER_RUN)
       .onConflictDoUpdate({ target: [officialBillTexts.billId, officialBillTexts.type], set: { date: sql`excluded.date`, xmlUrl: sql`excluded.xml_url`, htmlUrl: sql`excluded.html_url`, pdfUrl: sql`excluded.pdf_url`, retrievedAt: now } });
     texts += tv.length;
     const life = lifecycle(parsed, b.introducedAt);
-    const stageDate = life.steps.find(s => s.key === life.current)?.date ?? null;
+    const stageDate = life.stageDate;
     await db.insert(officialBillDepth).values({ billId: b.id, latestActionAt: b.latestActionAt, stage: life.current, stageDate, actionsAt: now, amendmentsAt: amRes.ok ? now : null, textsAt: tRes.ok ? now : null, error: null })
       .onConflictDoUpdate({ target: officialBillDepth.billId, set: { latestActionAt: b.latestActionAt, stage: life.current, stageDate, actionsAt: now, amendmentsAt: amRes.ok ? now : null, textsAt: tRes.ok ? now : null, error: null } });
     bills++;

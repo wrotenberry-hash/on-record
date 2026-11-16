@@ -7,12 +7,23 @@ import { amendmentLine, lifecycle, weekOf, type BillAction } from "@/lib/federal
 
 /** Round B reads over the Round A tables. Official data only. */
 
+/**
+ * The bill's timeline. Floor votes (motion to proceed, cloture, discharge, failed passage, veto override) are
+ * steps of their own, from the actions and from the roll calls on file, so a bill the Senate refused to take up
+ * shows that even before its actions are read.
+ */
 export async function billTimeline(billId: string, introducedAt: string | null) {
-  const rows = await getDb().select().from(officialBillActions).where(eq(officialBillActions.billId, billId)).orderBy(asc(officialBillActions.seq));
-  if (!rows.length) return null;
+  const db = getDb();
+  const [rows, rolls] = await Promise.all([
+    db.select().from(officialBillActions).where(eq(officialBillActions.billId, billId)).orderBy(asc(officialBillActions.seq)),
+    db.select({ id: officialRollCalls.id, chamber: officialRollCalls.chamber, rollNumber: officialRollCalls.rollNumber, votedAt: officialRollCalls.votedAt,
+      question: officialRollCalls.question, title: officialRollCalls.title, result: officialRollCalls.result, yea: officialRollCalls.yea, nay: officialRollCalls.nay })
+      .from(officialRollCalls).where(eq(officialRollCalls.billId, billId))]);
   const actions: BillAction[] = rows.map(r => ({ seq: r.seq, actionDate: r.actionDate, text: r.text, type: r.type, actionCode: r.actionCode,
     chamber: (r.chamber as "house" | "senate" | null), committees: (r.committees as string[] | null) ?? [], rollCalls: [] }));
-  return { ...lifecycle(actions, introducedAt), sourceUrl: rows[0].sourceUrl, retrievedAt: rows[0].retrievedAt, actions: actions.slice(-8).reverse() };
+  const life = lifecycle(actions, introducedAt, rolls);
+  if (!rows.length && !life.steps.some(st => "floor" in st)) return null;
+  return { ...life, sourceUrl: rows[0]?.sourceUrl ?? null, retrievedAt: rows[0]?.retrievedAt ?? null, actions: actions.slice(-8).reverse() };
 }
 
 export async function billAmendments(billId: string) {

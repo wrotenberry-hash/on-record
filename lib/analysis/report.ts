@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { alertEvents, analysisBillSummaries, analysisChecks, analysisReviewQueue, analysisSummaryVersions, officialBills } from "@/db/schema";
+import { alertEvents, analysisBillSummaries, analysisChecks, analysisReviewQueue, analysisSummaryDetails, analysisSummaryVersions, officialBills } from "@/db/schema";
 import { billLabel } from "@/components/federal/badges";
 import { recordSent, sendEmail, SITE_URL } from "@/lib/monitoring-runtime";
 import { CHECKPOINT_SUMMARIES, formatSummariesEmail, summariesEmailDue, type SummaryForEmail } from "@/lib/analysis/report-format";
@@ -117,7 +117,9 @@ export async function logReviewPackets(billIds: string[], budgetMs = 30_000): Pr
     for (const r of rows) {
       if (Date.now() > deadline) break;
       const { excerpts, textUrl, ...summary } = r; void excerpts;
-      const out = packetLines(r.label, "SUMMARY", JSON.stringify({ ...summary, promptVersion: PROMPT_VERSION }));
+      const details = (await getDb().select({ d: analysisSummaryDetails }).from(analysisSummaryDetails)
+        .innerJoin(analysisBillSummaries, eq(analysisBillSummaries.id, analysisSummaryDetails.summaryId)).where(eq(analysisBillSummaries.billId, r.billId)).get())?.d;
+      const out = packetLines(r.label, "SUMMARY", JSON.stringify({ ...summary, details: details ?? null, promptVersion: PROMPT_VERSION }));
       try {
         if (!textUrl) throw new Error("no bill text address");
         const res = await fetch(textUrl, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(15_000), cache: "no-store" });
@@ -126,7 +128,9 @@ export async function logReviewPackets(billIds: string[], budgetMs = 30_000): Pr
         out.push(...packetLines(r.label, "HEADINGS", `${parsed.chars} chars; ${parsed.sections.map(x => `Sec. ${x.num}. ${x.heading}`.slice(0, 90)).join(" || ")}`.slice(0, 1400)));
         for (const cite of new Set([...r.whatItDoes, ...r.whoItAffects].map(p => p.section))) {
           const n = citedSection(cite), sec = n ? parsed.sections.find(x => x.num.toUpperCase() === n) : null;
-          out.push(...packetLines(r.label, `CITED ${cite}`, sec?.text ? `[${sec.text.length} chars] ${sec.text.slice(0, 16000)}` : "NOT FOUND IN THE BILL TEXT"));
+          // 16 Nov: "Full text" (a resolution with no numbered sections) was logged as NOT FOUND; log the whole text. Source ids are logged as SOURCE lines when written.
+          const body = sec?.text ?? (n === "FULL" ? parsed.text : null);
+          if (body || !/^(RULE|REPORT|CRS|CBO|USC )/.test(n ?? "")) out.push(...packetLines(r.label, `CITED ${cite}`, body ? `[${body.length} chars] ${body.slice(0, 16000)}` : "NOT FOUND IN THE BILL TEXT"));
         }
       } catch (e) { out.push(...packetLines(r.label, "TEXT_ERROR", (e instanceof Error ? e.message : "fetch failed").slice(0, 200))); }
       for (const l of out) console.log(l);

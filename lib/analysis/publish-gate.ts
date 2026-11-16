@@ -10,8 +10,13 @@ import { analysisBillSummaries } from "@/db/schema";
  */
 export const PUBLIC_MIN_PROMPT = null as string | null;
 
-/** Paused unless ANALYSIS_PAUSED=0: the scheduled runs write no summaries while the generator is rebuilt. */
-export function analysisPaused(): boolean { return process.env.ANALYSIS_PAUSED?.trim() !== "0"; }
+/**
+ * Federal summaries run again from generator b5 (16 Nov): what they write stays hidden from readers (PUBLIC_MIN_PROMPT
+ * is null) until the owner has reviewed S.J.Res. 197. ANALYSIS_PAUSED=1 stops the runs entirely.
+ */
+export function analysisPaused(): boolean { return process.env.ANALYSIS_PAUSED?.trim() === "1"; }
+/** Texas summaries still use the old template, so they stay paused unless TEXAS_SUMMARIES_PAUSED=0. */
+export function texasSummariesPaused(): boolean { return process.env.TEXAS_SUMMARIES_PAUSED?.trim() !== "0"; }
 
 export function readerVisible(): SQL {
   if (PUBLIC_MIN_PROMPT === null) return sql`0 = 1`;
