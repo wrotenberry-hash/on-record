@@ -1,0 +1,32 @@
+"use server";
+import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getDb } from "@/db";
+import { readerAccounts } from "@/db/schema";
+import { viewerAccess, currentAppUserId } from "@/lib/viewer";
+import { currentAccount, READER_COOKIE, requestMagicLink } from "@/lib/accounts";
+import { countEvent } from "@/lib/events";
+
+/** Email a sign-in link. Only a trial reader or the editor can ask while public reading is off. */
+export async function requestLink(formData: FormData) {
+  const access = await viewerAccess();
+  if (!access.allowed || (!access.invite && !access.editor)) redirect("/account?m=closed");
+  const appUserId = await currentAppUserId(true);
+  if (!appUserId) redirect("/account?m=closed");
+  const result = await requestMagicLink(String(formData.get("email") ?? ""), { appUserId, inviteId: access.invite?.id ?? null });
+  await countEvent(result.ok ? "magic_link_sent" : "magic_link_failed", access.audience);
+  redirect(`/account?m=${result.ok ? "sent" : "fail"}&t=${encodeURIComponent(result.message)}`);
+}
+
+export async function setDigest(formData: FormData) {
+  const account = await currentAccount();
+  if (!account) return;
+  await getDb().update(readerAccounts).set({ digestOptIn: formData.get("on") === "1" ? 1 : 0 }).where(eq(readerAccounts.id, account.id));
+  redirect("/account?m=saved");
+}
+
+export async function signOut() {
+  (await cookies()).delete(READER_COOKIE);
+  redirect("/account?m=signedout");
+}

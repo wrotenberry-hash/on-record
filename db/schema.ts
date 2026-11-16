@@ -445,3 +445,33 @@ export const categorySuggestions = sqliteTable("category_suggestions", {
   createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
 }, t => [index("category_suggestions_status_idx").on(t.status),
   check("category_suggestions_status", sql`${t.status} IN ('applied', 'queued', 'approved', 'rejected', 'no_fit')`)]);
+
+/* Round 3 (2026-11-16): reader accounts, the reader's own views, weekly email. New tables only. */
+
+// A reader who signed in by email. The email is kept only to send the sign-in link and
+// the weekly email; lookups use its hash. Tied to the app user (and the trial invite) whose
+// follows and views it carries, so a reader keeps them on any device.
+export const readerAccounts = sqliteTable("reader_accounts", {
+  id: text("id").primaryKey(), appUserId: text("app_user_id").references(() => appUsers.id).notNull(), inviteId: text("invite_id"),
+  emailHash: text("email_hash").notNull(), email: text("email").notNull(), createdAt: integer("created_at").notNull(), verifiedAt: integer("verified_at"),
+  digestOptIn: integer("digest_opt_in").notNull().default(1), lastDigestAt: integer("last_digest_at"),
+}, t => [uniqueIndex("reader_accounts_email_uq").on(t.emailHash), uniqueIndex("reader_accounts_user_uq").on(t.appUserId)]);
+
+// Single-use sign-in links; the emailed token is a signed nonce, valid 30 minutes.
+export const magicLinks = sqliteTable("magic_links", {
+  nonce: text("nonce").primaryKey(), email: text("email").notNull(), emailHash: text("email_hash").notNull(),
+  appUserId: text("app_user_id"), inviteId: text("invite_id"), createdAt: integer("created_at").notNull(), expiresAt: integer("expires_at").notNull(), usedAt: integer("used_at"),
+});
+
+// OPINION content: a reader's own Support or Oppose on a bill. Never joined into an official or
+// analysis view, never shown to anyone else, never aggregated into a poll.
+export const opinionUserVotes = sqliteTable("opinion_user_votes", {
+  userId: text("user_id").references(() => appUsers.id).notNull(), billId: text("bill_id").references(() => officialBills.id).notNull(),
+  stance: text("stance", { enum: ["support", "oppose"] }).notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.billId] }), check("opinion_user_votes_stance", sql`${t.stance} IN ('support', 'oppose')`)]);
+
+// One row per weekly email attempt.
+export const digestSends = sqliteTable("digest_sends", {
+  id: text("id").primaryKey(), accountId: text("account_id").references(() => readerAccounts.id).notNull(), week: text("week").notNull(),
+  sentAt: integer("sent_at").notNull(), items: integer("items").notNull(), ok: integer("ok").notNull(), error: text("error"),
+}, t => [uniqueIndex("digest_sends_week_uq").on(t.accountId, t.week)]);

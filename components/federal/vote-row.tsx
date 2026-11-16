@@ -13,7 +13,7 @@ export type VoteRowData = { rollCallId: string; votedAt: number; question: strin
  * the bill, the bill's Analysis headline when there is one, and the official
  * outcome with its source.
  */
-export function VoteRow({ v }: { v: VoteRowData }) {
+export function VoteRow({ v, memberId }: { v: VoteRowData; memberId?: string }) {
   const what = v.billTitle && v.billId ? v.billTitle : v.title || v.documentLabel || "Recorded vote";
   const kind = voteKind(v.question, v.billTitle ?? v.title);
   return <li className="vote-row">
@@ -23,7 +23,7 @@ export function VoteRow({ v }: { v: VoteRowData }) {
       {v.headline && v.billId && <span className="vote-headline"><Link href={`/bills/${v.billId}`}>{v.headline}</Link> <AnalysisBadge /></span>}
       <span className="vote-position">{positionLine(v.position, kind)}</span>
       <VoteExplainer question={v.question} />
-      <small>{v.question}{v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small>
+      <small>{v.question}{v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>{memberId && <> · <Link className="src-link" href={`/share/vote/${memberId}/${v.rollCallId}`}>Share</Link></>}</small>
     </div>
     <PositionPill position={v.position} raw={v.rawPosition} />
   </li>;

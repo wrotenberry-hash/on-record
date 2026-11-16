@@ -1,0 +1,25 @@
+/**
+ * Email to a reader through Resend (the account already used for alerts). Until a
+ * sending domain is verified in Resend, its shared test sender delivers only to
+ * the account owner's own address; other recipients are refused, and the caller
+ * says so plainly instead of pretending the email went.
+ */
+const RESEND_API_URL = process.env.RESEND_API_URL?.trim() || "https://api.resend.com/emails";
+const DEFAULT_FROM = "On Record <onboarding@resend.dev>";
+
+export type SendResult = { ok: true; id?: string } | { ok: false; error: string; domainNeeded: boolean };
+
+export async function sendTo(to: string, subject: string, text: string): Promise<SendResult> {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) return { ok: false, error: "RESEND_API_KEY is not set", domainNeeded: false };
+  const from = process.env.READER_FROM_EMAIL?.trim() || process.env.ALERT_FROM_EMAIL?.trim() || DEFAULT_FROM;
+  try {
+    const response = await fetch(RESEND_API_URL, { method: "POST", signal: AbortSignal.timeout(15000),
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, text }) });
+    const body = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string };
+    if (response.ok) return { ok: true, id: body.id };
+    const message = `${body.message ?? body.name ?? "error"}`;
+    // Resend answers 403 with "You can only send testing emails to your own email address" without a verified domain.
+    return { ok: false, error: `Resend ${response.status}: ${message}`.slice(0, 200), domainNeeded: response.status === 403 || /verify a domain|testing emails/i.test(message) };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message.slice(0, 200) : "send failed", domainNeeded: false }; }
+}

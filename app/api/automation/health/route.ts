@@ -9,6 +9,7 @@ import { suggestionCounts } from "@/lib/analysis/classify";
 import { analysisCounts } from "@/lib/analysis/queries";
 import { eventTotals } from "@/lib/events";
 import { trialCounts } from "@/lib/trial";
+import { digestCounts } from "@/lib/digest";
 import { intakePauseState } from "@/lib/monitoring-runtime";
 import { billingCodeIn, intakeHours } from "@/lib/monitoring";
 import { spendReport } from "@/lib/monitoring-runtime";
@@ -183,6 +184,7 @@ export async function GET() {
     openaiSpend: await openaiSpend(), analysis: await analysis(),
     intakePause: await intakePauseState().catch(() => "unavailable" as const),
     trial: await trialCounts().catch(() => "unavailable" as const),
+    readers: await digestCounts().catch(() => "unavailable" as const),
     events7d: await eventTotals(7).catch(() => "unavailable" as const),
     time: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } });

@@ -52,8 +52,14 @@ export async function inviteForToken(token: string | null | undefined) {
 export async function currentInvite(): Promise<{ id: string; number: number } | null> {
   try {
     const token = (await cookies()).get(TRIAL_COOKIE)?.value;
-    if (!token) return null;
-    const { invite } = await inviteForToken(token);
+    let invite = token ? (await inviteForToken(token)).invite : null;
+    // A reader who signed in by email on another device opens the site through the invite their account came from.
+    if (!invite) {
+      const { currentAccount } = await import("@/lib/accounts");
+      const account = await currentAccount();
+      if (account?.inviteId) invite = (await getDb().select().from(betaInvites).where(eq(betaInvites.id, account.inviteId)).get()) ?? null;
+      if (invite?.revokedAt) invite = null;
+    }
     if (!invite || !(await gateState()).open) return null;
     const day = utcDay();
     if (invite.lastActiveDay !== day) {

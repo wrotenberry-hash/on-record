@@ -1,0 +1,29 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { PublicShell } from "@/components/public/public-shell";
+import { SharePanel } from "@/components/share/share-panel";
+import { viewerAccess, currentAppUserId } from "@/lib/viewer";
+import { agreementCardFor } from "@/lib/cards";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Share my agreement · On Record", robots: { index: false, follow: false } };
+
+/** Share your own agreement with a member on one issue. Private until you share it. */
+export default async function ShareAgreementPage({ params }: { params: Promise<{ member: string; issue: string }> }) {
+  const access = await viewerAccess();
+  const { member, issue } = await params;
+  if (!access.allowed) return <PublicShell current="/politicians" access={access} page="/share/agreement">{null}</PublicShell>;
+  const userId = await currentAppUserId();
+  if (!userId || !/^[A-Z]\d{6}$/.test(member) || !/^[a-z-]{3,40}$/.test(issue)) notFound();
+  const data = await agreementCardFor(userId, member, issue);
+  if (!data) notFound();
+  return <PublicShell current="/politicians" access={access} page="/share/agreement">
+    <section className="fed-page">
+      <p className="crumbs"><Link href={`/politicians/${member}`}>← {data.member}</Link></p>
+      <div className="eyebrow">SHARE MY AGREEMENT</div>
+      <h1>Share how your views compare with {data.member}&apos;s votes</h1>
+      <p className="meta">This is private until you share it. The card shows up to three bills: their recorded vote on passing each, the date, the bill&apos;s summary labelled Analysis, and the official source.</p>
+      <SharePanel imageBase={`/api/cards/agreement?member=${member}&issue=${issue}`} filename={`on-record-${member}-${issue}`} defaultCaption="" />
+    </section>
+  </PublicShell>;
+}

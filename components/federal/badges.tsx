@@ -34,3 +34,8 @@ export function shortDate(ms: number | string | null | undefined) {
 export function AnalysisBadge({ title = "Written by AI from the bill text, checked by rules and sampled by an editor" }: { title?: string }) {
   return <span className="ctype ctype-analysis" title={title}>Analysis</span>;
 }
+
+/** The reader's own view (OPINION). Shown only to that reader, never mixed into Official or Analysis sections. */
+export function OpinionBadge({ title = "Your own answer; only you see it" }: { title?: string }) {
+  return <span className="ctype ctype-opinion" title={title}>Your view</span>;
+}

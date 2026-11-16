@@ -3,12 +3,14 @@ import Link from "next/link";
 import { memberMeta } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
-import { AnalysisBadge, OfficialBadge, billLabel, memberLine, shortDate } from "@/components/federal/badges";
+import { AnalysisBadge, OfficialBadge, OpinionBadge, billLabel, memberLine, shortDate } from "@/components/federal/badges";
 import { FollowButton } from "@/components/federal/follow-button";
 import { VoteRow } from "@/components/federal/vote-row";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, getPolitician, recentVotes, sponsorships } from "@/lib/federal/queries";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
+import { agreementWith } from "@/lib/opinions";
+import { agreementLine } from "@/lib/agreement";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,10 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   if (!p) notFound();
   const [votes, followed, sponsor] = await Promise.all([recentVotes(p.id, 80), currentAppUserId().then(followedIds), sponsorships(p.id).catch(() => ({ sponsored: [], cosponsored: [] }))]);
   const latest = votes.slice(0, 10);
+  const canAnswer = !!access.editor || !!access.invite;
+  const userId = canAnswer ? await currentAppUserId() : null;
+  const agreement = userId ? await agreementWith(userId, p.id).catch(() => ({ rows: [], answered: 0 })) : null;
+  const issueName = (slug: string) => ISSUE_CATEGORIES.find(c => c.slug === slug)?.name ?? "Not sorted into an issue";
   const byIssue = ISSUE_CATEGORIES.map(c => ({ ...c, votes: votes.filter(v => v.issueSlug === c.slug) })).filter(g => g.votes.length);
   const unsorted = votes.filter(v => !v.issueSlug);
   const activeCo = sponsor.cosponsored.filter(c => !c.withdrawnDate);
@@ -48,8 +54,13 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <FollowButton politicianId={p.id} following={followed.has(p.id)} canFollow={!!access.editor || !!access.invite} />
       </div>
 
+      {agreement && <div className="fed-section your-view"><h2>You and {p.fullName} <OpinionBadge /></h2>
+        {agreement.rows.length ? <><ul className="analysis-list">{agreement.rows.map(r => <li key={r.issueSlug}><b>{issueName(r.issueSlug)}:</b> {agreementLine(r)} <Link className="src-link" href={`/share/agreement/${p.id}/${r.issueSlug}`}>Share</Link></li>)}</ul>
+          <p className="meta">From your own Support/Oppose answers and this member&apos;s votes on passing those bills; procedural votes are left out. Only you see this. It is your comparison, not a rating of the member by On Record.</p></>
+          : <p className="meta">{agreement.answered ? "None of the bills you answered has a vote by this member on passing it yet." : "Say Support or Oppose on a bill page, and this shows how often this member's votes on passing those bills matched yours. Only you see it."}</p>}</div>}
+
       <h2>Latest votes <OfficialBadge /></h2>
-      {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul>
+      {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} memberId={p.id} />)}</ul>
         : <p className="empty-note">No recorded votes stored yet. Votes load with each scheduled update.</p>}
       <p className="meta">A procedural vote decides how or whether the chamber proceeds (for example ending debate). It is shown as such and never as a vote for or against the bill itself.</p>
 

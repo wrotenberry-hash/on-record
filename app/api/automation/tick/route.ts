@@ -13,6 +13,8 @@ import { sendSummariesReadyIfDue } from "@/lib/analysis/report";
 import { intakeAllowed } from "@/lib/monitoring";
 import { sendEmail } from "@/lib/monitoring-runtime";
 import { sendTrialOpenIfDue } from "@/lib/trial";
+import { runDigests } from "@/lib/digest";
+import { isDigestDay } from "@/lib/digest-format";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -40,7 +42,9 @@ async function runTick(request: Request) {
     const federal = await federalStep();
     const analysis = await analysisStep(now);
     const summariesEmail = await sendSummariesReadyIfDue();
-    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, summariesEmail, monitoring: await monitorAfterRun() });
+    // Monday's 19:00 run sends the weekly "how your members voted" email (no new cron).
+    const digest = isDigestDay(now) ? await runDigests(now).catch(error => ({ error: (error instanceof Error ? error.message : "digest failed").slice(0, 200) })) : null;
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, summariesEmail, digest, monitoring: await monitorAfterRun() });
   }
   // Owner decision 2026-11-15: no new statements while the review backlog is at or above
   // INTAKE_PAUSE_BACKLOG (default 20). The run still drafts research for one waiting case,

@@ -138,3 +138,62 @@ test("AI issue suggestions apply only at 75% confidence or more", async () => {
   assert.equal(decideSuggestion("taxes", Number.NaN), "queued");
   assert.equal(decideSuggestion("taxes", 7), "queued");
 });
+
+test("agreement counts only passage votes, and Present or Not Voting never counts", async () => {
+  const { agreementByIssue, agreementLine, latestPassageVotes } = await import("../lib/agreement.ts");
+  const votes = [
+    { billId: "b1", position: "Yea", kind: "passage", votedAt: 10 }, { billId: "b1", position: "Nay", kind: "procedural", votedAt: 20 },
+    { billId: "b2", position: "Nay", kind: "passage", votedAt: 10 }, { billId: "b3", position: "Yea", kind: "procedural", votedAt: 10 },
+    { billId: "b4", position: "Not Voting", kind: "passage", votedAt: 10 }, { billId: "b5", position: "Nay", kind: "passage", votedAt: 5 }, { billId: "b5", position: "Yea", kind: "passage", votedAt: 9 },
+  ];
+  assert.equal(latestPassageVotes(votes).get("b5").position, "Yea", "the latest passage vote counts");
+  const stances = new Map([["b1", "support"], ["b2", "support"], ["b3", "support"], ["b4", "oppose"], ["b5", "support"]]);
+  const rows = agreementByIssue(stances, votes, id => (id === "b2" ? ["taxes"] : ["health-care"]));
+  const health = rows.find(r => r.issueSlug === "health-care"), taxes = rows.find(r => r.issueSlug === "taxes");
+  assert.deepEqual([health.agreed, health.differed], [2, 0], "b1 and b5 agree; the procedural b3 and the absent b4 are left out");
+  assert.deepEqual([taxes.agreed, taxes.differed], [0, 1]);
+  assert.equal(agreementLine(health), "Agreed on 2 of 2 bills");
+  assert.doesNotMatch(agreementLine(taxes), /%/, "a count, never a percentage grade");
+});
+
+test("share cards carry the vote, its kind, date, a labelled summary, the source and the footer; nothing a reader typed", async () => {
+  const { voteCard, agreementCard, cardFormat, CARD_FORMATS, sourceText } = await import("../lib/card-content.ts");
+  const base = { billLabel: "H.R. 2102", billTitle: "Major Richard Star Act", voteText: "Voted yes on passing it", kind: "passage", kindLabel: "Vote on the bill",
+    votedAt: Date.parse("2026-11-12T20:21:00Z"), sourceUrl: "https://clerk.house.gov/evs/2026/roll323.xml" };
+  const card = voteCard({ name: "Raul Ruiz", seat: "Representative · D-CA-25" }, { ...base, headline: "Would let more disabled retirees collect both payments." });
+  const line = card.lines[0];
+  assert.equal(line.vote, "Voted yes on passing it");
+  assert.equal(line.kindLabel, "Vote on the bill");
+  assert.equal(line.date, "Nov 12, 2026");
+  assert.deepEqual(line.describe, { label: "Analysis", text: "Would let more disabled retirees collect both payments." });
+  assert.equal(line.source, "clerk.house.gov/evs/2026/roll323.xml");
+  assert.equal(card.footer, "Talk is cheap.");
+  assert.equal(card.note, null);
+  const noSummary = voteCard({ name: "A", seat: "B" }, { ...base, headline: null, kind: "procedural", kindLabel: "Procedural vote", voteText: "Voted yes on a procedural step (not a vote on the bill itself)" });
+  assert.equal(noSummary.lines[0].describe.label, "Official", "without a summary the official title is shown, labelled Official");
+  assert.match(noSummary.note, /not a vote on the bill itself/);
+  const ag = agreementCard({ name: "A", seat: "B" }, "Health care", 2, 1, [{ ...base, headline: null }, { ...base, headline: null }, { ...base, headline: null }, { ...base, headline: null }]);
+  assert.equal(ag.lines.length, 3, "at most three bills on a card");
+  assert.match(ag.subtitle, /agreed on 2 of 3 bills/);
+  assert.match(ag.note, /Not a rating by On Record/);
+  assert.deepEqual(CARD_FORMATS.story, { width: 1080, height: 1920 });
+  assert.deepEqual(CARD_FORMATS.feed, { width: 1080, height: 1350 });
+  assert.deepEqual(CARD_FORMATS.link, { width: 1200, height: 630 });
+  assert.equal(cardFormat("whatever"), "feed");
+  assert.equal(sourceText("https://www.senate.gov/x.xml"), "senate.gov/x.xml");
+});
+
+test("the weekly email lists only members with votes, labels each vote's kind and has a one-tap unsubscribe", async () => {
+  const { formatDigest, isDigestDay, isoWeek } = await import("../lib/digest-format.ts");
+  const v = { date: "Nov 12", kindLabel: "Procedural vote", voteText: "Voted yes on a procedural step (not a vote on the bill itself)", billLabel: "S. 1", billTitle: "A bill", headline: "Would do a thing.", sourceUrl: "https://www.senate.gov/v.xml", billUrl: "https://site.test/bills/119-s-1" };
+  assert.equal(formatDigest([{ name: "A", seat: "B", votes: [] }], { site: "https://site.test", unsubscribe: "https://site.test/u" }), null, "no votes, no email");
+  const m = formatDigest([{ name: "Sen. A", seat: "Senator · R-TX", votes: [v] }, { name: "Sen. B", seat: "x", votes: [] }], { site: "https://site.test", unsubscribe: "https://site.test/u?t=1" });
+  assert.equal(m.items, 1);
+  assert.match(m.text, /Procedural vote: Voted yes on a procedural step \(not a vote on the bill itself\)/);
+  assert.match(m.text, /\[Analysis\] Would do a thing\./);
+  assert.match(m.text, /Official source: https:\/\/www\.senate\.gov\/v\.xml/);
+  assert.match(m.text, /Stop these emails: https:\/\/site\.test\/u\?t=1/);
+  assert.doesNotMatch(m.text, /Sen\. B/);
+  assert.ok(isDigestDay(Date.parse("2026-11-16T19:00:00Z")));
+  assert.equal(isoWeek(Date.parse("2026-11-16T19:00:00Z")), "2026-W47");
+});

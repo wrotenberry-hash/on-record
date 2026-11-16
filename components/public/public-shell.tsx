@@ -8,6 +8,7 @@ export const PUBLIC_PAGES = [
   { href: "/politicians", label: "Politicians" },
   { href: "/issues", label: "Issues" },
   { href: "/following", label: "Following" },
+  { href: "/account", label: "Account" },
   { href: "/method", label: "How a claim is checked" },
   { href: "/about", label: "Who runs this" },
   { href: "/corrections", label: "Corrections" },
