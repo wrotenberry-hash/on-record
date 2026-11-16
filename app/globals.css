@@ -153,3 +153,5 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .chip-check{position:relative}.chip-check input{position:absolute;opacity:0;width:1px;height:1px}.chip-check span{display:inline-block;border:1px solid #a7c4b9;border-radius:999px;padding:9px 14px;min-height:24px;font-size:15px;background:#fff;cursor:pointer}
 .chip-check input:checked+span{background:#163b3c;color:#fff;border-color:#163b3c}.chip-check input:focus-visible+span{outline:3px solid #b7793f;outline-offset:2px}.start-label{display:grid;gap:6px;font-weight:700}
 .personal,.start-cta{max-width:860px;margin:12px auto 0;padding:0 16px;box-sizing:border-box}.start-cta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#e6efeb;border:1px solid #a7c4b9;padding:12px 16px}
+.not-poll{font-weight:700;color:#7a2e22;margin:0}
+.email-preview{white-space:pre-wrap;background:#fff;border:1px solid #d9ded9;padding:14px;font:14px/1.5 Arial,sans-serif}

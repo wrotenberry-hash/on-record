@@ -13,7 +13,7 @@ function Section({ s }: { s: BriefSection }) {
   const lists = [["Passed", s.passed], ["Failed", s.failed], ["Stopped by a procedural vote", s.blocked], ["Coming next", s.coming]] as const;
   const any = lists.some(([, l]) => l.length);
   return <div className="fed-section"><h2>{s.name} <OfficialBadge /></h2><p className="meta">{s.inSession ? "In session." : "Not in session."}</p>
-    {any ? lists.filter(([, l]) => l.length).map(([h, l]) => <div key={h}><h3 className="subhead">{h}</h3><ul className="result-list">{l.map((i, n) => <li key={n}><Link href={i.href}><span className="bill-tag">{i.label}</span> {i.title}</Link><span className="meta">{shortDate(i.date)} · {i.note}</span></li>)}</ul></div>)
+    {any ? lists.filter(([, l]) => l.length).map(([h, l]) => <div key={h}><h3 className="subhead">{h}</h3><ul className="result-list">{l.map((i, n) => <li key={n}><Link href={i.href}><span className="bill-tag">{i.label}</span> {i.title}</Link><span className="meta">{shortDate(i.date)} · {i.note}{h === "Coming next" && i.href.includes("#your-view") ? " · Coming up — weigh in now" : ""}</span></li>)}</ul></div>)
       : <p className="meta">Nothing recorded in this period.</p>}</div>;
 }
 

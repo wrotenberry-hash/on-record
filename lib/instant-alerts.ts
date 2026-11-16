@@ -42,6 +42,12 @@ export async function runInstantAlerts(now = Date.now()) {
     if (!votes.length) continue;
     const lines = votes.slice(0, 6).map(v => { const r = relevant.find(x => x.id === v.rollCallId)!; return `${v.name}: ${positionLine(v.position, voteKind(r.question, r.billTitle ?? r.title)).toLowerCase()} on ${r.billType ? billLabel(r.billType, r.number!) : r.question}`; });
     const first = relevant.find(r => r.id === votes[0].rollCallId)!;
+    // "Your legislator vs your district": the district-matched totals beside the vote, when there are enough (n >= 25).
+    if (loc?.congressional && first.billId) {
+      const { scopeTotals } = await import("@/lib/verify/store"); const { totalsLine, MIN_SHOWN } = await import("@/lib/verify/rules");
+      const t = (await scopeTotals(loc.congressional, [first.billId]).catch(() => []))[0];
+      if (t && t.support + t.oppose >= MIN_SHOWN) lines.push(`${totalsLine(`District-matched readers in ${loc.congressional}`, t)} (not a scientific poll)`);
+    }
     await notifyUser(userId, { title: `${votes[0].name} voted on ${first.billType ? billLabel(first.billType, first.number!) : "a bill"}`, body: lines.join("; "), url: first.billId ? `/bills/${first.billId}` : "/" });
     if (account?.verifiedAt) await sendTo(account.email, "Your legislators just voted on your issues", [...lines, "", `${SITE}${first.billId ? `/bills/${first.billId}` : "/"}`, "", "Turn instant alerts off on your Account page."].join("\n"));
     sent++;

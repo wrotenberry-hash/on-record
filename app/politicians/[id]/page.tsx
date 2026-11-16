@@ -12,12 +12,13 @@ import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { agreementWith } from "@/lib/opinions";
 import { agreementLine } from "@/lib/agreement";
 import { memberStats } from "@/lib/federal/member-stats";
+import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { verificationConfig } from "@/lib/verify/config";
 import { scopeTotals } from "@/lib/verify/store";
 import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
 import { getDb } from "@/db";
 import { sentimentTotals } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,16 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
     const billIds = [...new Set(votes.map(v => v.billId).filter((b): b is string => !!b))];
     const local = await scopeTotals(scope, billIds).catch(() => []);
     const national = billIds.length ? await getDb().select().from(sentimentTotals).where(and(eq(sentimentTotals.scope, "US"), eq(sentimentTotals.tierGroup, "real"), inArray(sentimentTotals.billId, billIds))).catch(() => []) : [];
-    const rows = billIds.map(id => ({ id, local: local.find(t => t.billId === id) ?? null, national: national.find(t => t.billId === id) ?? null, vote: votes.find(v => v.billId === id)! }))
+    const rows = billIds.map(id => ({ id, local: local.find(t => t.billId === id) ?? null, national: national.find(t => t.billId === id) ?? null,
+      vote: votes.find(v => v.billId === id && voteKind(v.question, v.billTitle ?? v.title) === "passage") ?? votes.find(v => v.billId === id)! }))
       .filter(r => (r.local && r.local.support + r.local.oppose >= MIN_SHOWN) || (r.national && r.national.support + r.national.oppose >= MIN_SHOWN)).slice(0, 6);
-    return { scope, rows };
+    // Upcoming: bills on this week's floor schedule in the member's chamber, with the same totals.
+    const { getDb: db2 } = await import("@/db"); const { officialFloorSchedule: fs, officialBills: ob } = await import("@/db/schema"); const { weekOf } = await import("@/lib/federal/depth-parse");
+    const upcomingBills = await db2().select({ id: fs.billId, label: fs.label, title: ob.title }).from(fs).leftJoin(ob, eq(ob.id, fs.billId))
+      .where(and(eq(fs.chamber, p.chamber), sql`${fs.weekOf} >= ${weekOf(Date.now())}`, sql`${fs.billId} is not null`)).limit(8).catch(() => []);
+    const upLocal = await scopeTotals(scope, upcomingBills.map(u => u.id!)).catch(() => []);
+    const upcoming = upcomingBills.map(u => ({ ...u, local: upLocal.find(t => t.billId === u.id) ?? null }));
+    return { scope, rows, upcoming };
   })() : null;
   const issueName = (slug: string) => ISSUE_CATEGORIES.find(c => c.slug === slug)?.name ?? "Not sorted into an issue";
   const byIssue = ISSUE_CATEGORIES.map(c => ({ ...c, votes: votes.filter(v => v.issueSlug === c.slug) })).filter(g => g.votes.length);
@@ -80,9 +88,12 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
 
       {constituents && <div className="fed-section sentiment"><h2>What verified readers say <OpinionBadge /></h2>
         {constituents.rows.length ? <ul className="analysis-list">{constituents.rows.map(r => <li key={r.id}><Link href={`/bills/${r.id}`}>{r.vote.billTitle ?? r.vote.title}</Link><br />
-          <span className="lead">{totalsLine(`District-matched in ${constituents.scope}`, r.local)}</span><br /><span className="meta">{totalsLine("Real people, nationally", r.national)}</span></li>)}</ul>
+          <span className="lead">{totalsLine(`District-matched in ${constituents.scope}`, r.local)}</span><br /><span className="meta">{totalsLine("Real people, nationally", r.national)}</span><br />
+          <span><b>{p.fullName}:</b> {positionLine(r.vote.position, voteKind(r.vote.question, r.vote.billTitle ?? r.vote.title))} <OfficialBadge /></span></li>)}</ul>
           : <p className="meta">Not enough verified answers yet on bills {p.fullName} voted on: totals show from {MIN_SHOWN} answers.</p>}
-        <p className="meta">District-matched readers matched an address to {constituents.scope}. Shown beside the record, never as a score.</p></div>}
+        {constituents.upcoming.length > 0 && <><h3 className="subhead">Coming up — weigh in now</h3><ul className="analysis-list">{constituents.upcoming.map(u => <li key={u.id!}><Link href={`/bills/${u.id}#your-view`}>{u.label}: {u.title ?? ""}</Link><br /><span className="meta">{totalsLine(`District-matched in ${constituents.scope}`, u.local)}</span></li>)}</ul></>}
+        <p className="not-poll">Not a scientific poll.</p>
+        <p className="meta">District-matched readers matched an address to {constituents.scope}. Shown beside the member&apos;s actual vote, never as a score.</p></div>}
 
       {stats && stats.rollCalls > 0 && <div className="fed-section"><h2>On the record <OfficialBadge /></h2>
         <div className="stat-grid">

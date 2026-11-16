@@ -721,3 +721,14 @@ export const alertOutbox = sqliteTable("alert_outbox", {
   id: text("id").primaryKey(), userId: text("user_id").notNull(), title: text("title").notNull(), body: text("body").notNull(), url: text("url").notNull(),
   createdAt: integer("created_at").notNull(), seenAt: integer("seen_at"),
 }, t => [index("alert_outbox_user_idx").on(t.userId, t.createdAt)]);
+
+// ── Round J (master plan): Unsure and answer history (migration 0027). New tables; opinion_user_votes keeps Support/Oppose only. ──
+// "Unsure" is a private answer (never counted). One row per reader and bill while they are unsure.
+export const readerUnsure = sqliteTable("reader_unsure", {
+  userId: text("user_id").notNull().references(() => appUsers.id), billId: text("bill_id").notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.billId] })]);
+// Every change of a reader's own answer, with the optional private reason (280 characters). Shown only to that reader.
+export const positionHistory = sqliteTable("position_history", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => appUsers.id), billId: text("bill_id").notNull(),
+  stance: text("stance", { enum: ["support", "oppose", "unsure", "cleared"] }).notNull(), reason: text("reason"), at: integer("at").notNull(),
+}, t => [index("position_history_user_bill_idx").on(t.userId, t.billId, t.at)]);

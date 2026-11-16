@@ -48,7 +48,7 @@ export async function buildBriefing(now = Date.now()): Promise<Briefing> {
   }
   const floor = await db.select({ chamber: officialFloorSchedule.chamber, label: officialFloorSchedule.label, billId: officialFloorSchedule.billId, description: officialFloorSchedule.description, weekOf: officialFloorSchedule.weekOf,
     title: officialBills.title }).from(officialFloorSchedule).leftJoin(officialBills, eq(officialBills.id, officialFloorSchedule.billId)).where(gte(officialFloorSchedule.weekOf, weekOf(now))).limit(40);
-  congress.coming = floor.slice(0, MAX).map(f => ({ label: f.label, title: f.title ?? f.description ?? f.label, href: f.billId ? `/bills/${f.billId}` : "/coming", date: `${f.weekOf.slice(0, 4)}-${f.weekOf.slice(4, 6)}-${f.weekOf.slice(6, 8)}`,
+  congress.coming = floor.slice(0, MAX).map(f => ({ label: f.label, title: f.title ?? f.description ?? f.label, href: f.billId ? `/bills/${f.billId}#your-view` : "/coming", date: `${f.weekOf.slice(0, 4)}-${f.weekOf.slice(4, 6)}-${f.weekOf.slice(6, 8)}`,
     note: `On the ${f.chamber === "senate" ? "Senate" : "House"} floor schedule for the week` }));
   let texas: BriefSection | null = null;
   const txCount = await db.select({ n: sql<number>`count(*)` }).from(txBills).get().catch(() => ({ n: 0 }));

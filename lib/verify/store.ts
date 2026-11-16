@@ -152,6 +152,15 @@ export async function deleteAccountAndPositions(account: Account) {
   await db.delete(userFollows).where(eq(userFollows.userId, account.appUserId));
   await db.delete(billFollows).where(eq(billFollows.userId, account.appUserId));
   await db.delete(readerLocations).where(eq(readerLocations.userId, account.appUserId));
+  const { positionHistory, readerUnsure, readerIssues, readerVisits, alertPrefs, pushSubscriptions, alertOutbox, reminders } = await import("@/db/schema");
+  await db.delete(positionHistory).where(eq(positionHistory.userId, account.appUserId));
+  await db.delete(readerUnsure).where(eq(readerUnsure.userId, account.appUserId));
+  await db.delete(readerIssues).where(eq(readerIssues.userId, account.appUserId));
+  await db.delete(readerVisits).where(eq(readerVisits.userId, account.appUserId));
+  await db.delete(alertPrefs).where(eq(alertPrefs.userId, account.appUserId));
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, account.appUserId));
+  await db.delete(alertOutbox).where(eq(alertOutbox.userId, account.appUserId));
+  await db.delete(reminders).where(eq(reminders.userId, account.appUserId));
   await db.delete(verificationProfiles).where(eq(verificationProfiles.accountId, account.id));
   await db.delete(digestSends).where(eq(digestSends.accountId, account.id));
   await db.delete(magicLinks).where(eq(magicLinks.emailHash, account.emailHash));

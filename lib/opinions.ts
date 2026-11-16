@@ -38,3 +38,28 @@ export async function agreementWith(userId: string, politicianId: string) {
   const memberVotes = votes.filter(v => v.billId).map(v => ({ billId: v.billId!, position: v.position, kind: voteKind(v.question, v.title), votedAt: v.votedAt, rollCallId: v.rollCallId, sourceUrl: v.sourceUrl }));
   return { rows: agreementByIssue(stances, memberVotes, id => issues.get(id) ?? []), answered: stances.size, votes: memberVotes };
 }
+
+/* Round J (master plan): Support / Oppose / Unsure with history. Unsure is private and never counted. */
+export type Answer = Stance | "unsure";
+export async function answerFor(userId: string | null, billId: string): Promise<Answer | null> {
+  if (!userId) return null;
+  const s = await stanceFor(userId, billId);
+  if (s) return s;
+  const { readerUnsure } = await import("@/db/schema");
+  const u = await getDb().select({ b: readerUnsure.billId }).from(readerUnsure).where(and(eq(readerUnsure.userId, userId), eq(readerUnsure.billId, billId))).get();
+  return u ? "unsure" : null;
+}
+export async function setAnswer(userId: string, billId: string, answer: Answer | null, reason: string | null) {
+  const { readerUnsure, positionHistory } = await import("@/db/schema");
+  const db = getDb();
+  await setStance(userId, billId, answer === "support" || answer === "oppose" ? answer : null);
+  if (answer === "unsure") await db.insert(readerUnsure).values({ userId, billId, updatedAt: Date.now() }).onConflictDoUpdate({ target: [readerUnsure.userId, readerUnsure.billId], set: { updatedAt: Date.now() } });
+  else await db.delete(readerUnsure).where(and(eq(readerUnsure.userId, userId), eq(readerUnsure.billId, billId)));
+  await db.insert(positionHistory).values({ id: crypto.randomUUID(), userId, billId, stance: answer ?? "cleared", reason, at: Date.now() });
+}
+export async function answerHistory(userId: string | null, billId: string) {
+  if (!userId) return [];
+  const { positionHistory } = await import("@/db/schema");
+  const { desc } = await import("drizzle-orm");
+  return getDb().select().from(positionHistory).where(and(eq(positionHistory.userId, userId), eq(positionHistory.billId, billId))).orderBy(desc(positionHistory.at)).limit(10);
+}
