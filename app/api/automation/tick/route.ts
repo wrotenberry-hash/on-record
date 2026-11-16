@@ -58,7 +58,10 @@ async function runTick(request: Request) {
     const reminders = await import("@/lib/reminders").then(m => m.sendDueReminders(now)).catch(error => ({ error: (error instanceof Error ? error.message : "reminders failed").slice(0, 200) }));
     // Round G: the daily post queue for On Record's own accounts (drafts only while private).
     const posts = await import("@/lib/social").then(m => m.draftDailyPosts(now)).catch(error => ({ error: (error instanceof Error ? error.message : "post drafts failed").slice(0, 200) }));
-    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, briefing, reminders, posts, monitoring: await monitorAfterRun() });
+    // Round F: re-check a random 20% of visible summaries each week against the bill text (no AI call).
+    const left = 300_000 - (Date.now() - now) - 45_000;
+    const rereview = left > 20_000 ? await import("@/lib/analysis/quality").then(m => m.runRereview(Date.now(), Math.min(left, 60_000))).catch(error => ({ error: (error instanceof Error ? error.message : "re-review failed").slice(0, 200) })) : { skipped: "no time left" };
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, briefing, reminders, posts, rereview, monitoring: await monitorAfterRun() });
   }
   // Owner decision 2026-11-15: no new statements while the review backlog is at or above
   // INTAKE_PAUSE_BACKLOG (default 20). The run still drafts research for one waiting case,

@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED", "SUMMARY_SPEND_75", "TALLY_MISMATCH"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED", "SUMMARY_SPEND_75", "TALLY_MISMATCH", "PARITY_DRIFT"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -42,7 +42,7 @@ export type LedgerRun = { status: "RUNNING" | "COMPLETE" | "FAILED"; captureStat
 /** Month-to-date OpenAI spend: priced from On Record's ledger of every model call, or the OpenAI Costs API when an admin key is set. */
 export type Spend = { monthToDateUsd: number; source: "openai-costs-api" | "model-call-ledger" } | { monthToDateUsd: null; source: "unavailable"; reason: string };
 
-export type MonitoringInput = {
+export type MonitoringInput = { parityFindings?: string[] | null;
   /** Ledger rows, newest first. */
   runs: readonly LedgerRun[];
   spend: Spend;
@@ -128,6 +128,9 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   // (3c) Roll-call tallies that do not match the official totals: shown as under review, never silently.
   if (input.tallyMismatches) found.push({ kind: "TALLY_MISMATCH", subject: `${input.tallyMismatches} roll-call tall${input.tallyMismatches === 1 ? "y does" : "ies do"} not match the official totals`,
     detail: `The daily integrity check found ${input.tallyMismatches} roll call(s) whose stored member votes do not add up to the official totals. Those votes show "Tally under review" instead of counts until the next ingest corrects them. The health probe lists examples under federal.depth.` });
+  // (3d) Round F: summaries treat parties differently (length, tone words or for/against balance).
+  if (input.parityFindings?.length) found.push({ kind: "PARITY_DRIFT", subject: "Bill summaries drift between parties",
+    detail: `The parity check over visible summaries (grouped by the sponsor's party) found: ${input.parityFindings.join(" ")} Open Editor → Quality for the numbers; fix the generator, not individual summaries.` });
   // (3b) Bill-summary spend above 75% of its monthly cap.
   if (input.summarySpend && input.summarySpend.capUsd > 0) {
     checks.summarySpend = `$${input.summarySpend.monthToDateUsd.toFixed(2)} of $${input.summarySpend.capUsd.toFixed(2)}`;

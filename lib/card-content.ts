@@ -24,6 +24,9 @@ const date = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "
 export function sourceText(url: string) { return url.replace(/^https?:\/\//, "").replace(/^www\./, ""); }
 const clip = (t: string, n: number) => (t.length <= n ? t : `${t.slice(0, n - 1).replace(/\s+\S*$/, "")}…`);
 
+/** The blocks drawn at each size: the 630px link preview shows one block and no note so nothing overlaps (Round G fix). */
+export function visibleBlocks(card: Card, format: CardFormat) { return format === "link" ? { lines: card.lines.slice(0, 1), note: null } : { lines: card.lines, note: card.note }; }
+
 export function voteLine(v: CardVote): CardLine {
   return { what: v.headline ? `${v.billLabel}: ${clip(v.billTitle, 90)}` : v.billLabel, describe: v.headline ? { label: "Analysis", text: clip(v.headline, 140) } : { label: "Official", text: clip(v.billTitle, 140) },
     vote: v.voteText, kindLabel: v.kindLabel, date: date(v.votedAt), source: sourceText(v.sourceUrl) };

@@ -76,3 +76,31 @@ test("since your last visit: the first page of a new visit already knows the pre
   assert.equal(nextVisit(`${L}|${P}`, L + 10 * 60e3).previous, P, "within 30 minutes it is the same visit");
   assert.equal(nextVisit(null, now).previous, null);
 });
+
+test("party parity: same rules for every party, drift found in either direction, quiet below 10 per party", async () => {
+  const { parityStats, parityDrift, toneHits, partyGroup, sampleFraction, patternOf, MIN_PER_PARTY } = await import("../lib/analysis/parity-rules.ts");
+  assert.equal(toneHits("This would protect workers and weaken nothing important."), 3);
+  assert.equal(partyGroup("Democrat"), "D"); assert.equal(partyGroup("Republican"), "R"); assert.equal(partyGroup("Independent"), "I");
+  const row = (party, n, forW, againstW, tone = "") => ({ party, prose: `${"word ".repeat(n)}${tone}`, forText: "a ".repeat(forW), againstText: "b ".repeat(againstW), forCount: 2, againstCount: 2 });
+  const even = [...Array(MIN_PER_PARTY)].flatMap(() => [row("Democrat", 200, 30, 30), row("Republican", 200, 30, 30)]);
+  assert.deepEqual(parityDrift(parityStats(even)), { enough: true, findings: [] });
+  assert.equal(parityDrift(parityStats(even.slice(0, 6))).enough, false, "under 10 per party: no alert");
+  for (const [a, b] of [["Democrat", "Republican"], ["Republican", "Democrat"]]) {
+    const skew = [...Array(MIN_PER_PARTY)].flatMap(() => [row(a, 300, 45, 15, "vital crucial harmful costly"), row(b, 200, 30, 30)]);
+    const f = parityDrift(parityStats(skew)).findings.join(" ");
+    assert.match(f, /Length/); assert.match(f, /Tone words/); assert.match(f, /balance differs/); assert.match(f, /expected 42–58%/);
+  }
+  assert.equal(sampleFraction([...Array(50).keys()], 0.2).length, 10); assert.equal(sampleFraction([1], 0.2).length, 1); assert.equal(sampleFraction([], 0.2).length, 0);
+  assert.equal(patternOf('Headline is 24 words; the limit is 20.'), patternOf('Headline is 31 words; the limit is 20.'));
+});
+
+test("cards: link previews show one block; captions do not repeat the title (Round G regressions)", async () => {
+  const { visibleBlocks } = await import("../lib/card-content.ts");
+  const { captionFromCard } = await import("../lib/share-rules.ts");
+  const line = (what) => ({ what, describe: { label: "Official", text: "x" }, vote: "Yea", kindLabel: "Vote", date: "Nov 1, 2026", source: "senate.gov" });
+  const card = { eyebrow: "E", title: "S. 5271", subtitle: "", lines: [line("S. 5271: On Cloture"), line("Second")], note: "A note.", footer: "Talk is cheap." };
+  assert.equal(visibleBlocks(card, "link").lines.length, 1); assert.equal(visibleBlocks(card, "link").note, null);
+  assert.equal(visibleBlocks(card, "story").lines.length, 2); assert.equal(visibleBlocks(card, "feed").note, "A note.");
+  assert.equal(captionFromCard(card), "S. 5271: On Cloture: Yea (Nov 1, 2026). A note.");
+  assert.equal(captionFromCard({ ...card, title: "Jane Doe" }).startsWith("Jane Doe. S. 5271"), true);
+});

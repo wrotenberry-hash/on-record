@@ -753,3 +753,10 @@ export const problemReports = sqliteTable("problem_reports", {
   status: text("status", { enum: ["open", "fixed", "no_change", "dismissed"] }).notNull().default("open"), resolution: text("resolution"),
   createdAt: integer("created_at").notNull(), resolvedAt: integer("resolved_at"),
 }, t => [index("problem_reports_status_idx").on(t.status, t.createdAt)]);
+
+/* Round F: quality. A random 20% of visible summaries are re-checked against the bill text each week. */
+export const analysisRereviews = sqliteTable("analysis_rereviews", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => analysisBillSummaries.id).notNull(), at: integer("at").notNull(),
+  passed: integer("passed").notNull(), failures: text("failures", { mode: "json" }).$type<string[]>().notNull(), promptVersion: text("prompt_version").notNull(),
+  action: text("action", { enum: ["none", "held"] }).notNull(), error: text("error"),
+}, t => [index("analysis_rereviews_summary_idx").on(t.summaryId, t.at), index("analysis_rereviews_at_idx").on(t.at)]);

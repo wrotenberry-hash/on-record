@@ -4,6 +4,7 @@ import { officialBills, officialRollCalls } from "@/db/schema";
 import type { Card } from "@/lib/card-content";
 import type { Slide } from "@/components/cards/card-image";
 import { voteCardFor } from "@/lib/cards";
+import { captionFromCard } from "@/lib/share-rules";
 import { billLabel } from "@/components/federal/badges";
 import { billCard, breakingRanksCard, memberCard, carouselSlides, dashboardCard, districtVsLegislatorCard, quietKillCard, saidVsDidCard, saidVsDidPairs } from "@/lib/share-cards";
 
@@ -37,7 +38,7 @@ export function validShare(type: string | undefined, p: ShareParams): type is Sh
   }
 }
 const officialOnly = (c: Card | null) => !!c && c.lines.every(l => l.describe.label === "Official");
-const captionOf = (c: Card) => [c.lines[0]?.what.startsWith(c.title) ? null : c.title, c.lines[0] ? `${c.lines[0].what}: ${c.lines[0].vote} (${c.lines[0].date})` : null, c.note].filter(Boolean).join(". ").replace(/\.\./g, ".");
+const captionOf = (c: Card) => captionFromCard(c);
 
 async function billOfRoll(roll: string) {
   const r = await getDb().select({ billId: officialRollCalls.billId }).from(officialRollCalls).where(eq(officialRollCalls.id, roll)).get();

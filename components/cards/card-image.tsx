@@ -1,4 +1,4 @@
-import type { Card, CardFormat } from "@/lib/card-content";
+import { visibleBlocks, type Card, type CardFormat } from "@/lib/card-content";
 
 /**
  * The card drawn as an image (next/og). Plain flex layout, On Record's colours,
@@ -9,7 +9,7 @@ export function CardImage({ card, format }: { card: Card; format: CardFormat }) 
   const s = format === "story" ? 1.25 : format === "link" ? 0.72 : 1;
   const px = (n: number) => Math.round(n * s);
   // The link preview is short (630px): one block only, no note, so nothing overlaps. Story and feed show every block.
-  const lines = format === "link" ? card.lines.slice(0, 1) : card.lines, note = format === "link" ? null : card.note;
+  const { lines, note } = visibleBlocks(card, format);
   const badge = (label: string) => <span style={{ fontSize: px(20), fontWeight: 700, letterSpacing: 1, padding: `${px(4)}px ${px(10)}px`, borderRadius: 4,
     background: label === "Analysis" ? "#eae6f4" : label === "Readers" ? "#f6ebdd" : "#e3efe6", color: label === "Analysis" ? "#45366e" : label === "Readers" ? "#6b4a1e" : "#245236", marginRight: px(12) }}>{label.toUpperCase()}</span>;
   return <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#f7f6f2", color: "#172224", padding: px(64), fontFamily: "sans-serif", overflow: "hidden" }}>
