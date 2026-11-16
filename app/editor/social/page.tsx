@@ -15,7 +15,7 @@ export default async function SocialQueuePage() {
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · ON RECORD&apos;S OWN ACCOUNTS</div><h1>Post queue</h1>
       <p className="meta">Drafted each day from the record: a bill stopped by a procedural vote (when there is one), a 5-slide bill explainer, and a dashboard card. Approve with one tap. Cards with only Official blocks may post on their own once an account is connected. No paid promotion, no replies, no engagement tricks.</p>
-      <table className="chart history"><tbody>
+      <table className="chart history" tabIndex={0}><tbody>
         <tr><th scope="row">Posting</th><td>{cfg.canPost ? "On" : `Off. ${cfg.blocked}`}</td></tr>
         <tr><th scope="row">Bluesky</th><td>{cfg.bluesky ? "Connected" : "Not connected (BLUESKY_HANDLE, BLUESKY_APP_PASSWORD)"}</td></tr>
         <tr><th scope="row">Threads</th><td>{cfg.threads ? "Connected" : "Not connected (THREADS_USER_ID, THREADS_ACCESS_TOKEN)"}</td></tr>

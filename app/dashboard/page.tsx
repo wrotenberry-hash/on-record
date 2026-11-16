@@ -30,7 +30,7 @@ export default async function DashboardPage() {
           {d.reconcile && <> Check against Congress.gov&apos;s own totals ({shortDate(d.reconcile.at)}): {d.reconcile.indexedBills.toLocaleString("en-US")} of {d.reconcile.officialBills?.toLocaleString("en-US") ?? "?"} measures listed{d.reconcile.billsMatch ? " (complete)" : " (list still loading)"}; {d.reconcile.indexedLaws} of {d.reconcile.officialLaws ?? "?"} public laws{d.reconcile.lawsMatch ? " (matches)" : ""}.</>}</p></details></div>
 
       {hist.length > 1 && <div className="fed-section"><h2>Compared with earlier Congresses</h2>
-        <table className="chart history"><caption>Bills and joint resolutions, roll calls, procedural and party-line shares</caption><thead><tr><th scope="col">Congress</th><th scope="col">Filed</th><th scope="col">Passed a chamber</th><th scope="col">Became law</th><th scope="col">Roll calls on file</th><th scope="col">Procedural</th><th scope="col">Party-line</th></tr></thead>
+        <table className="chart history" tabIndex={0}><caption>Bills and joint resolutions, roll calls, procedural and party-line shares</caption><thead><tr><th scope="col">Congress</th><th scope="col">Filed</th><th scope="col">Passed a chamber</th><th scope="col">Became law</th><th scope="col">Roll calls on file</th><th scope="col">Procedural</th><th scope="col">Party-line</th></tr></thead>
           <tbody>{d.funnels.map((f, i) => { const r = d.rollStats[i]; return <tr key={f.congress}><th scope="row">{f.congress}th</th><td>{f.all.reach.filed.toLocaleString("en-US") || "loading"}</td><td>{f.all.pct.passed_one}%</td><td>{f.all.reach.law.toLocaleString("en-US")}</td>
             <td>{r.total || "loading"}</td><td>{r.proceduralPct ?? "–"}{r.proceduralPct !== null ? "%" : ""}</td><td>{r.partyLinePct ?? "–"}{r.partyLinePct !== null ? "%" : ""}</td></tr>; })}</tbody></table>
         <p className="meta">Roll calls: the votes On Record holds; earlier Congresses fill in as the backfill runs. Party-line: most voting Democrats and most voting Republicans on opposite sides. Procedural: cloture, motions to proceed, table, recommit and similar, and House rules.</p></div>}
@@ -57,7 +57,7 @@ export default async function DashboardPage() {
         <p className="meta">From the {d.fullRecords} bills On Record holds with full action records (voted and recently active bills), not every bill. Chairs are listed under Key players.</p></div>}
 
       <div className="fed-section"><h2>By issue</h2>
-        <table className="chart history"><caption>Bills sorted into each issue: filed, passed at least one chamber, became law</caption><thead><tr><th scope="col">Issue</th><th scope="col">Filed</th><th scope="col">Advanced</th><th scope="col">Enacted</th></tr></thead>
+        <table className="chart history" tabIndex={0}><caption>Bills sorted into each issue: filed, passed at least one chamber, became law</caption><thead><tr><th scope="col">Issue</th><th scope="col">Filed</th><th scope="col">Advanced</th><th scope="col">Enacted</th></tr></thead>
           <tbody>{d.byIssue.map(b => <tr key={b.slug}><th scope="row"><Link href={`/issues/${b.slug}`}>{b.name}</Link></th><td>{b.filed}</td><td>{b.advanced}</td><td>{b.enacted}</td></tr>)}</tbody></table>
         <p className="meta">Covers the bills On Record has sorted into issues (from Congress.gov policy areas and subjects), not every bill.</p></div>
     </section>

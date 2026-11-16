@@ -16,7 +16,7 @@ export default async function MetricsPage() {
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · RETENTION AND SHARING</div><h1>Are readers coming back?</h1>
       <p className="meta">Counts only. No reader, page or bill is identified.</p>
-      {r && <table className="chart history"><tbody>
+      {r && <table className="chart history" tabIndex={0}><tbody>
         {row("Readers active this week", r.weeklyActiveReaders)}{row("…who had visited before (returning)", r.weeklyReturningReaders)}
         {t && row("Trial invites used this week / on 2+ days", `${t.activeLast7Days} / ${t.usedOnTwoOrMoreDays}`)}
         {row("Onboarding this week: started / finished", `${r.onboarding7d.started} / ${r.onboarding7d.completed}${r.onboarding7d.completionPct !== null ? ` (${r.onboarding7d.completionPct}%)` : ""}`)}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IssueCap } from "@/components/start/issue-cap";
 import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { currentLocation } from "@/lib/location";
@@ -37,13 +38,12 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
       </> : <>
         <h1>Your legislators</h1>
         <form action={finishStart} className="start-form start-two">
-          <ul className="leg-list">{fed?.senators.map(s => <li key={s.id} className="leg-card"><b>{s.fullName}</b><span>{s.role}</span><span className="meta">{s.party}</span></li>)}
-            {fed?.representative && <li className="leg-card"><b>{fed.representative.fullName}</b><span>{fed.representative.role}</span><span className="meta">{fed.representative.party}</span></li>}</ul>
+          <ul className="leg-list">{fed?.senators.map(s => <li key={s.id} className="leg-card"><Link href={`/politicians/${s.id}`}><b>{s.fullName}</b></Link><span>{s.role}</span><span className="meta">{s.party}</span></li>)}
+            {fed?.representative && <li className="leg-card"><Link href={`/politicians/${fed.representative.id}`}><b>{fed.representative.fullName}</b></Link><span>{fed.representative.role}</span><span className="meta">{fed.representative.party}</span></li>}</ul>
           {fed && !fed.representative && fed.houseChoices.length > 0 && <label className="start-label">Your House district (a ZIP can cross districts)
             <select name="district" className="leg-select" defaultValue=""><option value="">Not sure (pick later)</option>{fed.houseChoices.map(h => <option key={h.id} value={`${h.state}-${h.district ? String(h.district).padStart(2, "0") : "AL"}`}>District {h.district ?? "at large"}: {h.fullName}</option>)}</select></label>}
           {canFollow && <label className="consent"><input type="checkbox" name="follow" value="yes" defaultChecked /> <span>Follow them, so their votes show up first</span></label>}
-          <fieldset className="issue-pick"><legend>Pick up to 3 issues you care about</legend>
-            {ISSUE_CATEGORIES.map(c => <label key={c.slug} className="chip-check"><input type="checkbox" name="issue" value={c.slug} defaultChecked={issues.includes(c.slug)} /><span>{c.name}</span></label>)}</fieldset>
+          <IssueCap options={ISSUE_CATEGORIES.map(c => ({ slug: c.slug, name: c.name }))} initial={issues} />
           <button>Done</button></form>
         <p className="meta">Your choices stay on this device{canFollow ? " and with your trial invite" : ""}; nobody else sees them. <Link href="/start">Change ZIP</Link></p>
       </>}

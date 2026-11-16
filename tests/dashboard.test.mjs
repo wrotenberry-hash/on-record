@@ -68,3 +68,11 @@ test("sharing rules: same-site targets only, caption beside the image, Bluesky t
   const bytes = new TextEncoder().encode(text);
   assert.equal(new TextDecoder().decode(bytes.slice(facets[0].index.byteStart, facets[0].index.byteEnd)), link, "facet byte offsets cover the link exactly");
 });
+
+test("since your last visit: the first page of a new visit already knows the previous visit (regression)", async () => {
+  const { nextVisit } = await import("../lib/visit-rules.ts");
+  const L = Date.UTC(2026, 10, 14, 12), P = Date.UTC(2026, 10, 10, 12), now = L + 2 * 86400e3;
+  assert.equal(nextVisit(`${L}|${P}`, now).previous, L, "after a long gap the previous visit is the last one, not the one before it");
+  assert.equal(nextVisit(`${L}|${P}`, L + 10 * 60e3).previous, P, "within 30 minutes it is the same visit");
+  assert.equal(nextVisit(null, now).previous, null);
+});

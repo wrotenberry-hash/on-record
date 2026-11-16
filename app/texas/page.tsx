@@ -5,6 +5,10 @@ import { viewerAccess } from "@/lib/viewer";
 import { txOverview } from "@/lib/texas/queries";
 import { TX_STAGE_LABEL, type TxStage } from "@/lib/texas/parse";
 import { texasConfig } from "@/lib/texas/ingest";
+import { TX_OFFICERS } from "@/lib/texas/dashboard";
+import { getDb } from "@/db";
+import { txPeople } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Texas Legislature · On Record", robots: { index: false, follow: false } };
@@ -14,6 +18,7 @@ export default async function TexasPage() {
   const access = await viewerAccess();
   if (!access.allowed) return <PublicShell current="/texas" access={access} page="/texas">{null}</PublicShell>;
   const o = await txOverview().catch(() => null), c = texasConfig();
+  const seats = await getDb().select({ chamber: txPeople.chamber, party: txPeople.party, n: sql<number>`count(*)` }).from(txPeople).where(eq(txPeople.isCurrent, 1)).groupBy(txPeople.chamber, txPeople.party).catch(() => []);
   return <PublicShell current="/texas" access={access} page="/texas">
     <section className="fed-page">
       <div className="eyebrow">TEXAS LEGISLATURE <OfficialBadge /></div>
@@ -26,6 +31,11 @@ export default async function TexasPage() {
         {o?.moving.length ? <ul className="result-list">{o.moving.map(b => <li key={b.id}><Link href={`/texas/bills/${b.id}`}><span className="bill-tag">{b.identifier}</span> {b.title}</Link>
           <span className="meta">{TX_STAGE_LABEL[b.stage as TxStage] ?? b.stage}{b.latestActionDescription ? ` · ${b.latestActionDescription}` : ""}{b.latestActionDate ? ` (${shortDate(b.latestActionDate)})` : ""}</span></li>)}</ul>
           : <p className="meta">No Texas bill moved in the last 7 days{o?.inSession ? "" : "; the Legislature is not in session"}.</p>}</div>
+      <div className="fed-section"><h2>Who controls it and who runs it <OfficialBadge /></h2>
+        {seats.length ? <ul className="analysis-list">{(["upper", "lower"] as const).map(ch => { const rows = seats.filter(x => x.chamber === ch); return rows.length ? <li key={ch}><b>{ch === "upper" ? "Texas Senate (31 seats)" : "Texas House (150 seats)"}:</b> {rows.map(r => `${r.party ?? "Unknown"} ${r.n}`).join(" · ")}</li> : null; })}</ul>
+          : <p className="meta">Seat counts appear once the Texas member list loads (Open States).</p>}
+        <ul className="analysis-list">{TX_OFFICERS.map(x => <li key={x.title}><b>{x.title}:</b> {x.name} ({x.party}){x.title === "Lieutenant Governor" ? ", who presides over the Texas Senate" : x.title.startsWith("Speaker") ? ", who presides over the Texas House" : ""}. <span className="meta">As of the {x.asOf}.</span></li>)}</ul>
+        <p className="meta"><Link href="/dashboard/texas">Texas dashboard: seats, leaders and where bills stall</Link></p></div>
       <div className="fed-section"><h2>Coming up: hearings and floor calendars</h2>
         {o?.events.length ? <ul className="result-list">{o.events.map(e => <li key={e.id}><b>{e.name}</b><span className="meta">{new Date(e.start).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })} CT{e.location ? ` · ${e.location}` : ""}{(e.bills as string[] | null)?.length ? ` · ${(e.bills as string[]).slice(0, 6).join(", ")}` : ""}</span></li>)}</ul>
           : <p className="meta">No hearings posted yet.</p>}

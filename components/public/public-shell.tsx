@@ -7,17 +7,18 @@ import { FEEDBACK_COOKIE, shouldAskFeedback } from "@/lib/feedback-rules";
 import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 import { VisitMarker } from "@/components/visit/visit-marker";
 import { SwRegister } from "@/components/push/sw-register";
+import { NavProgress } from "@/components/ui/nav-progress";
 
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
-  { href: "/politicians", label: "Politicians" },
-  { href: "/moving", label: "This week" },
-  { href: "/texas", label: "Texas" },
-  { href: "/briefing", label: "Briefing" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/search", label: "Search" },
-  { href: "/issues", label: "Issues" },
   { href: "/legislators", label: "Your legislators" },
+  { href: "/search", label: "Search" },
+  { href: "/moving", label: "This week" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/texas", label: "Texas" },
+  { href: "/issues", label: "Issues" },
+  { href: "/politicians", label: "Politicians" },
+  { href: "/briefing", label: "Briefing" },
   { href: "/following", label: "Following" },
   { href: "/account", label: "Account" },
   { href: "/method", label: "How a claim is checked" },
@@ -26,6 +27,8 @@ export const PUBLIC_PAGES = [
   { href: "/transparency", label: "Transparency" },
   { href: "/records", label: "Published records" },
 ] as const;
+
+const INFO_PAGES = new Set(["/method", "/about", "/corrections", "/transparency", "/records"]);
 
 type Access = { allowed: boolean; preview: boolean; editor?: unknown; invite?: { activeDays?: number } | null; audience?: Audience };
 
@@ -48,7 +51,8 @@ export async function PublicShell({ current, children, access, page }: { current
   const askFeedback = trial && enabled && shouldAskFeedback(access?.invite?.activeDays, (await cookies()).get(FEEDBACK_COOKIE)?.value);
   // The claim record is not part of the trial: it opens with public reading.
   const pages = PUBLIC_PAGES.filter(p => p.href !== "/records" || publicRead || !!access?.editor);
-  const nav = pages.map(p => <Link key={p.href} href={p.href} aria-current={p.href === current ? "page" : undefined}>{p.label}</Link>);
+  // Round E: the menu carries what readers do; the about pages (method, corrections, transparency, records) stay in the footer.
+  const nav = pages.filter(p => !INFO_PAGES.has(p.href)).map(p => <Link key={p.href} href={p.href} aria-current={p.href === current ? "page" : undefined}>{p.label}</Link>);
   return <>
     <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link>
       <nav>{enabled ? nav : <Link href="/editor">Checking instrument</Link>}<small>{trial ? "INVITE-ONLY TRIAL" : access?.preview ? "PRIVATE PREVIEW" : enabled ? "CHECKING RECORDS ONLY" : "PRIVATE REVIEW BUILD"}</small></nav></header>
@@ -59,6 +63,7 @@ export async function PublicShell({ current, children, access, page }: { current
         : <div className="preview-banner" role="note"><b>Private preview.</b> You can see this page because you are signed in as the editor. Public reading is off; only you and trial invitees can see it.</div>)}
       {enabled && <VisitMarker />}
       {enabled && <SwRegister />}
+      <NavProgress />
       {askFeedback && <FeedbackPrompt />}
       {/* Round G: arrived through a shared link and has not set a location yet → invite them to look up their own legislators. */}
       {enabled && fromShare && current !== "/start" && page !== "/share/card" && <div className="share-landing" role="note"><p>Someone shared this from the official record.</p><Link className="button-link" href="/start">See your own legislators →</Link></div>}

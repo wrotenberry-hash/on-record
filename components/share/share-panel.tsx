@@ -40,7 +40,7 @@ export function SharePanel({ imageBase, filename, defaultCaption, kind = "card",
   return <div className="share-panel">
     {!slides && <div className="share-formats" role="radiogroup" aria-label="Image size">{FORMATS.map(f => <button key={f.id} type="button" role="radio" aria-checked={format === f.id}
       className={format === f.id ? "on" : ""} onClick={() => setFormat(f.id)}>{f.label}</button>)}</div>}
-    <div className={slides ? "share-slides" : ""}>
+    <div className={slides ? "share-slides" : ""} {...(slides ? { tabIndex: 0, role: "region", "aria-label": "The 5 slides; scroll sideways" } : {})}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {srcs.map((s, i) => <img key={s} src={s} alt={slides ? `Slide ${i + 1} of ${slides}` : "Share card preview"} className={`share-preview share-${slides ? "feed" : format}`} loading={i ? "lazy" : "eager"} />)}
     </div>

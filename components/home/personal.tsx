@@ -26,9 +26,18 @@ export async function PersonalHome({ userId }: { userId: string | null }) {
     .leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId)).where(and(inArray(officialMemberVotes.politicianId, ids), gte(officialRollCalls.votedAt, now - 7 * 86400e3)))
     .orderBy(desc(officialRollCalls.votedAt)).limit(8) : [];
   const moving = issues.length ? (await Promise.all(issues.map(i => movingThisWeek(i, now, 4).catch(() => [])))).flat().filter((b, i, a) => a.findIndex(x => x.id === b.id) === i).slice(0, 6) : [];
+  // Round E: each legislator's latest vote on a bill (not a nomination), so "how did my senator vote on the latest bill" takes no taps.
+  const mine = [...(fed?.senators ?? []), ...(fed?.representative ? [fed.representative] : [])];
+  const latestBill = (await Promise.all(mine.map(m => db.select({ rollCallId: officialRollCalls.id, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question, title: officialRollCalls.title, billId: officialRollCalls.billId,
+    billTitle: officialBills.title, billType: officialBills.billType, number: officialBills.number, position: officialMemberVotes.position })
+    .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).innerJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
+    .where(eq(officialMemberVotes.politicianId, m.id)).orderBy(desc(officialRollCalls.votedAt)).limit(1).get().then(v => v ? { m, v } : null).catch(() => null)))).filter(Boolean) as { m: { id: string; fullName: string; role: string }; v: { rollCallId: string; votedAt: number; question: string; title: string | null; billId: string | null; billTitle: string; billType: string; number: number; position: string } }[];
   return <section className="personal">
+    {latestBill.length > 0 && <div className="fed-section"><h2>Your legislators&apos; latest votes on bills</h2>
+      <ul className="result-list">{latestBill.map(({ m, v }) => <li key={m.id}><span><Link href={`/politicians/${m.id}`}><b>{m.fullName}</b></Link> <span className="meta">({m.role})</span> · {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
+        <Link href={`/bills/${v.billId}`}>{billLabel(v.billType, v.number)}: {v.billTitle}</Link><span className="meta">{shortDate(v.votedAt)} · {v.question}</span></li>)}</ul></div>}
     {ids.length > 0 && <div className="fed-section"><h2>This week from your legislators</h2>
-      {votes.length ? <ul className="result-list">{votes.map(v => <li key={`${v.rollCallId}-${v.memberId}`}><span><b>{v.name}</b> · {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
+      {votes.length ? <ul className="result-list">{votes.map(v => <li key={`${v.rollCallId}-${v.memberId}`}><span><Link href={`/politicians/${v.memberId}`}><b>{v.name}</b></Link> · {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
         {v.billId ? <Link href={`/bills/${v.billId}`}>{v.billType ? `${billLabel(v.billType, v.number!)}: ` : ""}{v.billTitle ?? v.title}</Link> : <span>{v.title ?? v.question}</span>}<span className="meta">{shortDate(v.votedAt)}</span></li>)}</ul>
         : <p className="meta">No recorded votes by your legislators in the last 7 days.</p>}
       <p className="meta"><Link href="/legislators">Your legislators</Link> · <Link href="/recap">This week&apos;s recap card</Link></p></div>}

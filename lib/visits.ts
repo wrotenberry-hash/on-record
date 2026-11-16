@@ -9,12 +9,8 @@ import { readerVisits } from "@/db/schema";
  * A visit starts after 30 minutes away.
  */
 export const VISIT_COOKIE = "or_lv";
-const GAP_MS = 30 * 60 * 1000;
-export function nextVisit(cookie: string | null | undefined, now: number) {
-  const [last, prev] = String(cookie ?? "").split("|").map(Number);
-  if (!Number.isFinite(last) || last <= 0) return { last: now, previous: null as number | null };
-  return now - last > GAP_MS ? { last: now, previous: last } : { last: now, previous: Number.isFinite(prev) && prev > 0 ? prev : null };
-}
+import { nextVisit } from "@/lib/visit-rules";
+export { nextVisit };
 
 export async function recordVisit(userId: string | null, now = Date.now()) {
   const jar = await cookies();
@@ -29,8 +25,13 @@ export async function recordVisit(userId: string | null, now = Date.now()) {
 }
 
 /** The previous visit (server components read it; the marker updates it). */
-export async function previousVisit(userId: string | null): Promise<number | null> {
-  if (userId) { const row = await getDb().select().from(readerVisits).where(eq(readerVisits.userId, userId)).get().catch(() => null); if (row?.previousSeenAt) return row.previousSeenAt; }
-  const [, prev] = String((await cookies()).get(VISIT_COOKIE)?.value ?? "").split("|").map(Number);
-  return Number.isFinite(prev) && prev > 0 ? prev : null;
+export async function previousVisit(userId: string | null, now = Date.now()): Promise<number | null> {
+  // Round E fix: the page is drawn before the visit marker records this visit, so work out "previous" the same
+  // way the marker will (nextVisit). Before, the first page after a long gap showed the visit before last.
+  const fromCookie = nextVisit((await cookies()).get(VISIT_COOKIE)?.value, now).previous;
+  if (userId) {
+    const row = await getDb().select().from(readerVisits).where(eq(readerVisits.userId, userId)).get().catch(() => null);
+    if (row) { const fromRow = nextVisit(`${row.lastSeenAt}|${row.previousSeenAt ?? ""}`, now).previous; return Math.max(fromRow ?? 0, fromCookie ?? 0) || null; }
+  }
+  return fromCookie;
 }

@@ -17,7 +17,7 @@ import { verificationConfig } from "@/lib/verify/config";
 import { scopeTotals } from "@/lib/verify/store";
 import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
 import { getDb } from "@/db";
-import { sentimentTotals } from "@/db/schema";
+import { officialPoliticians, sentimentTotals } from "@/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +44,10 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   if (!p) notFound();
   const [votes, followed, sponsor] = await Promise.all([recentVotes(p.id, 80), currentAppUserId().then(followedIds), sponsorships(p.id).catch(() => ({ sponsored: [], cosponsored: [] }))]);
   const latest = votes.slice(0, 10);
+  const latestBill = votes.find(v => !!v.billId) ?? null;
+  // Round E: one-tap compare with the other senator from the same state (same chamber, so the votes line up).
+  const partner = p.chamber === "senate" ? await getDb().select({ id: officialPoliticians.id, fullName: officialPoliticians.fullName }).from(officialPoliticians)
+    .where(and(eq(officialPoliticians.state, p.state), eq(officialPoliticians.chamber, "senate"), eq(officialPoliticians.isCurrent, 1), sql`${officialPoliticians.id} <> ${p.id}`)).get().catch(() => null) : null;
   const stats = await memberStats(p.id).catch(() => null);
   // Round G: votes against most of their own party, and Said vs. Did (matches and contradictions), same rules for every member.
   const { breakingRanksFor, saidVsDidPairs } = await import("@/lib/share-cards");
@@ -100,13 +104,17 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <p className="not-poll">Not a scientific poll.</p>
         <p className="meta">District-matched readers matched an address to {constituents.scope}. Shown beside the member&apos;s actual vote, never as a score.</p></div>}
 
+      {latestBill && <div className="fed-section latest-bill"><h2>Latest vote on a bill <OfficialBadge /></h2>
+        <p className="lead">{positionLine(latestBill.position, voteKind(latestBill.question, latestBill.billTitle ?? latestBill.title))}</p>
+        <p><Link href={`/bills/${latestBill.billId}`}>{latestBill.documentLabel ? `${latestBill.documentLabel}: ` : ""}{latestBill.billTitle ?? latestBill.title ?? latestBill.question}</Link></p>
+        <p className="meta">{shortDate(latestBill.votedAt)} · {latestBill.question}{latestBill.result ? ` · ${latestBill.result}` : ""} · <a className="src-link" href={latestBill.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a> · <Link className="src-link" href={`/share/card?t=vote&member=${p.id}&roll=${latestBill.rollCallId}`}>Share</Link></p></div>}
       {stats && stats.rollCalls > 0 && <div className="fed-section"><h2>On the record <OfficialBadge /></h2>
         <div className="stat-grid">
           <div className="stat"><b>{stats.missedRate ?? 0}%</b>missed votes ({stats.missed} of {stats.rollCalls})</div>
           {stats.withPartyRate !== null && <div className="stat"><b>{stats.withPartyRate}%</b>voted with most of their own party ({stats.withParty} of {stats.partyCounted})</div>}
         </div>
         <details className="method"><summary>How these are counted</summary><p className="meta">Both figures use the {stats.rollCalls} roll calls in On Record&apos;s copy of the official record that list this member. Missed: listed &ldquo;Not Voting&rdquo;. With own party: on roll calls where this member voted Yea or Nay, whether they voted the way most other {stats.party} members voted; ties, and roll calls with fewer than two other {stats.party} members voting, are left out. The same method is used for every member. These are counts, not ratings.</p></details>
-        <p className="meta"><Link href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
+        <p className="meta">{partner && <><Link href={`/compare?a=${p.id}&b=${partner.id}`}>Compare with {partner.fullName}</Link> · </>}<Link href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
 
       {ranks.length > 0 && <div className="fed-section"><h2>Votes against most of their own party <OfficialBadge /></h2>
         <ul className="analysis-list">{ranks.map(r => <li key={r.rollId}>{shortDate(r.votedAt)}: voted {r.position === "Yea" ? "yes" : "no"} on &ldquo;{r.question}&rdquo;{r.title ? <> ({r.billId ? <Link href={`/bills/${r.billId}`}>{r.title.slice(0, 90)}</Link> : r.title.slice(0, 90)})</> : null}. Their party: {r.party.Yea ?? 0} yes, {r.party.Nay ?? 0} no. <Link className="src-link" href={`/share/card?t=ranks&member=${p.id}&roll=${r.rollId}`}>Share</Link></li>)}</ul>

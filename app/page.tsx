@@ -7,6 +7,8 @@ import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { RightNow } from "@/components/home/right-now";
 import { SincePanel } from "@/components/home/since-panel";
 import { PersonalHome } from "@/components/home/personal";
+import { currentLocation } from "@/lib/location";
+import { pickedIssues } from "@/lib/reader-issues";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +23,15 @@ export default async function Home() {
   const access = await viewerAccess();
   if (!publicRead && !access.invite) redirect("/editor");
   const userId = await currentAppUserId().catch(() => null);
+  // Round E: a reader who set a ZIP or issues sees their own page first; a newcomer sees what On Record is, then "right now".
+  const personal = !!(await currentLocation(userId).catch(() => null)) || (await pickedIssues(userId).catch(() => [])).length > 0;
   return <PublicShell current="/" access={access} page="/">
-    <RightNow />
-    <SincePanel userId={userId} />
-    <PersonalHome userId={userId} />
+    {personal && <><PersonalHome userId={userId} /><SincePanel userId={userId} /><RightNow /></>}
     <section className="landing">
       <div className="eyebrow">THE CONGRESSIONAL RECORD, IN PLAIN WORDS</div>
       <h1>Talk is cheap. The record isn&apos;t.</h1>
       <p className="lede">See how every senator and representative voted, what each bill would do, and the strongest case for and against it. Every section says where it came from: copied from government records, or written by AI and checked. No scores, no grades.</p>
-      <div className="landing-actions"><Link className="cta" href="/legislators">Find your legislators</Link><Link href="/briefing">Today&apos;s briefing</Link><Link href="/issues">Browse by issue</Link></div>
+      <div className="landing-actions"><Link className="cta" href="/start">Find your legislators</Link><Link href="/briefing">Today&apos;s briefing</Link><Link href="/issues">Browse by issue</Link></div>
       <div className="landing-grid">
         <div><b>Every recorded vote <OfficialBadge /></b><p>House and Senate roll calls, copied from the House Clerk and senate.gov, each with a link to its source and a plain line on what the vote was for.</p></div>
         <div><b>Bills in plain words <AnalysisBadge /></b><p>What a bill would do, who it affects and what we don&apos;t know, cited to its sections. Written by AI, checked by fixed rules, and sampled by a person.</p></div>
@@ -38,5 +40,6 @@ export default async function Home() {
       </div>
       <p className="landing-note">Separately, On Record checks what politicians say against the evidence, one claim at a time, with a person reviewing every record. <Link href="/method">How a claim is checked</Link>.</p>
     </section>
+    {!personal && <><SincePanel userId={userId} /><RightNow /></>}
   </PublicShell>;
 }

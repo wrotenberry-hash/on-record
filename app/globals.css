@@ -167,3 +167,12 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .embed-card{max-width:520px;margin:0 auto;padding:16px;background:#f7f6f2;color:#172224;font:16px Arial,sans-serif;display:grid;gap:10px}.embed-title{font-size:22px;font-weight:700;margin:0}
 .embed-line{display:grid;gap:4px;background:#fff;border:1px solid #d9ded9;border-radius:6px;padding:12px}.embed-line small{color:#4f6b68}.embed-foot{border-top:2px solid #163b3c;padding-top:8px;margin:0;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.embed-foot a{color:#163b3c}
 .embed-code{white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #d9ded9;padding:10px;font-size:13px}
+/* Round E */
+.chip-check.chip-full{opacity:.45}.issue-follow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 16px}.issue-follow>button:not(.link-button){background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px}.following-note{font-weight:700;color:#245236}
+.analysis-list a{text-decoration:underline}.right-now a{display:inline-block;min-height:24px;padding:2px 0}
+table.history:focus-visible,.share-slides:focus-visible{outline:2px solid #163b3c;outline-offset:2px}
+.state-page{max-width:640px;margin:0 auto;padding:32px 16px;display:grid;gap:14px}.state-brand{font:700 22px Georgia,serif;letter-spacing:-.5px}.state-brand span{font-weight:700}
+.skeleton{height:16px;border-radius:4px;background:linear-gradient(90deg,#ecebe6 25%,#f4f3ef 50%,#ecebe6 75%);background-size:200% 100%;animation:sk 1.2s infinite}.skeleton-title{height:30px;width:70%}.skeleton-short{width:45%}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.skeleton{animation:none}}
+.nav-progress{position:fixed;top:0;left:0;height:3px;width:100%;z-index:50;background:linear-gradient(90deg,#163b3c 0 40%,transparent 40%);background-size:250% 100%;animation:navp 1s linear infinite}
+@keyframes navp{0%{background-position:100% 0}100%{background-position:-150% 0}}@media (prefers-reduced-motion:reduce){.nav-progress{animation:none;background:#163b3c}}
