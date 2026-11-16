@@ -8,7 +8,7 @@ export type OwnerStep = { key: string; title: string; minutes: number; why: stri
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
 export const PLAN_UPDATED = "2026-11-16T22:00:00Z";
-export const PLAN_NOTE = "Your 21:35 UTC run rewrote the 5 summaries for 0.35 cents each. Claude checked them against the bill text: all five are accurate. Three are shown. One is held only because a veterans' bill cannot avoid words like \"disability compensation\", and one is held because its bill text could not be found (correct). Fixed as generator b4: the bill's own title words no longer count as hard words, and arguments state the reason instead of \"X could say\". The 13:00 UTC run on 17 Nov rewrites them; if they pass, the 5-summary limit is lifted. Texas loaded for the first time: 178 legislators, 89 bills, 183 votes, no count mismatches. The trial is open with 25 invite links; none handed out yet.";
+export const PLAN_NOTE = "Your 21:35 UTC run rewrote the 5 summaries for 0.35 cents each. Claude checked them against the bill text: all five are accurate. Three are shown. One is held only because a veterans' bill cannot avoid words like \"disability compensation\", and one is held because its bill text could not be found (correct). Fixed as generator b4: the bill's own title words no longer count as hard words, and arguments state the reason instead of \"X could say\". The 13:00 UTC run on 17 Nov rewrites them; if they pass, the 5-summary limit is lifted. Texas loaded for the first time: 178 legislators, 100 bills, 183 votes, no count mismatches. The trial is open with 25 invite links; none handed out yet.";
 
 export const RECOMMENDED: Recommendation[] = [
   { title: "Finish proving the summaries (Round 1)", needs: "nothing; in progress",
@@ -57,7 +57,7 @@ export const ROUNDS: RoundStatus[] = [
   { round: "B", what: "Bill experience (timeline, party split, search, follow)", state: "live" },
   { round: "C", what: "Vote experience (what Yes/No means, compare, your legislators)", state: "live" },
   { round: "H", what: "What's happening and Texas", state: "live" },
-  { round: "I", what: "Dashboards (Congress; Texas fills from tonight's first load)", state: "live" },
+  { round: "I", what: "Dashboards (Congress and Texas)", state: "live" },
   { round: "D", what: "Reasons to come back (start, alerts, recap)", state: "live" },
   { round: "J", what: "Real-person verification", state: "live behind a switch" },
   { round: "G", what: "Sharing (cards, video, short links, post queue)", state: "live" },
