@@ -172,6 +172,8 @@ async function analysisStep(startedAt: number, reserveMs = 0): Promise<(Analysis
   let analysis: AnalysisRun | { status: "FAILED"; error: string };
   try { analysis = await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
   catch (error) { analysis = { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
+  // Round 1 review without email: write what this run wrote or rewrote to the function log, beside the cited bill sections.
+  if ("made" in analysis && analysis.made.length) await import("@/lib/analysis/report").then(m => m.logReviewPackets(analysis.made.map(x => x.billId))).catch(() => null);
   // Issue suggestions for unsorted bills use whatever time is left; never after a billing refusal (AI work stops).
   const refused = /billing or usage limit/i.test(("error" in analysis && analysis.error) || "");
   const left = 300_000 - (Date.now() - startedAt) - 40_000 - reserveMs;
