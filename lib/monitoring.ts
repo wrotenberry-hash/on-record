@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -21,7 +21,8 @@ export const DEDUPE_WINDOW_MS = 72 * HOUR_MS;
 export const RHYTHM_WINDOW_MS = 20 * HOUR_MS;
 /** Reviewed CHECKING records needed before the public inventory opens (mirrors lib/public-access.ts). */
 export const LAUNCH_TARGET = 20;
-export const KEY_EXPIRY_WARNING_DAYS = 21;
+/** Owner decision 2026-11-16: warn 3 days before the OpenAI key expires (was 21). */
+export const KEY_EXPIRY_WARNING_DAYS = 3;
 export const SPEND_ALERT_FRACTION = 0.75;
 /** The owner's OpenAI monthly usage limit (auto recharge on since 2026-11-13: $10 when under $3). OPENAI_MONTHLY_LIMIT_USD overrides. */
 export const DEFAULT_MONTHLY_LIMIT_USD = 40;

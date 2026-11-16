@@ -412,3 +412,12 @@ export const betaInvites = sqliteTable("beta_invites", {
   createdAt: integer("created_at").notNull(), firstSeenAt: integer("first_seen_at"), lastSeenAt: integer("last_seen_at"),
   lastActiveDay: text("last_active_day"), activeDays: integer("active_days").notNull().default(0), revokedAt: integer("revoked_at"),
 }, t => [uniqueIndex("beta_invites_number_uq").on(t.number)]);
+
+// Earlier versions of a bill summary, kept when the generator is improved and the
+// summary is written again (Round 1 review, 2026-11-16). The live row is updated in
+// place; this keeps what it said before, its checker result and its cost.
+export const analysisSummaryVersions = sqliteTable("analysis_summary_versions", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => analysisBillSummaries.id).notNull(),
+  promptVersion: text("prompt_version").notNull(), content: text("content", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  checkPassed: integer("check_passed").notNull(), costUsd: real("cost_usd").notNull(), replacedAt: integer("replaced_at").notNull(),
+}, t => [index("analysis_summary_versions_summary_idx").on(t.summaryId)]);

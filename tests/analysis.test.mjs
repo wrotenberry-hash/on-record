@@ -168,3 +168,30 @@ test("the checkpoint email carries every summary in full, badged, with the check
   assert.equal(summariesEmailDue(5, false), true);
   assert.equal(summariesEmailDue(9, true), false, "sent once");
 });
+
+test("each section keeps its own text, and a point must share key words with the section it cites", async () => {
+  const { citeSupports, contentWords } = await import("../lib/analysis/checker.ts");
+  const t = parseBillTextHtml(fx("bill-119hr2102eh.htm"));
+  assert.match(t.sections[1].text, /retired pay/i, "section 2's own text is kept");
+  assert.ok(!t.sections[0].text.includes("SEC. 2"), "a section's text stops where the next begins");
+  assert.equal(citeSupports("Lets military retirees with combat-related disabilities receive retired pay and disability compensation.", "Sec. 2", t.sections), true);
+  assert.equal(citeSupports("Creates a new grant program for rural broadband internet providers.", "Sec. 2", t.sections), false);
+  assert.equal(citeSupports("Anything at all.", "Sec. 2", SECTIONS), null, "no section text, nothing to check");
+  assert.ok(contentWords("Retirees retired retirement").size >= 1);
+  const d = good(); d.whatItDoes[0] = { text: "Creates a new grant program for rural broadband internet providers.", section: "Sec. 2" };
+  const withText = t.sections.map(s => ({ ...s }));
+  assert.match(checkSummary(d, withText).failures.join(" "), /shares no key words with Sec\. 2/);
+});
+
+test("the review email shows each cited section's opening words", async () => {
+  const { formatSummariesEmail } = await import("../lib/analysis/report-format.ts");
+  const row = { label: "H.R. 2102", title: "Major Richard Star Act", billId: "119-hr-2102", category: "defense-veterans", ...good(), status: "visible", queue: null,
+    checkPassed: true, attempts: 1, failures: [], warnings: [], readingGrade: 7, totalWords: 180, costUsd: 0.012, truncated: false,
+    excerpts: { "Sec. 2": "SEC. 2. EXPANSIONS OF ELIGIBILITY..." }, textUrl: "https://www.govinfo.gov/x.htm", previousCostUsd: 0.01 };
+  const first = formatSummariesEmail([row], "https://site.test");
+  assert.match(first.text, /Text of Sec\. 2: "SEC\. 2\. EXPANSIONS/);
+  assert.match(first.text, /Bill text: https:\/\/www\.govinfo\.gov\/x\.htm/);
+  const revised = formatSummariesEmail([row], "https://site.test", { revised: true, promptVersion: "b2" });
+  assert.match(revised.subject, /rewritten for review/);
+  assert.match(revised.text, /Earlier version cost \$0\.0100/);
+});

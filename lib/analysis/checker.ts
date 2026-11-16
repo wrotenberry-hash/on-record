@@ -4,7 +4,7 @@
  * in tests/analysis.test.mjs. A summary that fails is regenerated once with the
  * failures as feedback; a second failure holds it for an editor.
  */
-export type Section = { num: string; heading: string };
+export type Section = { num: string; heading: string; text?: string };
 
 /** Normalise a citation such as "Sec. 2", "Section 2(a)" or "§ 3" to its section number, or null. */
 export function citedSection(cite: string): string | null {
@@ -19,6 +19,31 @@ export function citeExists(cite: string, sections: readonly Section[]): boolean 
   return n !== null && sections.some(s => s.num.toUpperCase() === n);
 }
 
+
+const STOP = new Set("about above after again against along among another because before being below between could during every first other shall should their there these those through under until where which while would years section subsection paragraph amended amend inserting striking following united states including provide provides provided person persons respect".split(" "));
+/** Content words, crudely stemmed: lower case, five letters or more, common endings dropped. */
+export function contentWords(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const w of text.toLowerCase().match(/[a-z]{5,}/g) ?? []) {
+    if (STOP.has(w)) continue;
+    out.add(w.replace(/(ations?|ments?|ings?|ies|ied|ed|es|s)$/, "").slice(0, 7));
+  }
+  return out;
+}
+
+/**
+ * Does the cited section share at least one content word with the point that cites
+ * it? A point that shares none is almost always cited to the wrong section. Null
+ * when the section's text is not available (nothing to check against).
+ */
+export function citeSupports(pointText: string, cite: string, sections: readonly Section[]): boolean | null {
+  const n = citedSection(cite);
+  const section = n ? sections.find(s => s.num.toUpperCase() === n) : sections.length === 0 ? null : undefined;
+  if (!section?.text) return null;
+  const sectionWords = contentWords(`${section.heading} ${section.text}`);
+  for (const w of contentWords(pointText)) if (sectionWords.has(w)) return true;
+  return false;
+}
 
 export type Point = { text: string; section: string };
 export type Argument = { argument: string; attribution: string };
@@ -112,6 +137,7 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
       if (wc(p.text) > LIMITS.pointWords) fail(`${label} point ${i + 1} is ${wc(p.text)} words; the limit is ${LIMITS.pointWords}.`);
       if (!p.section.trim()) fail(`${label} point ${i + 1} cites no section.`);
       else if (!citeExists(p.section, sections)) fail(`${label} point ${i + 1} cites "${p.section}", which is not a section of this text.`);
+      else if (citeSupports(p.text, p.section, sections) === false) fail(`${label} point ${i + 1} shares no key words with ${p.section}; cite the section that says it.`);
     });
   };
   points("What it does", d.whatItDoes);

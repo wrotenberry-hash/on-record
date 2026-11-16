@@ -65,7 +65,7 @@ export function parseBillStatus(xml: string): BillStatus {
   return { title, versions, cbo, crsSummary: crsSummary || null, crsSummaryLabel: latest ? tag(latest, "actionDesc") : null };
 }
 
-export type Section = { num: string; heading: string };
+export type Section = { num: string; heading: string; text?: string };
 export type BillText = { text: string; sections: Section[]; chars: number };
 
 /** GPO "pre" HTML to plain text with its section headings. */
@@ -75,11 +75,15 @@ export function parseBillTextHtml(html: string): BillText {
   const sections: Section[] = [], seen = new Set<string>();
   const re = /^\s*(?:SEC\.|SECTION)\s+(\d+[A-Za-z]?)\.\s+([^\n]*(?:\n(?!\s*\n)[^\n]*){0,2})/gm;
   let m: RegExpExecArray | null;
+  const starts: number[] = [];
   while ((m = re.exec(text))) {
     if (seen.has(m[1])) continue; // a section number restated inside an amendment keeps its first heading
     seen.add(m[1]);
+    starts.push(m.index);
     sections.push({ num: m[1], heading: m[2].replace(/\s+/g, " ").replace(/\.$/, "").trim().slice(0, 160) });
   }
+  // Each section's own text runs to the next section's start (capped, for the cite-support check and review excerpts).
+  sections.forEach((s, i) => { s.text = text.slice(starts[i], starts[i + 1] ?? text.length).replace(/\s+/g, " ").trim().slice(0, 20_000); });
   return { text, sections, chars: text.length };
 }
 

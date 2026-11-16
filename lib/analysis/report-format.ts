@@ -13,10 +13,13 @@ export type SummaryForEmail = { label: string; title: string; billId: string; ca
   whatItDoes: Array<{ text: string; section: string }>; whoItAffects: Array<{ text: string; section: string }>; whatChangesForYou: string;
   caseFor: Array<{ argument: string; attribution: string }>; caseAgainst: Array<{ argument: string; attribution: string }>; unknowns: string[];
   confidence: string; confidenceReason: string; status: string; queue: string | null; checkPassed: boolean; attempts: number;
-  failures: string[]; warnings: string[]; readingGrade: number | null; totalWords: number | null; costUsd: number; truncated: boolean };
+  failures: string[]; warnings: string[]; readingGrade: number | null; totalWords: number | null; costUsd: number; truncated: boolean;
+  /** Opening words of each cited section, keyed by cite, so a reviewer can check the point against the text. */
+  excerpts?: Record<string, string>; textUrl?: string | null; previousCostUsd?: number | null };
 
 /** Pure. Plain text, one block per summary, every section badged as on the page. */
-export function formatSummariesEmail(rows: readonly SummaryForEmail[], siteUrl: string): { subject: string; text: string } {
+export function formatSummariesEmail(rows: readonly SummaryForEmail[], siteUrl: string, opts: { revised?: boolean; promptVersion?: string } = {}): { subject: string; text: string } {
+  const cite = (r: SummaryForEmail, section: string) => r.excerpts?.[section] ? `\n         Text of ${section}: "${r.excerpts[section]}"` : "";
   const cost = rows.reduce((n, r) => n + r.costUsd, 0);
   const queued = rows.filter(r => r.queue).length;
   const blocks = rows.map((r, i) => [
@@ -27,26 +30,29 @@ export function formatSummariesEmail(rows: readonly SummaryForEmail[], siteUrl: 
     ...(r.warnings.length ? [`   Warnings: ${r.warnings.join(" | ")}`] : []),
     "",
     `   [Analysis] Headline: ${r.headline}`,
-    "   [Analysis] What it does:", ...r.whatItDoes.map(p => `     - ${p.text} (${p.section})`),
-    "   [Analysis] Who it affects:", ...r.whoItAffects.map(p => `     - ${p.text} (${p.section})`),
+    "   [Analysis] What it does:", ...r.whatItDoes.map(p => `     - ${p.text} (${p.section})${cite(r, p.section)}`),
+    "   [Analysis] Who it affects:", ...r.whoItAffects.map(p => `     - ${p.text} (${p.section})${cite(r, p.section)}`),
     `   [Analysis] What changes for you: ${r.whatChangesForYou}`,
     "   [Analysis] The case for:", ...r.caseFor.map(a => `     - ${a.argument} (${a.attribution})`),
     "   [Analysis] The case against:", ...r.caseAgainst.map(a => `     - ${a.argument} (${a.attribution})`),
     "   [Analysis] What we don't know:", ...r.unknowns.map(u => `     - ${u}`),
     `   Confidence ${r.confidence}: ${r.confidenceReason}`,
     `   Page: ${siteUrl}/bills/${r.billId}`,
+    ...(r.textUrl ? [`   Bill text: ${r.textUrl}`] : []),
+    ...(r.previousCostUsd ? [`   Earlier version cost $${r.previousCostUsd.toFixed(4)}`] : []),
   ].join("\n"));
   const lines = [
-    `On Record wrote the first ${rows.length} bill summaries. Every line marked [Analysis] was written by the model from the bill's own text; the official title, status, cost estimate and votes on the page are copied from government records.`,
+    opts.revised ? `On Record rewrote ${rows.length} bill summar${rows.length === 1 ? "y" : "ies"} with an improved generator (${opts.promptVersion ?? "new version"}). The earlier versions are kept for comparison.`
+      : `On Record wrote the first ${rows.length} bill summaries. Every line marked [Analysis] was written by the model from the bill's own text; the official title, status, cost estimate and votes on the page are copied from government records.`,
     "",
-    `What to test on your phone: sign in, open Editor > Bill summaries, read each one, and approve or reject the ${queued} waiting in your queue. Then say "caps up" and the caps go to 40 summaries / $5.`,
+    `What to test on your phone: sign in, open Editor > Bill summaries, read each one, and approve or reject the ${queued} waiting in your queue. Each cited section's opening words are shown under its point so it can be checked against the bill.`,
     "",
     `Cost so far: $${cost.toFixed(4)} for ${rows.length} summaries.`,
     "", ...blocks.flatMap(b => [b, ""]),
     `Editor: ${siteUrl}/editor/analysis`,
-    "Sent once, by the scheduled run, when the first summaries were complete.",
+    opts.revised ? "Sent once per generator version, after summaries were rewritten." : "Sent once, by the scheduled run, when the first summaries were complete.",
   ];
-  return { subject: `[On Record] ${rows.length} bill summaries are ready to read`, text: lines.join("\n") };
+  return { subject: opts.revised ? `[On Record] ${rows.length} bill summaries rewritten for review` : `[On Record] ${rows.length} bill summaries are ready to read`, text: lines.join("\n") };
 }
 
 /** Pure. Send when the checkpoint count exists and the email has never gone out. */

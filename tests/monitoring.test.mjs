@@ -50,10 +50,11 @@ test("spend above 75% of the limit alerts; unknown spend never does", () => {
   assert.match(evaluate(unknown, now).checks.spend, /unknown/);
 });
 
-test("key expiry alerts within 21 days and after expiry, not before", () => {
+test("key expiry alerts within 3 days and after expiry, not before", () => {
   assert.equal(daysUntil("2026-12-02", now), 65);
-  assert.deepEqual(evaluate({ ...healthy(), keyExpires: "2026-10-19" }, now).alerts.map(a => a.kind), ["KEY_EXPIRING"]);
-  assert.deepEqual(evaluate({ ...healthy(), keyExpires: "2026-10-20" }, now).alerts, []);
+  assert.deepEqual(evaluate({ ...healthy(), keyExpires: "2026-10-01" }, now).alerts.map(a => a.kind), ["KEY_EXPIRING"]);
+  assert.deepEqual(evaluate({ ...healthy(), keyExpires: "2026-10-02" }, now).alerts, []);
+  assert.deepEqual(evaluate({ ...healthy(), keyExpires: "2026-10-19" }, now).alerts, [], "three weeks out is not yet an alert");
   assert.deepEqual(evaluate({ ...healthy(), keyExpires: "2026-09-01" }, now).alerts.map(a => a.subject), ["OpenAI API key has expired"]);
   assert.deepEqual(evaluate({ ...healthy(), keyExpires: null }, now).alerts, []);
   assert.deepEqual(evaluate({ ...healthy(), keyExpires: "not a date" }, now).alerts, []);
