@@ -154,3 +154,27 @@ test("what changed: H.R. 2102 introduced vs engrossed, compared section by secti
   assert.ok(d.changed.length + d.removed.length + d.added.length > 0, JSON.stringify(d));
   console.log("hr2102 ih→eh", JSON.stringify(d), ih.map(s => s.num).join(","), "→", eh.map(s => s.num).join(","));
 });
+
+test("member statistics: party majority excludes the member; ties and tiny delegations are left out", async () => {
+  const { partyMajority, withPartyMajority, rate, sharedAgreement } = await import("../lib/federal/member-stats-rules.ts");
+  assert.equal(partyMajority({ Yea: 3, Nay: 1 }), "Yea"); assert.equal(partyMajority({ Yea: 2, Nay: 2 }), null);
+  assert.equal(withPartyMajority("Nay", { Yea: 200, Nay: 12 }), false);
+  assert.equal(withPartyMajority("Yea", { Yea: 200, Nay: 12 }), true);
+  assert.equal(withPartyMajority("Yea", { Yea: 2, Nay: 1 }), null, "1 Yea 1 Nay among the others is a tie");
+  assert.equal(withPartyMajority("Yea", { Yea: 1, Nay: 1 }), null, "only one other member voted");
+  assert.equal(rate(1, 3), 33.3); assert.equal(rate(0, 0), null);
+  const a = new Map([["r1", "Yea"], ["r2", "Nay"], ["r3", "Not Voting"], ["r4", "Yea"]]), b = new Map([["r1", "Yea"], ["r2", "Yea"], ["r3", "Yea"], ["r5", "Nay"]]);
+  const s = sharedAgreement(a, b);
+  assert.deepEqual({ same: s.same, different: s.different, total: s.total }, { same: 1, different: 1, total: 2 });
+});
+
+test("yes and no meanings never call a procedural vote a vote on the bill", async () => {
+  const { yesNoMeaning } = await import("../lib/federal/vote-kinds.ts");
+  assert.match(yesNoMeaning("On the Cloture Motion").yes, /procedural/);
+  assert.match(yesNoMeaning("On Motion to Recommit").no, /procedural/);
+  assert.match(yesNoMeaning("On Agreeing to the Resolution", "Providing for consideration of the bill (H.R. 1)").yes, /debate rules/);
+  assert.equal(yesNoMeaning("On Passage").yes, "Pass it");
+  assert.match(yesNoMeaning("On Motion to Suspend the Rules and Pass, as Amended").yes, /two-thirds/);
+  assert.equal(yesNoMeaning("On the Nomination").no, "Do not confirm the nominee");
+  assert.match(yesNoMeaning("On Agreeing to the Amendment").yes, /amendment/);
+});

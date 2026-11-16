@@ -16,7 +16,7 @@ import { isFollowingBill } from "@/lib/bill-follows";
 import { Timeline } from "@/components/federal/timeline";
 import { PartySplit } from "@/components/federal/party-split";
 import { Glossed } from "@/components/ui/glossed";
-import { VoteExplainer } from "@/components/federal/vote-row";
+import { VoteExplainer, YesNo } from "@/components/federal/vote-row";
 import { GLOSSARY_URL } from "@/lib/federal/vote-labels";
 import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { verificationConfig } from "@/lib/verify/config";
@@ -57,7 +57,11 @@ export default async function BillPage({ params, searchParams }: { params: Promi
     costEstimates(bill.id).catch(() => []),
     currentAppUserId().then(followedIds),
   ]);
-  const mine = await followedVotes(votes.map(v => v.id), followed).catch(() => []);
+  // Round C: the reader's own legislators (saved districts) count as followed here, so their votes are highlighted.
+  const yours = await (async () => { const { currentLocation } = await import("@/lib/location"); const { federalLegislators } = await import("@/lib/federal/legislators");
+    const loc = await currentLocation(await currentAppUserId()); if (!loc) return new Set<string>();
+    const f = await federalLegislators(loc.state, loc.congressional); return new Set([...f.senators.map(s => s.id), ...(f.representative ? [f.representative.id] : [])]); })().catch(() => new Set<string>());
+  const mine = await followedVotes(votes.map(v => v.id), new Set([...followed, ...yours])).catch(() => []);
   const underReview = await import("@/lib/federal/depth").then(d => d.tallyUnderReview(votes.map(v => v.id))).catch(() => new Set<string>());
   const [timeline, amendments, floor, parties, cosponsors, changes, followingBill] = await Promise.all([
     billTimeline(bill.id, bill.introducedAt).catch(() => null), billAmendments(bill.id).catch(() => []), floorThisWeek(bill.id).catch(() => []),
@@ -156,14 +160,14 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       <div className="fed-section"><h2>How your politicians voted <OfficialBadge /></h2>
         {mine.length ? <ul className="vote-list">{mine.map(m => <li key={`${m.rollCallId}-${m.id}`} className="vote-row"><div className="vote-main">
-          <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link></b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
+          <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link>{yours.has(m.id) && <span className="your-tag"> · your legislator</span>}</b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
             return <><span className="vote-position">{positionLine(m.position, k)}</span><small>{memberLine(m)} · {KIND_LABEL[k]}{rc ? ` · ${rc.question}, ${shortDate(rc.votedAt)}` : ""}</small></>; })()}</div>
           <PositionPill position={m.position} raw={m.rawPosition} /></li>)}</ul>
-          : <p className="meta">{followed.size ? "None of the members you follow has a recorded vote on this bill." : <>Follow members on the <Link href="/politicians">Politicians</Link> page to see their votes here.</>}</p>}
+          : <p className="meta">{followed.size ? "None of the members you follow has a recorded vote on this bill." : <><Link href="/legislators">Find your legislators</Link> or follow members on the <Link href="/politicians">Politicians</Link> page to see their votes here.</>}</p>}
         <h3 className="subhead">All recorded votes</h3>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"} · <span className={`vote-kind vote-kind-${voteKind(v.question, v.title ?? bill.title)}`}>{KIND_LABEL[voteKind(v.question, v.title ?? bill.title)]}</span></span>
-          <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
+          <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} /><YesNo question={v.question} title={v.title ?? bill.title} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
       </div>

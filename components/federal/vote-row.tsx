@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AnalysisBadge, PositionPill, shortDate } from "@/components/federal/badges";
 import { explainVote } from "@/lib/federal/vote-labels";
-import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
+import { KIND_LABEL, positionLine, voteKind, yesNoMeaning } from "@/lib/federal/vote-kinds";
 
 export type VoteRowData = { rollCallId: string; votedAt: number; question: string; title: string | null; result: string | null; documentLabel: string | null;
   billId: string | null; billTitle: string | null; yea: number; nay: number; position: string; rawPosition: string; sourceUrl: string;
@@ -23,6 +23,7 @@ export function VoteRow({ v, memberId }: { v: VoteRowData; memberId?: string }) 
       {v.headline && v.billId && <span className="vote-headline"><Link href={`/bills/${v.billId}`}>{v.headline}</Link> <AnalysisBadge /></span>}
       <span className="vote-position">{positionLine(v.position, kind)}</span>
       <VoteExplainer question={v.question} />
+      <YesNo question={v.question} title={v.billTitle ?? v.title} />
       <small>{v.question}{v.tallyBad ? <> · <span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>{memberId && <> · <Link className="src-link" href={`/share/vote/${memberId}/${v.rollCallId}`}>Share</Link></>}</small>
     </div>
     <PositionPill position={v.position} raw={v.rawPosition} />
@@ -33,4 +34,10 @@ export function VoteRow({ v, memberId }: { v: VoteRowData; memberId?: string }) 
 export function VoteExplainer({ question }: { question: string }) {
   const plain = explainVote(question);
   return plain ? <span className="vote-plain">{plain}</span> : null;
+}
+
+/** What a Yes and a No meant on this question (Round C). */
+export function YesNo({ question, title }: { question: string; title?: string | null }) {
+  const m = yesNoMeaning(question, title);
+  return <span className="yes-no"><span><b>Yes meant:</b> {m.yes}</span><span><b>No meant:</b> {m.no}</span></span>;
 }

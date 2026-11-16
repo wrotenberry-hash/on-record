@@ -609,3 +609,9 @@ export const billFollows = sqliteTable("bill_follows", {
   userId: text("user_id").references(() => appUsers.id).notNull(), billId: text("bill_id").notNull(), createdAt: integer("created_at").notNull(),
   lastStage: text("last_stage"), lastAlertAt: integer("last_alert_at"),
 }, t => [primaryKey({ columns: [t.userId, t.billId] }), index("bill_follows_bill_idx").on(t.billId)]);
+
+// ── Round C: a reader's districts for "Your legislators" (migration 0021). District ids only, never the address. ──
+export const readerLocations = sqliteTable("reader_locations", {
+  userId: text("user_id").primaryKey().references(() => appUsers.id), state: text("state").notNull(), congressional: text("congressional"),
+  stateUpper: text("state_upper"), stateLower: text("state_lower"), source: text("source", { enum: ["zip", "address"] }).notNull(), updatedAt: integer("updated_at").notNull(),
+});

@@ -11,6 +11,7 @@ import { followedIds, getPolitician, recentVotes, sponsorships } from "@/lib/fed
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { agreementWith } from "@/lib/opinions";
 import { agreementLine } from "@/lib/agreement";
+import { memberStats } from "@/lib/federal/member-stats";
 import { verificationConfig } from "@/lib/verify/config";
 import { scopeTotals } from "@/lib/verify/store";
 import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
@@ -40,6 +41,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   if (!p) notFound();
   const [votes, followed, sponsor] = await Promise.all([recentVotes(p.id, 80), currentAppUserId().then(followedIds), sponsorships(p.id).catch(() => ({ sponsored: [], cosponsored: [] }))]);
   const latest = votes.slice(0, 10);
+  const stats = await memberStats(p.id).catch(() => null);
   const canAnswer = !!access.editor || !!access.invite;
   const userId = canAnswer ? await currentAppUserId() : null;
   const agreement = userId ? await agreementWith(userId, p.id).catch(() => ({ rows: [], answered: 0 })) : null;
@@ -81,6 +83,14 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           <span className="lead">{totalsLine(`District-matched in ${constituents.scope}`, r.local)}</span><br /><span className="meta">{totalsLine("Real people, nationally", r.national)}</span></li>)}</ul>
           : <p className="meta">Not enough verified answers yet on bills {p.fullName} voted on: totals show from {MIN_SHOWN} answers.</p>}
         <p className="meta">District-matched readers matched an address to {constituents.scope}. Shown beside the record, never as a score.</p></div>}
+
+      {stats && stats.rollCalls > 0 && <div className="fed-section"><h2>On the record <OfficialBadge /></h2>
+        <div className="stat-grid">
+          <div className="stat"><b>{stats.missedRate ?? 0}%</b>missed votes ({stats.missed} of {stats.rollCalls})</div>
+          {stats.withPartyRate !== null && <div className="stat"><b>{stats.withPartyRate}%</b>voted with most of their own party ({stats.withParty} of {stats.partyCounted})</div>}
+        </div>
+        <details className="method"><summary>How these are counted</summary><p className="meta">Both figures use the {stats.rollCalls} roll calls in On Record&apos;s copy of the official record that list this member. Missed: listed &ldquo;Not Voting&rdquo;. With own party: on roll calls where this member voted Yea or Nay, whether they voted the way most other {stats.party} members voted; ties, and roll calls with fewer than two other {stats.party} members voting, are left out. The same method is used for every member. These are counts, not ratings.</p></details>
+        <p className="meta"><Link href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
 
       <h2>Latest votes <OfficialBadge /></h2>
       {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} memberId={p.id} />)}</ul>

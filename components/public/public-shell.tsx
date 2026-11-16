@@ -12,6 +12,7 @@ export const PUBLIC_PAGES = [
   { href: "/moving", label: "This week" },
   { href: "/search", label: "Search" },
   { href: "/issues", label: "Issues" },
+  { href: "/legislators", label: "Your legislators" },
   { href: "/following", label: "Following" },
   { href: "/account", label: "Account" },
   { href: "/method", label: "How a claim is checked" },

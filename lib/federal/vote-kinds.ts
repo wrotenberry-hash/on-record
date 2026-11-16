@@ -45,3 +45,26 @@ export function positionLine(position: string, kind: VoteKind): string {
     default: return yes ? "Voted yes" : "Voted no";
   }
 }
+
+/**
+ * Round C: what a Yes and a No meant on this question, in plain words. Built only
+ * from the official question and title; worded the same way whichever side won.
+ */
+export function yesNoMeaning(question: string, title?: string | null): { yes: string; no: string } {
+  const q = question.toLowerCase(), t = title ?? "";
+  if (/^on (the )?nomination/.test(q)) return { yes: "Confirm the nominee", no: "Do not confirm the nominee" };
+  if (/cloture/.test(q)) return { yes: "End debate so the Senate can move toward a final vote (procedural)", no: "Keep debate going for now (procedural)" };
+  if (/motion to proceed/.test(q)) return { yes: "Start debating the measure (procedural)", no: "Do not start debate now (procedural)" };
+  if (/recommit/.test(q)) return { yes: "Send the bill back to committee (procedural)", no: "Keep the bill on the floor for a final vote (procedural)" };
+  if (/table/.test(q)) return { yes: "Set the motion or amendment aside (procedural)", no: "Keep it alive for a vote (procedural)" };
+  if (/previous question/.test(q)) return { yes: "End debate on the rule and vote on it now (procedural)", no: "Keep debate open, which can allow changes to the rule (procedural)" };
+  if (/overrid|objections of the president/.test(q)) return { yes: "Make the bill law despite the veto (needs two-thirds)", no: "Let the veto stand" };
+  if (/conference report/.test(q)) return { yes: "Approve the final House-Senate compromise version", no: "Reject the compromise version" };
+  if (/concur/.test(q)) return { yes: "Accept the other chamber's version", no: "Do not accept the other chamber's version" };
+  if (/amendment/.test(q) && !/senate amendments?/.test(q)) return { yes: "Add the amendment to the bill", no: "Leave the bill without the amendment" };
+  if (/providing for (the )?consideration of/i.test(t)) return { yes: "Approve the debate rules for the bills named (procedural)", no: "Reject those debate rules (procedural)" };
+  if (/suspend the rules/.test(q)) return { yes: "Pass it under fast-track rules (needs two-thirds)", no: "Do not pass it under fast-track rules" };
+  if (/passage|the bill|the resolution|joint resolution|concurrent resolution/.test(q)) return { yes: "Pass it", no: "Do not pass it" };
+  if (/quorum/.test(q)) return { yes: "Present for the count", no: "Not counted present" };
+  return { yes: "Yes on the question as worded", no: "No on the question as worded" };
+}
