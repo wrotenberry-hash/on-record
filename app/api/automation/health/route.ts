@@ -17,6 +17,7 @@ import { analysisLimits } from "@/lib/analysis/generate";
 import { archivedCount } from "@/lib/monitoring-runtime";
 import { feedbackCounts } from "@/lib/feedback";
 import { verificationCounts } from "@/lib/verify/store";
+import { depthCounts } from "@/lib/federal/depth";
 import { daysUntil } from "@/lib/monitoring";
 
 export const dynamic = "force-dynamic";
@@ -123,9 +124,11 @@ async function federal() {
     const [counts, run, unsorted, sponsorship, suggestions] = await Promise.all([federalCounts(), lastFederalRun(), uncategorisedPolicyAreas().catch(() => []),
       sponsorshipCounts().catch(() => null), suggestionCounts().catch(() => null)]);
     const steps = (run?.detail as { steps?: Record<string, { ok?: boolean; stored?: number; skipped?: string; error?: string }> } | null)?.steps ?? {};
-    return { ...counts, uncategorisedPolicyAreas: unsorted, sponsorship, issueSuggestions: suggestions, congressKeyConfigured: Boolean(process.env.CONGRESS_GOV_API_KEY?.trim()),
+    const depth = await depthCounts().catch(() => "unavailable" as const);
+    return { ...counts, depth, uncategorisedPolicyAreas: unsorted, sponsorship, issueSuggestions: suggestions, congressKeyConfigured: Boolean(process.env.CONGRESS_GOV_API_KEY?.trim()),
       lastRun: run ? { status: run.status, startedAt: new Date(run.startedAt).toISOString(),
-        steps: Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, { ok: v.ok ?? false, ...(v.stored !== undefined ? { stored: v.stored } : {}), ...(v.skipped ? { skipped: true } : {}), ...(v.error ? { error: String(v.error).replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) } : {}) }])) } : null };
+        steps: Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, { ok: v.ok ?? false, ...(v.stored !== undefined ? { stored: v.stored } : {}), ...(v.skipped ? { skipped: true } : {}),
+          ...Object.fromEntries(Object.entries(v).filter(([f, x]) => typeof x === "number" && f !== "stored")), ...(v.error ? { error: String(v.error).replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) } : {}) }])) } : null };
   } catch { return "unavailable" as const; }
 }
 

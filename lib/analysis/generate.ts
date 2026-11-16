@@ -25,7 +25,9 @@ const MAX_OUTPUT_TOKENS = 4000;
 /** Test-phase limits. Raise them in Vercel when the owner approves wider use. */
 export function analysisLimits() {
   const num = (v: string | undefined, d: number) => { const n = Number(v); return v?.trim() && Number.isFinite(n) && n >= 0 ? n : d; };
-  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 3), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 5),
+  // Master plan (16 Nov): summaries are capped by money, $25 a month (ANALYSIS_SPEND_CAP_USD), alert at 75%.
+  // ANALYSIS_MAX_SUMMARIES stays 5 until the first five pass the strict review (Round 1), then rises.
+  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 5),
     model: process.env.OPENAI_SUMMARY_MODEL?.trim() || process.env.OPENAI_EXTRACT_MODEL?.trim() || "gpt-5.4-mini",
     reasoning: process.env.ANALYSIS_REASONING_EFFORT?.trim() || "low" };
 }
@@ -226,7 +228,8 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
   const room = Math.min(max ?? Infinity, limits.maxSummaries - existing);
   const stale = await staleSummaries();
   if (room <= 0 && !stale.length) return finish("SKIPPED", `summary cap reached (${existing} of ANALYSIS_MAX_SUMMARIES ${limits.maxSummaries})`);
-  let spent = await spendSince(0, "analysis");
+  const monthStartMs = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1);
+  let spent = await spendSince(monthStartMs, "analysis");
   if (spent >= limits.spendCapUsd) return finish("SKIPPED", `spend cap reached ($${spent.toFixed(2)} of ANALYSIS_SPEND_CAP_USD $${limits.spendCapUsd})`);
   await db.insert(ingestRuns).values({ id, job: "analysis", status: "RUNNING", startedAt: started, detail: { trigger } });
   try {

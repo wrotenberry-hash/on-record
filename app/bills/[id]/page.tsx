@@ -51,6 +51,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
     currentAppUserId().then(followedIds),
   ]);
   const mine = await followedVotes(votes.map(v => v.id), followed).catch(() => []);
+  const underReview = await import("@/lib/federal/depth").then(d => d.tallyUnderReview(votes.map(v => v.id))).catch(() => new Set<string>());
   const canAnswer = !!access.invite || !!access.editor;
   const stance = canAnswer ? await currentAppUserId().then(u => stanceFor(u, bill.id)).catch(() => null) : null;
   const vc = verificationConfig();
@@ -76,7 +77,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
         {bill.latestActionText ? <p>{bill.latestActionText} <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
-          : votes[0] ? <p>Latest recorded vote: {votes[0].question}, {votes[0].result ?? "result not stated"} {votes[0].yea}–{votes[0].nay} <span className="meta">({shortDate(votes[0].votedAt)})</span></p>
+          : votes[0] ? <p>Latest recorded vote: {votes[0].question}, {votes[0].result ?? "result not stated"} {underReview.has(votes[0].id) ? "(tally under review)" : `${votes[0].yea}–${votes[0].nay}`} <span className="meta">({shortDate(votes[0].votedAt)})</span></p>
           : <p className="meta">No action recorded yet.</p>}
         {sponsor && <p className="meta">Sponsor: <Link href={`/politicians/${sponsor.id}`}>{sponsor.fullName}</Link></p>}
         {bill.introducedAt && <p className="meta">Introduced {shortDate(bill.introducedAt)}</p>}
@@ -135,7 +136,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         <h3 className="subhead">All recorded votes</h3>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"} · <span className={`vote-kind vote-kind-${voteKind(v.question, v.title ?? bill.title)}`}>{KIND_LABEL[voteKind(v.question, v.title ?? bill.title)]}</span></span>
-          <b>{v.question}</b><VoteExplainer question={v.question} /><small>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
+          <b>{v.question}</b><VoteExplainer question={v.question} /><small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
       </div>

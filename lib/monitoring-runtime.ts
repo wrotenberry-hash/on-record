@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, lt, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications, caseArchive } from "@/db/schema";
+import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications, caseArchive, officialTallyChecks } from "@/db/schema";
 import { signAction } from "@/lib/session-token";
 import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend, intakePauseThreshold, intakePausedFor } from "@/lib/monitoring";
 import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince } from "@/lib/model-calls";
@@ -77,7 +77,10 @@ export async function evaluateNow(now = Date.now()): Promise<Evaluation & { conf
     lastBillingRefusal(now - 24 * 3600 * 1000).catch(() => null), lastSuccessfulCallAt().catch(() => null),
   ]);
   const intakePaused = await intakePauseState().catch(() => null);
-  return { ...evaluate({ runs, spend, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest,
+  const { analysisLimits } = await import("@/lib/analysis/generate");
+  const summarySpend = await spendSince(monthStart(now), "analysis").then(v => ({ monthToDateUsd: Math.round(v * 100) / 100, capUsd: analysisLimits().spendCapUsd })).catch(() => null);
+  const tallyMismatches = await getDb().select({ n: sql<number>`count(*)` }).from(officialTallyChecks).where(eq(officialTallyChecks.ok, 0)).get().then(r => Number(r?.n ?? 0)).catch(() => null);
+  return { ...evaluate({ runs, spend, summarySpend, tallyMismatches, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest,
     billingRefusal: refusal, lastSuccessfulCallAt: lastOk, intakePaused: intakePaused?.paused ? intakePaused : null }, now), configured };
 }
 

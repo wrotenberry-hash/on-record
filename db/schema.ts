@@ -547,3 +547,59 @@ export const integrityCounts = sqliteTable("integrity_counts", {
 export const rateEvents = sqliteTable("rate_events", {
   id: text("id").primaryKey(), key: text("key").notNull(), action: text("action").notNull(), at: integer("at").notNull(),
 }, t => [index("rate_events_key_idx").on(t.key, t.action, t.at), index("rate_events_at_idx").on(t.at)]);
+
+// ── Round A: federal data depth (migration 0019). New tables only. Copies of public records, each with its source. ──
+export const officialBillActions = sqliteTable("official_bill_actions", {
+  billId: text("bill_id").notNull(), seq: integer("seq").notNull(), actionDate: text("action_date").notNull(), text: text("text").notNull(),
+  type: text("type"), actionCode: text("action_code"), chamber: text("chamber"), stage: text("stage"), committees: text("committees", { mode: "json" }),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.seq] }), index("bill_actions_date_idx").on(t.actionDate), index("bill_actions_stage_idx").on(t.stage)]);
+
+// Per-bill fetch state for actions, amendments and text versions (refreshed when the latest action changes).
+export const officialBillDepth = sqliteTable("official_bill_depth", {
+  billId: text("bill_id").primaryKey(), latestActionAt: text("latest_action_at"), stage: text("stage"), stageDate: text("stage_date"),
+  actionsAt: integer("actions_at"), amendmentsAt: integer("amendments_at"), textsAt: integer("texts_at"), error: text("error"),
+});
+
+export const officialAmendments = sqliteTable("official_amendments", {
+  id: text("id").primaryKey(), billId: text("bill_id").notNull(), chamber: text("chamber").notNull(), number: integer("number").notNull(),
+  description: text("description"), purpose: text("purpose"), latestActionDate: text("latest_action_date"), latestActionText: text("latest_action_text"),
+  outcome: text("outcome", { enum: ["adopted", "failed", "withdrawn", "pending"] }).notNull(), sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("amendments_bill_idx").on(t.billId)]);
+
+export const officialBillTexts = sqliteTable("official_bill_texts", {
+  billId: text("bill_id").notNull(), type: text("type").notNull(), date: text("date"), xmlUrl: text("xml_url"), htmlUrl: text("html_url"), pdfUrl: text("pdf_url"),
+  retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.type] })]);
+
+// "What changed" between two text versions: section numbers (Official, computed) and plain-English bullets (Analysis).
+export const analysisVersionChanges = sqliteTable("analysis_version_changes", {
+  billId: text("bill_id").notNull(), fromType: text("from_type").notNull(), toType: text("to_type").notNull(),
+  added: text("added", { mode: "json" }), removed: text("removed", { mode: "json" }), changed: text("changed", { mode: "json" }),
+  bullets: text("bullets", { mode: "json" }), status: text("status", { enum: ["sections", "explained", "failed"] }).notNull(),
+  costUsd: real("cost_usd").notNull().default(0), createdAt: integer("created_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.fromType, t.toType] })]);
+
+export const officialCommittees = sqliteTable("official_committees", {
+  id: text("id").primaryKey(), chamber: text("chamber").notNull(), name: text("name").notNull(), parentId: text("parent_id"), url: text("url"),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+});
+export const officialCommitteeMembers = sqliteTable("official_committee_members", {
+  committeeId: text("committee_id").notNull(), politicianId: text("politician_id").notNull(), side: text("side"), rank: integer("rank"), title: text("title"),
+  retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.committeeId, t.politicianId] }), index("committee_members_politician_idx").on(t.politicianId)]);
+// Committees a bill was referred to or reported by, from its actions.
+export const officialBillCommittees = sqliteTable("official_bill_committees", {
+  billId: text("bill_id").notNull(), committeeId: text("committee_id").notNull(), referredAt: text("referred_at"), reportedAt: text("reported_at"),
+}, t => [primaryKey({ columns: [t.billId, t.committeeId] }), index("bill_committees_committee_idx").on(t.committeeId)]);
+
+export const officialFloorSchedule = sqliteTable("official_floor_schedule", {
+  chamber: text("chamber").notNull(), weekOf: text("week_of").notNull(), label: text("label").notNull(), billId: text("bill_id"), description: text("description"),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.chamber, t.weekOf, t.label] }), index("floor_schedule_bill_idx").on(t.billId)]);
+
+// Daily integrity check: each roll call's official totals against its stored member votes. A mismatch is shown as
+// "tally under review" and alerts; it is never displayed silently.
+export const officialTallyChecks = sqliteTable("official_tally_checks", {
+  rollCallId: text("roll_call_id").primaryKey(), ok: integer("ok").notNull(), detail: text("detail", { mode: "json" }), checkedAt: integer("checked_at").notNull(),
+}, t => [index("tally_checks_ok_idx").on(t.ok)]);

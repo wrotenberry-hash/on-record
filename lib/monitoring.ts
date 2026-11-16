@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED", "SUMMARY_SPEND_75", "TALLY_MISMATCH"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -47,6 +47,10 @@ export type MonitoringInput = {
   runs: readonly LedgerRun[];
   spend: Spend;
   monthlyLimitUsd: number;
+  /** Bill-summary spend this month against its own monthly cap (master plan: $25, alert at 75%). */
+  summarySpend?: { monthToDateUsd: number; capUsd: number } | null;
+  /** Roll calls whose official totals do not match their stored member votes (Round A integrity check). */
+  tallyMismatches?: number | null;
   /** ISO date (YYYY-MM-DD) or null when not configured. */
   keyExpires: string | null;
   /** Last time each kind was sent, or undefined. */
@@ -121,6 +125,15 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
     detail: lastCapture ? `The last scheduled run that captured a statement finished ${iso(referenceAt!)}. Runs since then completed without a capture or failed.`
       : `No scheduled run has captured a statement since the first run at ${iso(referenceAt!)}.` });
 
+  // (3c) Roll-call tallies that do not match the official totals: shown as under review, never silently.
+  if (input.tallyMismatches) found.push({ kind: "TALLY_MISMATCH", subject: `${input.tallyMismatches} roll-call tall${input.tallyMismatches === 1 ? "y does" : "ies do"} not match the official totals`,
+    detail: `The daily integrity check found ${input.tallyMismatches} roll call(s) whose stored member votes do not add up to the official totals. Those votes show "Tally under review" instead of counts until the next ingest corrects them. The health probe lists examples under federal.depth.` });
+  // (3b) Bill-summary spend above 75% of its monthly cap.
+  if (input.summarySpend && input.summarySpend.capUsd > 0) {
+    checks.summarySpend = `$${input.summarySpend.monthToDateUsd.toFixed(2)} of $${input.summarySpend.capUsd.toFixed(2)}`;
+    if (input.summarySpend.monthToDateUsd > input.summarySpend.capUsd * SPEND_ALERT_FRACTION) found.push({ kind: "SUMMARY_SPEND_75", subject: "Bill-summary spend above 75% of its monthly cap",
+      detail: `Bill summaries have cost $${input.summarySpend.monthToDateUsd.toFixed(2)} this month, above 75% of the $${input.summarySpend.capUsd.toFixed(2)} cap (ANALYSIS_SPEND_CAP_USD). Summaries stop at the cap and resume next month.` });
+  }
   // (3) Month-to-date spend above 75% of the configured monthly limit.
   const threshold = input.monthlyLimitUsd * SPEND_ALERT_FRACTION;
   if (input.spend.monthToDateUsd === null) checks.spend = `unknown (${input.spend.reason})`;

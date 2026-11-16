@@ -1,71 +1,72 @@
 # Operating rules
 
-Standing rules from the owner (Wilson), set 2026-11-13. Every session working on
+Standing rules from the owner (Wilson). Set 2026-11-13; replaced by the master
+build plan of 2026-11-16 (`docs/MASTER_BUILD_PLAN.md`). Every session working on
 On Record follows them. They sit above the older `/next` loop in
 `.claude/commands/next.md`: where the two differ, this file wins.
 
-## 1. Defaults, not questions
+## 1. Work autonomously
 
-When a decision has a reasonable default, take it, record it in
-`docs/DECISIONS.md` (the "Operating decisions" table), and keep going.
+Work through every round of `docs/MASTER_BUILD_PLAN.md`, in order, without
+asking. Take reasonable defaults and log each in `docs/DECISIONS.md` (the
+"Operating decisions" table).
 
-Stop and ask only for:
+## 2. After each round
 
-- altering or dropping an existing table (new tables and new nullable columns on
-  new tables are fine);
+Tests, typecheck, lint, build, deploy, verify on the public health probe, update
+`STATUS.md`. Then start the next round.
+
+## 3. Hard stops (the only reasons to pause and ask)
+
+- altering or dropping an existing table (new tables, and new nullable columns
+  on new tables, are fine);
 - touching any of the 41 review-gate triggers;
-- making anything public (the public switch, a new anonymous endpoint, a new
-  public page, or any summary, statement or name reaching an unsigned-in reader);
-- spending above the caps (`ANALYSIS_MAX_SUMMARIES`, `ANALYSIS_SPEND_CAP_USD`,
-  the OpenAI monthly limit);
+- making anything public beyond trial invites: `PUBLIC_READ_ENABLED` stays off;
+  no new anonymous endpoint, public page, social post or embeddable widget that
+  shows content to an unsigned-in reader;
+- exceeding a spend cap;
 - a bug that survived two fix attempts.
 
-## 2. Keep going
+## 4. Never block on secrets or accounts
 
-When a phase checkpoint in `docs/TALK_IS_CHEAP_PLAN.md` passes the session's own
-verification (build, tests, typecheck, and the production health probe where it
-applies), start the next phase without waiting for the owner.
+When a step needs a key or an account only the owner can create, build it behind
+a flag, test it with local stand-ins, and add the exact steps (and where to paste
+in Vercel) to the MANUAL batch. Do not ask for a new secret when a way that needs
+none exists.
 
-## 3. No new secrets or environments
+## 5. Verify deploys on the public health probe
 
-Do not ask for a new secret, token or environment without first proposing a way
-that needs none. Verify deploys by reading the public health probe,
-`https://on-record-wrotenberry.vercel.app/api/automation/health`, not the
-Vercel API. The owner is not adding a Vercel token to this environment.
+`https://on-record-wrotenberry.vercel.app/api/automation/health`, read with the
+Vercel web-fetch tool. Not the Vercel API.
 
-## 4. Billing
+## 6. Reporting: at most once a day
 
-OpenAI auto recharge is on ($10 when the balance falls below $3) with a $40
-monthly usage limit. There is no estimated-balance alert and no
-`OPENAI_CREDIT_USD` / `OPENAI_CREDIT_SET_AT` setting. What remains:
+One push notification and one email digest per day at most, covering the rounds
+completed, phone screenshots, exactly what to test on the phone, and a single
+batched MANUAL list. Alerts the app sends itself (billing refusal, spend at 75%,
+key expiry) are separate and unchanged.
 
-- the `BILLING_REFUSED` alert (OpenAI refused a call for billing), at once;
-- the `SPEND_75_PERCENT` alert against `OPENAI_MONTHLY_LIMIT_USD` (default 40);
-- a month-to-date spend total on the health probe (`openaiSpend`), priced from
-  On Record's own ledger of every model call.
+## 7. Spend
 
-## 5. Reporting
+- OpenAI monthly limit $40 (`OPENAI_MONTHLY_LIMIT_USD`), alert at 75%.
+- Bill summaries capped at $25 a month (`ANALYSIS_SPEND_CAP_USD`), alert at 75%.
+- Verification texts capped at $10 a month (`VERIFY_MONTHLY_CAP_USD`).
+- If OpenAI refuses a call: pause AI work, keep non-AI work going, alert once.
 
-One push notification per completed phase, and the same report by email.
-Plain language. Say what to test on the phone. Batch the MANUAL items (things
-only the owner can do: Vercel settings, OpenAI billing, a domain). Never more
-than one MANUAL batch a week unless something is broken.
+## 8. Key
 
-## 6. Where things stood on 2026-11-13
+The current OpenAI key expires 23 Nov 2026 (`OPENAI_KEY_EXPIRES`). The app warns
+3 days before if it has not been replaced.
 
-Phase B decisions are approved (see `docs/DECISIONS.md`). Next in order: let the
-19:00 UTC run write the 5 real summaries; review them against the template rules
-in `docs/TALK_IS_CHEAP_PLAN.md`; fix anything the rule checker missed; raise the
-caps to 40 summaries / $5; then proceed to Phase C.
+## 9. Neutrality
 
-## How a session applies these
+No grades or ratings of politicians. Identical treatment across parties. Every
+figure computed from official data, with method and source one tap away.
+Official and Analysis badges always visible. Procedural votes are never shown
+as votes for or against a bill.
 
-- Read this file, then `STATUS.md`, `docs/DECISIONS.md` and
-  `docs/TALK_IS_CHEAP_PLAN.md`, before changing anything.
-- Verify with `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`
-  (the build runs the migrations against a local SQLite file).
-- Commit one plain-English commit per completed action and push to the
-  session's branch. Production deploys from `main`; if the session cannot push
-  there, say so once in the report and list the merge as a MANUAL item.
-- Keep `STATUS.md` current: Done, In Progress, Blocked, Decisions Made,
-  Waiting on Wilson.
+## 10. Privacy
+
+Political views are sensitive. Aggregates only to anyone but the user. No data
+sales, and no sharing with campaigns, parties or PACs. First-party analytics
+only.

@@ -33,7 +33,9 @@ export async function recentVotes(politicianId: string, limit = 10) {
     // The bill's one-line Analysis headline (visible summaries only) and its first issue, for "what the bill would do" beside the vote.
     headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and s.status = 'visible' order by s.created_at desc limit 1)`,
     issueSlug: sql<string | null>`(select bc.category_slug from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)`,
-    issueName: sql<string | null>`(select ic.name from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)` })
+    issueName: sql<string | null>`(select ic.name from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)`,
+    // Round A integrity check: a roll call whose member votes do not add up to the official totals is shown as under review.
+    tallyBad: sql<number>`exists (select 1 from official_tally_checks t where t.roll_call_id = ${officialRollCalls.id} and t.ok = 0)` })
     .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
     .leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
     .where(eq(officialMemberVotes.politicianId, politicianId)).orderBy(desc(officialRollCalls.votedAt)).limit(limit);

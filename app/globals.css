@@ -110,3 +110,4 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .sentiment{display:grid;gap:6px}.sentiment .lead{font-weight:700}
 @media(max-width:480px){.verify-row{grid-template-columns:1fr 1fr}.verify-row span:first-child{grid-column:1/-1}}
 .reason-field{display:grid;gap:4px;flex:1 1 100%;font-size:14px}.reason-field input{font:16px Arial,sans-serif;padding:9px;border:1px solid #c8d6ce;border-radius:3px;min-height:44px}
+.tally-review{background:#f6ead9;color:#5a3d16;padding:1px 6px;border-radius:3px;font-weight:700}

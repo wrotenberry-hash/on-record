@@ -150,7 +150,7 @@ async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error:
  * nudge (the batch stops starting new summaries 45 s before its deadline and
  * each model call is capped to the time left). Their own caps bound spend.
  */
-async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string } }> {
+async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string }; changes?: unknown }> {
   const budgetMs = 300_000 - (Date.now() - startedAt) - 40_000;
   if (budgetMs < 50_000) return { status: "FAILED", error: "no time left in this run" };
   let analysis: AnalysisRun | { status: "FAILED"; error: string };
@@ -163,7 +163,12 @@ async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status:
   let classify: ClassifyRun | { status: "FAILED"; error: string };
   try { classify = await runClassifyBatch({ budgetMs: left }); }
   catch (error) { classify = { status: "FAILED", error: (error instanceof Error ? error.message : "classify failed").slice(0, 200) }; }
-  return { ...analysis, classify };
+  // Round A: "what changed" between text versions, within the same monthly summary cap.
+  const left2 = 300_000 - (Date.now() - startedAt) - 40_000;
+  if (left2 < 40_000 || /billing/i.test(("error" in classify && classify.error) || "")) return { ...analysis, classify };
+  const { runChangesBatch } = await import("@/lib/analysis/changes");
+  const changes = await runChangesBatch({ budgetMs: left2 }).catch(error => ({ status: "FAILED" as const, error: (error instanceof Error ? error.message : "changes failed").slice(0, 200) }));
+  return { ...analysis, classify, changes };
 }
 
 /**

@@ -25,16 +25,16 @@ const LEGISLATORS_EVERY_MS = 20 * 60 * 60 * 1000;
 const RECENT_BILLS_EVERY_MS = 20 * 60 * 60 * 1000;
 
 type Db = ReturnType<typeof getDb>;
-type Step = { ok: boolean; error?: string; [k: string]: unknown };
+export type Step = { ok: boolean; error?: string; [k: string]: unknown };
 export type IngestSummary = { id: string; status: "COMPLETE" | "PARTIAL" | "FAILED"; steps: Record<string, Step>; ms: number };
 
-async function fetchText(url: string, timeoutMs = 20_000, headers: Record<string, string> = {}) {
+export async function fetchText(url: string, timeoutMs = 20_000, headers: Record<string, string> = {}) {
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "*/*", ...headers }, signal: AbortSignal.timeout(timeoutMs), cache: "no-store" });
   return { status: res.status, ok: res.ok, text: await res.text() };
 }
 
-async function getCursor(db: Db, key: string) { return (await db.select().from(ingestCursors).where(eq(ingestCursors.key, key)).get())?.value ?? null; }
-async function setCursor(db: Db, key: string, value: string) {
+export async function getCursor(db: Db, key: string) { return (await db.select().from(ingestCursors).where(eq(ingestCursors.key, key)).get())?.value ?? null; }
+export async function setCursor(db: Db, key: string, value: string) {
   await db.insert(ingestCursors).values({ key, value, updatedAt: Date.now() }).onConflictDoUpdate({ target: ingestCursors.key, set: { value, updatedAt: Date.now() } });
 }
 
@@ -45,7 +45,7 @@ export async function seedCategories(db: Db = getDb()) {
     categorySlug: m.categorySlug, note: m.note, active: 1, createdAt: Date.now() }))).onConflictDoNothing();
 }
 
-async function chunked<T>(rows: T[], size: number, fn: (part: T[]) => Promise<unknown>) { for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size)); }
+export async function chunked<T>(rows: T[], size: number, fn: (part: T[]) => Promise<unknown>) { for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size)); }
 
 /** Sitting members from congress-legislators, at most once every 20 hours unless forced. */
 export async function ingestLegislators(db: Db, force = false): Promise<Step> {
@@ -251,6 +251,12 @@ export async function runFederalIngest({ budgetMs = 120_000, trigger = "schedule
   await step("house", () => ingestHouse(db, deadline));
   await step("bills", () => ingestBills(db, deadline));
   await step("sponsorships", () => ingestSponsorships(db, deadline));
+  // Round A: committees (weekly), floor schedule, bill actions/amendments/texts, and the tally integrity check.
+  const depth = await import("@/lib/federal/depth");
+  await step("committees", () => depth.ingestCommittees(db));
+  await step("floor", () => depth.ingestFloor(db));
+  await step("depth", () => depth.ingestDepth(db, deadline));
+  await step("tally", () => depth.checkTallies(db));
   const failures = Object.values(steps).filter(s => !s.ok).length;
   const status = failures === 0 ? "COMPLETE" : failures === Object.keys(steps).length ? "FAILED" : "PARTIAL";
   const errors = Object.entries(steps).filter(([, s]) => !s.ok).map(([k, s]) => `${k}: ${s.error}`).join(" | ").slice(0, 600) || null;
