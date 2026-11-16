@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { FEEDBACK_COOKIE, shouldAskFeedback } from "@/lib/feedback-rules";
 import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 import { VisitMarker } from "@/components/visit/visit-marker";
+import { SwRegister } from "@/components/push/sw-register";
 
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
@@ -56,6 +57,7 @@ export async function PublicShell({ current, children, access, page }: { current
         ? <div className="preview-banner" role="note"><b>Invite-only trial.</b> You are seeing On Record before it is public. Thank you for trying it; tell the person who invited you what was confusing or missing.</div>
         : <div className="preview-banner" role="note"><b>Private preview.</b> You can see this page because you are signed in as the editor. Public reading is off; only you and trial invitees can see it.</div>)}
       {enabled && <VisitMarker />}
+      {enabled && <SwRegister />}
       {askFeedback && <FeedbackPrompt />}
       {enabled ? children : <><div className="intro"><div className="eyebrow">PRIVATE REVIEW</div><h1>This page is not yet public.</h1>
         <p>On Record is being evaluated privately. This page will appear once the editorial team enables public reading.</p></div>

@@ -703,3 +703,21 @@ export const leadershipChanges = sqliteTable("leadership_changes", {
 export const txSessionStats = sqliteTable("tx_session_stats", {
   session: text("session").primaryKey(), counts: text("counts", { mode: "json" }).notNull(), source: text("source").notNull(), retrievedAt: integer("retrieved_at").notNull(),
 });
+
+// ── Round D: issues a reader picked, alert choices, web push subscriptions (migration 0026). New tables only. ──
+export const readerIssues = sqliteTable("reader_issues", {
+  userId: text("user_id").notNull().references(() => appUsers.id), slug: text("slug").notNull(), createdAt: integer("created_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.slug] })]);
+export const alertPrefs = sqliteTable("alert_prefs", {
+  userId: text("user_id").primaryKey().references(() => appUsers.id), instantVotes: integer("instant_votes").notNull().default(0), instantBills: integer("instant_bills").notNull().default(1),
+  push: integer("push").notNull().default(0), updatedAt: integer("updated_at").notNull(),
+});
+export const pushSubscriptions = sqliteTable("push_subscriptions", {
+  endpointHash: text("endpoint_hash").primaryKey(), userId: text("user_id").references(() => appUsers.id), endpoint: text("endpoint").notNull(), p256dh: text("p256dh"), auth: text("auth"),
+  createdAt: integer("created_at").notNull(), lastSentAt: integer("last_sent_at"), failures: integer("failures").notNull().default(0),
+}, t => [index("push_subscriptions_user_idx").on(t.userId)]);
+// What a push or instant alert said, so the service worker can show it (pushes carry no payload).
+export const alertOutbox = sqliteTable("alert_outbox", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull(), title: text("title").notNull(), body: text("body").notNull(), url: text("url").notNull(),
+  createdAt: integer("created_at").notNull(), seenAt: integer("seen_at"),
+}, t => [index("alert_outbox_user_idx").on(t.userId, t.createdAt)]);

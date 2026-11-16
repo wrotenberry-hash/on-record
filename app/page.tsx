@@ -6,6 +6,7 @@ import { AnalysisBadge, OfficialBadge } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { RightNow } from "@/components/home/right-now";
 import { SincePanel } from "@/components/home/since-panel";
+import { PersonalHome } from "@/components/home/personal";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function Home() {
   return <PublicShell current="/" access={access} page="/">
     <RightNow />
     <SincePanel userId={userId} />
+    <PersonalHome userId={userId} />
     <section className="landing">
       <div className="eyebrow">THE CONGRESSIONAL RECORD, IN PLAIN WORDS</div>
       <h1>Talk is cheap. The record isn&apos;t.</h1>

@@ -28,6 +28,19 @@ export async function setDigest(formData: FormData) {
   redirect("/account?m=saved");
 }
 
+/** Round D alert choices: instant votes on your issues, bill moves. Push is turned on per device on the page. */
+export async function setAlerts(formData: FormData) {
+  const access = await viewerAccess();
+  if (!access.allowed || (!access.invite && !access.editor)) redirect("/account");
+  const userId = await currentAppUserId(true);
+  if (!userId) redirect("/account");
+  const { alertPrefs } = await import("@/db/schema");
+  const v = { instantVotes: formData.get("instantVotes") === "1" ? 1 : 0, instantBills: formData.get("instantBills") === "1" ? 1 : 0, updatedAt: Date.now() };
+  await getDb().insert(alertPrefs).values({ userId, ...v }).onConflictDoUpdate({ target: alertPrefs.userId, set: v });
+  await countEvent(v.instantVotes ? "instant_alerts_on" : "instant_alerts_off", access.audience);
+  redirect("/account?m=saved#alerts");
+}
+
 export async function signOut() {
   (await cookies()).delete(READER_COOKIE);
   redirect("/account?m=signedout");

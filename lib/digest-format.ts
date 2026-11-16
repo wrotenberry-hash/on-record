@@ -32,6 +32,6 @@ export function formatDigest(members: readonly DigestMember[], links: { site: st
     }
     lines.push("");
   }
-  lines.push(`Following: ${links.site}/following`, "", `Stop these emails: ${links.unsubscribe}`, "On Record shows what officials did. It does not grade them.");
+  lines.push(`Following: ${links.site}/following`, `Share your recap card: ${links.site}/recap`, "", `Stop these emails: ${links.unsubscribe}`, "On Record shows what officials did. It does not grade them.");
   return { subject: `[On Record] How your members voted: ${items} vote${items === 1 ? "" : "s"}`, text: lines.join("\n"), items };
 }

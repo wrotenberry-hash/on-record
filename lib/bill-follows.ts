@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, ne, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { billFollows, officialBillDepth, officialBills, readerAccounts } from "@/db/schema";
+import { alertPrefs, billFollows, officialBillDepth, officialBills, readerAccounts } from "@/db/schema";
 import { STAGE_LABEL, type StageKey } from "@/lib/federal/depth-parse";
 import { billLabel } from "@/components/federal/badges";
 import { sendTo } from "@/lib/mailer";
@@ -32,8 +32,12 @@ export async function runBillAlerts() {
   let sent = 0, skipped = 0, failed = 0;
   for (const m of moved) {
     const set = { lastStage: m.stage, lastAlertAt: Date.now() };
-    if (!m.lastStage || !m.email || !m.verifiedAt) { skipped++; await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); continue; }
     const label = billLabel(m.billType, m.number), stage = STAGE_LABEL[m.stage as StageKey] ?? m.stage;
+    // Round D: an in-app / push alert for every follower whose bill moved (push only where they turned it on), unless they switched bill alerts off.
+    const pref = await db.select({ on: alertPrefs.instantBills }).from(alertPrefs).where(eq(alertPrefs.userId, m.userId)).get();
+    if (pref && !pref.on) { await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); skipped++; continue; }
+    if (m.lastStage) await import("@/lib/push").then(p => p.notifyUser(m.userId, { title: `${label}: ${stage}`, body: m.title, url: `/bills/${m.billId}` })).catch(() => null);
+    if (!m.lastStage || !m.email || !m.verifiedAt) { skipped++; await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); continue; }
     const r = await sendTo(m.email, `${label}: ${stage}`, [`A bill you follow moved.`, "", `${label}, ${m.title}`, `Now: ${stage}${m.stageDate ? ` (${m.stageDate})` : ""}.`, "",
       `See the bill: ${SITE}/bills/${m.billId}`, "", "You get this because you follow this bill on On Record. Unfollow on the bill page to stop."].join("\n"));
     if (r.ok) { sent++; await db.update(billFollows).set(set).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); } else failed++;

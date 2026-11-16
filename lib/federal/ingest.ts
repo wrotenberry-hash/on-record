@@ -313,6 +313,8 @@ export async function runFederalIngest({ budgetMs = 120_000, trigger = "schedule
   await step("dashboards", () => dash.refreshDashboards(db));
   // Round B: one email per followed bill whose stage moved.
   await step("billAlerts", async () => ({ ok: true, ...(await (await import("@/lib/bill-follows")).runBillAlerts()) }));
+  // Round D: optional instant alerts (your legislators voting on your issues).
+  await step("instantAlerts", async () => ({ ok: true, ...(await (await import("@/lib/instant-alerts")).runInstantAlerts()) }));
   const failures = Object.values(steps).filter(s => !s.ok).length;
   const status = failures === 0 ? "COMPLETE" : failures === Object.keys(steps).length ? "FAILED" : "PARTIAL";
   const errors = Object.entries(steps).filter(([, s]) => !s.ok).map(([k, s]) => `${k}: ${s.error}`).join(" | ").slice(0, 600) || null;

@@ -2,7 +2,11 @@ import Link from "next/link";
 import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { accountForAppUser, currentAccount, maskEmail } from "@/lib/accounts";
-import { requestLink, setDigest, signOut } from "./actions";
+import { requestLink, setAlerts, setDigest, signOut } from "./actions";
+import { PushToggle } from "@/components/push/push-toggle";
+import { getDb } from "@/db";
+import { alertPrefs } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { checkPhoneCode, deleteMyAccount, saveAddress, sendPhoneCode } from "./verify-actions";
 import { cookies } from "next/headers";
 import { verificationConfig } from "@/lib/verify/config";
@@ -35,6 +39,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const tier = profile?.tier ?? 0;
   const pendingCode = !!(await cookies()).get(PENDING_PHONE_COOKIE)?.value && !!profile?.pendingPhoneHash;
   const needChallenge = vc.turnstileReady && !profile?.signupChallengeAt;
+  const prefs = appUserId ? await getDb().select().from(alertPrefs).where(eq(alertPrefs.userId, appUserId)).get().catch(() => null) : null;
   const countsLater = !!account && countsFrom(account.createdAt) > requestTime();
   return <PublicShell current="/account" access={access} page="/account">
     <section className="fed-page">
@@ -82,6 +87,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {vc.enabled && vc.turnstileReady && <Turnstile siteKey={vc.turnstile.siteKey} scriptUrl={vc.turnstile.scriptUrl} action="signup" />}
           <button>Email me a link</button></form>
       </>}
+      {(access.invite || access.editor) && <div className="fed-section" id="alerts"><h2>Alerts</h2>
+        <form action={setAlerts} className="verify-form">
+          <label className="consent"><input type="checkbox" name="instantVotes" value="1" defaultChecked={!!prefs?.instantVotes} /> <span>When my legislators or members I follow vote on a bill in my issues</span></label>
+          <label className="consent"><input type="checkbox" name="instantBills" value="1" defaultChecked={prefs ? !!prefs.instantBills : true} /> <span>When a bill I follow moves</span></label>
+          <button>Save alert choices</button></form>
+        <PushToggle />
+        <p className="meta">Alerts arrive by email (with a signed-in account) and on devices where you turn them on. They are sent after each scheduled update, twice a day.</p></div>}
       <p className="meta"><Link href="/following">Following</Link> · <Link href="/politicians">Find a member</Link></p>
     </section>
   </PublicShell>;
