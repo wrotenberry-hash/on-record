@@ -11,7 +11,7 @@ export const PLAN_UPDATED = "2026-11-16T23:55:00Z";
 export const PLAN_NOTE = "Your review found the summaries restated titles and S.J.Res. 197's headline was wrong (it named Medicare and Medicaid; the rule is the 2027 ACA marketplace payment rule). Readers now see no summaries. The generator was rebuilt (b5): it reads the CRS summary, CBO, committee reports, the Federal Register rule and the U.S. Code sections a bill changes; every named thing must appear in a source; new parts In plain English and Background; arguments credited only to who makes them in the record. The bill timeline now shows failed floor votes (Senate 48-51 not to take it up, Sep 29). Next: one run rewrites the five; Claude reviews them against every source; you review S.J.Res. 197 before anything is shown or the cap is raised.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Review S.J.Res. 197 in the rebuilt format", needs: "you, after the next run",
+  { title: "Review S.J.Res. 197 in the rebuilt format", needs: "you",
     why: "Nothing is shown to readers until you approve it. After one run rewrites the five summaries in the new format, Claude checks each against every official source, then sends you S.J.Res. 197. Only after your OK are summaries shown and the 5-summary cap raised." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
