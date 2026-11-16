@@ -3,7 +3,9 @@ import { requireEditorUser } from "@/lib/auth";
 import { AnalysisBadge, billLabel, shortDate } from "@/components/federal/badges";
 import { allSummaries, analysisCounts, reviewQueue } from "@/lib/analysis/queries";
 import { analysisLimits } from "@/lib/analysis/generate";
-import { decideSummary } from "./actions";
+import { decideIssueSuggestion, decideSummary } from "./actions";
+import { queuedSuggestions, suggestionCounts } from "@/lib/analysis/classify";
+import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { GenerateNow } from "./generate-now";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,8 @@ const REASON: Record<string, string> = { sample: "1-in-5 audit (visible meanwhil
 /** Bill summaries: the sampling queue, every summary with its cost, and the test caps. */
 export default async function AnalysisReviewPage() {
   await requireEditorUser("/editor/analysis");
-  const [counts, queue, summaries] = await Promise.all([analysisCounts().catch(() => null), reviewQueue().catch(() => []), allSummaries().catch(() => [])]);
+  const [counts, queue, summaries, suggestions, suggestionTotals] = await Promise.all([analysisCounts().catch(() => null), reviewQueue().catch(() => []), allSummaries().catch(() => []),
+    queuedSuggestions().catch(() => []), suggestionCounts().catch(() => ({} as Record<string, { bills: number; usd: number }>))]);
   const limits = analysisLimits();
   const open = queue.filter(r => r.q.status === "open"), decided = queue.filter(r => r.q.status !== "open").slice(0, 10);
   const capReached = counts && counts.summaries >= limits.maxSummaries ? `Test cap reached: ${counts.summaries} of ${limits.maxSummaries} summaries (ANALYSIS_MAX_SUMMARIES).`
@@ -40,6 +43,20 @@ export default async function AnalysisReviewPage() {
           <input name="note" placeholder="Note (optional)" maxLength={500} />
           <button name="decision" value="approved">Approve</button>
           <button name="decision" value="rejected" className="secondary">Reject</button>
+        </form>
+      </li>)}</ul> : <p className="meta">Nothing waiting.</p>}
+
+      <h2>Issue suggestions waiting ({suggestions.length})</h2>
+      <p className="meta">Bills Congress.gov has not given a topic are sorted by AI. At 75% confidence or more the issue is applied and labelled &quot;Sorted by AI&quot;; below that it waits here. So far: {Object.entries(suggestionTotals).map(([k, v]) => `${k.replace("_", " ")} ${v.bills}`).join(" · ") || "none"}.</p>
+      {suggestions.length ? <ul className="review-list">{suggestions.map(({ s, title, billType, number }) => <li key={s.billId} className="review-item">
+        <div className="eyebrow">{billLabel(billType, number)} · {Math.round(s.confidence * 100)}% sure</div>
+        <p><b><Link href={`/bills/${s.billId}`}>{title}</Link></b></p>
+        <p className="meta">Suggested: {ISSUE_CATEGORIES.find(c => c.slug === s.categorySlug)?.name ?? "no issue fits"}. {s.rationale}</p>
+        <form action={decideIssueSuggestion} className="review-actions">
+          <input type="hidden" name="billId" value={s.billId} />
+          <select name="slug" defaultValue={s.categorySlug ?? ""} aria-label="Issue">{[<option key="" value="">No issue</option>, ...ISSUE_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)]}</select>
+          <button name="decision" value="approve">Apply</button>
+          <button name="decision" value="reject" className="secondary">No issue fits</button>
         </form>
       </li>)}</ul> : <p className="meta">Nothing waiting.</p>}
 

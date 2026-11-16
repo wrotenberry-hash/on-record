@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<billStatus>
+  <bill>
+    <number>2102</number>
+    <type>HR</type>
+    <congress>119</congress>
+    <sponsors>
+      <item>
+        <bioguideId>B001257</bioguideId>
+        <fullName>Rep. Bilirakis, Gus M. [R-FL-12]</fullName>
+        <firstName>Gus</firstName>
+        <lastName>Bilirakis</lastName>
+        <party>R</party>
+        <state>FL</state>
+        <middleName>M.</middleName>
+        <district>12</district>
+        <isByRequest>N</isByRequest>
+      </item>
+    </sponsors>
+    <cosponsors>
+      <item>
+        <bioguideId>R000599</bioguideId>
+        <fullName>Rep. Ruiz, Raul [D-CA-25]</fullName>
+        <firstName>Raul</firstName>
+        <lastName>Ruiz</lastName>
+        <party>D</party>
+        <state>CA</state>
+        <district>25</district>
+        <sponsorshipDate>2025-03-14</sponsorshipDate>
+        <isOriginalCosponsor>True</isOriginalCosponsor>
+      </item>
+      <item>
+        <bioguideId>D000399</bioguideId>
+        <fullName>Rep. Doggett, Lloyd [D-TX-37]</fullName>
+        <firstName>Lloyd</firstName>
+        <lastName>Doggett</lastName>
+        <party>D</party>
+        <state>TX</state>
+        <district>37</district>
+        <sponsorshipDate>2025-03-14</sponsorshipDate>
+        <isOriginalCosponsor>True</isOriginalCosponsor>
+      </item>
+      <item>
+        <bioguideId>D000230</bioguideId>
+        <fullName>Rep. Davis, Donald G. [D-NC-1]</fullName>
+        <firstName>Donald</firstName>
+        <lastName>Davis</lastName>
+        <party>D</party>
+        <state>NC</state>
+        <middleName>G.</middleName>
+        <district>1</district>
+        <sponsorshipDate>2025-03-14</sponsorshipDate>
+        <isOriginalCosponsor>True</isOriginalCosponsor>
+      </item>
+    </cosponsors>
+  </bill>
+</billStatus>

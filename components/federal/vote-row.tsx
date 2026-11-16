@@ -1,17 +1,27 @@
 import Link from "next/link";
-import { PositionPill, shortDate } from "@/components/federal/badges";
+import { AnalysisBadge, PositionPill, shortDate } from "@/components/federal/badges";
 import { explainVote } from "@/lib/federal/vote-labels";
+import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
 
 export type VoteRowData = { rollCallId: string; votedAt: number; question: string; title: string | null; result: string | null; documentLabel: string | null;
-  billId: string | null; billTitle: string | null; yea: number; nay: number; position: string; rawPosition: string; sourceUrl: string };
+  billId: string | null; billTitle: string | null; yea: number; nay: number; position: string; rawPosition: string; sourceUrl: string;
+  headline?: string | null; issueSlug?: string | null; issueName?: string | null };
 
-/** One recorded vote: what was voted on, how the member voted, and the official outcome with its source. */
+/**
+ * One recorded vote: what was voted on, what kind of vote it was, how the member
+ * voted in words that never turn a procedural vote into a vote "for" or "against"
+ * the bill, the bill's Analysis headline when there is one, and the official
+ * outcome with its source.
+ */
 export function VoteRow({ v }: { v: VoteRowData }) {
   const what = v.billTitle && v.billId ? v.billTitle : v.title || v.documentLabel || "Recorded vote";
+  const kind = voteKind(v.question, v.billTitle ?? v.title);
   return <li className="vote-row">
     <div className="vote-main">
-      <span className="vote-date">{shortDate(v.votedAt)}</span>
+      <span className="vote-date">{shortDate(v.votedAt)} · <span className={`vote-kind vote-kind-${kind}`}>{KIND_LABEL[kind]}</span></span>
       <b>{v.billId ? <Link href={`/bills/${v.billId}`}>{what}</Link> : what}</b>
+      {v.headline && v.billId && <span className="vote-headline"><Link href={`/bills/${v.billId}`}>{v.headline}</Link> <AnalysisBadge /></span>}
+      <span className="vote-position">{positionLine(v.position, kind)}</span>
       <VoteExplainer question={v.question} />
       <small>{v.question}{v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small>
     </div>

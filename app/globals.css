@@ -80,3 +80,12 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .invite-actions{display:flex;gap:8px;flex-wrap:wrap}.invite-actions form{display:flex;gap:6px;flex:1 1 220px;min-width:0}.invite-actions input{flex:1;min-width:0;border:1px solid #c8d6ce;border-radius:3px;padding:9px 10px;font:15px Arial,sans-serif}
 .prose p a,.follow-card p a{display:inline-block;min-height:24px;line-height:24px}
 .editor-links{font-size:15px;margin:0 0 8px}.editor-links a{color:#163b3c;text-decoration:underline;display:inline-block;min-height:28px;line-height:28px}
+/* Round 2: vote kinds, headlines beside votes, issue groups */
+.vote-kind{font:700 11px/1 Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;padding:3px 6px;border-radius:3px;border:1px solid #c8d6ce;background:#fff;color:#2c3b39}
+.vote-kind-procedural{background:#f3f1ea;border-color:#d9d2bd;color:#5a4a1d}.vote-kind-passage{background:#e3efe6;border-color:#b9d5c2;color:#1d4029}
+.vote-headline{display:block;font-size:15px;line-height:1.4;margin:3px 0;color:#2c3b39}.vote-headline .ctype{font-size:9px;margin-left:4px}
+.vote-position{display:block;font-weight:600;font-size:14px;color:#172224;margin:2px 0}
+.issue-groups{display:grid;gap:8px;margin-top:8px}.issue-group{background:#fff;border:1px solid #d9ded9;padding:0 12px}.issue-group summary{cursor:pointer;padding:12px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;min-height:44px}
+.bill-list.compact li{padding:8px 0}.bill-list.compact small{display:block;color:#5d6b69;font-size:13px}
+.ai-sorted{display:block;font-size:12px;color:#45366e;margin-top:2px}.ai-sorted .ctype{font-size:9px}
+.review-actions select{border:1px solid #c8d6ce;border-radius:3px;padding:9px 10px;font:15px Arial,sans-serif;background:#fff;min-height:40px}

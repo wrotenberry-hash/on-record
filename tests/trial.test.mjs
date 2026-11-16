@@ -89,3 +89,52 @@ test("vote outcomes read from the official result wording", () => {
   assert.equal(outcomeOf("Failed"), "failed");
   assert.equal(outcomeOf(null), null);
 });
+
+test("procedural votes are never presented as votes for or against the bill", async () => {
+  const { voteKind, positionLine } = await import("../lib/federal/vote-kinds.ts");
+  const cases = {
+    "On Passage": "passage", "On Passage of the Bill": "passage", "On Motion to Suspend the Rules and Pass, as Amended": "passage",
+    "On Motion to Suspend the Rules and Concur in the Senate Amendments": "passage", "On Motion to Concur in the Senate Amendments": "passage",
+    "On the Concurrent Resolution": "passage", "On the Cloture Motion": "procedural", "On Cloture on the Motion to Proceed": "procedural",
+    "On the Motion to Proceed": "procedural", "On the Motion to Table": "procedural", "On Motion to Table": "procedural", "On Motion to Recommit": "procedural",
+    "On Motion to Refer": "procedural", "On the Motion to Discharge": "procedural", "On Motion to Discharge": "procedural",
+    "On Ordering the Previous Question": "procedural", "On the Amendment": "amendment", "On the Nomination": "nomination",
+  };
+  for (const [q, kind] of Object.entries(cases)) assert.equal(voteKind(q), kind, q);
+  assert.equal(voteKind("On Agreeing to the Resolution", "Providing for consideration of the bill (H.R. 4) to ..."), "procedural", "a House rule is procedural");
+  assert.equal(voteKind("On Agreeing to the Resolution", "Expressing support for National Science Week"), "passage");
+  for (const pos of ["Yea", "Nay"]) {
+    const line = positionLine(pos, "procedural");
+    assert.match(line, /procedural step \(not a vote on the bill itself\)/);
+    assert.doesNotMatch(line, /passing|for the bill|against the bill/);
+  }
+  assert.equal(positionLine("Yea", "passage"), "Voted yes on passing it");
+  assert.equal(positionLine("Not Voting", "passage"), "Did not vote");
+  assert.equal(positionLine("Nay", "nomination"), "Voted not to confirm");
+});
+
+test("sponsor and cosponsors parse from a real BILLSTATUS record", async () => {
+  const { parseSponsorship } = await import("../lib/analysis/billtext.ts");
+  const { readFileSync } = await import("node:fs");
+  const x = readFileSync(new URL("./fixtures/federal/billstatus-119hr2102-cosponsors.xml", import.meta.url), "utf8");
+  const s = parseSponsorship(x);
+  assert.equal(s.sponsor, "B001257");
+  assert.deepEqual(s.cosponsors.map(c => c.bioguideId).slice(0, 3), ["R000599", "D000399", "D000230"]);
+  assert.equal(s.cosponsors[0].sponsorshipDate, "2025-03-14");
+  assert.equal(s.cosponsors[0].original, true);
+  assert.equal(s.cosponsors[0].withdrawnDate, null);
+  const withdrawn = parseSponsorship(x.replace("<isOriginalCosponsor>True</isOriginalCosponsor>", "<isOriginalCosponsor>False</isOriginalCosponsor><sponsorshipWithdrawnDate>2025-06-01</sponsorshipWithdrawnDate>"));
+  assert.equal(withdrawn.cosponsors[0].withdrawnDate, "2025-06-01");
+  assert.equal(withdrawn.cosponsors[0].original, false);
+});
+
+test("AI issue suggestions apply only at 75% confidence or more", async () => {
+  const { decideSuggestion } = await import("../lib/analysis/classify-rules.ts");
+  assert.equal(decideSuggestion("health-care", 0.9), "applied");
+  assert.equal(decideSuggestion("health-care", 0.75), "applied");
+  assert.equal(decideSuggestion("health-care", 0.74), "queued");
+  assert.equal(decideSuggestion(null, 0.95), "no_fit");
+  assert.equal(decideSuggestion(null, 0.4), "queued");
+  assert.equal(decideSuggestion("taxes", Number.NaN), "queued");
+  assert.equal(decideSuggestion("taxes", 7), "queued");
+});

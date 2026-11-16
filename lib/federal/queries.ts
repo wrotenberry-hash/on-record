@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { officialBillCosponsors, officialSponsorshipFetches } from "@/db/schema";
 import { billCategories, categoryMappings, ingestRuns, issueCategories, officialBillSubjects, officialBills, officialMemberVotes, officialPoliticians,
   officialRollCalls, userFollows } from "@/db/schema";
 import { LAWMAKING_TYPES } from "@/lib/federal/parse";
@@ -28,10 +29,40 @@ export async function recentVotes(politicianId: string, limit = 10) {
   return getDb().select({ rollCallId: officialRollCalls.id, chamber: officialRollCalls.chamber, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question,
     title: officialRollCalls.title, result: officialRollCalls.result, documentLabel: officialRollCalls.documentLabel, billId: officialRollCalls.billId,
     yea: officialRollCalls.yea, nay: officialRollCalls.nay, sourceUrl: officialRollCalls.sourceUrl, retrievedAt: officialRollCalls.retrievedAt,
-    position: officialMemberVotes.position, rawPosition: officialMemberVotes.rawPosition, billTitle: officialBills.title })
+    position: officialMemberVotes.position, rawPosition: officialMemberVotes.rawPosition, billTitle: officialBills.title,
+    // The bill's one-line Analysis headline (visible summaries only) and its first issue, for "what the bill would do" beside the vote.
+    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and s.status = 'visible' order by s.created_at desc limit 1)`,
+    issueSlug: sql<string | null>`(select bc.category_slug from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)`,
+    issueName: sql<string | null>`(select ic.name from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)` })
     .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
     .leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
     .where(eq(officialMemberVotes.politicianId, politicianId)).orderBy(desc(officialRollCalls.votedAt)).limit(limit);
+}
+
+/** Bills in On Record's record that the member sponsored or cosponsored (withdrawn cosponsorships shown as such). */
+export async function sponsorships(politicianId: string) {
+  const db = getDb();
+  const headline = sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and s.status = 'visible' order by s.created_at desc limit 1)`;
+  const [sponsored, cosponsored] = await Promise.all([
+    db.select({ id: officialBills.id, billType: officialBills.billType, number: officialBills.number, title: officialBills.title, introducedAt: officialBills.introducedAt, headline })
+      .from(officialBills).where(eq(officialBills.sponsorId, politicianId)).orderBy(desc(officialBills.introducedAt)).limit(50),
+    db.select({ id: officialBills.id, billType: officialBills.billType, number: officialBills.number, title: officialBills.title, introducedAt: officialBills.introducedAt, headline,
+      sponsorshipDate: officialBillCosponsors.sponsorshipDate, original: officialBillCosponsors.original, withdrawnDate: officialBillCosponsors.withdrawnDate })
+      .from(officialBillCosponsors).innerJoin(officialBills, eq(officialBills.id, officialBillCosponsors.billId))
+      .where(eq(officialBillCosponsors.politicianId, politicianId)).orderBy(desc(officialBillCosponsors.sponsorshipDate)).limit(100),
+  ]);
+  return { sponsored, cosponsored };
+}
+
+/** Counts only, for the health probe. */
+export async function sponsorshipCounts() {
+  const db = getDb();
+  const [rows, fetched, failed] = await Promise.all([
+    db.select({ n: sql<number>`count(*)` }).from(officialBillCosponsors).get(),
+    db.select({ n: sql<number>`count(*)` }).from(officialSponsorshipFetches).where(eq(officialSponsorshipFetches.ok, 1)).get(),
+    db.select({ n: sql<number>`count(*)` }).from(officialSponsorshipFetches).where(eq(officialSponsorshipFetches.ok, 0)).get(),
+  ]);
+  return { cosponsorRows: Number(rows?.n ?? 0), billsRead: Number(fetched?.n ?? 0), billsNotFound: Number(failed?.n ?? 0) };
 }
 
 export async function categoriesWithCounts() {
@@ -45,7 +76,7 @@ export async function getCategory(slug: string) { return getDb().select().from(i
 
 export async function billsInCategory(slug: string, limit = 30) {
   return getDb().select({ id: officialBills.id, title: officialBills.title, billType: officialBills.billType, number: officialBills.number,
-    latestActionText: officialBills.latestActionText, latestActionAt: officialBills.latestActionAt, policyArea: officialBills.policyArea })
+    latestActionText: officialBills.latestActionText, latestActionAt: officialBills.latestActionAt, policyArea: officialBills.policyArea, method: billCategories.method })
     .from(billCategories).innerJoin(officialBills, eq(officialBills.id, billCategories.billId))
     .where(and(eq(billCategories.categorySlug, slug), inArray(officialBills.billType, [...LAWMAKING_TYPES])))
     .orderBy(sql`${officialBills.latestActionAt} desc nulls last`).limit(limit);
@@ -58,7 +89,7 @@ export async function getBill(id: string) {
   const [votes, subjects, categories, sponsor] = await Promise.all([
     db.select().from(officialRollCalls).where(eq(officialRollCalls.billId, id)).orderBy(desc(officialRollCalls.votedAt)),
     db.select({ subject: officialBillSubjects.subject }).from(officialBillSubjects).where(eq(officialBillSubjects.billId, id)),
-    db.select({ slug: issueCategories.slug, name: issueCategories.name }).from(billCategories).innerJoin(issueCategories, eq(issueCategories.slug, billCategories.categorySlug))
+    db.select({ slug: issueCategories.slug, name: issueCategories.name, method: billCategories.method }).from(billCategories).innerJoin(issueCategories, eq(issueCategories.slug, billCategories.categorySlug))
       .where(eq(billCategories.billId, id)).orderBy(asc(issueCategories.sortOrder)),
     bill.sponsorId ? db.select().from(officialPoliticians).where(eq(officialPoliticians.id, bill.sponsorId)).get() : Promise.resolve(undefined),
   ]);

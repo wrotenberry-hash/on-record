@@ -89,3 +89,19 @@ export function parseBillTextHtml(html: string): BillText {
 
 /** The model reads at most this much bill text; longer bills are labelled as read in part. */
 export const MAX_TEXT_CHARS = 40_000;
+
+export type Cosponsor = { bioguideId: string; sponsorshipDate: string | null; original: boolean; withdrawnDate: string | null };
+/** The sponsor and cosponsors listed in a BILLSTATUS record (withdrawn cosponsors kept, with their date). */
+export function parseSponsorship(xml: string): { sponsor: string | null; cosponsors: Cosponsor[] } {
+  const bill = block(xml, "bill") ?? xml;
+  const sponsorBlock = block(bill, "sponsors") ?? "";
+  const sponsor = sponsorBlock.match(/<bioguideId>([A-Z]\d{6})<\/bioguideId>/)?.[1] ?? null;
+  const cosponsors: Cosponsor[] = [];
+  for (const it of items(block(bill, "cosponsors") ?? "")) {
+    const id = it.match(/<bioguideId>([A-Z]\d{6})<\/bioguideId>/)?.[1];
+    if (!id) continue;
+    cosponsors.push({ bioguideId: id, sponsorshipDate: (tag(it, "sponsorshipDate") ?? "").slice(0, 10) || null,
+      original: /^true$/i.test(tag(it, "isOriginalCosponsor") ?? ""), withdrawnDate: (tag(it, "sponsorshipWithdrawnDate") ?? "").slice(0, 10) || null });
+  }
+  return { sponsor, cosponsors };
+}

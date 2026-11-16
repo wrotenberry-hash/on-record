@@ -421,3 +421,27 @@ export const analysisSummaryVersions = sqliteTable("analysis_summary_versions", 
   promptVersion: text("prompt_version").notNull(), content: text("content", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
   checkPassed: integer("check_passed").notNull(), costUsd: real("cost_usd").notNull(), replacedAt: integer("replaced_at").notNull(),
 }, t => [index("analysis_summary_versions_summary_idx").on(t.summaryId)]);
+
+/* Round 2 (2026-11-16): sponsorships and AI issue suggestions. New tables only. */
+
+// Cosponsors as listed in govinfo's BILLSTATUS record. A withdrawn cosponsor keeps its row, with the withdrawal date.
+export const officialBillCosponsors = sqliteTable("official_bill_cosponsors", {
+  billId: text("bill_id").references(() => officialBills.id).notNull(), politicianId: text("politician_id").notNull(),
+  sponsorshipDate: text("sponsorship_date"), original: integer("original").notNull().default(0), withdrawnDate: text("withdrawn_date"),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.politicianId] }), index("official_bill_cosponsors_politician_idx").on(t.politicianId)]);
+
+// When each bill's sponsorship was last read, so the job refreshes the oldest first.
+export const officialSponsorshipFetches = sqliteTable("official_sponsorship_fetches", {
+  billId: text("bill_id").primaryKey(), fetchedAt: integer("fetched_at").notNull(), cosponsors: integer("cosponsors").notNull(), ok: integer("ok").notNull(),
+});
+
+// AI suggestions of an issue for a bill that has no official policy area. High confidence is applied
+// (bill_categories method "ai", with its confidence); low confidence waits for the editor.
+export const categorySuggestions = sqliteTable("category_suggestions", {
+  billId: text("bill_id").primaryKey(), categorySlug: text("category_slug"), confidence: real("confidence").notNull(),
+  rationale: text("rationale").notNull(), model: text("model").notNull(), costUsd: real("cost_usd").notNull().default(0),
+  status: text("status", { enum: ["applied", "queued", "approved", "rejected", "no_fit"] }).notNull(),
+  createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
+}, t => [index("category_suggestions_status_idx").on(t.status),
+  check("category_suggestions_status", sql`${t.status} IN ('applied', 'queued', 'approved', 'rejected', 'no_fit')`)]);

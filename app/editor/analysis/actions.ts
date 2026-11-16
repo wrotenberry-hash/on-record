@@ -26,3 +26,15 @@ export async function decideSummary(formData: FormData) {
   revalidatePath("/editor/analysis");
   if (bill) revalidatePath(`/bills/${bill.billId}`);
 }
+
+/** The editor's decision on an AI issue suggestion that was below the confidence line. */
+export async function decideIssueSuggestion(formData: FormData) {
+  const auth = await editorialAuth();
+  if (!auth.user) return;
+  const billId = String(formData.get("billId") ?? ""), decision = String(formData.get("decision") ?? ""), slug = String(formData.get("slug") ?? "") || null;
+  if (!/^\d{2,3}-[a-z]+-\d+$/.test(billId) || !["approve", "reject"].includes(decision)) return;
+  const { decideCategorySuggestion } = await import("@/lib/analysis/classify");
+  await decideCategorySuggestion(billId, decision === "approve", slug);
+  revalidatePath("/editor/analysis");
+  revalidatePath(`/bills/${billId}`);
+}

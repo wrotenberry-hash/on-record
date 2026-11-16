@@ -3,6 +3,8 @@ import { getDb } from "@/db";
 import { billCategories, categoryMappings, ingestCursors, ingestRuns, issueCategories, officialBillSubjects, officialBills,
   officialMemberVotes, officialPoliticians, officialRollCalls } from "@/db/schema";
 import { categorize, DEFAULT_MAPPINGS, ISSUE_CATEGORIES, type Mapping } from "@/lib/federal/categories";
+import { officialBillCosponsors, officialSponsorshipFetches } from "@/db/schema";
+import { billStatusUrl, parseSponsorship } from "@/lib/analysis/billtext";
 import { congressBillApi, congressForYear, congressGovPage, congressRecentBillsApi, houseRollUrl, LAWMAKING_TYPES, LEGISLATORS_URL,
   parseCongressBill, parseCongressBillList, parseCongressSubjects, parseHouseRoll, parseLegislators, parseSenateMenu, parseSenateVote,
   senateMenuUrl, senateVoteUrl, sessionForYear, type BillRef, type ParsedRollCall } from "@/lib/federal/parse";
@@ -198,6 +200,43 @@ export async function ingestBills(db: Db, deadline: number, cap = PER_RUN_CAP): 
   return { ok: true, listed, completed, categorized };
 }
 
+/** Refresh sponsorships older than this; new cosponsors are added over a bill's life. */
+const SPONSORSHIP_REFRESH_MS = 7 * 24 * 3600 * 1000;
+
+/**
+ * Sponsor and cosponsors from govinfo's BILLSTATUS record (keyless), for bills never
+ * read or read more than a week ago, oldest first, up to `cap` per run.
+ */
+export async function ingestSponsorships(db: Db, deadline: number, cap = PER_RUN_CAP): Promise<Step> {
+  const due = await db.select({ id: officialBills.id, congress: officialBills.congress, billType: officialBills.billType, number: officialBills.number, sponsorId: officialBills.sponsorId })
+    .from(officialBills).leftJoin(officialSponsorshipFetches, eq(officialSponsorshipFetches.billId, officialBills.id))
+    .where(sql`${officialSponsorshipFetches.fetchedAt} is null or ${officialSponsorshipFetches.fetchedAt} < ${Date.now() - SPONSORSHIP_REFRESH_MS}`)
+    .orderBy(sql`coalesce(${officialSponsorshipFetches.fetchedAt}, 0)`).limit(cap);
+  let read = 0, rows = 0, missing = 0;
+  for (const b of due) {
+    if (Date.now() + 5_000 > deadline) break;
+    const url = billStatusUrl(b.congress, b.billType, b.number);
+    const res = await fetchText(url, 20_000).catch(() => null);
+    const now = Date.now();
+    if (!res?.ok || !/<billStatus>/.test(res.text)) {
+      missing++;
+      await db.insert(officialSponsorshipFetches).values({ billId: b.id, fetchedAt: now, cosponsors: 0, ok: 0 })
+        .onConflictDoUpdate({ target: officialSponsorshipFetches.billId, set: { fetchedAt: now, ok: 0 } });
+      continue;
+    }
+    const { sponsor, cosponsors } = parseSponsorship(res.text);
+    if (sponsor && !b.sponsorId) await db.update(officialBills).set({ sponsorId: sponsor }).where(eq(officialBills.id, b.id));
+    await chunked(cosponsors, 100, part => db.insert(officialBillCosponsors).values(part.map(c => ({ billId: b.id, politicianId: c.bioguideId,
+      sponsorshipDate: c.sponsorshipDate, original: c.original ? 1 : 0, withdrawnDate: c.withdrawnDate, sourceUrl: url, retrievedAt: now })))
+      .onConflictDoUpdate({ target: [officialBillCosponsors.billId, officialBillCosponsors.politicianId],
+        set: { withdrawnDate: sql`excluded.withdrawn_date`, sponsorshipDate: sql`excluded.sponsorship_date`, retrievedAt: now } }));
+    await db.insert(officialSponsorshipFetches).values({ billId: b.id, fetchedAt: now, cosponsors: cosponsors.length, ok: 1 })
+      .onConflictDoUpdate({ target: officialSponsorshipFetches.billId, set: { fetchedAt: now, cosponsors: cosponsors.length, ok: 1 } });
+    read++; rows += cosponsors.length;
+  }
+  return { ok: true, stored: read, cosponsorRows: rows, missing, due: due.length };
+}
+
 /** The whole job. Steps fail independently; the run is COMPLETE, PARTIAL or FAILED accordingly. */
 export async function runFederalIngest({ budgetMs = 120_000, trigger = "scheduled", forceMembers = false }: { budgetMs?: number; trigger?: string; forceMembers?: boolean } = {}): Promise<IngestSummary> {
   const db = getDb(), started = Date.now(), deadline = started + budgetMs, id = crypto.randomUUID();
@@ -211,6 +250,7 @@ export async function runFederalIngest({ budgetMs = 120_000, trigger = "schedule
   await step("senate", () => ingestSenate(db, deadline));
   await step("house", () => ingestHouse(db, deadline));
   await step("bills", () => ingestBills(db, deadline));
+  await step("sponsorships", () => ingestSponsorships(db, deadline));
   const failures = Object.values(steps).filter(s => !s.ok).length;
   const status = failures === 0 ? "COMPLETE" : failures === Object.keys(steps).length ? "FAILED" : "PARTIAL";
   const errors = Object.entries(steps).filter(([, s]) => !s.ok).map(([k, s]) => `${k}: ${s.error}`).join(" | ").slice(0, 600) || null;

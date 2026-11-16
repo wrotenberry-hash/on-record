@@ -9,6 +9,7 @@ import { followedIds, getBill } from "@/lib/federal/queries";
 import { costEstimates, followedVotes, summaryForBill } from "@/lib/analysis/queries";
 import { VoteExplainer } from "@/components/federal/vote-row";
 import { GLOSSARY_URL } from "@/lib/federal/vote-labels";
+import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function BillPage({ params }: { params: Promise<{ id: strin
       <div className="eyebrow">{billLabel(bill.billType, bill.number)} · {bill.congress}th Congress</div>
       <p className="official-line"><OfficialBadge /> <span>{bill.title}</span></p>
       {s ? <h1 className="bill-headline">{s.headline} <AnalysisBadge /></h1> : <h1>{bill.title}</h1>}
-      {categories.length > 0 && <ul className="chip-row">{categories.map(c => <li key={c.slug}><Link href={`/issues/${c.slug}`}>{c.name}</Link></li>)}</ul>}
+      {categories.length > 0 && <ul className="chip-row">{categories.map(c => <li key={c.slug}><Link href={`/issues/${c.slug}`}>{c.name}{c.method === "ai" ? " · sorted by AI" : ""}</Link></li>)}</ul>}
 
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
 
@@ -93,12 +94,13 @@ export default async function BillPage({ params }: { params: Promise<{ id: strin
 
       <div className="fed-section"><h2>How your politicians voted <OfficialBadge /></h2>
         {mine.length ? <ul className="vote-list">{mine.map(m => <li key={`${m.rollCallId}-${m.id}`} className="vote-row"><div className="vote-main">
-          <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link></b><small>{memberLine(m)} · {votes.find(v => v.id === m.rollCallId)?.question ?? "Recorded vote"}</small></div>
+          <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link></b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
+            return <><span className="vote-position">{positionLine(m.position, k)}</span><small>{memberLine(m)} · {KIND_LABEL[k]}{rc ? ` · ${rc.question}, ${shortDate(rc.votedAt)}` : ""}</small></>; })()}</div>
           <PositionPill position={m.position} raw={m.rawPosition} /></li>)}</ul>
           : <p className="meta">{followed.size ? "None of the members you follow has a recorded vote on this bill." : <>Follow members on the <Link href="/politicians">Politicians</Link> page to see their votes here.</>}</p>}
         <h3 className="subhead">All recorded votes</h3>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
-          <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"}</span>
+          <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"} · <span className={`vote-kind vote-kind-${voteKind(v.question, v.title ?? bill.title)}`}>{KIND_LABEL[voteKind(v.question, v.title ?? bill.title)]}</span></span>
           <b>{v.question}</b><VoteExplainer question={v.question} /><small>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}

@@ -4,7 +4,8 @@ import { databaseSettings } from "@/db/settings";
 import { adjudications, alertEvents, automationRuns, intakeCandidates, materialityDecisions, publications, representations, reviews, sourceAuthentications, sourceCaptures } from "@/db/schema";
 import { LAUNCH_TARGET } from "@/lib/monitoring";
 import { monitoringConfigured, pickDailyCase } from "@/lib/monitoring-runtime";
-import { federalCounts, lastFederalRun, uncategorisedPolicyAreas } from "@/lib/federal/queries";
+import { federalCounts, lastFederalRun, sponsorshipCounts, uncategorisedPolicyAreas } from "@/lib/federal/queries";
+import { suggestionCounts } from "@/lib/analysis/classify";
 import { analysisCounts } from "@/lib/analysis/queries";
 import { eventTotals } from "@/lib/events";
 import { trialCounts } from "@/lib/trial";
@@ -114,9 +115,10 @@ async function rhythm() {
 /** Federal official record: counts and the last ingestion run's status words. No names, votes or bills. */
 async function federal() {
   try {
-    const [counts, run, unsorted] = await Promise.all([federalCounts(), lastFederalRun(), uncategorisedPolicyAreas().catch(() => [])]);
+    const [counts, run, unsorted, sponsorship, suggestions] = await Promise.all([federalCounts(), lastFederalRun(), uncategorisedPolicyAreas().catch(() => []),
+      sponsorshipCounts().catch(() => null), suggestionCounts().catch(() => null)]);
     const steps = (run?.detail as { steps?: Record<string, { ok?: boolean; stored?: number; skipped?: string; error?: string }> } | null)?.steps ?? {};
-    return { ...counts, uncategorisedPolicyAreas: unsorted, congressKeyConfigured: Boolean(process.env.CONGRESS_GOV_API_KEY?.trim()),
+    return { ...counts, uncategorisedPolicyAreas: unsorted, sponsorship, issueSuggestions: suggestions, congressKeyConfigured: Boolean(process.env.CONGRESS_GOV_API_KEY?.trim()),
       lastRun: run ? { status: run.status, startedAt: new Date(run.startedAt).toISOString(),
         steps: Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, { ok: v.ok ?? false, ...(v.stored !== undefined ? { stored: v.stored } : {}), ...(v.skipped ? { skipped: true } : {}), ...(v.error ? { error: String(v.error).replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) } : {}) }])) } : null };
   } catch { return "unavailable" as const; }

@@ -3,11 +3,12 @@ import Link from "next/link";
 import { memberMeta } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
-import { OfficialBadge, memberLine, shortDate } from "@/components/federal/badges";
+import { AnalysisBadge, OfficialBadge, billLabel, memberLine, shortDate } from "@/components/federal/badges";
 import { FollowButton } from "@/components/federal/follow-button";
 import { VoteRow } from "@/components/federal/vote-row";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
-import { followedIds, getPolitician, recentVotes } from "@/lib/federal/queries";
+import { followedIds, getPolitician, recentVotes, sponsorships } from "@/lib/federal/queries";
+import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +19,26 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return p ? { ...memberMeta(p), alternates: { canonical: `/politicians/${p.id}` } } : { title: "Not found · On Record" };
 }
 
+/**
+ * A member's record: latest votes, the same votes grouped by the 14 issues, and
+ * the bills they sponsored or cosponsored. Everything is copied from official
+ * records; On Record adds no grade, score or tally of its own.
+ */
 export default async function PoliticianPage({ params }: { params: Promise<{ id: string }> }) {
   const access = await viewerAccess();
   const { id } = await params;
   if (!access.allowed) return <PublicShell current="/politicians" access={access} page="/politicians/[id]">{null}</PublicShell>;
   const p = await getPolitician(id);
   if (!p) notFound();
-  const [votes, followed] = await Promise.all([recentVotes(p.id, 10), currentAppUserId().then(followedIds)]);
+  const [votes, followed, sponsor] = await Promise.all([recentVotes(p.id, 80), currentAppUserId().then(followedIds), sponsorships(p.id).catch(() => ({ sponsored: [], cosponsored: [] }))]);
+  const latest = votes.slice(0, 10);
+  const byIssue = ISSUE_CATEGORIES.map(c => ({ ...c, votes: votes.filter(v => v.issueSlug === c.slug) })).filter(g => g.votes.length);
+  const unsorted = votes.filter(v => !v.issueSlug);
+  const activeCo = sponsor.cosponsored.filter(c => !c.withdrawnDate);
+  const withdrawn = sponsor.cosponsored.filter(c => c.withdrawnDate);
+  const billLine = (b: { id: string; billType: string; number: number; title: string; headline: string | null }) => <>
+    <Link href={`/bills/${b.id}`}><span className="bill-tag">{billLabel(b.billType, b.number)}</span> {b.title}</Link>
+    {b.headline && <span className="vote-headline">{b.headline} <AnalysisBadge /></span>}</>;
   return <PublicShell current="/politicians" access={access} page="/politicians/[id]">
     <section className="fed-page">
       <p className="crumbs"><Link href="/politicians">← All politicians</Link></p>
@@ -33,10 +47,31 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           <p className="meta">{p.isCurrent ? `Term ends ${shortDate(p.termEnd)}` : "No longer serving"}{p.officialUrl && <> · <a href={p.officialUrl} target="_blank" rel="noopener noreferrer">Official site</a></>}</p></div>
         <FollowButton politicianId={p.id} following={followed.has(p.id)} canFollow={!!access.editor || !!access.invite} />
       </div>
-      <h2>Last {votes.length || 10} votes <OfficialBadge /></h2>
-      {votes.length ? <ul className="vote-list">{votes.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul>
+
+      <h2>Latest votes <OfficialBadge /></h2>
+      {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul>
         : <p className="empty-note">No recorded votes stored yet. Votes load with each scheduled update.</p>}
-      <p className="source-line">Votes are copied from the {p.chamber === "senate" ? "Senate's roll-call records (senate.gov)" : "House Clerk's roll-call records (clerk.house.gov)"}; each links to its source. Member details from the congress-legislators project, retrieved {shortDate(p.retrievedAt)}.</p>
+      <p className="meta">A procedural vote decides how or whether the chamber proceeds (for example ending debate). It is shown as such and never as a vote for or against the bill itself.</p>
+
+      {votes.length > 0 && <><h2>Votes by issue <OfficialBadge /></h2>
+        <p className="meta">The {votes.length} most recent recorded votes, grouped by the issue of the bill voted on. A bill can sit under one issue here: the first of its issues.</p>
+        <div className="issue-groups">{byIssue.map(g => <details key={g.slug} className="issue-group"><summary><b>{g.name}</b> <span className="meta">{g.votes.length} vote{g.votes.length === 1 ? "" : "s"}</span></summary>
+          <ul className="vote-list">{g.votes.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul></details>)}
+          {unsorted.length > 0 && <details className="issue-group"><summary><b>Not sorted into an issue</b> <span className="meta">{unsorted.length} (nominations, procedure, or bills without a topic yet)</span></summary>
+            <ul className="vote-list">{unsorted.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul></details>}</div></>}
+
+      <h2>Bills sponsored and cosponsored <OfficialBadge /></h2>
+      <p className="meta">Bills in On Record&apos;s record (those with a recorded vote or recent action), from govinfo&apos;s bill status records. Not every bill this member has signed.</p>
+      <div className="issue-groups">
+        <details className="issue-group" open={sponsor.sponsored.length > 0 && sponsor.sponsored.length <= 5}><summary><b>Sponsored</b> <span className="meta">{sponsor.sponsored.length} bill{sponsor.sponsored.length === 1 ? "" : "s"}</span></summary>
+          {sponsor.sponsored.length ? <ul className="bill-list compact">{sponsor.sponsored.map(b => <li key={b.id}>{billLine(b)}{b.introducedAt && <small>Introduced {shortDate(b.introducedAt)}</small>}</li>)}</ul> : <p className="meta">None in the record.</p>}</details>
+        <details className="issue-group"><summary><b>Cosponsored</b> <span className="meta">{activeCo.length} bill{activeCo.length === 1 ? "" : "s"}</span></summary>
+          {activeCo.length ? <ul className="bill-list compact">{activeCo.map(b => <li key={b.id}>{billLine(b)}<small>{b.original ? "Original cosponsor" : "Cosponsor"}{b.sponsorshipDate ? ` since ${shortDate(b.sponsorshipDate)}` : ""}</small></li>)}</ul> : <p className="meta">None in the record.</p>}</details>
+        {withdrawn.length > 0 && <details className="issue-group"><summary><b>Cosponsorship withdrawn</b> <span className="meta">{withdrawn.length}</span></summary>
+          <ul className="bill-list compact">{withdrawn.map(b => <li key={b.id}>{billLine(b)}<small>Withdrawn {shortDate(b.withdrawnDate)}</small></li>)}</ul></details>}
+      </div>
+
+      <p className="source-line">Votes are copied from the {p.chamber === "senate" ? "Senate's roll-call records (senate.gov)" : "House Clerk's roll-call records (clerk.house.gov)"}; each links to its source. Sponsorships from govinfo.gov bill status records. Member details from the congress-legislators project, retrieved {shortDate(p.retrievedAt)}.</p>
     </section>
   </PublicShell>;
 }

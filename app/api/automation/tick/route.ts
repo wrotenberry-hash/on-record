@@ -8,6 +8,7 @@ import { tickAuthorized } from "@/lib/tick-auth";
 import { intakePauseState, runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
+import { runClassifyBatch, type ClassifyRun } from "@/lib/analysis/classify";
 import { sendSummariesReadyIfDue } from "@/lib/analysis/report";
 import { intakeAllowed } from "@/lib/monitoring";
 import { sendEmail } from "@/lib/monitoring-runtime";
@@ -138,11 +139,20 @@ async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error:
  * nudge (the batch stops starting new summaries 45 s before its deadline and
  * each model call is capped to the time left). Their own caps bound spend.
  */
-async function analysisStep(startedAt: number): Promise<AnalysisRun | { status: "FAILED"; error: string }> {
+async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string } }> {
   const budgetMs = 300_000 - (Date.now() - startedAt) - 40_000;
   if (budgetMs < 50_000) return { status: "FAILED", error: "no time left in this run" };
-  try { return await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
-  catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
+  let analysis: AnalysisRun | { status: "FAILED"; error: string };
+  try { analysis = await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
+  catch (error) { analysis = { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
+  // Issue suggestions for unsorted bills use whatever time is left; never after a billing refusal (AI work stops).
+  const refused = /billing or usage limit/i.test(("error" in analysis && analysis.error) || "");
+  const left = 300_000 - (Date.now() - startedAt) - 40_000;
+  if (refused || left < 30_000) return analysis;
+  let classify: ClassifyRun | { status: "FAILED"; error: string };
+  try { classify = await runClassifyBatch({ budgetMs: left }); }
+  catch (error) { classify = { status: "FAILED", error: (error instanceof Error ? error.message : "classify failed").slice(0, 200) }; }
+  return { ...analysis, classify };
 }
 
 /**
