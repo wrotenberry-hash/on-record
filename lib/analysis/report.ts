@@ -126,7 +126,7 @@ export async function logReviewPackets(billIds: string[], budgetMs = 30_000): Pr
         out.push(...packetLines(r.label, "HEADINGS", `${parsed.chars} chars; ${parsed.sections.map(x => `Sec. ${x.num}. ${x.heading}`.slice(0, 90)).join(" || ")}`.slice(0, 1400)));
         for (const cite of new Set([...r.whatItDoes, ...r.whoItAffects].map(p => p.section))) {
           const n = citedSection(cite), sec = n ? parsed.sections.find(x => x.num.toUpperCase() === n) : null;
-          out.push(...packetLines(r.label, `CITED ${cite}`, sec?.text ? `[${sec.text.length} chars] ${sec.text.slice(0, 6000)}` : "NOT FOUND IN THE BILL TEXT"));
+          out.push(...packetLines(r.label, `CITED ${cite}`, sec?.text ? `[${sec.text.length} chars] ${sec.text.slice(0, 16000)}` : "NOT FOUND IN THE BILL TEXT"));
         }
       } catch (e) { out.push(...packetLines(r.label, "TEXT_ERROR", (e instanceof Error ? e.message : "fetch failed").slice(0, 200))); }
       for (const l of out) console.log(l);

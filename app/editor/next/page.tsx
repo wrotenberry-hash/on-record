@@ -33,6 +33,7 @@ export default async function WhatsNextPage({ searchParams }: { searchParams: Pr
       <form action={runUpdateNow} className="run-now" id="run">
         <button>Run the update now</button>
         <span className="meta">{sp.run === "started" ? `Started ${fmt(Number(sp.at) || now)} CT. It takes up to 5 minutes; reload this page after.`
+          : sp.run === "recent" ? "An update was started in the last 10 minutes and is still running. Reload in a few minutes."
           : sp.run === "limit" ? "Already run twice in the last hour. Try again later."
           : sp.run === "scheduled" ? "A scheduled update runs within 10 minutes of now (13:00 and 19:00 UTC), so this one was skipped."
           : sp.run === "nosecret" ? "Could not start: the scheduler secret is not set in Vercel."

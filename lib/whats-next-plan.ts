@@ -7,12 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-16T19:45:00Z";
-export const PLAN_NOTE = "The new OpenAI key works. The 19:00 UTC run on 16 Nov wrote the first 5 real bill summaries for 3 cents in total (0.6 cents each). Claude checked them against the bill text the same hour: none misstates what a bill does, but there were four wording problems (one misleading sentence, facts added from general knowledge, weak arguments, and writing too dense for ordinary readers). The generator and checker are fixed, and the five are rewritten on the next run (13:00 UTC, 17 Nov). The limit stays at 5 summaries until the rewritten five pass. Details: docs/ROUND1_REVIEW.md. The trial unlocked itself and 25 invite links exist; none has been handed out.";
+export const PLAN_UPDATED = "2026-11-16T22:00:00Z";
+export const PLAN_NOTE = "Your 21:35 UTC run rewrote the 5 summaries for 0.35 cents each. Claude checked them against the bill text: all five are accurate. Three are shown. One is held only because a veterans' bill cannot avoid words like \"disability compensation\", and one is held because its bill text could not be found (correct). Fixed as generator b4: the bill's own title words no longer count as hard words, and arguments state the reason instead of \"X could say\". The 13:00 UTC run on 17 Nov rewrites them; if they pass, the 5-summary limit is lifted. Texas loaded for the first time: 178 legislators, 89 bills, 183 votes, no count mismatches. The trial is open with 25 invite links; none handed out yet.";
 
 export const RECOMMENDED: Recommendation[] = [
   { title: "Finish proving the summaries (Round 1)", needs: "nothing; in progress",
-    why: "You said go. After the 13:00 UTC run on 17 Nov rewrites the five, Claude reviews them again in full. If they pass, the 5-summary limit is lifted so the $25 monthly cap is the only limit (about 3,900 summaries a month at tonight's price). No need to approve or reject tonight's summaries; they are about to be replaced." },
+    why: "You said go. Second review done: all five accurate; fixes shipped as b4. After the 13:00 UTC run on 17 Nov rewrites the five, Claude checks them once more. If they pass, the 5-summary limit is lifted so the $25 monthly cap is the only limit (about 7,000 summaries a month at 0.35 cents each). No need to approve or reject the current summaries; they are about to be replaced." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",
@@ -56,8 +56,8 @@ export const ROUNDS: RoundStatus[] = [
   { round: "A", what: "Federal data depth (actions, amendments, versions, committees, floor)", state: "live" },
   { round: "B", what: "Bill experience (timeline, party split, search, follow)", state: "live" },
   { round: "C", what: "Vote experience (what Yes/No means, compare, your legislators)", state: "live" },
-  { round: "H", what: "What's happening and Texas", state: "live, waiting on data" },
-  { round: "I", what: "Dashboards (Congress filled tonight; Texas waits on its key)", state: "live, waiting on data" },
+  { round: "H", what: "What's happening and Texas", state: "live" },
+  { round: "I", what: "Dashboards (Congress; Texas fills from tonight's first load)", state: "live" },
   { round: "D", what: "Reasons to come back (start, alerts, recap)", state: "live" },
   { round: "J", what: "Real-person verification", state: "live behind a switch" },
   { round: "G", what: "Sharing (cards, video, short links, post queue)", state: "live" },

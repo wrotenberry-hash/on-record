@@ -115,7 +115,19 @@ export function readingGrade(text: string): number {
 export function withoutOfficialNames(text: string): string {
   return text.replace(/\b(?!(?:The|A|An|This|That|These|Those|If|Each|Any|No|Most|Some|Under|When|After|Before|Would)\b)[A-Z][A-Za-z'’&.-]*(?:\s+(?:of|the|and|for|on|in|&)\s+[A-Z][A-Za-z'’&.-]*|\s+[A-Z][A-Za-z'’&.-]*)+/g, "Name");
 }
-export function plainGrade(text: string): number { return readingGrade(withoutOfficialNames(text)); }
+/**
+ * Round 1 second review (16 Nov 2026): the bill's own subject words are not jargon the summary can avoid. A veterans'
+ * bill must say "disability compensation". Words of 3+ letters from the bill's official title count as one short word.
+ */
+export function withoutSubjectTerms(text: string, subject = ""): string {
+  const terms = new Set(words(subject.toLowerCase()).map(w => w.replace(/[^a-z-]/g, "")).filter(w => w.length > 3));
+  if (!terms.size) return text;
+  return text.replace(/[A-Za-z][A-Za-z-]*/g, w => terms.has(w.toLowerCase()) || terms.has(w.toLowerCase().replace(/s$/, "")) ? "term" : w);
+}
+export function plainGrade(text: string, subject = ""): number { return readingGrade(withoutSubjectTerms(withoutOfficialNames(text), subject)); }
+
+/** An argument framed as "X could say ..." repeats the attribution and makes the longest sentences in a summary. */
+export const SAYS_FRAME = /^\s*(?:the\s+)?[\w'’ -]{0,60}?\b(?:could|would|might|may)\s+(?:say|argue|contend|note|point out)\b/i;
 
 /** Share of a point's content words that also appear in the section it cites (null when the section text is not available). */
 export function citeOverlap(pointText: string, cite: string, sections: readonly Section[]): number | null {
@@ -144,7 +156,7 @@ export function proseOf(d: SummaryDraft): string[] {
     ...d.caseFor.map(a => end(a.argument)), ...d.caseAgainst.map(a => end(a.argument)), ...d.unknowns.map(end)];
 }
 
-export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts: { truncated?: boolean } = {}): CheckResult {
+export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts: { truncated?: boolean; subject?: string } = {}): CheckResult {
   const failures: string[] = [], warnings: string[] = [];
   const fail = (m: string) => failures.push(m), warn = (m: string) => warnings.push(m);
 
@@ -179,6 +191,7 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
       const who = a.attribution.trim();
       if (!who) fail(`${label} argument ${i + 1} has no attribution.`);
       else if (VAGUE_ATTRIBUTION.test(who)) fail(`${label} argument ${i + 1} is attributed only to "${who}"; say which kind of supporter or critic.`);
+      if (SAYS_FRAME.test(a.argument)) fail(`${label} argument ${i + 1} starts "… could say"; state the reason itself; the attribution already says who.`);
     });
   };
   side("Case for", d.caseFor);
@@ -197,11 +210,11 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
 
   const totalWords = prose.reduce((n, s) => n + wc(s), 0);
   if (totalWords > LIMITS.totalWords) fail(`The summary is ${totalWords} words; the limit is ${LIMITS.totalWords} (about two phone screens).`);
-  const grade = plainGrade(prose.join(" ")); // official names count as one short word each
+  const grade = plainGrade(prose.join(" "), opts.subject); // official names and the bill's own title words count as one short word each
   if (grade > LIMITS.gradeFail) {
     // Round 1 review: the bare grade gave the model nothing to act on, so its second try stayed dense. Name what to fix.
     const long = prose.map(x => ({ x, n: wc(x) })).filter(y => y.n > 18).sort((a, b) => b.n - a.n).slice(0, 3).map(y => `"${words(y.x).slice(0, 6).join(" ")}…" (${y.n} words)`);
-    const hard = [...new Set(words(withoutOfficialNames(prose.join(" "))).map(w => w.replace(/[^A-Za-z-]/g, "").toLowerCase()).filter(w => w.length > 8 && syllables(w) >= 4))].slice(0, 6).map(w => `"${w}"`);
+    const hard = [...new Set(words(withoutSubjectTerms(withoutOfficialNames(prose.join(" ")), opts.subject)).map(w => w.replace(/[^A-Za-z-]/g, "").toLowerCase()).filter(w => w.length > 8 && syllables(w) >= 4))].slice(0, 6).map(w => `"${w}"`);
     fail(`Reading level is grade ${grade}; the limit is ${LIMITS.gradeFail} (target about 8).${long.length ? ` Split these sentences in two: ${long.join("; ")}.` : ""}${hard.length ? ` Use plainer words for, or explain: ${hard.join(", ")}.` : ""}`);
   }
   else if (grade > LIMITS.gradeWarn) warn(`Reading level is grade ${grade}; the target is about 8.`);

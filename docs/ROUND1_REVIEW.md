@@ -47,9 +47,28 @@ same length (probe: the case for is 50–51% of the argument words for both part
 
 Regression tests: `tests/analysis.test.mjs`, "Round 1 review fixes".
 
-## After (pending)
+## After: generator b3, reviewed 16 Nov 2026 (run started by the owner at 21:35 UTC)
 
-The five are rewritten by the next scheduled run (13:00 UTC, 17 Nov) because the generator
-version changed; the earlier wording is kept in the version history. They will be reviewed
-again in full. **The 5-summary limit stays until the rewritten five pass.** Until the rewrite,
-the three shown summaries keep tonight's wording; no trial invite has been handed out yet.
+Cost: 0.35 cents a summary on average ($0.0175 for all five; the one with a retry cost 0.73 cents).
+Month-to-date model spend is $0.11 against the $25 summary cap.
+
+| Bill | Result | Against the cited section text |
+| --- | --- | --- |
+| H.R. 7008 | Shown, grade 10.9 | Accurate: purchase ban for Members, spouses and dependent children; notice before sales; fees; photo ID with a provisional ballot and a 3-day cure; notice to registrants; copying devices in public buildings. One point (ethics offices issue guidance) sits past the part of Sec. 2 the log carried (6,000 characters), so it could not be checked; the log now carries up to 16,000. |
+| H.R. 9612 | Shown, grade 10.5 | Accurate: construction before a license on the same terms as other fuel cycle facilities; rules within 180 days; environmental review, hearing rights and inspections unchanged. One argument names "state and public-interest advocates" but is attributed to "state officials". |
+| H.R. 1013 | Shown, grade 9.7 | Accurate on the securities-law changes and the plans covered. |
+| H.R. 2102 | Held: grade 12.9 after 2 tries | Accurate on every point, including the effective date. Held only because its subject words ("disability", "compensation", "combat-related") counted as hard words, which a veterans' bill cannot avoid. |
+| S.J.Res. 197 | Held: low confidence | Correct to hold. The bill text could not be found, so there is nothing to check it against. |
+
+No summary misstated what a bill does. The "no change unless" pattern and the invented groups are gone.
+
+### Fixes (generator b4-2026-11-16)
+
+| Pattern | Fix |
+| --- | --- |
+| The bill's own subject words pushed an accurate summary over the grade limit | Checker: words from the bill's official title count as one short word for the reading level, as official names already do. H.R. 2102 goes from 12.9 to 8.6. The limit is unchanged. |
+| "Budget analysts could say…" repeats the attribution, makes the longest sentences, and let one argument name a different group than its attribution | Generator: write the reason itself; the attribution says who and must be the same group. Checker: an argument that starts "… could say" fails. |
+| The review log cut cited sections at 6,000 characters | The log now carries up to 16,000 characters of each cited section. |
+
+**Next:** the 13:00 UTC run on 17 Nov rewrites all five under b4. If they pass, the 5-summary
+limit is raised and the $25 cap becomes the only limit.

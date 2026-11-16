@@ -206,8 +206,8 @@ test("Round 1 review fixes: names do not count against reading level; 'no change
   const base = { headline: "Would require photo identification to vote in federal elections", whatItDoes: [{ text: "Requires a valid photo identification before an election official provides a ballot.", section: "Sec. 2" }],
     whoItAffects: [{ text: "Individuals who vote in federal elections must present photo identification.", section: "Sec. 2" }],
     whatChangesForYou: "Most people would see no direct change unless they are voting in a federal election.",
-    caseFor: [{ argument: "State officials could say one photo rule gives every polling place the same check.", attribution: "state election officials" }, { argument: "The sponsor could say a photo check gives voters more trust in the count.", attribution: "the bill's sponsor" }],
-    caseAgainst: [{ argument: "Voting rights groups could say some eligible voters lack a listed photo card.", attribution: "voting rights groups" }, { argument: "Local officials could say checking cards adds work and cost at polling places.", attribution: "local election officials" }],
+    caseFor: [{ argument: "One photo rule would give every polling place the same check before a ballot.", attribution: "state election officials" }, { argument: "A photo check could give voters more trust in how ballots are counted.", attribution: "the bill's sponsor" }],
+    caseAgainst: [{ argument: "Some eligible voters lack a listed photo card and could be turned away.", attribution: "voting rights groups" }, { argument: "Checking cards would add work and cost for staff at every polling place.", attribution: "local election officials" }],
     unknowns: ["The text lists no cost estimate."], confidence: "high", confidenceReason: "The text is short and clear." };
   assert.ok(checkSummary(base, sections).failures.some(f => /most people see no change, then adds an exception/.test(f)));
   assert.equal(checkSummary({ ...base, whatChangesForYou: "You would need to show a photo ID to vote in a federal election." }, sections).passed, true);
@@ -217,4 +217,21 @@ test("Round 1 review fixes: names do not count against reading level; 'no change
   const dense = { ...base, whatChangesForYou: `Individuals would encounter ${heavy}.`, whoItAffects: [{ text: `Individuals voting in federal elections encounter ${heavy}.`, section: "Sec. 2" }], whatItDoes: [{ text: "Establishes comprehensive identification verification requirements necessitating governmental documentation presentation before election officials provide any individual a ballot under the applicable administrative procedures.", section: "Sec. 2" }] };
   const f = checkSummary(dense, sections).failures.find(x => /Reading level/.test(x));
   assert.ok(f && /Split these sentences in two|Use plainer words/.test(f), f);
+});
+
+// Round 1 second review (16 Nov 2026): subject words from the bill's own title are not avoidable jargon,
+// and "X could say ..." framing repeats the attribution and makes the longest sentences.
+test("the bill's own title words do not raise the reading grade", async () => {
+  const { plainGrade, withoutSubjectTerms } = await import("../lib/analysis/checker.ts");
+  const text = "Eligible retirees with a combat-related disability could receive disability compensation and retired pay together.";
+  const title = "To provide for concurrent receipt of veterans' disability compensation and retired pay for disability retirees with combat-related disabilities.";
+  assert.ok(plainGrade(text, title) < plainGrade(text));
+  assert.equal(withoutSubjectTerms("Plain words stay.", ""), "Plain words stay.");
+});
+
+test("an argument framed as \"X could say\" fails; the reason itself passes", () => {
+  const framed = good(); framed.caseFor[0].argument = "Budget analysts could say removing the offset would increase federal payments to eligible retirees under this bill.";
+  assert.match(checkSummary(framed, SECTIONS).failures.join(" "), /could say/);
+  const plain = good(); plain.caseFor[0].argument = "The bill could give covered plans access to more pooled investment options for their members.";
+  assert.doesNotMatch(checkSummary(plain, SECTIONS).failures.join(" "), /could say/);
 });
