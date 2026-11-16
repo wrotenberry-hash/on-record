@@ -51,7 +51,10 @@ async function runTick(request: Request) {
     const summariesEmail = await sendSummariesReadyIfDue();
     // Monday's 19:00 run sends the weekly "how your members voted" email (no new cron).
     const digest = isDigestDay(now) ? await runDigests(now).catch(error => ({ error: (error instanceof Error ? error.message : "digest failed").slice(0, 200) })) : null;
-    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, monitoring: await monitorAfterRun() });
+    // Round H: the evening briefing (daily in session, Mondays otherwise) and due reminders.
+    const briefing = await import("@/lib/briefing").then(m => m.runBriefing(now)).catch(error => ({ error: (error instanceof Error ? error.message : "briefing failed").slice(0, 200) }));
+    const reminders = await import("@/lib/reminders").then(m => m.sendDueReminders(now)).catch(error => ({ error: (error instanceof Error ? error.message : "reminders failed").slice(0, 200) }));
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, briefing, reminders, monitoring: await monitorAfterRun() });
   }
   // Owner decision 2026-11-15: no new statements while the review backlog is at or above
   // INTAKE_PAUSE_BACKLOG (default 20). The run still drafts research for one waiting case,
@@ -140,9 +143,14 @@ async function researchOneWaitingCase(): Promise<{ status: string; representatio
   return { status: draft.status ?? "COMPLETE", representationId: pending.id };
 }
 
-async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error: string }> {
-  try { return await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
-  catch (error) { return { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
+async function federalStep(): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown }> {
+  let federal: IngestSummary | { status: "FAILED"; error: string };
+  try { federal = await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
+  catch (error) { federal = { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
+  // Round H: Texas Legislature (Open States, LegiScan fallback) right after the federal record; no model calls.
+  const { runTexasIngest } = await import("@/lib/texas/ingest");
+  const texas = await runTexasIngest({ budgetMs: 45_000 }).catch(error => ({ ok: false, error: (error instanceof Error ? error.message : "texas failed").slice(0, 200) }));
+  return { ...federal, texas };
 }
 
 /**
@@ -150,7 +158,7 @@ async function federalStep(): Promise<IngestSummary | { status: "FAILED"; error:
  * nudge (the batch stops starting new summaries 45 s before its deadline and
  * each model call is capped to the time left). Their own caps bound spend.
  */
-async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string }; changes?: unknown }> {
+async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string }; changes?: unknown; texas?: unknown }> {
   const budgetMs = 300_000 - (Date.now() - startedAt) - 40_000;
   if (budgetMs < 50_000) return { status: "FAILED", error: "no time left in this run" };
   let analysis: AnalysisRun | { status: "FAILED"; error: string };
@@ -168,7 +176,11 @@ async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status:
   if (left2 < 40_000 || /billing/i.test(("error" in classify && classify.error) || "")) return { ...analysis, classify };
   const { runChangesBatch } = await import("@/lib/analysis/changes");
   const changes = await runChangesBatch({ budgetMs: left2 }).catch(error => ({ status: "FAILED" as const, error: (error instanceof Error ? error.message : "changes failed").slice(0, 200) }));
-  return { ...analysis, classify, changes };
+  // Round H: Texas summaries in the same template, same monthly cap.
+  const left3 = 300_000 - (Date.now() - startedAt) - 40_000;
+  if (left3 < 70_000) return { ...analysis, classify, changes };
+  const texas = await import("@/lib/texas/summaries").then(m => m.runTexasSummaries({ budgetMs: left3 })).catch(error => ({ status: "FAILED", error: (error instanceof Error ? error.message : "texas summaries failed").slice(0, 200) }));
+  return { ...analysis, classify, changes, texas };
 }
 
 /**

@@ -615,3 +615,73 @@ export const readerLocations = sqliteTable("reader_locations", {
   userId: text("user_id").primaryKey().references(() => appUsers.id), state: text("state").notNull(), congressional: text("congressional"),
   stateUpper: text("state_upper"), stateLower: text("state_lower"), source: text("source", { enum: ["zip", "address"] }).notNull(), updatedAt: integer("updated_at").notNull(),
 });
+
+// ── Round H: Texas Legislature (migration 0022). New tables only. Copies of public records; TLO is the source of record. ──
+export const txPeople = sqliteTable("tx_people", {
+  id: text("id").primaryKey(), name: text("name").notNull(), party: text("party").notNull(), chamber: text("chamber").notNull(), district: text("district").notNull(),
+  title: text("title"), image: text("image"), url: text("url"), isCurrent: integer("is_current").notNull().default(1), sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("tx_people_district_idx").on(t.chamber, t.district)]);
+export const txBills = sqliteTable("tx_bills", {
+  id: text("id").primaryKey(), openstatesId: text("openstates_id"), session: text("session").notNull(), identifier: text("identifier").notNull(), title: text("title").notNull(),
+  chamber: text("chamber"), classification: text("classification", { mode: "json" }), subjects: text("subjects", { mode: "json" }), stage: text("stage").notNull(),
+  firstActionDate: text("first_action_date"), latestActionDate: text("latest_action_date"), latestActionDescription: text("latest_action_description"),
+  tloUrl: text("tlo_url").notNull(), openstatesUrl: text("openstates_url"), feed: text("feed", { enum: ["openstates", "legiscan"] }).notNull(),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("tx_bills_session_idx").on(t.session, t.latestActionDate), index("tx_bills_stage_idx").on(t.session, t.stage)]);
+export const txBillActions = sqliteTable("tx_bill_actions", {
+  billId: text("bill_id").notNull(), seq: integer("seq").notNull(), date: text("date").notNull(), description: text("description").notNull(), chamber: text("chamber"),
+  classification: text("classification", { mode: "json" }),
+}, t => [primaryKey({ columns: [t.billId, t.seq] }), index("tx_bill_actions_date_idx").on(t.date)]);
+export const txBillSponsors = sqliteTable("tx_bill_sponsors", {
+  billId: text("bill_id").notNull(), name: text("name").notNull(), personId: text("person_id"), primary: integer("primary").notNull().default(0),
+}, t => [primaryKey({ columns: [t.billId, t.name] }), index("tx_bill_sponsors_person_idx").on(t.personId)]);
+export const txBillVersions = sqliteTable("tx_bill_versions", {
+  billId: text("bill_id").notNull(), note: text("note").notNull(), date: text("date"), url: text("url"),
+}, t => [primaryKey({ columns: [t.billId, t.note] })]);
+export const txVotes = sqliteTable("tx_votes", {
+  id: text("id").primaryKey(), billId: text("bill_id").notNull(), motion: text("motion").notNull(), date: text("date").notNull(), result: text("result").notNull(),
+  chamber: text("chamber"), counts: text("counts", { mode: "json" }), tallyOk: integer("tally_ok").notNull().default(1), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("tx_votes_bill_idx").on(t.billId), index("tx_votes_date_idx").on(t.date)]);
+export const txMemberVotes = sqliteTable("tx_member_votes", {
+  voteId: text("vote_id").notNull(), personId: text("person_id"), name: text("name").notNull(), option: text("option").notNull(),
+}, t => [primaryKey({ columns: [t.voteId, t.name] }), index("tx_member_votes_person_idx").on(t.personId)]);
+export const txCommittees = sqliteTable("tx_committees", {
+  id: text("id").primaryKey(), name: text("name").notNull(), chamber: text("chamber"), retrievedAt: integer("retrieved_at").notNull(),
+});
+export const txCommitteeMembers = sqliteTable("tx_committee_members", {
+  committeeId: text("committee_id").notNull(), name: text("name").notNull(), personId: text("person_id"), role: text("role").notNull(),
+}, t => [primaryKey({ columns: [t.committeeId, t.name] })]);
+export const txEvents = sqliteTable("tx_events", {
+  id: text("id").primaryKey(), name: text("name").notNull(), start: text("start").notNull(), location: text("location"), classification: text("classification"),
+  bills: text("bills", { mode: "json" }), url: text("url"), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("tx_events_start_idx").on(t.start)]);
+
+// ── Round H: visits, briefings, reminders (migration 0023). New tables only. ──
+// The time of a reader's previous visit, for "Since you last visited". Times only, never pages.
+export const readerVisits = sqliteTable("reader_visits", {
+  userId: text("user_id").primaryKey().references(() => appUsers.id), lastSeenAt: integer("last_seen_at").notNull(), previousSeenAt: integer("previous_seen_at"),
+});
+// Auto-generated briefings from official data: daily while a legislature is in session, weekly otherwise.
+export const briefings = sqliteTable("briefings", {
+  id: text("id").primaryKey(), kind: text("kind", { enum: ["daily", "weekly"] }).notNull(), periodStart: integer("period_start").notNull(), periodEnd: integer("period_end").notNull(),
+  content: text("content", { mode: "json" }).notNull(), createdAt: integer("created_at").notNull(), emailedAt: integer("emailed_at"),
+}, t => [index("briefings_created_idx").on(t.createdAt)]);
+export const briefingSubscriptions = sqliteTable("briefing_subscriptions", {
+  accountId: text("account_id").primaryKey().references(() => readerAccounts.id), createdAt: integer("created_at").notNull(), lastSentId: text("last_sent_id"),
+});
+// "Remind me" on a floor vote or hearing: one email the day before.
+export const reminders = sqliteTable("reminders", {
+  userId: text("user_id").notNull(), itemKey: text("item_key").notNull(), title: text("title").notNull(), url: text("url").notNull(), remindAt: integer("remind_at").notNull(),
+  sentAt: integer("sent_at"), createdAt: integer("created_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.itemKey] }), index("reminders_due_idx").on(t.remindAt)]);
+
+// ── Round H: Texas bill summaries in the same template (migration 0024). Analysis content, checked by the same rules. ──
+export const txBillSummaries = sqliteTable("tx_bill_summaries", {
+  id: text("id").primaryKey(), billId: text("bill_id").notNull(), textUrl: text("text_url").notNull(), textLabel: text("text_label").notNull(), truncated: integer("truncated").notNull().default(0),
+  headline: text("headline").notNull(), whatItDoes: text("what_it_does", { mode: "json" }).notNull(), whoItAffects: text("who_it_affects", { mode: "json" }).notNull(),
+  whatChangesForYou: text("what_changes_for_you").notNull(), caseFor: text("case_for", { mode: "json" }).notNull(), caseAgainst: text("case_against", { mode: "json" }).notNull(),
+  unknowns: text("unknowns", { mode: "json" }).notNull(), confidence: text("confidence").notNull(), confidenceReason: text("confidence_reason").notNull(),
+  checkPassed: integer("check_passed").notNull(), failures: text("failures", { mode: "json" }), readingGrade: real("reading_grade"),
+  status: text("status", { enum: ["visible", "held", "rejected"] }).notNull(), model: text("model").notNull(), promptVersion: text("prompt_version").notNull(),
+  costUsd: real("cost_usd").notNull().default(0), createdAt: integer("created_at").notNull(), reviewedAt: integer("reviewed_at"),
+}, t => [uniqueIndex("tx_bill_summaries_bill_uq").on(t.billId), index("tx_bill_summaries_status_idx").on(t.status)]);

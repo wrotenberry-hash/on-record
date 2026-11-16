@@ -117,7 +117,7 @@ function inputFor(c: Candidate, status: BillStatus, version: BillStatus["version
   ].filter(Boolean).join("\n\n");
 }
 
-async function draftOnce(key: string, model: string, reasoning: string, summaryId: string, input: string, timeoutMs: number) {
+export async function draftOnce(key: string, model: string, reasoning: string, summaryId: string, input: string, timeoutMs: number) {
   const body: Record<string, unknown> = { instructions: INSTRUCTIONS, input, max_output_tokens: MAX_OUTPUT_TOKENS, timeoutMs,
     text: { format: { type: "json_schema", name: "on_record_bill_summary", strict: true, schema: summarySchema } } };
   if (reasoning !== "none") body.reasoning = { effort: reasoning };

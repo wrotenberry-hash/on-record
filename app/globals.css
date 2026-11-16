@@ -134,3 +134,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .leg-card b{font-size:18px}.leg-select{flex:1;min-width:0;font:16px Arial,sans-serif;padding:9px;border:1px solid #c8d6ce;border-radius:3px;min-height:44px}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.stat{background:#fff;border:1px solid #d9ded9;padding:10px 12px}.stat b{display:block;font-size:22px}
 .your-tag{font-weight:400;color:#40716c;font-size:13px}.lead-stat{font-size:18px}.method summary{cursor:pointer;color:#24585a;font-weight:700;font-size:14px;margin-top:8px}
+.coming-item form{margin-top:4px}
+.right-now{max-width:860px;margin:12px auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:0 16px;box-sizing:border-box}
+.rn-cell{background:#fff;border:1px solid #d9ded9;padding:10px 12px;display:grid;gap:2px;font-size:14px}.rn-cell b{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#40716c}
+.since-panel{max-width:860px;margin:12px auto 0;padding:12px 16px;box-sizing:border-box;background:#fff;border:1px solid #d9ded9}.since-panel h2{font-size:18px;margin:0 0 6px}

@@ -18,6 +18,7 @@ import { archivedCount } from "@/lib/monitoring-runtime";
 import { feedbackCounts } from "@/lib/feedback";
 import { verificationCounts } from "@/lib/verify/store";
 import { depthCounts } from "@/lib/federal/depth";
+import { texasCounts } from "@/lib/texas/ingest";
 import { daysUntil } from "@/lib/monitoring";
 
 export const dynamic = "force-dynamic";
@@ -193,6 +194,7 @@ export async function GET() {
     casesArchived: await archivedCount().catch(() => "unavailable" as const),
     feedback: await feedbackCounts().catch(() => "unavailable" as const),
     verification: await verificationCounts().catch(() => "unavailable" as const),
+    texas: await texasCounts().catch(() => "unavailable" as const),
     trial: await trialCounts().catch(() => "unavailable" as const),
     readers: await digestCounts().catch(() => "unavailable" as const),
     events7d: await eventTotals(7).catch(() => "unavailable" as const),

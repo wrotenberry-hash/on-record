@@ -157,3 +157,22 @@ export async function tallyUnderReview(rollCallIds: string[]) {
   const rows = await getDb().select({ id: officialTallyChecks.rollCallId }).from(officialTallyChecks).where(and(inArray(officialTallyChecks.rollCallId, rollCallIds), eq(officialTallyChecks.ok, 0)));
   return new Set(rows.map(r => r.id));
 }
+
+/** Daily: how many bills have been introduced and how many laws enacted this Congress (Congress.gov's own counts). */
+export async function ingestCongressCounts(db: Db, now = Date.now()): Promise<Step> {
+  const apiKey = process.env.CONGRESS_GOV_API_KEY?.trim();
+  if (!apiKey) return { ok: true, skipped: "CONGRESS_GOV_API_KEY is not set" };
+  const prev = await getCursor(db, "congress:counts");
+  if (prev && now - (JSON.parse(prev) as { at: number }).at < 20 * 3600e3) return { ok: true, skipped: "counted today" };
+  const congress = congressForYear(new Date(now).getUTCFullYear()), base = congressBillApi({ id: "", congress, billType: "hr", number: 1 }).split("/bill/")[0];
+  const headers = { "X-Api-Key": apiKey };
+  const count = async (path: string) => { const r = await safe(`${base}${path}?format=json&limit=1`, 20_000, headers); const j = r.ok ? json(r.text) as { pagination?: { count?: number } } | null : null; return typeof j?.pagination?.count === "number" ? j.pagination.count : null; };
+  const [bills, hr, s, laws] = await Promise.all([count(`/bill/${congress}`), count(`/bill/${congress}/hr`), count(`/bill/${congress}/s`), count(`/law/${congress}`)]);
+  if (bills === null && laws === null) return { ok: false, error: "Congress.gov counts unavailable" };
+  await setCursor(db, "congress:counts", JSON.stringify({ congress, bills, hr, s, laws, at: now }));
+  return { ok: true, bills: bills ?? 0, laws: laws ?? 0 };
+}
+export async function congressCounts(db = getDb()) {
+  const v = await getCursor(db, "congress:counts");
+  return v ? JSON.parse(v) as { congress: number; bills: number | null; hr: number | null; s: number | null; laws: number | null; at: number } : null;
+}

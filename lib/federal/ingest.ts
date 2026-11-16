@@ -257,6 +257,7 @@ export async function runFederalIngest({ budgetMs = 120_000, trigger = "schedule
   await step("floor", () => depth.ingestFloor(db));
   await step("depth", () => depth.ingestDepth(db, deadline));
   await step("tally", () => depth.checkTallies(db));
+  await step("counts", () => depth.ingestCongressCounts(db));
   // Round B: one email per followed bill whose stage moved.
   await step("billAlerts", async () => ({ ok: true, ...(await (await import("@/lib/bill-follows")).runBillAlerts()) }));
   const failures = Object.values(steps).filter(s => !s.ok).length;

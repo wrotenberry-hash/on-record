@@ -5,6 +5,7 @@ import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
 import { findLegislators, forgetLocation, pickDistrict } from "./actions";
+import { txLegislatorsFor } from "@/lib/texas/queries";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Your legislators · On Record", robots: { index: false, follow: false } };
@@ -18,6 +19,7 @@ export default async function LegislatorsPage({ searchParams }: { searchParams: 
   const userId = await currentAppUserId();
   const loc = await currentLocation(userId);
   const fed = loc ? await federalLegislators(loc.state, loc.congressional).catch(() => null) : null;
+  const tx = loc?.state === "TX" ? await txLegislatorsFor(loc.stateUpper, loc.stateLower).catch(() => null) : null;
   const card = (l: { id: string; fullName: string; party: string; role: string }) => <li key={l.id} className="leg-card"><Link href={`/politicians/${l.id}`}><b>{l.fullName}</b></Link><span>{l.role}</span><span className="meta">{l.party}</span></li>;
   return <PublicShell current="/legislators" access={access} page="/legislators">
     <section className="fed-page">
@@ -31,7 +33,9 @@ export default async function LegislatorsPage({ searchParams }: { searchParams: 
           <form action={pickDistrict} className="search-form"><label htmlFor="district" className="visually-hidden">House district</label>
             <select id="district" name="district" className="leg-select">{fed.houseChoices.map(h => <option key={h.id} value={`${h.state}-${h.district ? String(h.district).padStart(2, "0") : "AL"}`}>{h.state}-{h.district ?? "AL"}: {h.fullName} ({h.party})</option>)}</select>
             <button>Use this</button></form></div>}
-        {loc?.state === "TX" && <p className="meta">Texas state senator and state representative: arriving before the Legislature convenes on 12 Jan 2027{loc.stateUpper ? ` (your districts: Senate ${loc.stateUpper.split("-").pop()}, House ${loc.stateLower?.split("-").pop()})` : " (add your street address to find them)"}.</p>}
+        {loc?.state === "TX" && (tx?.senator || tx?.representative
+          ? <><h2>Texas Legislature</h2><ul className="leg-list">{[tx.senator, tx.representative].filter(Boolean).map(t => <li key={t!.id} className="leg-card"><Link href={`/texas/members/${encodeURIComponent(t!.id)}`}><b>{t!.name}</b></Link><span>{t!.chamber === "upper" ? "Texas State Senator" : "Texas State Representative"}, District {t!.district}</span><span className="meta">{t!.party}</span></li>)}</ul></>
+          : <p className="meta">{loc.stateUpper ? `Your Texas districts: Senate ${loc.stateUpper.split("-").pop()}, House ${loc.stateLower?.split("-").pop()}. Their members appear once Texas data loads.` : "Add your street address to find your Texas state senator and state representative."}</p>)}
         <form action={forgetLocation}><button className="link-button">Forget my location</button></form>
       </>}
       <div className="fed-section"><h2>{loc ? "Change location" : "Your ZIP code"}</h2>
