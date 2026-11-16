@@ -15,6 +15,7 @@ export const PUBLIC_PAGES = [
   { href: "/method", label: "How a claim is checked" },
   { href: "/about", label: "Who runs this" },
   { href: "/corrections", label: "Corrections" },
+  { href: "/transparency", label: "Transparency" },
   { href: "/records", label: "Published records" },
 ] as const;
 

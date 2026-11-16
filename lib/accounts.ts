@@ -4,6 +4,8 @@ import { getDb } from "@/db";
 import { magicLinks, readerAccounts } from "@/db/schema";
 import { signAction, verifyAction } from "@/lib/session-token";
 import { sendTo } from "@/lib/mailer";
+import { linkChallenges } from "@/db/schema";
+import { verificationConfig } from "@/lib/verify/config";
 
 /**
  * Reader sign-in by email magic link (owner decision 2026-11-13; built in Round 3).
@@ -28,12 +30,30 @@ export async function emailHash(email: string) {
 }
 
 /** Creates a single-use link and emails it. The caller passes the viewer's app user and invite (never from the browser). */
-export async function requestMagicLink(rawEmail: string, viewer: { appUserId: string; inviteId: string | null }) {
+export async function requestMagicLink(rawEmail: string, viewer: { appUserId: string; inviteId: string | null }, turnstileToken: string | null = null) {
   const email = normaliseEmail(rawEmail);
   if (!email) return { ok: false as const, message: "Enter a full email address." };
   if (!key()) return { ok: false as const, message: "Sign-in is not configured." };
   const nonce = crypto.randomUUID(), now = Date.now();
+  // Round J (behind VERIFICATION_ENABLED): disposable addresses, sign-up rate limits and the bot check.
+  let challenge: { passedAt: number; ipRange: string | null; device: string | null } | null = null;
+  if (verificationConfig().enabled) {
+    const { isDisposableEmail } = await import("@/lib/verify/disposable");
+    const { bumpCount, requestContext, withinLimit } = await import("@/lib/verify/store");
+    const { verifyTurnstile } = await import("@/lib/verify/providers");
+    if (await isDisposableEmail(email)) { await bumpCount("account_blocked", "disposable_email"); return { ok: false as const, message: "That looks like a throwaway email address. Use an address you keep." }; }
+    const ctx = await requestContext();
+    if (!(await withinLimit("link_ip_hour", ctx.ipRange)) || !(await withinLimit("link_device_hour", ctx.device))) {
+      await bumpCount("account_blocked", "rate_limited"); return { ok: false as const, message: "Too many sign-in requests from here. Try again in an hour." };
+    }
+    if (verificationConfig().turnstileReady) {
+      const t = await verifyTurnstile(turnstileToken, ctx.ip);
+      if (!t.ok) { await bumpCount("account_blocked", "bot_challenge"); return { ok: false as const, message: "The automatic bot check did not pass. Reload the page and try again." }; }
+      challenge = { passedAt: now, ipRange: ctx.ipRange, device: ctx.device };
+    }
+  }
   await getDb().insert(magicLinks).values({ nonce, email, emailHash: await emailHash(email), appUserId: viewer.appUserId, inviteId: viewer.inviteId, createdAt: now, expiresAt: now + LINK_TTL_MS });
+  if (challenge) await getDb().insert(linkChallenges).values({ nonce, ...challenge });
   const token = await signAction(key(), "magic-link", nonce, now + LINK_TTL_MS);
   const link = `${SITE_URL}/account/verify?t=${encodeURIComponent(token)}`;
   const sent = await sendTo(email, "Your On Record sign-in link", [`Tap to sign in to On Record on this device:`, "", link, "",
@@ -47,6 +67,23 @@ export async function requestMagicLink(rawEmail: string, viewer: { appUserId: st
 
 /** Uses a link once: creates or finds the account and returns its id, or null. */
 export async function redeemMagicLink(token: string | null | undefined): Promise<string | null> {
+  const id = await redeemLink(token);
+  if (id && verificationConfig().enabled) await recordSignupChallenge(id, token).catch(() => null);
+  return id;
+}
+
+/** Round J: the bot check passed when the link was requested becomes the account's sign-up challenge. */
+async function recordSignupChallenge(accountId: string, token: string | null | undefined) {
+  const v = await verifyAction(key(), "magic-link", token, Date.now() - LINK_TTL_MS).catch(() => null);
+  const nonce = v?.subject;
+  const c = nonce ? await getDb().select().from(linkChallenges).where(eq(linkChallenges.nonce, nonce)).get() : null;
+  const { ensureProfile, updateProfile } = await import("@/lib/verify/store");
+  const p = await ensureProfile(accountId, c ? { signupChallengeAt: c.passedAt, signupIpRange: c.ipRange, signupDevice: c.device } : {});
+  if (c && !p.signupChallengeAt) await updateProfile(accountId, { signupChallengeAt: c.passedAt });
+  if (c) { const { checkSignup } = await import("@/lib/verify/anomaly"); await checkSignup({ signupIpRange: c.ipRange, signupDevice: c.device }); }
+}
+
+async function redeemLink(token: string | null | undefined): Promise<string | null> {
   const v = await verifyAction(key(), "magic-link", token);
   if (!v) return null;
   const db = getDb(), now = Date.now();

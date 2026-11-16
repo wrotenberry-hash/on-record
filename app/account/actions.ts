@@ -14,7 +14,9 @@ export async function requestLink(formData: FormData) {
   if (!access.allowed || (!access.invite && !access.editor)) redirect("/account?m=closed");
   const appUserId = await currentAppUserId(true);
   if (!appUserId) redirect("/account?m=closed");
-  const result = await requestMagicLink(String(formData.get("email") ?? ""), { appUserId, inviteId: access.invite?.id ?? null });
+  const { ensureDeviceCookie } = await import("@/lib/verify/store");
+  await ensureDeviceCookie();
+  const result = await requestMagicLink(String(formData.get("email") ?? ""), { appUserId, inviteId: access.invite?.id ?? null }, String(formData.get("cf-turnstile-response") ?? "") || null);
   await countEvent(result.ok ? "magic_link_sent" : "magic_link_failed", access.audience);
   redirect(`/account?m=${result.ok ? "sent" : "fail"}&t=${encodeURIComponent(result.message)}`);
 }

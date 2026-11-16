@@ -464,7 +464,8 @@ export const magicLinks = sqliteTable("magic_links", {
 });
 
 // OPINION content: a reader's own Support or Oppose on a bill. Never joined into an official or
-// analysis view, never shown to anyone else, never aggregated into a poll.
+// analysis view and never shown to anyone else. Since Round J (owner, 2026-11-16) a verified reader's
+// answer is also copied to counted_positions and added, without a name, to tier totals.
 export const opinionUserVotes = sqliteTable("opinion_user_votes", {
   userId: text("user_id").references(() => appUsers.id).notNull(), billId: text("bill_id").references(() => officialBills.id).notNull(),
   stance: text("stance", { enum: ["support", "oppose"] }).notNull(), updatedAt: integer("updated_at").notNull(),
@@ -490,3 +491,59 @@ export const caseArchive = sqliteTable("case_archive", {
 export const readerFeedback = sqliteTable("reader_feedback", {
   id: text("id").primaryKey(), answer: text("answer").notNull(), audience: text("audience").notNull(), createdAt: integer("created_at").notNull(),
 });
+
+// ── Round J: real-person verification (migration 0018). New tables only; nothing above is altered. ──
+// One row per reader account. Tier: 0 visitor, 1 real person, 2 district-matched. The phone is never
+// stored: only a keyed hash of it, so one number cannot verify a second account. The address is stored
+// encrypted (for the Tier 3 postcard design); counting uses the district id alone.
+export const verificationProfiles = sqliteTable("verification_profiles", {
+  accountId: text("account_id").primaryKey().references(() => readerAccounts.id), tier: integer("tier").notNull().default(0),
+  signupChallengeAt: integer("signup_challenge_at"), firstVoteChallengeAt: integer("first_vote_challenge_at"),
+  phoneHash: text("phone_hash"), phoneLineType: text("phone_line_type"), phoneVerifiedAt: integer("phone_verified_at"),
+  pendingPhoneHash: text("pending_phone_hash"), pendingPhoneAt: integer("pending_phone_at"),
+  districtId: text("district_id"), stateCode: text("state_code"), addressCipher: text("address_cipher"), addressMatchedAt: integer("address_matched_at"),
+  signupIpRange: text("signup_ip_range"), signupDevice: text("signup_device"), createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [uniqueIndex("verification_phone_uq").on(t.phoneHash), index("verification_ip_idx").on(t.signupIpRange), index("verification_device_idx").on(t.signupDevice),
+  index("verification_district_idx").on(t.districtId), check("verification_tier", sql`${t.tier} IN (0, 1, 2)`)]);
+
+// The Turnstile pass behind a sign-in link, copied onto the profile when the link is used.
+export const linkChallenges = sqliteTable("link_challenges", {
+  nonce: text("nonce").primaryKey(), passedAt: integer("passed_at").notNull(), ipRange: text("ip_range"), device: text("device"),
+});
+
+// A position that may count: written only for a signed-in account that has passed the first-vote
+// challenge. Mirrors opinion_user_votes (the reader's private answer) and carries the tier at the time.
+export const countedPositions = sqliteTable("counted_positions", {
+  userId: text("user_id").references(() => appUsers.id).notNull(), billId: text("bill_id").references(() => officialBills.id).notNull(),
+  accountId: text("account_id").notNull(), stance: text("stance", { enum: ["support", "oppose"] }).notNull(), tier: integer("tier").notNull(),
+  reason: text("reason"), reasonHash: text("reason_hash"), device: text("device"), ipRange: text("ip_range"),
+  createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.billId] }), index("counted_bill_idx").on(t.billId, t.createdAt), index("counted_account_idx").on(t.accountId),
+  index("counted_reason_idx").on(t.reasonHash), check("counted_stance", sql`${t.stance} IN ('support', 'oppose')`)]);
+
+// Recomputed totals. scope: "US" (national), a state ("TX") or a district ("TX-07"). group: "real" (tier 1+), "district" (tier 2).
+export const sentimentTotals = sqliteTable("sentiment_totals", {
+  billId: text("bill_id").notNull(), scope: text("scope").notNull(), tierGroup: text("tier_group", { enum: ["real", "district"] }).notNull(),
+  support: integer("support").notNull(), oppose: integer("oppose").notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [primaryKey({ columns: [t.billId, t.scope, t.tierGroup] }), index("sentiment_scope_idx").on(t.scope, t.tierGroup)]);
+
+// Anomaly flags. Positions under an open or confirmed flag are left out of totals (never deleted).
+export const integrityFlags = sqliteTable("integrity_flags", {
+  id: text("id").primaryKey(), kind: text("kind", { enum: ["bill_surge", "district_surge", "ip_cluster", "device_cluster", "same_reason"] }).notNull(),
+  subject: text("subject").notNull(), detail: text("detail", { mode: "json" }), status: text("status", { enum: ["open", "confirmed", "cleared"] }).notNull(),
+  createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
+}, t => [index("integrity_flags_status_idx").on(t.status, t.createdAt), index("integrity_flags_subject_idx").on(t.kind, t.subject)]);
+
+export const flaggedPositions = sqliteTable("flagged_positions", {
+  flagId: text("flag_id").references(() => integrityFlags.id).notNull(), userId: text("user_id").notNull(), billId: text("bill_id").notNull(),
+}, t => [primaryKey({ columns: [t.flagId, t.userId, t.billId] }), index("flagged_positions_user_idx").on(t.userId, t.billId)]);
+
+// Monthly aggregate counters for the transparency note and the verification spend cap. No ids.
+export const integrityCounts = sqliteTable("integrity_counts", {
+  month: text("month").notNull(), kind: text("kind").notNull(), reason: text("reason").notNull(), n: integer("n").notNull(),
+}, t => [primaryKey({ columns: [t.month, t.kind, t.reason] })]);
+
+// Sliding-window rate limits. key is a keyed hash of scope + value; rows older than 48 h are purged.
+export const rateEvents = sqliteTable("rate_events", {
+  id: text("id").primaryKey(), key: text("key").notNull(), action: text("action").notNull(), at: integer("at").notNull(),
+}, t => [index("rate_events_key_idx").on(t.key, t.action, t.at), index("rate_events_at_idx").on(t.at)]);

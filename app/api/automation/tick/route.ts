@@ -15,6 +15,8 @@ import { sendEmail } from "@/lib/monitoring-runtime";
 import { sendTrialOpenIfDue } from "@/lib/trial";
 import { runDigests } from "@/lib/digest";
 import { isDigestDay } from "@/lib/digest-format";
+import { verificationConfig } from "@/lib/verify/config";
+import { purgeVerificationData, recomputeAll } from "@/lib/verify/store";
 
 // Discovery, one capture and one bilateral research draft run in sequence and
 // can take minutes. 300 s is the Fluid Compute ceiling on the Hobby plan.
@@ -38,6 +40,8 @@ async function runTick(request: Request) {
   // Owner decision 2026-11-16: waiting cases older than 14 days are archived (never deleted) on every
   // run, before the backlog check, so the pause lifts on its own. The editor can restore any of them.
   const archived = await archiveOldCases(now).catch(() => null);
+  // Round J: totals move as new accounts pass 24 hours; old rate rows and sign-up hashes are purged.
+  if (verificationConfig().enabled) await recomputeAll(now).then(() => purgeVerificationData(now)).catch(() => null);
   // Outside the intake hour (once a day, STATEMENT_INTAKE_HOURS_UTC, default 13) the run does only the
   // model-free federal update, bill summaries within their own caps, and monitoring. It writes no
   // ledger row, so it does not count toward the daily intake limit or the failure alerts.

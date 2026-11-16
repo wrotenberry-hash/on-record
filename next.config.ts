@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The disposable-email blocklist is read from disk by the account sign-in action.
+  outputFileTracingIncludes: { "/account": ["./lib/data/disposable-domains.txt"] },
 };
 
 export default nextConfig;

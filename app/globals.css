@@ -102,3 +102,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .feedback-actions{display:flex;gap:8px;flex-wrap:wrap}
 .feedback-prompt small{color:#6b665c}
 .feedback-actions button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px;cursor:pointer}.feedback-actions button.secondary{background:#fff;color:#163b3c}
+.verify-steps h3{font-size:17px;margin:14px 0 6px}.verify-form{display:grid;gap:8px;max-width:520px;margin:10px 0 16px}
+.verify-form input:not([type=checkbox]){font:16px Arial,sans-serif;padding:10px;border:1px solid #c8d6ce;border-radius:3px;min-height:44px;width:100%;box-sizing:border-box}
+.verify-form button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px;justify-self:start;cursor:pointer}
+.consent{display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.4}.consent input{margin-top:3px;width:20px;height:20px;flex:none}
+.verify-row{display:grid;grid-template-columns:2fr 1fr 1.2fr;gap:8px}.verify-row span{display:grid;gap:4px}
+.sentiment{display:grid;gap:6px}.sentiment .lead{font-weight:700}
+@media(max-width:480px){.verify-row{grid-template-columns:1fr 1fr}.verify-row span:first-child{grid-column:1/-1}}
+.reason-field{display:grid;gap:4px;flex:1 1 100%;font-size:14px}.reason-field input{font:16px Arial,sans-serif;padding:9px;border:1px solid #c8d6ce;border-radius:3px;min-height:44px}

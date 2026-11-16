@@ -11,6 +11,12 @@ import { followedIds, getPolitician, recentVotes, sponsorships } from "@/lib/fed
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { agreementWith } from "@/lib/opinions";
 import { agreementLine } from "@/lib/agreement";
+import { verificationConfig } from "@/lib/verify/config";
+import { scopeTotals } from "@/lib/verify/store";
+import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
+import { getDb } from "@/db";
+import { sentimentTotals } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +43,17 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const canAnswer = !!access.editor || !!access.invite;
   const userId = canAnswer ? await currentAppUserId() : null;
   const agreement = userId ? await agreementWith(userId, p.id).catch(() => ({ rows: [], answered: 0 })) : null;
+  // Round J: what verified readers say on the bills this member voted on. District-matched readers in the
+  // member's own district (House) or state (Senate) lead; real people nationally follow. Never a rating.
+  const constituents = verificationConfig().enabled ? await (async () => {
+    const scope = p.chamber === "senate" ? p.state : memberDistrictId(p.state, p.district);
+    const billIds = [...new Set(votes.map(v => v.billId).filter((b): b is string => !!b))];
+    const local = await scopeTotals(scope, billIds).catch(() => []);
+    const national = billIds.length ? await getDb().select().from(sentimentTotals).where(and(eq(sentimentTotals.scope, "US"), eq(sentimentTotals.tierGroup, "real"), inArray(sentimentTotals.billId, billIds))).catch(() => []) : [];
+    const rows = billIds.map(id => ({ id, local: local.find(t => t.billId === id) ?? null, national: national.find(t => t.billId === id) ?? null, vote: votes.find(v => v.billId === id)! }))
+      .filter(r => (r.local && r.local.support + r.local.oppose >= MIN_SHOWN) || (r.national && r.national.support + r.national.oppose >= MIN_SHOWN)).slice(0, 6);
+    return { scope, rows };
+  })() : null;
   const issueName = (slug: string) => ISSUE_CATEGORIES.find(c => c.slug === slug)?.name ?? "Not sorted into an issue";
   const byIssue = ISSUE_CATEGORIES.map(c => ({ ...c, votes: votes.filter(v => v.issueSlug === c.slug) })).filter(g => g.votes.length);
   const unsorted = votes.filter(v => !v.issueSlug);
@@ -58,6 +75,12 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         {agreement.rows.length ? <><ul className="analysis-list">{agreement.rows.map(r => <li key={r.issueSlug}><b>{issueName(r.issueSlug)}:</b> {agreementLine(r)} <Link className="src-link" href={`/share/agreement/${p.id}/${r.issueSlug}`}>Share</Link></li>)}</ul>
           <p className="meta">From your own Support/Oppose answers and this member&apos;s votes on passing those bills; procedural votes are left out. Only you see this. It is your comparison, not a rating of the member by On Record.</p></>
           : <p className="meta">{agreement.answered ? "None of the bills you answered has a vote by this member on passing it yet." : "Say Support or Oppose on a bill page, and this shows how often this member's votes on passing those bills matched yours. Only you see it."}</p>}</div>}
+
+      {constituents && <div className="fed-section sentiment"><h2>What verified readers say <OpinionBadge /></h2>
+        {constituents.rows.length ? <ul className="analysis-list">{constituents.rows.map(r => <li key={r.id}><Link href={`/bills/${r.id}`}>{r.vote.billTitle ?? r.vote.title}</Link><br />
+          <span className="lead">{totalsLine(`District-matched in ${constituents.scope}`, r.local)}</span><br /><span className="meta">{totalsLine("Real people, nationally", r.national)}</span></li>)}</ul>
+          : <p className="meta">Not enough verified answers yet on bills {p.fullName} voted on: totals show from {MIN_SHOWN} answers.</p>}
+        <p className="meta">District-matched readers matched an address to {constituents.scope}. Shown beside the record, never as a score.</p></div>}
 
       <h2>Latest votes <OfficialBadge /></h2>
       {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} memberId={p.id} />)}</ul>
