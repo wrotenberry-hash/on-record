@@ -104,3 +104,18 @@ test("cards: link previews show one block; captions do not repeat the title (Rou
   assert.equal(captionFromCard(card), "S. 5271: On Cloture: Yea (Nov 1, 2026). A note.");
   assert.equal(captionFromCard({ ...card, title: "Jane Doe" }).startsWith("Jane Doe. S. 5271"), true);
 });
+
+test("what's next: flags what needs the owner, most urgent first, and only blockers warrant a push", async () => {
+  const { flags, needsOwnerNow, standing, ownerStepDone } = await import("../lib/whats-next.ts");
+  const now = Date.parse("2026-11-16T20:00:00Z");
+  const quiet = { monitoring: { keyDaysLeft: 200 }, openaiSpend: { monthToDateUsd: 3, monthlyLimitUsd: 40 }, analysis: { written: 5, visible: 4, held: 1, openReviews: 0, summaryCostUsd: 0.1, limits: { spendCapUsd: 25 } }, federal: { lastRun: { status: "COMPLETE" } }, trial: { gate: { open: true }, invites: 5 } };
+  assert.deepEqual(flags(quiet, now), []); assert.equal(needsOwnerNow(quiet, now).length, 0);
+  const bad = { ...quiet, monitoring: { keyDaysLeft: 2, keyExpires: "2026-11-23" }, analysis: { ...quiet.analysis, openReviews: 2, lastRun: { status: "FAILED", startedAt: "2026-11-16T19:00:00Z", error: "Research API billing or usage limit" } }, sharing: { problems: { open: 1 }, postQueue: { draft: 3 } } };
+  const f = flags(bad, now);
+  assert.deepEqual(f.map(x => x.level), ["blocker", "blocker", "soon", "soon", "info"]);
+  assert.equal(needsOwnerNow(bad, now).length, 2);
+  assert.equal(flags({ ...quiet, monitoring: { keyDaysLeft: 7, keyExpires: "2026-11-23" } }, now)[0].level, "soon", "7 days left is a heads-up, not a push");
+  assert.match(standing(quiet)[1], /\$0\.02 per summary/);
+  assert.equal(ownerStepDone({ key: "openStates" }, { texas: { openStatesConfigured: true } }), true);
+  assert.equal(ownerStepDone({ key: "openaiKey" }, { monitoring: { keyDaysLeft: 7 } }), false);
+});

@@ -94,7 +94,17 @@ export async function intakePauseState(): Promise<{ paused: boolean; waiting: nu
   return { paused: intakePausedFor(waitingCount, threshold), waiting: waitingCount, threshold };
 }
 
-export async function sendEmail(subject: string, text: string): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
+/**
+ * Owner decision 16 Nov 2026: no scheduled or automatic emails to the owner. Alerts, the daily case
+ * email and nudge, "summaries ready" and "trial open" are still worked out and recorded (so they show
+ * on Editor → What's next and on the probe), but nothing is emailed unless OWNER_EMAILS_ENABLED=1.
+ * Reader emails (sign-in links and what a reader opted into) are a different sender and are not affected.
+ */
+export function ownerEmailsEnabled() { return ["1", "true", "yes", "on"].includes((process.env.OWNER_EMAILS_ENABLED ?? "").trim().toLowerCase()); }
+
+export async function sendEmail(subject: string, text: string, opts: { deliberate?: boolean } = {}): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
+  // A person tapping "Send test alert" is deliberate, not automatic, so it still sends.
+  if (!ownerEmailsEnabled() && !opts.deliberate) return { ok: true, id: "not-emailed" };
   const key = process.env.RESEND_API_KEY?.trim();
   if (!key) return { ok: false, error: "RESEND_API_KEY is not set" };
   const to = process.env.ALERT_TO_EMAIL?.trim() || DEFAULT_ALERT_TO;
@@ -245,7 +255,7 @@ export async function sendTestAlert(requestedBy: string, now = Date.now()) {
   const result = await evaluateNow(now);
   const alert: Alert = { kind: "TEST", subject: "test alert", detail: `A test alert requested by ${requestedBy}. Delivery works if you are reading this. The checks below show the live state; no real alert condition is implied.` };
   const mail = formatAlertEmail(alert, result.checks, SITE_URL, now);
-  const delivery = await sendEmail(mail.subject, mail.text);
+  const delivery = await sendEmail(mail.subject, mail.text, { deliberate: true });
   if (delivery.ok) await recordSent(alert, result.configured.recipient);
   return { delivery, checks: result.checks, wouldAlert: result.alerts.map(a => a.kind), suppressed: result.suppressed.map(a => a.kind) };
 }

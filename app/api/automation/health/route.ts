@@ -194,6 +194,7 @@ export async function GET() {
     intakePause: await intakePauseState().catch(() => "unavailable" as const),
     casesArchived: await archivedCount().catch(() => "unavailable" as const),
     feedback: await feedbackCounts().catch(() => "unavailable" as const),
+    ownerEmails: (await import("@/lib/monitoring-runtime")).ownerEmailsEnabled() ? "on" : "off", contactEmailConfigured: !!process.env.PUBLIC_CONTACT_EMAIL?.trim(),
     // Round F: summary quality (re-review over 90 days) and party parity.
     quality: await import("@/lib/analysis/quality").then(async m => { const [r, p] = await Promise.all([m.rereviewSummary(90), m.parityReport()]);
       return { rereview90d: { checked: r.checked, passed: r.passed, held: r.held, errors: r.errors, topPatterns: r.patterns.slice(0, 3) }, parity: { summaries: p.summaries, enough: p.enough, findings: p.findings, byParty: p.stats } }; }).catch(() => "unavailable" as const),

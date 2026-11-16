@@ -177,3 +177,8 @@ table.history:focus-visible,.share-slides:focus-visible{outline:2px solid #163b3
 .nav-progress{position:fixed;top:0;left:0;height:3px;width:100%;z-index:50;background:linear-gradient(90deg,#163b3c 0 40%,transparent 40%);background-size:250% 100%;animation:navp 1s linear infinite}
 @keyframes navp{0%{background-position:100% 0}100%{background-position:-150% 0}}@media (prefers-reduced-motion:reduce){.nav-progress{animation:none;background:#163b3c}}
 .personal .result-list a,.leg-card a{color:#163b3c;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+/* What's next */
+.next-flags{list-style:none;padding:0;margin:0;display:grid;gap:8px}.next-flags li{border:1px solid #d9ded9;border-left-width:5px;border-radius:4px;padding:10px 12px;background:#fff}.next-flags b{text-transform:uppercase;font-size:12px;letter-spacing:.6px;margin-right:6px}
+.next-blocker{border-left-color:#8c2f1f!important}.next-blocker b{color:#8c2f1f}.next-soon{border-left-color:#8a6a12!important}.next-soon b{color:#6d5410}.next-info{border-left-color:#4f6b68!important}.next-info b{color:#3d5353}
+.next-needs{display:inline-block;font-size:12px;font-weight:700;background:#e8f1ec;color:#245236;border-radius:999px;padding:2px 10px;margin-left:4px}.next-ranked li{margin-bottom:12px}.next-step summary{font-weight:700;min-height:44px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.whats-next a{text-decoration:underline}
