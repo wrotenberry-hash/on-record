@@ -183,3 +183,4 @@ table.history:focus-visible,.share-slides:focus-visible{outline:2px solid #163b3
 .next-needs{display:inline-block;font-size:12px;font-weight:700;background:#e8f1ec;color:#245236;border-radius:999px;padding:2px 10px;margin-left:4px}.next-ranked li{margin-bottom:12px}.next-step summary{font-weight:700;min-height:44px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .whats-next a{text-decoration:underline}
 h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middle}
+.run-now{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #d9ded9;border-radius:6px;padding:12px}.run-now button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px}.run-now .meta{flex:1 1 200px}
