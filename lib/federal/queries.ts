@@ -1,3 +1,4 @@
+import { READER_S } from "@/lib/analysis/publish-gate";
 import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { officialBillCosponsors, officialSponsorshipFetches } from "@/db/schema";
@@ -31,7 +32,7 @@ export async function recentVotes(politicianId: string, limit = 10) {
     yea: officialRollCalls.yea, nay: officialRollCalls.nay, sourceUrl: officialRollCalls.sourceUrl, retrievedAt: officialRollCalls.retrievedAt,
     position: officialMemberVotes.position, rawPosition: officialMemberVotes.rawPosition, billTitle: officialBills.title,
     // The bill's one-line Analysis headline (visible summaries only) and its first issue, for "what the bill would do" beside the vote.
-    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and s.status = 'visible' order by s.created_at desc limit 1)`,
+    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and ${READER_S} order by s.created_at desc limit 1)`,
     issueSlug: sql<string | null>`(select bc.category_slug from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)`,
     issueName: sql<string | null>`(select ic.name from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)`,
     // Round A integrity check: a roll call whose member votes do not add up to the official totals is shown as under review.
@@ -44,7 +45,7 @@ export async function recentVotes(politicianId: string, limit = 10) {
 /** Bills in On Record's record that the member sponsored or cosponsored (withdrawn cosponsorships shown as such). */
 export async function sponsorships(politicianId: string) {
   const db = getDb();
-  const headline = sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and s.status = 'visible' order by s.created_at desc limit 1)`;
+  const headline = sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and ${READER_S} order by s.created_at desc limit 1)`;
   const [sponsored, cosponsored] = await Promise.all([
     db.select({ id: officialBills.id, billType: officialBills.billType, number: officialBills.number, title: officialBills.title, introducedAt: officialBills.introducedAt, headline })
       .from(officialBills).where(eq(officialBills.sponsorId, politicianId)).orderBy(desc(officialBills.introducedAt)).limit(50),

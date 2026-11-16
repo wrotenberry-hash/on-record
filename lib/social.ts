@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
+import { readerVisible } from "@/lib/analysis/publish-gate";
 import { analysisBillSummaries, officialRollCalls, postQueue } from "@/db/schema";
 import { publicReadEnabled, PUBLIC_READ_FLAG } from "@/lib/public-access";
 import { resolveShare, type ShareParams, type ShareType } from "@/lib/share-resolve";
@@ -51,7 +52,7 @@ export async function draftDailyPosts(now = Date.now()) {
   if (quiet && await draft(day, "quiet", { roll: quiet.id }, quiet.id, now)) drafted++;
   const billIds = [...new Set(recent.map(r => r.billId).filter((b): b is string => !!b))];
   if (billIds.length) {
-    const withSummary = await db.select({ billId: analysisBillSummaries.billId }).from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, billIds), eq(analysisBillSummaries.status, "visible")));
+    const withSummary = await db.select({ billId: analysisBillSummaries.billId }).from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, billIds), readerVisible()));
     const pick = billIds.find(b => withSummary.some(s => s.billId === b));
     if (pick && await draft(day, "carousel", { bill: pick }, pick, now)) drafted++;
   }

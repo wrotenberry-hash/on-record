@@ -1,3 +1,4 @@
+import { READER_S } from "@/lib/analysis/publish-gate";
 import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { digestSends, officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, readerAccounts, userFollows } from "@/db/schema";
@@ -23,7 +24,7 @@ export async function runDigests(now = Date.now()) {
     const since = Math.max(a.lastDigestAt ?? 0, now - WEEK_MS);
     const rows = await db.select({ pid: officialMemberVotes.politicianId, position: officialMemberVotes.position, rc: officialRollCalls, billTitle: officialBills.title,
       billType: officialBills.billType, number: officialBills.number,
-      headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and s.status = 'visible' order by s.created_at desc limit 1)` })
+      headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and ${READER_S} order by s.created_at desc limit 1)` })
       .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
       .where(and(inArray(officialMemberVotes.politicianId, follows), gte(officialRollCalls.votedAt, since))).orderBy(desc(officialRollCalls.votedAt)).limit(200);
     const people = await db.select().from(officialPoliticians).where(inArray(officialPoliticians.id, follows));

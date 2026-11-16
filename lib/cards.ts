@@ -1,3 +1,4 @@
+import { READER_S } from "@/lib/analysis/publish-gate";
 import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { officialBills, officialMemberVotes, officialPoliticians, officialRollCalls } from "@/db/schema";
@@ -7,7 +8,7 @@ import { agreementCard, voteCard, type Card, type CardVote } from "@/lib/card-co
 import { agreementWith } from "@/lib/opinions";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 
-const headlineOf = (billCol: unknown) => sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${billCol} and s.status = 'visible' order by s.created_at desc limit 1)`;
+const headlineOf = (billCol: unknown) => sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${billCol} and ${READER_S} order by s.created_at desc limit 1)`;
 
 /** A vote card, from the record only. Null when the member did not take part in that roll call. */
 export async function voteCardFor(memberId: string, rollCallId: string): Promise<{ card: Card; member: string } | null> {

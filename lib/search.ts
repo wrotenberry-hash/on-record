@@ -1,3 +1,4 @@
+import { READER_S } from "@/lib/analysis/publish-gate";
 import { getDb } from "@/db";
 import { officialBills, officialPoliticians } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -12,7 +13,7 @@ async function docs() {
   const db = getDb();
   const [bills, members] = await Promise.all([
     db.select({ id: officialBills.id, billType: officialBills.billType, number: officialBills.number, title: officialBills.title, latestActionAt: officialBills.latestActionAt,
-      headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and s.status = 'visible' order by s.created_at desc limit 1)`,
+      headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and ${READER_S} order by s.created_at desc limit 1)`,
       subjects: sql<string | null>`(select group_concat(x.subject, ' ') from official_bill_subjects x where x.bill_id = ${officialBills.id})` }).from(officialBills),
     db.select().from(officialPoliticians).where(eq(officialPoliticians.isCurrent, 1)),
   ]);

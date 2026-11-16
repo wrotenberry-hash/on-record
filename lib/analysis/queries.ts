@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { readerVisible } from "@/lib/analysis/publish-gate";
 import { analysisBillSummaries, analysisChecks, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
 
 /**
@@ -9,7 +10,7 @@ import { analysisBillSummaries, analysisChecks, analysisReviewQueue, ingestRuns,
 export async function summaryForBill(billId: string, includeHeld: boolean) {
   const db = getDb();
   const rows = await db.select().from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId),
-    includeHeld ? inArray(analysisBillSummaries.status, ["visible", "held"]) : eq(analysisBillSummaries.status, "visible")))
+    includeHeld ? inArray(analysisBillSummaries.status, ["visible", "held"]) : readerVisible()))
     .orderBy(desc(analysisBillSummaries.createdAt)).limit(1);
   const summary = rows[0];
   if (!summary) return null;

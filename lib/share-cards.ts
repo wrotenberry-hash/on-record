@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { READER_S, readerVisible } from "@/lib/analysis/publish-gate";
 import { adjudications, analysisBillSummaries, officialBillIndex, officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, people, publications,
   representations, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { voteLine, type Card, type CardVote } from "@/lib/card-content";
@@ -27,7 +28,7 @@ async function roll(id: string) {
   return getDb().select({ id: officialRollCalls.id, chamber: officialRollCalls.chamber, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question, title: officialRollCalls.title,
     result: officialRollCalls.result, yea: officialRollCalls.yea, nay: officialRollCalls.nay, sourceUrl: officialRollCalls.sourceUrl, billId: officialRollCalls.billId, billTitle: officialBills.title,
     billType: officialBills.billType, number: officialBills.number,
-    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and s.status = 'visible' order by s.created_at desc limit 1)` })
+    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and ${READER_S} order by s.created_at desc limit 1)` })
     .from(officialRollCalls).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId)).where(eq(officialRollCalls.id, id)).get();
 }
 const cardVote = (r: NonNullable<Awaited<ReturnType<typeof roll>>>, voteText: string): CardVote => {
@@ -122,7 +123,7 @@ export async function saidVsDidCard(publicationId: string): Promise<Card | null>
 export async function carouselSlides(billId: string): Promise<Slide[] | null> {
   const db = getDb();
   const bill = await db.select().from(officialBills).where(eq(officialBills.id, billId)).get();
-  const s = await db.select().from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), eq(analysisBillSummaries.status, "visible"))).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
+  const s = await db.select().from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
   if (!bill || !s) return null;
   const idx = await db.select().from(officialBillIndex).where(eq(officialBillIndex.billId, billId)).get();
   const votes = await db.select().from(officialRollCalls).where(eq(officialRollCalls.billId, billId)).orderBy(desc(officialRollCalls.votedAt)).limit(2);
@@ -169,7 +170,7 @@ export async function dashboardCard(kind: "funnel" | "control" | "players"): Pro
 export async function billCard(billId: string): Promise<Card | null> {
   const db = getDb(), bill = await db.select().from(officialBills).where(eq(officialBills.id, billId)).get();
   if (!bill) return null;
-  const s = await db.select({ headline: analysisBillSummaries.headline }).from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), eq(analysisBillSummaries.status, "visible"))).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
+  const s = await db.select({ headline: analysisBillSummaries.headline }).from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
   const label = billLabel(bill.billType, bill.number), when = bill.latestActionAt ? date(bill.latestActionAt) : date(Date.now());
   return { eyebrow: `${bill.congress}TH CONGRESS · ${label}`, title: bill.title.length > 110 ? `${bill.title.slice(0, 108)}…` : bill.title, subtitle: "",
     lines: [{ what: "Where it stands", describe: s ? { label: "Analysis", text: s.headline } : { label: "Official", text: bill.title.slice(0, 140) }, vote: (bill.latestActionText ?? "No action recorded yet.").slice(0, 120), kindLabel: "Latest action", date: when, source: "congress.gov" }],

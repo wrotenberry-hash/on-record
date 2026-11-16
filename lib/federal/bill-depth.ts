@@ -1,3 +1,4 @@
+import { READER_S } from "@/lib/analysis/publish-gate";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { billCategories, officialAmendments, officialBillActions, officialBillDepth, officialBills, officialFloorSchedule, officialMemberVotes,
@@ -50,7 +51,7 @@ export async function movingThisWeek(issue: string | null, now = Date.now(), lim
   const scheduled = db.select({ billId: sql<string>`${officialFloorSchedule.billId}` }).from(officialFloorSchedule).where(and(gte(officialFloorSchedule.weekOf, week), sql`${officialFloorSchedule.billId} is not null`));
   const rows = await db.select({ id: officialBills.id, billType: officialBills.billType, number: officialBills.number, title: officialBills.title,
     latestActionText: officialBills.latestActionText, latestActionAt: officialBills.latestActionAt, stage: officialBillDepth.stage,
-    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and s.status = 'visible' order by s.created_at desc limit 1)`,
+    headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialBills.id} and ${READER_S} order by s.created_at desc limit 1)`,
     onFloor: sql<string | null>`(select group_concat(distinct f.chamber) from official_floor_schedule f where f.bill_id = ${officialBills.id} and f.week_of >= ${week})`,
     issues: sql<string | null>`(select group_concat(bc.category_slug) from bill_categories bc where bc.bill_id = ${officialBills.id})` })
     .from(officialBills).leftJoin(officialBillDepth, eq(officialBillDepth.billId, officialBills.id))

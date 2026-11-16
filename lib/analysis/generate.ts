@@ -1,3 +1,4 @@
+import { analysisPaused } from "@/lib/analysis/publish-gate";
 import { and, asc, desc, eq, inArray, notExists, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -225,6 +226,7 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
       .where(eq(ingestRuns.id, id)).catch(() => undefined);
     return run;
   };
+  if (analysisPaused()) return finish("SKIPPED", "paused by the owner (16 Nov): the generator is being rebuilt; set ANALYSIS_PAUSED=0 to run");
   if (!key) return finish("SKIPPED", "OPENAI_API_KEY not set");
   const existing = Number((await db.select({ n: sql<number>`count(*)` }).from(analysisBillSummaries).get())?.n ?? 0);
   const room = Math.min(max ?? Infinity, limits.maxSummaries - existing);
