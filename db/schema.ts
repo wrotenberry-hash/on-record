@@ -732,3 +732,24 @@ export const positionHistory = sqliteTable("position_history", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => appUsers.id), billId: text("bill_id").notNull(),
   stance: text("stance", { enum: ["support", "oppose", "unsure", "cleared"] }).notNull(), reason: text("reason"), at: integer("at").notNull(),
 }, t => [index("position_history_user_bill_idx").on(t.userId, t.billId, t.at)]);
+
+/* Round G: sharing. Short links point at one exact item; only aggregate counts are kept (no reader identity). */
+export const shareLinks = sqliteTable("share_links", {
+  code: text("code").primaryKey(), target: text("target").notNull(), kind: text("kind").notNull(),
+  visits: integer("visits").notNull().default(0), signups: integer("signups").notNull().default(0), createdAt: integer("created_at").notNull(),
+}, t => [uniqueIndex("share_links_target_idx").on(t.target)]);
+// On Record's own accounts: auto-drafted posts waiting for one-tap approval. Nothing posts while the site is private.
+export const postQueue = sqliteTable("post_queue", {
+  id: text("id").primaryKey(), day: text("day").notNull(), kind: text("kind").notNull(), subject: text("subject").notNull(),
+  imagePath: text("image_path").notNull(), link: text("link").notNull(), caption: text("caption").notNull(), officialOnly: integer("official_only").notNull().default(0),
+  status: text("status", { enum: ["draft", "approved", "posted", "rejected", "failed"] }).notNull().default("draft"),
+  postedTo: text("posted_to", { mode: "json" }).$type<Record<string, string>>(), error: text("error"),
+  createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"), postedAt: integer("posted_at"),
+}, t => [uniqueIndex("post_queue_day_subject_idx").on(t.day, t.kind, t.subject), index("post_queue_status_idx").on(t.status, t.createdAt)]);
+// "Report a problem" on every card. Details are private to the editor; resolved reports feed the corrections log.
+export const problemReports = sqliteTable("problem_reports", {
+  id: text("id").primaryKey(), subjectKind: text("subject_kind").notNull(), subjectRef: text("subject_ref").notNull(), page: text("page").notNull(),
+  reason: text("reason", { enum: ["wrong_fact", "wrong_vote", "unfair_wording", "missing_context", "broken", "other"] }).notNull(), details: text("details"),
+  status: text("status", { enum: ["open", "fixed", "no_change", "dismissed"] }).notNull().default("open"), resolution: text("resolution"),
+  createdAt: integer("created_at").notNull(), resolvedAt: integer("resolved_at"),
+}, t => [index("problem_reports_status_idx").on(t.status, t.createdAt)]);

@@ -23,7 +23,7 @@ export default async function DashboardPage() {
       <h1>{d.current}th Congress at a glance</h1>
       <p className="as-of">Data as of {new Date(d.generatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET · <Link href="/dashboard/texas">Texas Legislature</Link></p>
 
-      <div className="fed-section"><h2>The bill funnel</h2>
+      <div className="fed-section"><h2>The bill funnel <Link className="src-link" href="/share/card?t=dash&kind=funnel">Share</Link></h2>
         <p className="lead-stat">{cur.takeaway}</p>
         <div className="dash-grid"><FunnelChart f={cur.all} caption="All bills and joint resolutions" /><FunnelChart f={cur.house} caption="Started in the House" /><FunnelChart f={cur.senate} caption="Started in the Senate" /></div>
         <details className="method"><summary>How this is counted</summary><p className="meta">Every House and Senate bill and joint resolution of the {d.current}th Congress from the Congress.gov bill list ({cur.all.reach.filed.toLocaleString("en-US")} so far). Each bill&apos;s furthest step is read from its latest official action, and later steps imply earlier ones (a bill received in the Senate passed the House). Simple and concurrent resolutions, which cannot become law, are left out.
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
             <td>{r.total || "loading"}</td><td>{r.proceduralPct ?? "–"}{r.proceduralPct !== null ? "%" : ""}</td><td>{r.partyLinePct ?? "–"}{r.partyLinePct !== null ? "%" : ""}</td></tr>; })}</tbody></table>
         <p className="meta">Roll calls: the votes On Record holds; earlier Congresses fill in as the backfill runs. Party-line: most voting Democrats and most voting Republicans on opposite sides. Procedural: cloture, motions to proceed, table, recommit and similar, and House rules.</p></div>}
 
-      <div className="fed-section"><h2>Who controls Congress</h2>
+      <div className="fed-section"><h2>Who controls Congress <Link className="src-link" href="/share/card?t=dash&kind=control">Share</Link></h2>
         <SeatBar chamber="House" seats={d.seats.filter(s => s.chamber === "house")} total={435} />
         <SeatBar chamber="Senate" seats={d.seats.filter(s => s.chamber === "senate")} total={100} />
         <ul className="result-list">
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
         {d.changes.length > 0 && <p className="meta">Recent leadership changes: {d.changes.map(c => `${c.title}: ${c.fromName ?? "vacant"} → ${c.toName} (${shortDate(c.at)})`).join("; ")}.</p>}
         <p className="meta">Seats from congress-legislators (current members; vacancies are the gap to 435 and 100). Leaders from the same file, checked daily.</p></div>
 
-      <div className="fed-section"><h2>Key players <OfficialBadge /></h2>
+      <div className="fed-section"><h2>Key players <OfficialBadge />{d.leaders.length > 0 && <> <Link className="src-link" href="/share/card?t=dash&kind=players">Share</Link></>}</h2>
         <p className="meta">Counts, not grades. Same method for every member.</p>
         {d.advanced.length > 0 && <RowBars caption="Most bills sponsored that passed at least one chamber" unit="bills" rows={d.advanced.map(a => ({ label: <Link href={`/politicians/${a.id}`}>{a.name} ({a.party.slice(0, 1)}-{a.state})</Link>, value: a.n }))} />}
         {d.againstParty.length > 0 && <RowBars caption="Most votes against their own party's majority (votes on file)" unit="votes" rows={d.againstParty.map(a => ({ label: <Link href={`/politicians/${a.id}`}>{a.name} ({a.party.slice(0, 1)}-{a.state})</Link>, value: a.value, note: `of ${a.counted}` }))} />}

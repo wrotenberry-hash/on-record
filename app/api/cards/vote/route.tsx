@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const access = await viewerAccess();
   if (!access.allowed) return new Response("Not available", { status: 404 });
+  if (!(await (await import("@/lib/share")).cardAllowed())) return new Response("Too many cards from this device. Try again in an hour.", { status: 429 });
   const url = new URL(request.url);
   const member = url.searchParams.get("member") ?? "", roll = url.searchParams.get("roll") ?? "";
   if (!/^[A-Z]\d{6}$/.test(member) || !/^[a-z0-9-]{5,40}$/.test(roll)) return new Response("Bad request", { status: 400 });

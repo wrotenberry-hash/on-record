@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { billMeta } from "@/lib/seo";
 import { notFound } from "next/navigation";
+import { isQuietKill } from "@/lib/said-did-rules";
 import { PublicShell } from "@/components/public/public-shell";
 import { AnalysisBadge, OpinionBadge, OfficialBadge, PositionPill, billLabel, memberLine, shortDate } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
@@ -34,7 +35,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const data = await getBill((await params).id);
   if (!data) return { title: "Not found · On Record" };
   const summary = await summaryForBill(data.bill.id, false).catch(() => null);
-  return { ...billMeta({ label: billLabel(data.bill.billType, data.bill.number), title: data.bill.title }, summary?.summary.headline), alternates: { canonical: `/bills/${data.bill.id}` } };
+  const meta = billMeta({ label: billLabel(data.bill.billType, data.bill.number), title: data.bill.title }, summary?.summary.headline);
+  const { previewMeta } = await import("@/lib/seo"), { SITE } = await import("@/lib/share");
+  return { ...meta, ...previewMeta(SITE, `/bills/${data.bill.id}`, meta.title, meta.description, `/api/cards/g?t=bill&bill=${data.bill.id}&format=link`), alternates: { canonical: `/bills/${data.bill.id}` } };
 }
 
 /**
@@ -175,6 +178,11 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
       </div>
+
+      <div className="fed-section" id="share"><h2>Share this bill</h2>
+        <p className="meta">{s && <><Link href={`/share/card?t=carousel&bill=${bill.id}`}>5-slide explainer</Link> · </>}<Link href={`/share/card?t=bill&bill=${bill.id}`}>Bill card</Link>
+          {votes.filter(v => isQuietKill(voteKind(v.question, v.title ?? bill.title), v.question, v.result)).map(v => <span key={v.id}> · <Link href={`/share/card?t=quiet&roll=${v.id}`}>Stopped by a procedural vote, {shortDate(v.votedAt)}</Link></span>)}</p>
+        <p className="meta">Cards are built from the record only. Each has the badges, the date, the source and a &ldquo;Report a problem&rdquo; link.</p></div>
 
       <div className="fed-section"><h2>Sources</h2><ul className="source-list">
         {s ? s.sources.map(src => <li key={src.url}><a href={src.url} target="_blank" rel="noopener noreferrer">{src.label}</a></li>)

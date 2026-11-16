@@ -26,7 +26,9 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   if (!(await viewerAccess()).allowed) return { title: "On Record" };
   const p = await getPolitician((await params).id);
-  return p ? { ...memberMeta(p), alternates: { canonical: `/politicians/${p.id}` } } : { title: "Not found · On Record" };
+  if (!p) return { title: "Not found · On Record" };
+  const meta = memberMeta(p), { previewMeta } = await import("@/lib/seo"), { SITE } = await import("@/lib/share");
+  return { ...meta, ...previewMeta(SITE, `/politicians/${p.id}`, meta.title, meta.description, `/api/cards/g?t=member&member=${p.id}&format=link`), alternates: { canonical: `/politicians/${p.id}` } };
 }
 
 /**
@@ -43,6 +45,9 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const [votes, followed, sponsor] = await Promise.all([recentVotes(p.id, 80), currentAppUserId().then(followedIds), sponsorships(p.id).catch(() => ({ sponsored: [], cosponsored: [] }))]);
   const latest = votes.slice(0, 10);
   const stats = await memberStats(p.id).catch(() => null);
+  // Round G: votes against most of their own party, and Said vs. Did (matches and contradictions), same rules for every member.
+  const { breakingRanksFor, saidVsDidPairs } = await import("@/lib/share-cards");
+  const [ranks, said] = await Promise.all([breakingRanksFor(p.id, 5).catch(() => []), saidVsDidPairs(200).then(x => x.filter(y => y.memberId === p.id)).catch(() => [])]);
   const canAnswer = !!access.editor || !!access.invite;
   const userId = canAnswer ? await currentAppUserId() : null;
   const agreement = userId ? await agreementWith(userId, p.id).catch(() => ({ rows: [], answered: 0 })) : null;
@@ -89,7 +94,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
       {constituents && <div className="fed-section sentiment"><h2>What verified readers say <OpinionBadge /></h2>
         {constituents.rows.length ? <ul className="analysis-list">{constituents.rows.map(r => <li key={r.id}><Link href={`/bills/${r.id}`}>{r.vote.billTitle ?? r.vote.title}</Link><br />
           <span className="lead">{totalsLine(`District-matched in ${constituents.scope}`, r.local)}</span><br /><span className="meta">{totalsLine("Real people, nationally", r.national)}</span><br />
-          <span><b>{p.fullName}:</b> {positionLine(r.vote.position, voteKind(r.vote.question, r.vote.billTitle ?? r.vote.title))} <OfficialBadge /></span></li>)}</ul>
+          <span><b>{p.fullName}:</b> {positionLine(r.vote.position, voteKind(r.vote.question, r.vote.billTitle ?? r.vote.title))} <OfficialBadge /></span>{r.local && r.local.support + r.local.oppose >= MIN_SHOWN && <> · <Link className="src-link" href={`/share/card?t=district&member=${p.id}&bill=${r.id}`}>Share</Link></>}</li>)}</ul>
           : <p className="meta">Not enough verified answers yet on bills {p.fullName} voted on: totals show from {MIN_SHOWN} answers.</p>}
         {constituents.upcoming.length > 0 && <><h3 className="subhead">Coming up — weigh in now</h3><ul className="analysis-list">{constituents.upcoming.map(u => <li key={u.id!}><Link href={`/bills/${u.id}#your-view`}>{u.label}: {u.title ?? ""}</Link><br /><span className="meta">{totalsLine(`District-matched in ${constituents.scope}`, u.local)}</span></li>)}</ul></>}
         <p className="not-poll">Not a scientific poll.</p>
@@ -103,6 +108,12 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <details className="method"><summary>How these are counted</summary><p className="meta">Both figures use the {stats.rollCalls} roll calls in On Record&apos;s copy of the official record that list this member. Missed: listed &ldquo;Not Voting&rdquo;. With own party: on roll calls where this member voted Yea or Nay, whether they voted the way most other {stats.party} members voted; ties, and roll calls with fewer than two other {stats.party} members voting, are left out. The same method is used for every member. These are counts, not ratings.</p></details>
         <p className="meta"><Link href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
 
+      {ranks.length > 0 && <div className="fed-section"><h2>Votes against most of their own party <OfficialBadge /></h2>
+        <ul className="analysis-list">{ranks.map(r => <li key={r.rollId}>{shortDate(r.votedAt)}: voted {r.position === "Yea" ? "yes" : "no"} on &ldquo;{r.question}&rdquo;{r.title ? <> ({r.billId ? <Link href={`/bills/${r.billId}`}>{r.title.slice(0, 90)}</Link> : r.title.slice(0, 90)})</> : null}. Their party: {r.party.Yea ?? 0} yes, {r.party.Nay ?? 0} no. <Link className="src-link" href={`/share/card?t=ranks&member=${p.id}&roll=${r.rollId}`}>Share</Link></li>)}</ul>
+        <p className="meta">The same rule for every member: a yes or no vote where most of the member&apos;s own party voted the other way. Not a rating.</p></div>}
+      {said.length > 0 && <div className="fed-section"><h2>Said and did <OfficialBadge /></h2>
+        <ul className="analysis-list">{said.map(x => <li key={x.publicationId}><b>{x.result === "match" ? "Matched" : "Did not match"}:</b> said &ldquo;{x.said.length > 160 ? `${x.said.slice(0, 158)}…` : x.said}&rdquo;, then voted {x.position === "Yea" ? "yes" : "no"} on passing the bill. <Link href={`/bills/${x.billId}`}>The bill</Link> · <Link className="src-link" href={`/share/card?t=saiddid&pub=${x.publicationId}`}>Share</Link></li>)}</ul>
+        <p className="meta">Only published, human-reviewed statements that name a bill and say the speaker supports or opposes it, compared with their vote on passing it. Matches are shown as well as contradictions.</p></div>}
       <h2>Latest votes <OfficialBadge /></h2>
       {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} memberId={p.id} />)}</ul>
         : <p className="empty-note">No recorded votes stored yet. Votes load with each scheduled update.</p>}

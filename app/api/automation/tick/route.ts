@@ -56,7 +56,9 @@ async function runTick(request: Request) {
     // Round H: the evening briefing (daily in session, Mondays otherwise) and due reminders.
     const briefing = await import("@/lib/briefing").then(m => m.runBriefing(now)).catch(error => ({ error: (error instanceof Error ? error.message : "briefing failed").slice(0, 200) }));
     const reminders = await import("@/lib/reminders").then(m => m.sendDueReminders(now)).catch(error => ({ error: (error instanceof Error ? error.message : "reminders failed").slice(0, 200) }));
-    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, briefing, reminders, monitoring: await monitorAfterRun() });
+    // Round G: the daily post queue for On Record's own accounts (drafts only while private).
+    const posts = await import("@/lib/social").then(m => m.draftDailyPosts(now)).catch(error => ({ error: (error instanceof Error ? error.message : "post drafts failed").slice(0, 200) }));
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, briefing, reminders, posts, monitoring: await monitorAfterRun() });
   }
   // Owner decision 2026-11-15: no new statements while the review backlog is at or above
   // INTAKE_PAUSE_BACKLOG (default 20). The run still drafts research for one waiting case,

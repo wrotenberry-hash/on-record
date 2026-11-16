@@ -155,3 +155,15 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .personal,.start-cta{max-width:860px;margin:12px auto 0;padding:0 16px;box-sizing:border-box}.start-cta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#e6efeb;border:1px solid #a7c4b9;padding:12px 16px}
 .not-poll{font-weight:700;color:#7a2e22;margin:0}
 .email-preview{white-space:pre-wrap;background:#fff;border:1px solid #d9ded9;padding:14px;font:14px/1.5 Arial,sans-serif}
+/* Round G sharing */
+.button-link{display:inline-block;background:#163b3c;color:#fff;border-radius:3px;padding:11px 20px;font:600 16px Arial,sans-serif;min-height:44px;text-decoration:none}
+.secondary-button{background:#fff!important;color:#163b3c!important;border:1px solid #163b3c!important}
+.share-slides{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}.share-slides .share-preview{flex:0 0 78%;max-width:320px;scroll-snap-align:start}
+.share-landing{background:#e8f1ec;border:1px solid #c8d6ce;border-radius:6px;padding:14px 16px;margin-bottom:16px;display:grid;gap:10px}.share-landing p{margin:0}
+.share-saves a{margin-right:4px}
+.video-maker{display:grid;gap:10px;justify-items:start}.video-canvas{position:absolute;left:-9999px;width:180px;height:320px}.video-canvas.on{position:static;border:1px solid #d9ded9}
+.report-problem fieldset{border:0;padding:0;margin:0;display:grid;gap:6px}.report-problem legend{font-weight:700;margin-bottom:6px}
+.post-row{border:1px solid #d9ded9;border-radius:6px;padding:12px;background:#fff;display:grid;gap:8px;margin-bottom:12px}.post-row img{max-width:240px;height:auto;border:1px solid #d9ded9}
+.embed-card{max-width:520px;margin:0 auto;padding:16px;background:#f7f6f2;color:#172224;font:16px Arial,sans-serif;display:grid;gap:10px}.embed-title{font-size:22px;font-weight:700;margin:0}
+.embed-line{display:grid;gap:4px;background:#fff;border:1px solid #d9ded9;border-radius:6px;padding:12px}.embed-line small{color:#4f6b68}.embed-foot{border-top:2px solid #163b3c;padding-top:8px;margin:0;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.embed-foot a{color:#163b3c}
+.embed-code{white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #d9ded9;padding:10px;font-size:13px}

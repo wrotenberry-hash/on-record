@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const access = await viewerAccess();
   if (!access.allowed) return new Response("Not available", { status: 404 });
+  if (!(await (await import("@/lib/share")).cardAllowed())) return new Response("Too many cards from this device. Try again in an hour.", { status: 429 });
   const url = new URL(request.url), id = url.searchParams.get("id") ?? "";
   if (!/^(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(id)) return new Response("Bad request", { status: 400 });
   const row = await latestBriefing(id);

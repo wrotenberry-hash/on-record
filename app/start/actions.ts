@@ -42,5 +42,6 @@ export async function finishStart(formData: FormData) {
     }
   }
   await countEvent("onboarding_done", access.audience);
+  await (await import("@/lib/share")).noteShareSignup();
   redirect("/?welcome=1");
 }

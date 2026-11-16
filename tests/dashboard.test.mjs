@@ -34,3 +34,37 @@ test("leadership roles from congress-legislators", () => {
     { id: { bioguide: "X" }, leadership_roles: [{ title: "Majority Whip", chamber: "senate", start: "2021-01-01", end: "2023-01-03" }] }]);
   assert.deepEqual(l, [{ politicianId: "J000299", name: "Mike Johnson", title: "Speaker of the House", chamber: "house", start: "2023-10-25" }]);
 });
+
+test("said vs did: only explicit statements naming a bill, compared with the passage vote, same rule for everyone", async () => {
+  const { saidAboutBill, saidVsDid } = await import("../lib/said-did-rules.ts");
+  assert.deepEqual(saidAboutBill("I will vote for H.R. 2102 because veterans earned it."), { label: "H.R. 2102", type: "hr", number: 2102, stance: "for" });
+  assert.equal(saidAboutBill("We oppose S. 45 as written.").stance, "against");
+  assert.equal(saidAboutBill("This bill is interesting."), null);
+  assert.equal(saidAboutBill("I support veterans and H.R. 9 has problems; I oppose parts of it."), null, "both directions: not explicit");
+  assert.equal(saidVsDid("for", "Yea"), "match"); assert.equal(saidVsDid("for", "Nay"), "contradiction");
+  assert.equal(saidVsDid("against", "Nay"), "match"); assert.equal(saidVsDid("against", "Not Voting"), null);
+});
+
+test("quiet kill: only a procedural vote that stopped the bill", async () => {
+  const { isQuietKill } = await import("../lib/said-did-rules.ts");
+  assert.equal(isQuietKill("procedural", "On the Cloture Motion", "Cloture Motion Rejected"), true);
+  assert.equal(isQuietKill("procedural", "On the Motion to Proceed", "Motion to Proceed Agreed to"), false);
+  assert.equal(isQuietKill("procedural", "On Motion to Table", "Motion to Table Agreed to"), true);
+  assert.equal(isQuietKill("procedural", "On Motion to Recommit", "Failed"), false);
+  assert.equal(isQuietKill("passage", "On Passage", "Failed"), false, "a failed passage vote is a vote on the bill, not a quiet kill");
+});
+
+test("sharing rules: same-site targets only, caption beside the image, Bluesky text fits with a whole link", async () => {
+  const { shareableTarget, captionWith, blueskyText } = await import("../lib/share-rules.ts");
+  assert.equal(shareableTarget("/share/card?t=vote&member=A000001&roll=h-119-1-23"), true);
+  assert.equal(shareableTarget("https://evil.example/x"), false); assert.equal(shareableTarget("//evil.example"), false);
+  assert.equal(shareableTarget("/editor/trial"), false); assert.equal(shareableTarget("/bills/../editor"), false);
+  const link = "https://on-record.example/s/AbC2345";
+  const cap = captionWith("Ä ".repeat(200) + "end.", link);
+  assert.ok(cap.endsWith(link));
+  const { text, facets } = blueskyText(cap, link);
+  assert.ok([...text].length <= 300, `length ${[...text].length}`);
+  assert.ok(text.endsWith(link));
+  const bytes = new TextEncoder().encode(text);
+  assert.equal(new TextDecoder().decode(bytes.slice(facets[0].index.byteStart, facets[0].index.byteEnd)), link, "facet byte offsets cover the link exactly");
+});

@@ -9,6 +9,7 @@ import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { weekOf } from "@/lib/federal/depth-parse";
 
 export const dynamic = "force-dynamic";
+const requestTime = () => Date.now();
 
 /** Round J design: the weekly office email, previewed for one member. Never sent (docs/OFFICE_EMAIL_DESIGN.md). */
 export default async function OfficeEmailPreview({ searchParams }: { searchParams: Promise<{ member?: string }> }) {
@@ -17,7 +18,7 @@ export default async function OfficeEmailPreview({ searchParams }: { searchParam
   const m = /^[A-Z]\d{6}$/.test(id) ? await db.select().from(officialPoliticians).where(eq(officialPoliticians.id, id)).get() : await db.select().from(officialPoliticians).where(eq(officialPoliticians.chamber, "house")).limit(1).get();
   if (!m) return <main className="fed-page"><p>No member.</p></main>;
   const scope = m.chamber === "senate" ? m.state : memberDistrictId(m.state, m.district);
-  const week = Date.now() - 7 * 86400e3;
+  const week = requestTime() - 7 * 86400e3;
   const voted = await db.select({ billId: officialRollCalls.billId, question: officialRollCalls.question, title: officialRollCalls.title, billTitle: officialBills.title, position: officialMemberVotes.position })
     .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
     .where(and(eq(officialMemberVotes.politicianId, m.id), gte(officialRollCalls.votedAt, week), sql`${officialRollCalls.billId} is not null`)).orderBy(desc(officialRollCalls.votedAt)).limit(10);

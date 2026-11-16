@@ -24,7 +24,7 @@ export function VoteRow({ v, memberId }: { v: VoteRowData; memberId?: string }) 
       <span className="vote-position">{positionLine(v.position, kind)}</span>
       <VoteExplainer question={v.question} />
       <YesNo question={v.question} title={v.billTitle ?? v.title} />
-      <small>{v.question}{v.tallyBad ? <> · <span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>{memberId && <> · <Link className="src-link" href={`/share/vote/${memberId}/${v.rollCallId}`}>Share</Link></>}</small>
+      <small>{v.question}{v.tallyBad ? <> · <span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>{memberId && <> · <Link className="src-link" href={`/share/card?t=vote&member=${memberId}&roll=${v.rollCallId}`}>Share</Link></>}</small>
     </div>
     <PositionPill position={v.position} raw={v.rawPosition} />
   </li>;

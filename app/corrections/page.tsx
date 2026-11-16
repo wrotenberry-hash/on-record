@@ -4,6 +4,8 @@ import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
 import { listPublicCorrections } from "@/lib/published-records";
 import { viewerAccess } from "@/lib/viewer";
 
+import { correctionsFromReports, PROBLEM_REASONS, type ProblemReason } from "@/lib/problems";
+
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Corrections · On Record", description: "How to ask for a correction, what happens next, and every correction and retraction so far." };
@@ -11,6 +13,7 @@ export const metadata = { title: "Corrections · On Record", description: "How t
 export default async function CorrectionsPage() {
   const items = publicReadEnabled(process.env[PUBLIC_READ_FLAG]) ? await listPublicCorrections() : [];
   const access = await viewerAccess();
+  const reports = access.allowed ? await correctionsFromReports().catch(() => null) : null;
   const draft = !!access.editor, contact = process.env.PUBLIC_CONTACT_EMAIL?.trim();
   return <PublicShell current="/corrections" access={access}>
     <article className="prose">
@@ -47,6 +50,13 @@ export default async function CorrectionsPage() {
         <p className="fine-links">{c.replacementRecordId ? <Link href={`/records/${c.replacementRecordId}`}>Corrected record</Link> : <span>No replacement record.</span>} <span>Original record id {c.originalRecordId}.</span></p>
       </li>)}</ol>
       : <p>None. This section lists every correction and retraction, newest first, as soon as there is one.</p>}
+
+      <h2>Fixes after a reader reported a problem</h2>
+      {reports && reports.fixed.length ? <ol className="corrections-list">{reports.fixed.map((f, i) => <li key={i}>
+        <div className="eyebrow">FIXED · {f.at ? new Date(f.at).toLocaleDateString() : ""}</div>
+        <p><Link href={f.page}>{f.page}</Link>: {PROBLEM_REASONS[f.reason as ProblemReason].toLowerCase()}.</p>{f.resolution && <p>{f.resolution}</p>}</li>)}</ol>
+        : <p>None yet. Every card has a &ldquo;Report a problem&rdquo; link; each fix made after a report is listed here.</p>}
+      {reports && <p className="meta">Reports so far: {reports.counts.fixed ?? 0} fixed, {reports.counts.no_change ?? 0} checked with no change needed, {reports.counts.open ?? 0} open.</p>}
     </article>
   </PublicShell>;
 }

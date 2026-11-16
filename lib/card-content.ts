@@ -15,7 +15,7 @@ export function cardFormat(value: string | null | undefined): CardFormat { retur
 
 /** voteText and kindLabel come from lib/federal/vote-kinds (positionLine, KIND_LABEL); passed in so this file stays import-free. */
 export type CardVote = { billLabel: string; billTitle: string; headline: string | null; voteText: string; kind: string; kindLabel: string; votedAt: number; sourceUrl: string };
-export type CardBlock = { label: "Analysis" | "Official"; text: string };
+export type CardBlock = { label: "Analysis" | "Official" | "Readers"; text: string };
 export type CardLine = { what: string; describe: CardBlock; vote: string; kindLabel: string; date: string; source: string };
 export type Card = { eyebrow: string; title: string; subtitle: string; lines: CardLine[]; note: string | null; footer: string };
 

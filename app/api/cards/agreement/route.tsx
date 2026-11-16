@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const access = await viewerAccess();
   if (!access.allowed) return new Response("Not available", { status: 404 });
+  if (!(await (await import("@/lib/share")).cardAllowed())) return new Response("Too many cards from this device. Try again in an hour.", { status: 429 });
   const userId = await currentAppUserId();
   if (!userId) return new Response("Sign in first", { status: 401 });
   const url = new URL(request.url);

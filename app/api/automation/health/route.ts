@@ -194,6 +194,12 @@ export async function GET() {
     intakePause: await intakePauseState().catch(() => "unavailable" as const),
     casesArchived: await archivedCount().catch(() => "unavailable" as const),
     feedback: await feedbackCounts().catch(() => "unavailable" as const),
+    // Round G: sharing funnel (aggregate counts only), the post queue and reported problems.
+    sharing: await (async () => {
+      const [{ shareFunnel }, { postQueueCounts, socialConfig }, { problemCounts }] = await Promise.all([import("@/lib/share"), import("@/lib/social"), import("@/lib/problems")]);
+      const c = socialConfig();
+      return { last7Days: await shareFunnel(7), postQueue: await postQueueCounts(), posting: c.canPost ? "on" : "off", connected: { bluesky: c.bluesky, threads: c.threads }, problems: await problemCounts() };
+    })().catch(() => "unavailable" as const),
     verification: await verificationCounts().catch(() => "unavailable" as const),
     texas: await texasCounts().catch(() => "unavailable" as const),
     retention: await retentionCounts().catch(() => "unavailable" as const),

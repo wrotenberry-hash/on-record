@@ -44,6 +44,7 @@ export async function PublicShell({ current, children, access, page }: { current
   const audience: Audience = access?.audience ?? (publicRead ? "public" : "closed");
   await countEvent("page_view", dim(enabled ? audience : "closed", page ?? current));
   const trial = !!access?.invite && !access?.editor;
+  const jar = await cookies(), fromShare = !!jar.get("or_from_share")?.value && !jar.get("or_loc")?.value;
   const askFeedback = trial && enabled && shouldAskFeedback(access?.invite?.activeDays, (await cookies()).get(FEEDBACK_COOKIE)?.value);
   // The claim record is not part of the trial: it opens with public reading.
   const pages = PUBLIC_PAGES.filter(p => p.href !== "/records" || publicRead || !!access?.editor);
@@ -59,6 +60,8 @@ export async function PublicShell({ current, children, access, page }: { current
       {enabled && <VisitMarker />}
       {enabled && <SwRegister />}
       {askFeedback && <FeedbackPrompt />}
+      {/* Round G: arrived through a shared link and has not set a location yet → invite them to look up their own legislators. */}
+      {enabled && fromShare && current !== "/start" && page !== "/share/card" && <div className="share-landing" role="note"><p>Someone shared this from the official record.</p><Link className="button-link" href="/start">See your own legislators →</Link></div>}
       {enabled ? children : <><div className="intro"><div className="eyebrow">PRIVATE REVIEW</div><h1>This page is not yet public.</h1>
         <p>On Record is being evaluated privately. This page will appear once the editorial team enables public reading.</p></div>
         <div className="notice"><b>Nothing on this site is a finding.</b> Numerical ratings and aggregate scores are disabled.</div></>}

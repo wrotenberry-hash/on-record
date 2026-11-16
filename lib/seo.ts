@@ -39,3 +39,10 @@ export function robotsRules(publicRead: boolean, siteUrl: string) {
     ? { rules: [{ userAgent: "*", allow: "/", disallow: ["/editor", "/api/", "/login", "/skip", "/trial", "/following"] }], sitemap: `${siteUrl}/sitemap.xml` }
     : { rules: [{ userAgent: "*", disallow: "/" }] };
 }
+
+/** Round G: per-item link previews (X, Facebook, Threads, Bluesky, LinkedIn, iMessage all read Open Graph; X also reads twitter:*). */
+export function previewMeta(siteUrl: string, path: string, title: string, description: string, imagePath: string) {
+  const image = { url: `${siteUrl}${imagePath}`, width: 1200, height: 630, alt: title };
+  return { openGraph: { title, description, url: `${siteUrl}${path}`, siteName: "On Record", type: "article" as const, images: [image] },
+    twitter: { card: "summary_large_image" as const, title, description, images: [image.url] } };
+}

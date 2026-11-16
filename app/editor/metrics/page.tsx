@@ -2,13 +2,14 @@ import Link from "next/link";
 import { requireEditorUser } from "@/lib/auth";
 import { retentionCounts } from "@/lib/retention";
 import { trialCounts } from "@/lib/trial";
+import { shareFunnel } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
 /** Round D: retention and sharing, aggregate counts only. */
 export default async function MetricsPage() {
   await requireEditorUser("/editor/metrics");
-  const [r, t] = await Promise.all([retentionCounts().catch(() => null), trialCounts().catch(() => null)]);
+  const [r, t, f] = await Promise.all([retentionCounts().catch(() => null), trialCounts().catch(() => null), shareFunnel(7).catch(() => null)]);
   const row = (k: string, v: React.ReactNode) => <tr><th scope="row">{k}</th><td>{v}</td></tr>;
   return <>
     <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/trial">Trial invites</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
@@ -24,6 +25,9 @@ export default async function MetricsPage() {
         {row("Instant vote alerts on", r.alertOptIn.instantVotes)}{row("Readers with push on", r.alertOptIn.pushReaders)}
         {row("Briefing email / weekly email", `${r.alertOptIn.briefingEmail} / ${r.alertOptIn.weeklyEmail}`)}
         {row("Cards made this week", r.shares7d.cardsRendered)}{row("Shared via share sheet / downloaded / links copied", `${r.shares7d.shareSheet} / ${r.shares7d.downloads} / ${r.shares7d.linkCopies}`)}
+        {f && row("Share → visit (visits per share, last 7 days)", `${f.shares} shares → ${f.visits} visits${f.visitPerShare !== null ? ` (${f.visitPerShare})` : ""}`)}
+        {f && row("Visit → finished onboarding", `${f.signups}${f.signupPct !== null ? ` (${f.signupPct}% of visits)` : ""}`)}
+        {f && row("Short links made / all-time visits / sign-ups", `${f.links.total} / ${f.links.visitsAllTime} / ${f.links.signupsAllTime}`)}
       </tbody></table>}
     </main></>;
 }

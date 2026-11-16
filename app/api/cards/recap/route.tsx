@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const access = await viewerAccess();
   if (!access.allowed) return new Response("Not available", { status: 404 });
+  if (!(await (await import("@/lib/share")).cardAllowed())) return new Response("Too many cards from this device. Try again in an hour.", { status: 429 });
   const r = await recapFor(await currentAppUserId());
   if (!r) return new Response("Add your ZIP first", { status: 404 });
   const format = cardFormat(new URL(request.url).searchParams.get("format"));

@@ -18,7 +18,7 @@ export async function retentionCounts(now = Date.now()) {
     one(db.select({ n: sql<number>`count(distinct ${pushSubscriptions.userId})` }).from(pushSubscriptions).get()),
     one(db.select({ n: sql<number>`count(*)` }).from(briefingSubscriptions).get()),
     one(db.select({ n: sql<number>`count(*)` }).from(readerAccounts).where(sql`${readerAccounts.digestOptIn} = 1`).get()),
-    eventTotals(7).catch(() => []),
+    eventTotals(7, ["onboarding_start", "onboarding_zip", "onboarding_done", "card_render", "share_native", "share_download", "share_copy"]).catch(() => []),
   ]);
   const ev = (name: string, prefix?: string) => events.filter(e => e.name === name && (!prefix || e.dim.startsWith(prefix))).reduce((s, e) => s + Number(e.n), 0);
   const started = ev("onboarding_start"), done = ev("onboarding_done");
