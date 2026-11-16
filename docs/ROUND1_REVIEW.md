@@ -72,3 +72,46 @@ No summary misstated what a bill does. The "no change unless" pattern and the in
 
 **Next:** the 13:00 UTC run on 17 Nov rewrites all five under b4. If they pass, the 5-summary
 limit is raised and the $25 cap becomes the only limit.
+
+## Owner review, 16 Nov 2026: summaries restated titles; S.J.Res. 197's headline was wrong
+
+The owner found the summaries hard to digest (they restated official titles) and S.J.Res. 197's headline
+inaccurate: "Would block a Health and Human Services rule for Medicare, Medicaid, and the Basic Health Program."
+The rule is the ACA marketplace *Notice of Benefit and Payment Parameters for 2027* (individual-market plans on the
+federal exchanges) and the Basic Health Program. It has nothing to do with Medicare or Medicaid.
+
+**Why the generator got it wrong.** It had only the resolution's text, which names the rule and the agency that
+issued it, the "Centers for Medicare & Medicaid Services". It read the agency's name as the programs the rule covers.
+
+**Why the checker and Claude's Round 1 review missed it.**
+1. *Checker:* a resolution has no numbered sections. With no sections, any "Full text" citation was accepted and
+   nothing was compared with the text at all, and the headline was never checked against anything.
+2. *Review log:* the log looked cited sections up by number, so "Full text" was logged as "NOT FOUND IN THE BILL
+   TEXT", although the text had been read (3,130 characters).
+3. *Claude's review:* it took that log line at face value, wrote "the bill text could not be found, so there is
+   nothing to check it against", and passed over the summary because it was held. It never read the headline. A held
+   summary is still reviewed now, in full, against every source.
+
+**Fixes (generator b5-2026-11-16).**
+- *Sources:* besides the bill text, the generator gets, each cited by id and labelled: the CRS summary, CBO, the
+  committee report (purpose, background, minority or dissenting views, the CBO section it prints), the disapproved
+  rule from the Federal Register (title, agencies, the agency's own summary), and the U.S. Code sections the bill
+  amends (govinfo). No news or advocacy sources.
+- *Claim check:* every named program, group, place, number and date in the headline, "In plain English",
+  "Background" and the voting question must appear in a source, with agency names masked on both sides. The old
+  S.J.Res. 197 headline fails: "Medicare", "Medicaid".
+- *Not the title:* a headline or plain-English part that mostly restates the official title fails.
+- *Template:* "In plain English" (2–3 sentences: what, to whom, why now); "Background", required when a rule or law
+  is changed or blocked; "What changes for you" needs one concrete person and fails circular wording; arguments are
+  credited only to an actor in the record (the named sponsor, the reporting committee, its minority views, the
+  agency that issued a rule), each citing its source. A side no one in the record argues is left empty, and the page
+  says so.
+- *Full text:* a resolution with no numbered sections is checked against its full text.
+- *Status:* procedural floor votes are steps in the timeline ("Senate voted 48–51 not to take it up, Sep 29").
+- *Voting question:* from the plain headline, with the official title one tap away.
+
+Regression tests: `tests/summary-b5.test.mjs` (S.J.Res. 197 on the real Federal Register record),
+`tests/floor-votes.test.mjs`, `tests/stance-question.test.mjs`.
+
+**Publishing:** readers see no summaries until the owner has reviewed S.J.Res. 197 (`PUBLIC_MIN_PROMPT` in
+`lib/analysis/publish-gate.ts`). The cap stays at 5.

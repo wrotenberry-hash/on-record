@@ -7,12 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-16T22:00:00Z";
-export const PLAN_NOTE = "Your 21:35 UTC run rewrote the 5 summaries for 0.35 cents each. Claude checked them against the bill text: all five are accurate. Three are shown. One is held only because a veterans' bill cannot avoid words like \"disability compensation\", and one is held because its bill text could not be found (correct). Fixed as generator b4: the bill's own title words no longer count as hard words, and arguments state the reason instead of \"X could say\". The 13:00 UTC run on 17 Nov rewrites them; if they pass, the 5-summary limit is lifted. Texas loaded for the first time: 178 legislators, 100 bills, 183 votes, no count mismatches. The trial is open with 25 invite links; none handed out yet.";
+export const PLAN_UPDATED = "2026-11-16T23:55:00Z";
+export const PLAN_NOTE = "Your review found the summaries restated titles and S.J.Res. 197's headline was wrong (it named Medicare and Medicaid; the rule is the 2027 ACA marketplace payment rule). Readers now see no summaries. The generator was rebuilt (b5): it reads the CRS summary, CBO, committee reports, the Federal Register rule and the U.S. Code sections a bill changes; every named thing must appear in a source; new parts In plain English and Background; arguments credited only to who makes them in the record. The bill timeline now shows failed floor votes (Senate 48-51 not to take it up, Sep 29). Next: one run rewrites the five; Claude reviews them against every source; you review S.J.Res. 197 before anything is shown or the cap is raised.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Finish proving the summaries (Round 1)", needs: "nothing; in progress",
-    why: "You said go. Second review done: all five accurate; fixes shipped as b4. After the 13:00 UTC run on 17 Nov rewrites the five, Claude checks them once more. If they pass, the 5-summary limit is lifted so the $25 monthly cap is the only limit (about 7,000 summaries a month at 0.35 cents each). No need to approve or reject the current summaries; they are about to be replaced." },
+  { title: "Review S.J.Res. 197 in the rebuilt format", needs: "you, after the next run",
+    why: "Nothing is shown to readers until you approve it. After one run rewrites the five summaries in the new format, Claude checks each against every official source, then sends you S.J.Res. 197. Only after your OK are summaries shown and the 5-summary cap raised." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",
