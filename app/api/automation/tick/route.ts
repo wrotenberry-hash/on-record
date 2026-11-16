@@ -46,8 +46,10 @@ async function runTick(request: Request) {
   // model-free federal update, bill summaries within their own caps, and monitoring. It writes no
   // ledger row, so it does not count toward the daily intake limit or the failure alerts.
   if (!intakeAllowed(now, process.env.STATEMENT_INTAKE_HOURS_UTC)) {
-    const federal = await federalStep();
-    const analysis = await analysisStep(now);
+    // Evening run: bill summaries first (keeping 100 s back), then the federal and Texas updates in the time left;
+    // both also run in full at 13:00. Model work never waits behind the growing ingest.
+    const analysis = await analysisStep(now, 100_000);
+    const federal = await federalStep(Math.max(30_000, 300_000 - (Date.now() - now) - 60_000));
     const summariesEmail = await sendSummariesReadyIfDue();
     // Monday's 19:00 run sends the weekly "how your members voted" email (no new cron).
     const digest = isDigestDay(now) ? await runDigests(now).catch(error => ({ error: (error instanceof Error ? error.message : "digest failed").slice(0, 200) })) : null;
@@ -143,13 +145,14 @@ async function researchOneWaitingCase(): Promise<{ status: string; representatio
   return { status: draft.status ?? "COMPLETE", representationId: pending.id };
 }
 
-async function federalStep(): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown }> {
+async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown }> {
   let federal: IngestSummary | { status: "FAILED"; error: string };
-  try { federal = await runFederalIngest({ budgetMs: 120_000, trigger: "scheduled" }); }
+  const started = Date.now(), fedBudget = Math.max(20_000, Math.round(budgetMs * 0.75));
+  try { federal = await runFederalIngest({ budgetMs: fedBudget, trigger: "scheduled" }); }
   catch (error) { federal = { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
   // Round H: Texas Legislature (Open States, LegiScan fallback) right after the federal record; no model calls.
   const { runTexasIngest } = await import("@/lib/texas/ingest");
-  const texas = await runTexasIngest({ budgetMs: 45_000 }).catch(error => ({ ok: false, error: (error instanceof Error ? error.message : "texas failed").slice(0, 200) }));
+  const texas = await runTexasIngest({ budgetMs: Math.max(10_000, budgetMs - (Date.now() - started)) }).catch(error => ({ ok: false, error: (error instanceof Error ? error.message : "texas failed").slice(0, 200) }));
   return { ...federal, texas };
 }
 
@@ -158,26 +161,26 @@ async function federalStep(): Promise<(IngestSummary | { status: "FAILED"; error
  * nudge (the batch stops starting new summaries 45 s before its deadline and
  * each model call is capped to the time left). Their own caps bound spend.
  */
-async function analysisStep(startedAt: number): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string }; changes?: unknown; texas?: unknown }> {
-  const budgetMs = 300_000 - (Date.now() - startedAt) - 40_000;
+async function analysisStep(startedAt: number, reserveMs = 0): Promise<(AnalysisRun | { status: "FAILED"; error: string }) & { classify?: ClassifyRun | { status: "FAILED"; error: string }; changes?: unknown; texas?: unknown }> {
+  const budgetMs = 300_000 - (Date.now() - startedAt) - 40_000 - reserveMs;
   if (budgetMs < 50_000) return { status: "FAILED", error: "no time left in this run" };
   let analysis: AnalysisRun | { status: "FAILED"; error: string };
   try { analysis = await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
   catch (error) { analysis = { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
   // Issue suggestions for unsorted bills use whatever time is left; never after a billing refusal (AI work stops).
   const refused = /billing or usage limit/i.test(("error" in analysis && analysis.error) || "");
-  const left = 300_000 - (Date.now() - startedAt) - 40_000;
+  const left = 300_000 - (Date.now() - startedAt) - 40_000 - reserveMs;
   if (refused || left < 30_000) return analysis;
   let classify: ClassifyRun | { status: "FAILED"; error: string };
   try { classify = await runClassifyBatch({ budgetMs: left }); }
   catch (error) { classify = { status: "FAILED", error: (error instanceof Error ? error.message : "classify failed").slice(0, 200) }; }
   // Round A: "what changed" between text versions, within the same monthly summary cap.
-  const left2 = 300_000 - (Date.now() - startedAt) - 40_000;
+  const left2 = 300_000 - (Date.now() - startedAt) - 40_000 - reserveMs;
   if (left2 < 40_000 || /billing/i.test(("error" in classify && classify.error) || "")) return { ...analysis, classify };
   const { runChangesBatch } = await import("@/lib/analysis/changes");
   const changes = await runChangesBatch({ budgetMs: left2 }).catch(error => ({ status: "FAILED" as const, error: (error instanceof Error ? error.message : "changes failed").slice(0, 200) }));
   // Round H: Texas summaries in the same template, same monthly cap.
-  const left3 = 300_000 - (Date.now() - startedAt) - 40_000;
+  const left3 = 300_000 - (Date.now() - startedAt) - 40_000 - reserveMs;
   if (left3 < 70_000) return { ...analysis, classify, changes };
   const texas = await import("@/lib/texas/summaries").then(m => m.runTexasSummaries({ budgetMs: left3 })).catch(error => ({ status: "FAILED", error: (error instanceof Error ? error.message : "texas summaries failed").slice(0, 200) }));
   return { ...analysis, classify, changes, texas };
