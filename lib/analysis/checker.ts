@@ -107,6 +107,27 @@ export function readingGrade(text: string): number {
   return Math.round((0.39 * (ws.length / sentences) + 11.8 * (syl / ws.length) - 15.59) * 10) / 10;
 }
 
+/**
+ * Round 1 review (16 Nov 2026): official names are names, not vocabulary. Two accurate summaries were held
+ * only because "Nuclear Regulatory Commission" and similar names pushed the grade over the limit. For the
+ * reading level, a run of two or more capitalised words (with of/the/and/for between) counts as one short word.
+ */
+export function withoutOfficialNames(text: string): string {
+  return text.replace(/\b(?!(?:The|A|An|This|That|These|Those|If|Each|Any|No|Most|Some|Under|When|After|Before|Would)\b)[A-Z][A-Za-z'’&.-]*(?:\s+(?:of|the|and|for|on|in|&)\s+[A-Z][A-Za-z'’&.-]*|\s+[A-Z][A-Za-z'’&.-]*)+/g, "Name");
+}
+export function plainGrade(text: string): number { return readingGrade(withoutOfficialNames(text)); }
+
+/** Share of a point's content words that also appear in the section it cites (null when the section text is not available). */
+export function citeOverlap(pointText: string, cite: string, sections: readonly Section[]): number | null {
+  const n = citedSection(cite), section = n ? sections.find(s => s.num.toUpperCase() === n) : null;
+  if (!section?.text) return null;
+  const sw = contentWords(`${section.heading} ${section.text}`), pw = [...contentWords(pointText)];
+  return pw.length ? pw.filter(w => sw.has(w)).length / pw.length : null;
+}
+
+/** "Most people would see no direct change unless they vote": a broad exception cancels the claim (Round 1 review). */
+const NO_CHANGE_UNLESS = /\bmost (people|americans|readers)\b[^.]*\b(no|not)\b[^.]*\bchange\b[^.]*\b(unless|except)\b/i;
+
 export function bannedWordsIn(text: string): string[] {
   const found = new Set<string>();
   for (const word of BANNED_WORDS) {
@@ -138,6 +159,7 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
       if (!p.section.trim()) fail(`${label} point ${i + 1} cites no section.`);
       else if (!citeExists(p.section, sections)) fail(`${label} point ${i + 1} cites "${p.section}", which is not a section of this text.`);
       else if (citeSupports(p.text, p.section, sections) === false) fail(`${label} point ${i + 1} shares no key words with ${p.section}; cite the section that says it.`);
+      else { const share = citeOverlap(p.text, p.section, sections); if (share !== null && share < 0.34) warn(`${label} point ${i + 1} uses mostly words that are not in ${p.section}; check it adds no group or effect the section does not state.`); }
     });
   };
   points("What it does", d.whatItDoes);
@@ -145,6 +167,7 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
 
   if (!d.whatChangesForYou.trim()) fail("What changes for you is empty.");
   else if (wc(d.whatChangesForYou) > LIMITS.changesWords) fail(`What changes for you is ${wc(d.whatChangesForYou)} words; the limit is ${LIMITS.changesWords}.`);
+  if (NO_CHANGE_UNLESS.test(d.whatChangesForYou)) fail("What changes for you says most people see no change, then adds an exception; say the change for the affected group first.");
 
   // The case for and against: exactly two each, attributed, of comparable length.
   const side = (label: string, list: Argument[]) => {
@@ -174,8 +197,13 @@ export function checkSummary(d: SummaryDraft, sections: readonly Section[], opts
 
   const totalWords = prose.reduce((n, s) => n + wc(s), 0);
   if (totalWords > LIMITS.totalWords) fail(`The summary is ${totalWords} words; the limit is ${LIMITS.totalWords} (about two phone screens).`);
-  const grade = readingGrade(prose.join(" "));
-  if (grade > LIMITS.gradeFail) fail(`Reading level is grade ${grade}; the limit is ${LIMITS.gradeFail} (target about 8).`);
+  const grade = plainGrade(prose.join(" ")); // official names count as one short word each
+  if (grade > LIMITS.gradeFail) {
+    // Round 1 review: the bare grade gave the model nothing to act on, so its second try stayed dense. Name what to fix.
+    const long = prose.map(x => ({ x, n: wc(x) })).filter(y => y.n > 18).sort((a, b) => b.n - a.n).slice(0, 3).map(y => `"${words(y.x).slice(0, 6).join(" ")}…" (${y.n} words)`);
+    const hard = [...new Set(words(withoutOfficialNames(prose.join(" "))).map(w => w.replace(/[^A-Za-z-]/g, "").toLowerCase()).filter(w => w.length > 8 && syllables(w) >= 4))].slice(0, 6).map(w => `"${w}"`);
+    fail(`Reading level is grade ${grade}; the limit is ${LIMITS.gradeFail} (target about 8).${long.length ? ` Split these sentences in two: ${long.join("; ")}.` : ""}${hard.length ? ` Use plainer words for, or explain: ${hard.join(", ")}.` : ""}`);
+  }
   else if (grade > LIMITS.gradeWarn) warn(`Reading level is grade ${grade}; the target is about 8.`);
 
   if (opts.truncated && d.confidence === "high") fail("The model read only part of a long bill, so confidence cannot be high.");

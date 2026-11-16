@@ -101,10 +101,10 @@ export async function sendSummariesRevisedIfDue(): Promise<{ sent: boolean; reas
 /**
  * Round 1 strict review without email (owner go-ahead 16 Nov 2026). After a run writes or rewrites
  * summaries, each one is written to the function's own log beside the full text of the bill sections
- * it cites, in lines of at most 3,000 characters that start "REVIEW_PACKET <bill label>". The reviewer
+ * it cites, in lines of at most 1,500 characters (the log reader cuts longer lines) that start "REVIEW_PACKET <bill label>". The reviewer
  * reads them through the owner's Vercel account (runtime logs). No endpoint, no token, nothing public.
  */
-export function packetLines(label: string, kind: string, text: string, size = 3000): string[] {
+export function packetLines(label: string, kind: string, text: string, size = 1500): string[] {
   const parts = Math.max(1, Math.ceil(text.length / size));
   return Array.from({ length: parts }, (_, k) => `REVIEW_PACKET ${label} | ${kind} | part ${k + 1}/${parts} | ${text.slice(k * size, (k + 1) * size)}`);
 }
@@ -123,10 +123,10 @@ export async function logReviewPackets(billIds: string[], budgetMs = 30_000): Pr
         const res = await fetch(textUrl, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(15_000), cache: "no-store" });
         if (!res.ok) throw new Error(`bill text ${res.status}`);
         const parsed = parseBillTextHtml(await res.text());
-        out.push(...packetLines(r.label, "HEADINGS", `${parsed.chars} chars; ${parsed.sections.map(x => `Sec. ${x.num}. ${x.heading}`.slice(0, 90)).join(" || ")}`.slice(0, 2900)));
+        out.push(...packetLines(r.label, "HEADINGS", `${parsed.chars} chars; ${parsed.sections.map(x => `Sec. ${x.num}. ${x.heading}`.slice(0, 90)).join(" || ")}`.slice(0, 1400)));
         for (const cite of new Set([...r.whatItDoes, ...r.whoItAffects].map(p => p.section))) {
           const n = citedSection(cite), sec = n ? parsed.sections.find(x => x.num.toUpperCase() === n) : null;
-          out.push(...packetLines(r.label, `CITED ${cite}`, sec?.text ? `[${sec.text.length} chars] ${sec.text.slice(0, 9000)}` : "NOT FOUND IN THE BILL TEXT"));
+          out.push(...packetLines(r.label, `CITED ${cite}`, sec?.text ? `[${sec.text.length} chars] ${sec.text.slice(0, 6000)}` : "NOT FOUND IN THE BILL TEXT"));
         }
       } catch (e) { out.push(...packetLines(r.label, "TEXT_ERROR", (e instanceof Error ? e.message : "fetch failed").slice(0, 200))); }
       for (const l of out) console.log(l);

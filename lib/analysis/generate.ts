@@ -18,7 +18,7 @@ import { CHECKPOINT_SUMMARIES } from "@/lib/analysis/report-format";
  * model; the official title, status, cost estimate, votes and sources come
  * from government records and are shown as Official.
  */
-export const PROMPT_VERSION = "b2-2026-11-16";
+export const PROMPT_VERSION = "b3-2026-11-16";
 const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 const MAX_OUTPUT_TOKENS = 4000;
 
@@ -48,14 +48,16 @@ const summarySchema = { type: "object", additionalProperties: false,
 
 export const INSTRUCTIONS = `You write a plain-language, strictly neutral summary of one U.S. bill for ordinary readers. Return JSON in the given schema.
 Rules:
-- Reading level about 8th grade: short sentences, common words. Explain any legal term in plain words.
+- Reading level about 8th grade: short sentences, common words. Explain any legal term in plain words. Keep sentences under 20 words; split a longer one in two. Name an agency or law in full once, then use a short form ("the commission", "the agency", "the act").
 - Neutral verbs only: would, requires, allows, bars, changes, sets, funds, ends. Never use loaded words such as sweeping, radical, common-sense, controversial, landmark, historic, massive, extreme, dangerous, crisis, loophole, partisan or bipartisan. Never judge the bill, its sponsors or any politician. No grades, ratings or verdicts.
 - headline: one sentence that starts with "Would", at most 20 words, saying what the bill would do and for whom.
 - whatItDoes: up to 3 points, most important first, each at most 30 words. Each cites the one section it comes from as "Sec. N", using only section numbers in the section list. If the list is empty, cite "Full text".
 - whoItAffects: 1 to 3 points, same citation rule, each at most 30 words.
-- whatChangesForYou: at most 40 words on what an ordinary person would notice. If most people would notice no direct change, say so plainly.
+- whatChangesForYou: at most 40 words on what an ordinary person would notice. If the bill puts a duty on the general public (for example voters, taxpayers, patients or drivers), say that change first. Say "Most people would notice no direct change" only when its duties fall on a narrow group, and never follow that sentence with "unless" or "except".
 - caseFor and caseAgainst: exactly 2 arguments each, each 15 to 30 words. Give both sides equal care and similar total length. Each attribution names the kind of supporter or critic who would make the argument (for example "the bill's sponsor", "veterans' groups", "budget analysts", "state officials", "employers"). Never invent named people, quotes, numbers or any organisation's stated position. Never attribute to "some", "critics" or "supporters" alone.
 - unknowns: 1 to 3 things the text does not settle (for example the cost when no CBO estimate is listed, how an agency would carry it out, effects that depend on later rules), each at most 25 words.
+- An argument must give a reason tied to something the text does. Never restate the bill as its own reason (not "Congress should stop a rule it does not want"). If the material does not say enough to know who would favor or oppose it (for example a resolution that only disapproves a rule by name), attribute only to "the resolution's sponsor" and "the agency that issued the rule", do not guess where other groups stand, and say in unknowns that the text does not describe what the rule does.
+- Name only groups, examples and effects that the cited section or the CRS summary states. Do not add examples from general knowledge (for example which kinds of employers offer a plan).
 - Every point must restate what its cited section actually says. Do not describe effects, amounts, dates or groups the section does not mention, and do not cite a section for something another section says.
 - Spell out any acronym the first time (for example "Department of Veterans Affairs (VA)").
 - Use only the material provided: the bill text, the official CRS summary and the CBO listing. Do not use outside knowledge of votes, news or statements.

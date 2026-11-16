@@ -38,6 +38,7 @@ export function flags(p: Probe, now = Date.now()): Flag[] {
   if (lim > 0 && spent >= lim) out.push({ level: "blocker", text: `OpenAI spend reached the ${usd(lim)} monthly limit. AI work stops until next month or a higher limit.` });
   else if (lim > 0 && spent > 0.75 * lim) out.push({ level: "soon", text: `OpenAI spend is ${usd(spent)}, above 75% of the ${usd(lim)} limit.` });
   if (Number(a.openReviews) > 0) out.push({ level: "soon", text: `${a.openReviews} bill summar${a.openReviews === 1 ? "y waits" : "ies wait"} for your approve or reject.`, href: "/editor/analysis" });
+  if (Number(p.throughput?.casesWaiting) > 0) out.push({ level: "info", text: `${p.throughput.casesWaiting} claim-checking case${p.throughput.casesWaiting === 1 ? " waits" : "s wait"} for your review.`, href: "/editor" });
   if (p.federal?.lastRun && p.federal.lastRun.status !== "COMPLETE") out.push({ level: "soon", text: `The last official-records update did not finish (${p.federal.lastRun.status}).` });
   const tm = Number(p.federal?.depth?.tally?.mismatches ?? 0) + Number(p.texas?.tallyMismatches ?? 0);
   if (tm > 0) out.push({ level: "info", text: `${tm} roll-call tall${tm === 1 ? "y is" : "ies are"} shown as “under review” because the member votes do not add up to the official totals.` });

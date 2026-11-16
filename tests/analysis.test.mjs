@@ -195,3 +195,26 @@ test("the review email shows each cited section's opening words", async () => {
   assert.match(revised.subject, /rewritten for review/);
   assert.match(revised.text, /Earlier version cost \$0\.0100/);
 });
+
+test("Round 1 review fixes: names do not count against reading level; 'no change unless' fails; grade failures say what to fix (regressions)", async () => {
+  const { plainGrade, withoutOfficialNames, citeOverlap } = await import("../lib/analysis/checker.ts");
+  const named = "The Nuclear Regulatory Commission must update its rules. The Nuclear Regulatory Commission keeps its power to inspect.";
+  assert.equal(withoutOfficialNames(named), "The Name must update its rules. The Name keeps its power to inspect.");
+  assert.ok(plainGrade(named) < readingGrade(named) - 3, "an official name counts as one short word");
+  assert.equal(withoutOfficialNames("Members of Congress may not buy stock."), "Name may not buy stock.");
+  const sections = [{ num: "2", heading: "Photo identification", text: "An election official may not provide a ballot unless the individual presents a valid photo identification. Each State shall notify applicants." }];
+  const base = { headline: "Would require photo identification to vote in federal elections", whatItDoes: [{ text: "Requires a valid photo identification before an election official provides a ballot.", section: "Sec. 2" }],
+    whoItAffects: [{ text: "Individuals who vote in federal elections must present photo identification.", section: "Sec. 2" }],
+    whatChangesForYou: "Most people would see no direct change unless they are voting in a federal election.",
+    caseFor: [{ argument: "State officials could say one photo rule gives every polling place the same check.", attribution: "state election officials" }, { argument: "The sponsor could say a photo check gives voters more trust in the count.", attribution: "the bill's sponsor" }],
+    caseAgainst: [{ argument: "Voting rights groups could say some eligible voters lack a listed photo card.", attribution: "voting rights groups" }, { argument: "Local officials could say checking cards adds work and cost at polling places.", attribution: "local election officials" }],
+    unknowns: ["The text lists no cost estimate."], confidence: "high", confidenceReason: "The text is short and clear." };
+  assert.ok(checkSummary(base, sections).failures.some(f => /most people see no change, then adds an exception/.test(f)));
+  assert.equal(checkSummary({ ...base, whatChangesForYou: "You would need to show a photo ID to vote in a federal election." }, sections).passed, true);
+  const share = citeOverlap("Retirement plans for employees of public schools, charities and churches are covered.", "Sec. 2", sections);
+  assert.ok(share !== null && share < 0.34, "a point built from words the section does not use is flagged for a look");
+  const heavy = "comprehensive identification verification requirements necessitating governmental documentation presentation before election officials provide any individual a ballot under applicable administrative procedures";
+  const dense = { ...base, whatChangesForYou: `Individuals would encounter ${heavy}.`, whoItAffects: [{ text: `Individuals voting in federal elections encounter ${heavy}.`, section: "Sec. 2" }], whatItDoes: [{ text: "Establishes comprehensive identification verification requirements necessitating governmental documentation presentation before election officials provide any individual a ballot under the applicable administrative procedures.", section: "Sec. 2" }] };
+  const f = checkSummary(dense, sections).failures.find(x => /Reading level/.test(x));
+  assert.ok(f && /Split these sentences in two|Use plainer words/.test(f), f);
+});

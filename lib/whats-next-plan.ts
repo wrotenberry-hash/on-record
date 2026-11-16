@@ -7,22 +7,22 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-16T18:20:00Z";
-export const PLAN_NOTE = "Every round in the master plan is built and live. The one thing not yet proven is the bill summaries: no AI call has succeeded in production since the key was replaced. The 19:00 UTC run on 16 Nov is the first test.";
+export const PLAN_UPDATED = "2026-11-16T19:45:00Z";
+export const PLAN_NOTE = "The new OpenAI key works. The 19:00 UTC run on 16 Nov wrote the first 5 real bill summaries for 3 cents in total (0.6 cents each). Claude checked them against the bill text the same hour: none misstates what a bill does, but there were four wording problems (one misleading sentence, facts added from general knowledge, weak arguments, and writing too dense for ordinary readers). The generator and checker are fixed, and the five are rewritten on the next run (13:00 UTC, 17 Nov). The limit stays at 5 summaries until the rewritten five pass. Details: docs/ROUND1_REVIEW.md. The trial unlocked itself and 25 invite links exist; none has been handed out.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Prove the bill summaries (Round 1)", needs: "your go-ahead",
-    why: "Bill pages, the 5-slide explainer, the fairness check and the trial invitation all wait on real summaries. After the first run that produces them: review the first 5 strictly against the bill text, fix the patterns behind any errors, then let summaries run up to the $25 monthly cap." },
+  { title: "Finish proving the summaries (Round 1)", needs: "nothing; in progress",
+    why: "You said go. After the 13:00 UTC run on 17 Nov rewrites the five, Claude reviews them again in full. If they pass, the 5-summary limit is lifted so the $25 monthly cap is the only limit (about 3,900 summaries a month at tonight's price). No need to approve or reject tonight's summaries; they are about to be replaced." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
+  { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",
+    why: "The 25 links are ready at Editor → Trial invites. Waiting one day means the first readers see the improved summaries. Real readers are the only way to measure whether people come back and share." },
   { title: "Add the free Open States key so the Texas pages fill", needs: "you",
     why: "Texas bills, members, votes and the Texas dashboard are built but empty without it. 5 minutes, free." },
-  { title: "Open the invite-only trial to 5 people", needs: "your go-ahead",
-    why: "The trial unlocks itself after the first successful AI call. Real readers are the only way to measure whether people come back and share. You create the links at Editor → Trial invites." },
   { title: "Turn on real-person verification", needs: "you",
     why: "Counted Support/Oppose answers and “my district vs my legislator” need the Cloudflare and Twilio keys (about 30 minutes, about 7 cents per verified person, capped at $10 a month)." },
-  { title: "Decide what happens to the claim-checking queue", needs: "you",
-    why: "Statement intake is paused because cases are waiting and none were reviewed last week. Recommended default: leave it paused and launch the trial on votes and bills alone; come back to claims after the trial." },
+  { title: "Decide whether claim checking keeps running", needs: "you",
+    why: "The 89 old cases were set aside tonight (kept, not deleted), so the daily statement intake has switched itself back on: from 13:00 UTC tomorrow each morning run captures a statement, drafts the research and queues one case for you. With emails off you will only see it here. Recommended default: let it run for the trial week (it costs cents) and review one case to see whether you still want it." },
 ];
 
 export const OWNER_STEPS: OwnerStep[] = [
@@ -53,11 +53,11 @@ export const OWNER_STEPS: OwnerStep[] = [
 
 export const ROUNDS: RoundStatus[] = [
   { round: "1", what: "Prove the bill summaries", state: "in progress" },
-  { round: "A", what: "Federal data depth (actions, amendments, versions, committees, floor)", state: "live, waiting on data" },
+  { round: "A", what: "Federal data depth (actions, amendments, versions, committees, floor)", state: "live" },
   { round: "B", what: "Bill experience (timeline, party split, search, follow)", state: "live" },
   { round: "C", what: "Vote experience (what Yes/No means, compare, your legislators)", state: "live" },
   { round: "H", what: "What's happening and Texas", state: "live, waiting on data" },
-  { round: "I", what: "Dashboards", state: "live, waiting on data" },
+  { round: "I", what: "Dashboards (Congress filled tonight; Texas waits on its key)", state: "live, waiting on data" },
   { round: "D", what: "Reasons to come back (start, alerts, recap)", state: "live" },
   { round: "J", what: "Real-person verification", state: "live behind a switch" },
   { round: "G", what: "Sharing (cards, video, short links, post queue)", state: "live" },
