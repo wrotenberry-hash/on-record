@@ -176,6 +176,13 @@
       "when": 1794845922580,
       "tag": "0024_roundh_tx_summaries",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1794846252867,
+      "tag": "0025_roundi_dashboards",
+      "breakpoints": true
     }
   ]
 }

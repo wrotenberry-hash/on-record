@@ -69,7 +69,7 @@ export async function ingestLegislators(db: Db, force = false): Promise<Step> {
 }
 
 /** Stores one roll call, its member votes and, when it concerns a bill, a bill stub. Idempotent. */
-async function storeRollCall(db: Db, rc: ParsedRollCall, lisToBioguide: Map<string, string>) {
+export async function storeRollCall(db: Db, rc: ParsedRollCall, lisToBioguide: Map<string, string>) {
   const now = Date.now();
   if (rc.bill) {
     await db.insert(officialBills).values({ id: rc.bill.id, congress: rc.bill.congress, billType: rc.bill.billType, number: rc.bill.number,
@@ -146,6 +146,53 @@ export async function ingestHouse(db: Db, deadline: number, cap = PER_RUN_CAP): 
     await storeRollCall(db, rc, new Map()); await setCursor(db, key, String(n)); stored++;
   }
   return { ok: true, stored, cursor: Number(await getCursor(db, key)) };
+}
+
+/**
+ * Round I: backfill this Congress's earlier roll calls (oldest missing last), so roll-call counts, the procedural
+ * share and the party-line share cover the whole Congress. Newest-first from just below what is stored; resumes
+ * from its cursor; at most `cap` a run, after the regular update has run.
+ */
+export async function ingestBackfill(db: Db, deadline: number, cap = 40): Promise<Step> {
+  const year = thisYear(), congress = congressForYear(year), years = year % 2 === 0 ? [year, year - 1] : [year];
+  let stored = 0; const notes: string[] = [];
+  for (const y of years) {
+    if (stored >= cap || Date.now() > deadline - 10_000) break;
+    const key = `house:backfill:${y}`;
+    let next = Number(await getCursor(db, key) ?? NaN);
+    if (!Number.isFinite(next)) {
+      const min = await db.select({ n: sql<number>`min(${officialRollCalls.rollNumber})` }).from(officialRollCalls).where(and(eq(officialRollCalls.chamber, "house"), sql`strftime('%Y', ${officialRollCalls.votedAt} / 1000, 'unixepoch') = ${String(y)}`)).get();
+      next = min?.n ? Number(min.n) - 1 : y === year ? Number(await getCursor(db, `house:${y}`) ?? 0) : await latestHouseRoll(y).catch(() => 0);
+    }
+    while (next >= 1 && stored < cap && Date.now() < deadline - 5_000) {
+      if (stored) await pause(HOUSE_PAUSE_MS);
+      const url = houseRollUrl(y, next), res = await fetchText(url).catch(() => ({ ok: false, status: 0, text: "" }));
+      const rc = res.ok ? parseHouseRoll(res.text, url) : null;
+      if (rc) { await storeRollCall(db, rc, new Map()); stored++; }
+      next--; await setCursor(db, key, String(next));
+    }
+    if (next < 1) notes.push(`house ${y} complete`);
+  }
+  const lis = new Map((await db.select({ id: officialPoliticians.id, lis: officialPoliticians.lisId }).from(officialPoliticians).where(isNotNull(officialPoliticians.lisId))).map(r => [r.lis as string, r.id]));
+  for (const session of [2, 1]) {
+    if (stored >= cap || Date.now() > deadline - 10_000) break;
+    if (session === 2 && year % 2 === 1) continue;
+    const key = `senate:backfill:${congress}-${session}`, menuRes = await fetchText(senateMenuUrl(congress, session)).catch(() => null);
+    if (!menuRes?.ok) continue;
+    const numbers = parseSenateMenu(menuRes.text).voteNumbers.sort((a, b) => b - a);
+    const have = new Set((await db.select({ n: officialRollCalls.rollNumber }).from(officialRollCalls).where(and(eq(officialRollCalls.chamber, "senate"), eq(officialRollCalls.congress, congress), eq(officialRollCalls.session, session)))).map(r => r.n));
+    const below = Number(await getCursor(db, key) ?? Infinity);
+    for (const n of numbers.filter(x => !have.has(x) && x < below)) {
+      if (stored >= cap || Date.now() + SENATE_PAUSE_MS > deadline - 5_000) break;
+      if (stored) await pause(SENATE_PAUSE_MS);
+      const url = senateVoteUrl(congress, session, n), res = await fetchText(url).catch(() => ({ ok: false, status: 0, text: "" }));
+      if (res.status === 403 || res.status === 429) { notes.push(`senate.gov asked to slow down at ${n}`); break; }
+      const rc = res.ok ? parseSenateVote(res.text, url) : null;
+      if (rc) { await storeRollCall(db, rc, lis); stored++; }
+      await setCursor(db, key, String(n));
+    }
+  }
+  return { ok: true, stored, ...(notes.length ? { note: notes.join("; ") } : {}) };
 }
 
 async function loadMappings(db: Db): Promise<Mapping[]> {
@@ -258,6 +305,12 @@ export async function runFederalIngest({ budgetMs = 120_000, trigger = "schedule
   await step("depth", () => depth.ingestDepth(db, deadline));
   await step("tally", () => depth.checkTallies(db));
   await step("counts", () => depth.ingestCongressCounts(db));
+  // Round I: whole-Congress bill index, leaders, and the roll-call backfill, with whatever time is left.
+  const dash = await import("@/lib/federal/dashboard");
+  await step("billIndex", () => dash.ingestBillIndex(db, deadline));
+  await step("leaders", () => dash.ingestLeaders(db));
+  await step("backfill", () => ingestBackfill(db, deadline));
+  await step("dashboards", () => dash.refreshDashboards(db));
   // Round B: one email per followed bill whose stage moved.
   await step("billAlerts", async () => ({ ok: true, ...(await (await import("@/lib/bill-follows")).runBillAlerts()) }));
   const failures = Object.values(steps).filter(s => !s.ok).length;

@@ -13,6 +13,7 @@ export const PUBLIC_PAGES = [
   { href: "/moving", label: "This week" },
   { href: "/texas", label: "Texas" },
   { href: "/briefing", label: "Briefing" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/search", label: "Search" },
   { href: "/issues", label: "Issues" },
   { href: "/legislators", label: "Your legislators" },

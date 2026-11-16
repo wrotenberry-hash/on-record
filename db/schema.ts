@@ -685,3 +685,21 @@ export const txBillSummaries = sqliteTable("tx_bill_summaries", {
   status: text("status", { enum: ["visible", "held", "rejected"] }).notNull(), model: text("model").notNull(), promptVersion: text("prompt_version").notNull(),
   costUsd: real("cost_usd").notNull().default(0), createdAt: integer("created_at").notNull(), reviewedAt: integer("reviewed_at"),
 }, t => [uniqueIndex("tx_bill_summaries_bill_uq").on(t.billId), index("tx_bill_summaries_status_idx").on(t.status)]);
+
+// ── Round I: dashboards (migration 0025). New tables only. ──
+// Every bill of a Congress from the Congress.gov list, with its latest official action and the stage read from it.
+export const officialBillIndex = sqliteTable("official_bill_index", {
+  billId: text("bill_id").primaryKey(), congress: integer("congress").notNull(), billType: text("bill_type").notNull(), number: integer("number").notNull(),
+  originChamber: text("origin_chamber"), title: text("title").notNull(), latestActionDate: text("latest_action_date"), latestActionText: text("latest_action_text"),
+  stage: text("stage").notNull(), updateDate: text("update_date"), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("bill_index_congress_idx").on(t.congress, t.stage), index("bill_index_type_idx").on(t.congress, t.billType)]);
+export const officialLeaders = sqliteTable("official_leaders", {
+  politicianId: text("politician_id").notNull(), name: text("name").notNull(), title: text("title").notNull(), chamber: text("chamber").notNull(), start: text("start"), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.politicianId, t.title] })]);
+export const leadershipChanges = sqliteTable("leadership_changes", {
+  id: text("id").primaryKey(), at: integer("at").notNull(), level: text("level").notNull(), title: text("title").notNull(), fromName: text("from_name"), toName: text("to_name"),
+});
+// Texas session statistics by stage (LegiScan master list, one request per session), reconciled against tx_bills where both exist.
+export const txSessionStats = sqliteTable("tx_session_stats", {
+  session: text("session").primaryKey(), counts: text("counts", { mode: "json" }).notNull(), source: text("source").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+});

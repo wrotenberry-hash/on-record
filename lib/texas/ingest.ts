@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { ingestRuns, txBillActions, txBills, txBillSponsors, txBillVersions, txCommitteeMembers, txCommittees, txEvents, txMemberVotes, txPeople, txVotes } from "@/db/schema";
+import { ingestRuns, txSessionStats, txBillActions, txBills, txBillSponsors, txBillVersions, txCommitteeMembers, txCommittees, txEvents, txMemberVotes, txPeople, txVotes } from "@/db/schema";
 import { chunked, getCursor, setCursor } from "@/lib/federal/ingest";
 import { currentTxSession, LEGISCAN_BASE, legiscanStage, OPENSTATES_BASE, parseLegiscanMasterList, parseOpenStatesBills, parseOpenStatesCommittees, parseOpenStatesEvents,
   parseOpenStatesPeople, tloBillUrl, txBillId, txStage, txTallyMismatch, TX_SESSIONS, type TxBill } from "@/lib/texas/parse";
@@ -129,6 +129,30 @@ async function viaLegiscan(db: Db) {
   return { ok: true, legiscanBills: list.length, session: session.id };
 }
 
+/** Round I: Texas session statistics by stage from LegiScan master lists (one request per session), weekly. */
+async function legiscanHistory(db: Db) {
+  const c = texasConfig(), now = Date.now();
+  if (!c.legiscan || now - Number(await getCursor(db, "tx:history") ?? 0) < WEEK) return { skipped: true };
+  const sl = await getJson(`${lsBase()}/?key=${encodeURIComponent(c.lsKey)}&op=getSessionList&state=TX`, {});
+  const sessions = (sl.body as { sessions?: Array<{ session_id?: number; year_start?: number; special?: number; session_name?: string; session_title?: string }> } | null)?.sessions ?? [];
+  let stored = 0;
+  for (const s of TX_SESSIONS.filter(x => x.start <= new Date(now).toISOString().slice(0, 10))) {
+    const year = s.start.slice(0, 4), ord = s.id.length === 3 ? Number(s.id.slice(2)) : 0;
+    const match = sessions.find(x => String(x.year_start) === year && (s.regular ? !x.special : !!x.special && new RegExp(`\\b${ord}(st|nd|rd|th)\\b|called session ${ord}`, "i").test(`${x.session_name ?? ""} ${x.session_title ?? ""}`)));
+    if (!match?.session_id) continue;
+    const ml = await getJson(`${lsBase()}/?key=${encodeURIComponent(c.lsKey)}&op=getMasterList&id=${match.session_id}`, {});
+    const list = parseLegiscanMasterList(ml.body);
+    if (!list.length) continue;
+    const counts: Record<string, number> = {};
+    for (const b of list) { const st = legiscanStage(b.status); counts[st] = (counts[st] ?? 0) + 1; }
+    await db.insert(txSessionStats).values({ session: s.id, counts, source: `LegiScan master list, session ${match.session_id}`, retrievedAt: now })
+      .onConflictDoUpdate({ target: txSessionStats.session, set: { counts, source: `LegiScan master list, session ${match.session_id}`, retrievedAt: now } });
+    stored++;
+  }
+  await setCursor(db, "tx:history", String(now));
+  return { sessions: stored };
+}
+
 export async function runTexasIngest({ budgetMs = 60_000 }: { budgetMs?: number } = {}) {
   const c = texasConfig();
   if (!c.openStates && !c.legiscan) return { ok: true, skipped: "OPENSTATES_API_KEY and LEGISCAN_API_KEY are not set" };
@@ -138,6 +162,7 @@ export async function runTexasIngest({ budgetMs = 60_000 }: { budgetMs?: number 
   try {
     if (c.openStates) detail = await viaOpenStates(db, deadline, { left: c.maxRequests });
     if (c.legiscan && (!c.openStates || (detail.refused as number) > 0)) detail.legiscan = await viaLegiscan(db);
+    if (c.legiscan) detail.history = await legiscanHistory(db);
   } catch (e) { ok = false; error = (e instanceof Error ? e.message : String(e)).slice(0, 300); }
   await db.update(ingestRuns).set({ status: ok ? "COMPLETE" : "FAILED", finishedAt: Date.now(), detail, error }).where(eq(ingestRuns.id, id));
   return { ok, ...(error ? { error } : {}), ...detail };
