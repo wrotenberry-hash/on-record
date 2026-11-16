@@ -176,3 +176,4 @@ table.history:focus-visible,.share-slides:focus-visible{outline:2px solid #163b3
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.skeleton{animation:none}}
 .nav-progress{position:fixed;top:0;left:0;height:3px;width:100%;z-index:50;background:linear-gradient(90deg,#163b3c 0 40%,transparent 40%);background-size:250% 100%;animation:navp 1s linear infinite}
 @keyframes navp{0%{background-position:100% 0}100%{background-position:-150% 0}}@media (prefers-reduced-motion:reduce){.nav-progress{animation:none;background:#163b3c}}
+.personal .result-list a,.leg-card a{color:#163b3c;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
