@@ -57,12 +57,14 @@ export async function allSummaries() {
 /** Counts and spend for the health probe and the editor page. No bill text or summary text. */
 export async function analysisCounts() {
   const db = getDb();
-  const [byStatus, open, spend, last] = await Promise.all([
+  const [byStatus, open, spend, last, approved] = await Promise.all([
     db.select({ status: analysisBillSummaries.status, n: sql<number>`count(*)`, usd: sql<number>`coalesce(sum(${analysisBillSummaries.costUsd}), 0)` })
       .from(analysisBillSummaries).groupBy(analysisBillSummaries.status),
     db.select({ n: sql<number>`count(*)` }).from(analysisReviewQueue).where(eq(analysisReviewQueue.status, "open")).get(),
     db.select({ usd: sql<number>`coalesce(sum(cost_usd), 0)`, calls: sql<number>`count(*)` }).from(sql`model_calls`).where(sql`purpose = 'analysis'`).get(),
     db.select().from(ingestRuns).where(eq(ingestRuns.job, "analysis")).orderBy(desc(ingestRuns.startedAt)).limit(1).get(),
+    // Approved by the editor: a held summary the editor released, or a visible one the editor has reviewed.
+    db.select({ n: sql<number>`count(*)` }).from(analysisBillSummaries).where(sql`${analysisBillSummaries.status} = 'visible' and ${analysisBillSummaries.reviewedAt} is not null`).get(),
   ]);
   // One line per summary for the probe: order, category, status, checker result and cost. No bill text, no summary text.
   const each = await db.select({ sequence: analysisBillSummaries.sequence, status: analysisBillSummaries.status, checkPassed: analysisBillSummaries.checkPassed,
@@ -74,7 +76,7 @@ export async function analysisCounts() {
     .orderBy(analysisBillSummaries.sequence).limit(50);
   const count = (s: string) => Number(byStatus.find(r => r.status === s)?.n ?? 0);
   const detail = (last?.detail ?? {}) as { stoppedBy?: string | null; made?: unknown[] };
-  return { summaries: byStatus.reduce((n, r) => n + Number(r.n), 0), visible: count("visible"), held: count("held"), rejected: count("rejected"),
+  return { summaries: byStatus.reduce((n, r) => n + Number(r.n), 0), written: byStatus.reduce((n, r) => n + Number(r.n), 0), editorApproved: Number(approved?.n ?? 0), visible: count("visible"), held: count("held"), rejected: count("rejected"),
     openReviews: Number(open?.n ?? 0), summaryCostUsd: Math.round(byStatus.reduce((n, r) => n + Number(r.usd), 0) * 10000) / 10000,
     analysisCallsUsd: Math.round(Number(spend?.usd ?? 0) * 10000) / 10000, analysisCalls: Number(spend?.calls ?? 0),
     each: each.map(e => ({ ...e, checkPassed: e.checkPassed === 1, costUsd: Math.round(e.costUsd * 10000) / 10000 })),

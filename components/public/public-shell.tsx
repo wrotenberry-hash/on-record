@@ -2,6 +2,9 @@ import Link from "next/link";
 import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
 import { countEvent } from "@/lib/events";
 import { dim, type Audience } from "@/lib/event-dims";
+import { cookies } from "next/headers";
+import { FEEDBACK_COOKIE, shouldAskFeedback } from "@/lib/feedback-rules";
+import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
@@ -15,7 +18,7 @@ export const PUBLIC_PAGES = [
   { href: "/records", label: "Published records" },
 ] as const;
 
-type Access = { allowed: boolean; preview: boolean; editor?: unknown; invite?: unknown; audience?: Audience };
+type Access = { allowed: boolean; preview: boolean; editor?: unknown; invite?: { activeDays?: number } | null; audience?: Audience };
 
 /**
  * Frame for the reader-facing pages. The same switch that closes /records
@@ -32,6 +35,7 @@ export async function PublicShell({ current, children, access, page }: { current
   const audience: Audience = access?.audience ?? (publicRead ? "public" : "closed");
   await countEvent("page_view", dim(enabled ? audience : "closed", page ?? current));
   const trial = !!access?.invite && !access?.editor;
+  const askFeedback = trial && enabled && shouldAskFeedback(access?.invite?.activeDays, (await cookies()).get(FEEDBACK_COOKIE)?.value);
   // The claim record is not part of the trial: it opens with public reading.
   const pages = PUBLIC_PAGES.filter(p => p.href !== "/records" || publicRead || !!access?.editor);
   const nav = pages.map(p => <Link key={p.href} href={p.href} aria-current={p.href === current ? "page" : undefined}>{p.label}</Link>);
@@ -43,6 +47,7 @@ export async function PublicShell({ current, children, access, page }: { current
       {access?.preview && (trial
         ? <div className="preview-banner" role="note"><b>Invite-only trial.</b> You are seeing On Record before it is public. Thank you for trying it; tell the person who invited you what was confusing or missing.</div>
         : <div className="preview-banner" role="note"><b>Private preview.</b> You can see this page because you are signed in as the editor. Public reading is off; only you and trial invitees can see it.</div>)}
+      {askFeedback && <FeedbackPrompt />}
       {enabled ? children : <><div className="intro"><div className="eyebrow">PRIVATE REVIEW</div><h1>This page is not yet public.</h1>
         <p>On Record is being evaluated privately. This page will appear once the editorial team enables public reading.</p></div>
         <div className="notice"><b>Nothing on this site is a finding.</b> Numerical ratings and aggregate scores are disabled.</div></>}

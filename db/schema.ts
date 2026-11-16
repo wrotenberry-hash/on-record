@@ -475,3 +475,18 @@ export const digestSends = sqliteTable("digest_sends", {
   id: text("id").primaryKey(), accountId: text("account_id").references(() => readerAccounts.id).notNull(), week: text("week").notNull(),
   sentAt: integer("sent_at").notNull(), items: integer("items").notNull(), ok: integer("ok").notNull(), error: text("error"),
 }, t => [uniqueIndex("digest_sends_week_uq").on(t.accountId, t.week)]);
+
+/* Round 4 (2026-11-16): case archive and trial feedback. New tables only. */
+
+// A waiting case set aside because it is older than 14 days (owner decision). Nothing is deleted:
+// the case and its history stay as they were; restoring clears archivedAt-in-effect by setting
+// restoredAt, and a restored case is never archived again automatically.
+export const caseArchive = sqliteTable("case_archive", {
+  representationId: text("representation_id").primaryKey(), archivedAt: integer("archived_at").notNull(),
+  reason: text("reason").notNull(), restoredAt: integer("restored_at"),
+});
+
+// One-question feedback from trial readers after their third visit. Anonymous: no invite or reader id.
+export const readerFeedback = sqliteTable("reader_feedback", {
+  id: text("id").primaryKey(), answer: text("answer").notNull(), audience: text("audience").notNull(), createdAt: integer("created_at").notNull(),
+});

@@ -97,3 +97,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .share-preview{width:100%;max-width:420px;height:auto;border:1px solid #d9ded9;background:#fff}.share-link{max-width:100%}
 .share-caption{display:grid;gap:6px;font-size:14px;font-weight:700;color:#39514b}.share-caption textarea{border:1px solid #c8d6ce;border-radius:3px;padding:10px;font:15px Arial,sans-serif}
 .share-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.share-actions button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:11px 22px;font:600 16px Arial,sans-serif;min-height:44px}.secondary-link{color:#163b3c;text-decoration:underline;padding:10px 0;display:inline-block;min-height:44px}
+.feedback-prompt{margin:12px auto 0;max-width:860px;border:1px solid #d9d4c7;background:#fbfaf6;padding:12px 14px;display:grid;gap:8px;font-size:15px}
+.feedback-prompt textarea{width:100%;font:inherit;padding:8px;border:1px solid #cfc8b8;box-sizing:border-box}
+.feedback-actions{display:flex;gap:8px;flex-wrap:wrap}
+.feedback-prompt small{color:#6b665c}
+.feedback-actions button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px;cursor:pointer}.feedback-actions button.secondary{background:#fff;color:#163b3c}

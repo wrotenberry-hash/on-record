@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, gte, ne, notExists, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
+import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications, caseArchive } from "@/db/schema";
 import { signAction } from "@/lib/session-token";
 import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend, intakePauseThreshold, intakePausedFor } from "@/lib/monitoring";
 import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince } from "@/lib/model-calls";
@@ -133,7 +133,30 @@ function openCaseFilter() {
     .where(eq(adjudications.representationId, representations.id));
   const notMaterial = getDb().select({ one: sql`1` }).from(materialityDecisions)
     .where(and(eq(materialityDecisions.representationId, representations.id), eq(materialityDecisions.tier, "NOT_MATERIAL")));
-  return and(ne(representations.status, "REJECTED"), notExists(published), notExists(notMaterial));
+  const archived = getDb().select({ one: sql`1` }).from(caseArchive)
+    .where(and(eq(caseArchive.representationId, representations.id), sql`${caseArchive.restoredAt} is null`));
+  return and(ne(representations.status, "REJECTED"), notExists(published), notExists(notMaterial), notExists(archived));
+}
+
+/** Owner decision 2026-11-16: waiting cases are archived (never deleted) once their capture is older than this. */
+export const ARCHIVE_AFTER_DAYS = 14;
+
+/**
+ * Archives every waiting case captured more than 14 days ago that was never archived
+ * before (a case the editor restored stays restored). Returns how many were archived.
+ */
+export async function archiveOldCases(now = Date.now()): Promise<number> {
+  const db = getDb(), cutoff = now - ARCHIVE_AFTER_DAYS * 24 * 3600 * 1000;
+  const everArchived = db.select({ one: sql`1` }).from(caseArchive).where(eq(caseArchive.representationId, representations.id));
+  const rows = await db.select({ id: representations.id }).from(representations).innerJoin(sourceCaptures, eq(sourceCaptures.id, representations.captureId))
+    .where(and(openCaseFilter(), notExists(everArchived), lt(sourceCaptures.capturedAt, cutoff))).limit(500);
+  if (!rows.length) return 0;
+  await db.insert(caseArchive).values(rows.map(r => ({ representationId: r.id, archivedAt: now, reason: `older than ${ARCHIVE_AFTER_DAYS} days` }))).onConflictDoNothing();
+  return rows.length;
+}
+
+export async function archivedCount() {
+  return Number((await getDb().select({ n: sql<number>`count(*)` }).from(caseArchive).where(sql`${caseArchive.restoredAt} is null`).get())?.n ?? 0);
 }
 
 /**

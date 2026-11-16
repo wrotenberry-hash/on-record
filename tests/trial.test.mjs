@@ -4,6 +4,7 @@ import { inviteToken, verifyInviteToken, newInviteId, trialGate, INVITE_ID_PATTE
 import { pageTemplate, dim, isAutomated, utcDay } from "../lib/event-dims.ts";
 import { clamp, pageTitle, memberMeta, billMeta, issueMeta, robotsRules, TITLE_MAX, DESCRIPTION_MAX } from "../lib/seo.ts";
 import { explainVote, outcomeOf } from "../lib/federal/vote-labels.ts";
+import { shouldAskFeedback, cleanFeedback, FEEDBACK_MAX } from "../lib/feedback-rules.ts";
 
 const SECRET = "test-secret-not-real";
 
@@ -196,4 +197,15 @@ test("the weekly email lists only members with votes, labels each vote's kind an
   assert.doesNotMatch(m.text, /Sen\. B/);
   assert.ok(isDigestDay(Date.parse("2026-11-16T19:00:00Z")));
   assert.equal(isoWeek(Date.parse("2026-11-16T19:00:00Z")), "2026-W47");
+});
+
+test("the feedback question waits for a third day and never repeats once answered or dismissed", () => {
+  assert.equal(shouldAskFeedback(2, undefined), false);
+  assert.equal(shouldAskFeedback(3, undefined), true);
+  assert.equal(shouldAskFeedback(7, "sent"), false);
+  assert.equal(shouldAskFeedback(7, "dismissed"), false);
+  assert.equal(shouldAskFeedback(null, undefined), false);
+  assert.equal(cleanFeedback("  more   on   votes \n please "), "more on votes please");
+  assert.equal(cleanFeedback(" "), null);
+  assert.equal(cleanFeedback("x".repeat(2000)).length, FEEDBACK_MAX);
 });

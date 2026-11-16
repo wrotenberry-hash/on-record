@@ -12,7 +12,7 @@ import type { Audience } from "@/lib/event-dims";
  * link is genuine, unrevoked and whose trial has opened (lib/trial.ts). Nothing
  * here makes data readable to an anonymous visitor while the switch is off.
  */
-export type ViewerAccess = { allowed: boolean; preview: boolean; editor: EditorUser | null; invite: { id: string; number: number } | null; audience: Audience };
+export type ViewerAccess = { allowed: boolean; preview: boolean; editor: EditorUser | null; invite: { id: string; number: number; activeDays: number } | null; audience: Audience };
 export async function viewerAccess(): Promise<ViewerAccess> {
   const publicRead = publicReadEnabled(process.env[PUBLIC_READ_FLAG]);
   const editor = await getEditorUser();

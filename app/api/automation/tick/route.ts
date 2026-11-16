@@ -5,7 +5,7 @@ import { runDiscovery } from "@/app/api/editor/discover/route";
 import { processOneCandidate, requeueBudgetFailures } from "@/app/api/editor/intake/route";
 import { runMachineResearch } from "@/app/api/editor/cases/[id]/draft-research/route";
 import { tickAuthorized } from "@/lib/tick-auth";
-import { intakePauseState, runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
+import { archiveOldCases, intakePauseState, runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
 import { runClassifyBatch, type ClassifyRun } from "@/lib/analysis/classify";
@@ -35,6 +35,9 @@ async function runTick(request: Request) {
   if (!via) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const now = Date.now(), slot = new Date(now).toISOString().slice(0, 13), day = slot.slice(0, 10);
   const db = getDb();
+  // Owner decision 2026-11-16: waiting cases older than 14 days are archived (never deleted) on every
+  // run, before the backlog check, so the pause lifts on its own. The editor can restore any of them.
+  const archived = await archiveOldCases(now).catch(() => null);
   // Outside the intake hour (once a day, STATEMENT_INTAKE_HOURS_UTC, default 13) the run does only the
   // model-free federal update, bill summaries within their own caps, and monitoring. It writes no
   // ledger row, so it does not count toward the daily intake limit or the failure alerts.
@@ -44,7 +47,7 @@ async function runTick(request: Request) {
     const summariesEmail = await sendSummariesReadyIfDue();
     // Monday's 19:00 run sends the weekly "how your members voted" email (no new cron).
     const digest = isDigestDay(now) ? await runDigests(now).catch(error => ({ error: (error instanceof Error ? error.message : "digest failed").slice(0, 200) })) : null;
-    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, federal, analysis, summariesEmail, digest, monitoring: await monitorAfterRun() });
+    return Response.json({ status: "INTAKE_SKIPPED_OFF_HOUR", slot, via, archived, federal, analysis, summariesEmail, digest, monitoring: await monitorAfterRun() });
   }
   // Owner decision 2026-11-15: no new statements while the review backlog is at or above
   // INTAKE_PAUSE_BACKLOG (default 20). The run still drafts research for one waiting case,
@@ -56,7 +59,7 @@ async function runTick(request: Request) {
     const research = await researchOneWaitingCase().catch(error => ({ status: "FAILED", error: (error instanceof Error ? error.message : "research failed").slice(0, 200) }));
     const analysis = await analysisStep(now);
     const summariesEmail = await sendSummariesReadyIfDue();
-    return Response.json({ status: "INTAKE_PAUSED_BACKLOG", slot, via, waiting: pause.waiting, threshold: pause.threshold, federal, research, analysis, summariesEmail, monitoring: await monitorAfterRun() });
+    return Response.json({ status: "INTAKE_PAUSED_BACKLOG", slot, via, archived, waiting: pause.waiting, threshold: pause.threshold, federal, research, analysis, summariesEmail, monitoring: await monitorAfterRun() });
   }
   const today = await db.select({ id: automationRuns.id }).from(automationRuns)
     .where(eq(automationRuns.day, day)).limit(6);

@@ -49,7 +49,7 @@ export async function inviteForToken(token: string | null | undefined) {
  * The trial reader on this request, or null. Requires a genuine, unrevoked invite
  * cookie and an open gate. Records only that the invite was used today.
  */
-export async function currentInvite(): Promise<{ id: string; number: number } | null> {
+export async function currentInvite(): Promise<{ id: string; number: number; activeDays: number } | null> {
   try {
     const token = (await cookies()).get(TRIAL_COOKIE)?.value;
     let invite = token ? (await inviteForToken(token)).invite : null;
@@ -62,12 +62,14 @@ export async function currentInvite(): Promise<{ id: string; number: number } | 
     }
     if (!invite || !(await gateState()).open) return null;
     const day = utcDay();
+    let activeDays = invite.activeDays;
     if (invite.lastActiveDay !== day) {
+      activeDays += 1;
       const now = Date.now();
       await getDb().update(betaInvites).set({ lastActiveDay: day, lastSeenAt: now, firstSeenAt: invite.firstSeenAt ?? now, activeDays: sql`${betaInvites.activeDays} + 1` })
         .where(eq(betaInvites.id, invite.id));
     }
-    return { id: invite.id, number: invite.number };
+    return { id: invite.id, number: invite.number, activeDays };
   } catch { return null; }
 }
 
@@ -81,8 +83,11 @@ export async function trialCounts() {
     db.select({ n: sql<number>`count(*)` }).from(betaInvites).where(sql`${betaInvites.revokedAt} is not null`).get(),
   ]);
   const returned = await db.select({ n: sql<number>`count(*)` }).from(betaInvites).where(sql`${betaInvites.activeDays} >= 2`).get();
+  // Weekly returning readers: invites used in the last 7 days on a later day than their first visit.
+  const returning = await db.select({ n: sql<number>`count(*)` }).from(betaInvites)
+    .where(sql`${betaInvites.lastSeenAt} >= ${week} and ${betaInvites.revokedAt} is null and ${betaInvites.activeDays} >= 2`).get();
   return { gate: await gateState(), invites: Number(all?.n ?? 0), used: Number(used?.n ?? 0), activeLast7Days: Number(active?.n ?? 0),
-    usedOnTwoOrMoreDays: Number(returned?.n ?? 0), revoked: Number(revoked?.n ?? 0) };
+    usedOnTwoOrMoreDays: Number(returned?.n ?? 0), revoked: Number(revoked?.n ?? 0), returningLast7Days: Number(returning?.n ?? 0) };
 }
 
 /**

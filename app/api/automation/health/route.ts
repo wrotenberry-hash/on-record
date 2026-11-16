@@ -14,6 +14,9 @@ import { intakePauseState } from "@/lib/monitoring-runtime";
 import { billingCodeIn, intakeHours } from "@/lib/monitoring";
 import { spendReport } from "@/lib/monitoring-runtime";
 import { analysisLimits } from "@/lib/analysis/generate";
+import { archivedCount } from "@/lib/monitoring-runtime";
+import { feedbackCounts } from "@/lib/feedback";
+import { daysUntil } from "@/lib/monitoring";
 
 export const dynamic = "force-dynamic";
 
@@ -178,11 +181,13 @@ export async function GET() {
   return Response.json({ service: "on-record", status: "reachable", tickSecretConfigured: tick, cronSecretConfigured: cron,
     openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()), editorAllowlistConfigured: Boolean((process.env.EDITOR_EMAILS ?? process.env.EDITOR_USER_IDS ?? "").trim()),
     database: databaseSettings().source, databaseHost: databaseHost(), lastRun: await lastRun(),
-    monitoring: { resendConfigured: monitoringConfigured().resend, spendSource: monitoringConfigured().spendSource, keyExpires: monitoringConfigured().keyExpires, lastAlert: await lastAlert() },
+    monitoring: { resendConfigured: monitoringConfigured().resend, spendSource: monitoringConfigured().spendSource, keyExpires: monitoringConfigured().keyExpires, keyDaysLeft: daysUntil(monitoringConfigured().keyExpires, Date.now()), lastAlert: await lastAlert() },
     rhythm: await rhythm(), throughput: await throughput(), federal: await federal(),
     intakeHoursUtc: intakeHours(process.env.STATEMENT_INTAKE_HOURS_UTC), recentRuns: await recentRuns(), recentAlerts: await recentAlerts(),
     openaiSpend: await openaiSpend(), analysis: await analysis(),
     intakePause: await intakePauseState().catch(() => "unavailable" as const),
+    casesArchived: await archivedCount().catch(() => "unavailable" as const),
+    feedback: await feedbackCounts().catch(() => "unavailable" as const),
     trial: await trialCounts().catch(() => "unavailable" as const),
     readers: await digestCounts().catch(() => "unavailable" as const),
     events7d: await eventTotals(7).catch(() => "unavailable" as const),

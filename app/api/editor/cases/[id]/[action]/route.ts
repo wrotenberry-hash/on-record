@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { adjudicationEvidence, adjudications, evidenceObjects, evidenceSearches, materialityDecisions, methodologyVersions, propositionEvidence, publications, representations, reviews, scoringProposals, sourceAuthentications } from "@/db/schema";
+import { adjudicationEvidence, adjudications, evidenceObjects, evidenceSearches, materialityDecisions, methodologyVersions, propositionEvidence, publications, representations, reviews, scoringProposals, sourceAuthentications, caseArchive } from "@/db/schema";
 import { editorialAuth, editorJson } from "@/lib/editor-auth";
 import { loadCase } from "../../_shared";
 
@@ -26,6 +26,7 @@ const schemas = {
     verifiedSource: z.boolean().optional(), verifiedEvidence: z.boolean().optional() }).strict(),
   publish: z.object({}).strict(),
   defer: z.object({ undo: z.boolean().optional() }).strict(),
+  archive: z.object({ undo: z.boolean().optional() }).strict(),
 } as const;
 type Action = keyof typeof schemas;
 const failure = (error: string, status = 409, missingRequirements?: string[]) => editorJson({ error, ...(missingRequirements ? { missingRequirements } : {}) }, status);
@@ -155,6 +156,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         notes: v.decision === "APPROVED"
           ? `Human inspected source and cited evidence. ${v.notes}` : v.notes,
         createdAt: Math.max(now, current.adjudication.createdAt) });
+    } else if (action === "archive") {
+      // Archiving only sets a case aside in its own table; nothing about the case or its history changes.
+      if (current.publication) return failure("A published case cannot be archived");
+      const undo = (input as z.infer<typeof schemas["archive"]>).undo === true;
+      if (undo) await db.update(caseArchive).set({ restoredAt: now }).where(eq(caseArchive.representationId, current.representationId));
+      else await db.insert(caseArchive).values({ representationId: current.representationId, archivedAt: now, reason: "archived by the editor" })
+        .onConflictDoUpdate({ target: caseArchive.representationId, set: { archivedAt: now, restoredAt: null, reason: "archived by the editor" } });
+      return editorJson({ message: undo ? "Case restored to the waiting list." : "Case archived." });
     } else if (action === "defer") {
       // "Not now": no gate is touched. The case drops to the back of the daily-email order until brought back or reviewed.
       if (current.publication) return failure("A published case cannot be deferred");

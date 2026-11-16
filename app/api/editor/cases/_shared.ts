@@ -1,4 +1,4 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { adjudicationEvidence, adjudications, evidenceObjects, evidenceSearches, machineResearchDrafts, materialityDecisions, people, propositionEvidence, propositions, publications, representations, reviews, scoringProposals, sourceAuthentications, sourceCaptures, sourceCommunications } from "@/db/schema";
 
@@ -10,6 +10,7 @@ export async function loadCase(id: string) {
     sourceType: sourceCommunications.sourceType, publishedAt: sourceCommunications.publishedAt,
     originalContent: sourceCaptures.originalContent, exactText: representations.exactText,
     canonicalProposition: propositions.canonicalText, issue: propositions.issue, status: representations.status, context: representations.context, deferredAt: representations.deferredAt,
+    archivedAt: sql<number | null>`(select a.archived_at from case_archive a where a.representation_id = ${representations.id} and a.restored_at is null)`,
     contentHash: sourceCaptures.contentHash, capturedAt: sourceCaptures.capturedAt,
   }).from(sourceCommunications).innerJoin(people, eq(sourceCommunications.speakerId, people.id))
     .innerJoin(sourceCaptures, eq(sourceCaptures.communicationId, sourceCommunications.id))
