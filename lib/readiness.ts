@@ -27,7 +27,7 @@ export type ReadinessInput = {
   content: { bills90d: number; passing90d: number; held90d: number; primersReviewed: number; primersWaiting: number;
     txSenators: number; txRepresentatives: number; txCommittees: number; txCalendarDates: number; txReadyForSession: boolean | null; txNotReadyWhy: string };
   trust: { methodology: RunEvidence; pledge: RunEvidence; correctionsLog: boolean; about: RunEvidence; founderText: boolean; contactEmail: boolean; privacyDraft: RunEvidence; termsDraft: RunEvidence; legalReviewed: boolean };
-  quality: { e2e: (RunEvidence & { passed: number; total: number; failing: string[] }) | null; axe: (RunEvidence & { pages: number; violations: number }) | null;
+  quality: { e2e: (RunEvidence & { passed: number; total: number; failing: string[]; waitingOnOwner?: string[] }) | null; axe: (RunEvidence & { pages: number; violations: number }) | null;
     speed: (RunEvidence & { slowestMs: number; slowestPage: string }) | null; errorMonitoring: boolean; breakageNow: boolean; uptimeCheck: RunEvidence;
     feedbackPrompt: boolean; somethingWrongLink: RunEvidence; analytics: RunEvidence };
   trial: { invites: number; welcomeScreen: boolean; bookingLink: boolean; summariesShownToTrial: boolean };
@@ -92,7 +92,9 @@ export function readiness(i: ReadinessInput): Check[] {
 
   // 6. Quality bar
   const e = i.quality.e2e;
-  add("quality.e2e", 6, "Usability tasks on a phone", e ? { state: e.passed === e.total ? "pass" : "fail", detail: `${e.passed} of ${e.total} tasks pass at phone width. Checked ${e.ranOn}.${e.failing.length ? ` Failing: ${e.failing.join("; ")}.` : ""}` } : { state: "fail", detail: "The suite has not been run yet." });
+  const waiting = e?.waitingOnOwner ?? [];
+  add("quality.e2e", 6, "Usability tasks on a phone", e ? { state: e.passed === e.total ? "pass" : !e.failing.length && e.passed + waiting.length === e.total ? "owner" : "fail",
+    detail: `${e.passed} of ${e.total} tasks pass at phone width. Checked ${e.ranOn}.${e.failing.length ? ` Failing: ${e.failing.join("; ")}.` : ""}${waiting.length ? ` Waiting for summaries to be shown to readers: ${waiting.join("; ")}.` : ""}` } : { state: "fail", detail: "The suite has not been run yet." });
   const a = i.quality.axe;
   add("quality.a11y", 6, "Accessibility (WCAG AA)", a ? { state: a.violations === 0 ? "pass" : "fail", detail: `${a.violations} problems on ${a.pages} pages. Checked ${a.ranOn}.` } : { state: "fail", detail: "Not checked yet." });
   const s = i.quality.speed;
