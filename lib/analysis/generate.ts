@@ -14,7 +14,7 @@ import { billLabel } from "@/components/federal/badges";
 import { CHECKPOINT_SUMMARIES } from "@/lib/analysis/report-format";
 import { gatherSources, sourcePacketLines, sourcesBlock, type Gathered } from "@/lib/analysis/gather";
 import { runReaderTest, type ReaderTest } from "@/lib/analysis/reader-test";
-import { repairDraft } from "@/lib/analysis/repair";
+import { keepWhatWasRight, repairDraft } from "@/lib/analysis/repair";
 import { JARGON } from "@/lib/analysis/standard";
 import { goldExamplesBlock } from "@/lib/analysis/gold";
 
@@ -24,7 +24,7 @@ import { goldExamplesBlock } from "@/lib/analysis/gold";
  * model; the official title, status, cost estimate, votes and sources come
  * from government records and are shown as Official.
  */
-export const PROMPT_VERSION = "b8-2026-11-17";
+export const PROMPT_VERSION = "b9-2026-11-17";
 const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 const MAX_OUTPUT_TOKENS = 6000;
 
@@ -125,8 +125,8 @@ async function candidates(limit = 60): Promise<Candidate[]> {
 }
 
 /** Summaries the current generator has not written (an older PROMPT_VERSION), oldest first, at most ANALYSIS_REGEN_PER_RUN. */
-/** Time one summary can need: up to three drafts, each followed by the reader test (measured 17 Nov: about 8 s a draft, 15 s a test). */
-const FULL_CYCLE_MS = 80_000;
+/** Time one summary can need: up to three drafts, each followed by the reader test (measured 17 Nov: three drafts take about 25 s; the tests add about 15 s each). */
+const FULL_CYCLE_MS = 60_000;
 /** The owner's test case is rewritten first. */
 const PRIORITY_BILLS = (process.env.ANALYSIS_PRIORITY_BILLS ?? "119-sjres-197").split(",").map(x => x.trim()).filter(Boolean);
 
@@ -209,6 +209,11 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   for (const e of status.cbo) await db.insert(officialCostEstimates).values({ billId: c.id, url: e.url, pubDate: e.pubDate, title: e.title, description: e.description, sourceUrl: statusUrl, retrievedAt: now })
     .onConflictDoUpdate({ target: [officialCostEstimates.billId, officialCostEstimates.url], set: { pubDate: e.pubDate, title: e.title, description: e.description, retrievedAt: now } });
 
+  // 17 Nov, second run: "Why now" named the Senate committee from the bill's latest action, which the fact check had never been shown.
+  if (c.latestActionText) for (const list of [gathered.docs, gathered.context.docs as Array<{ id: string; text: string }>]) {
+    const st = list.find(x => x.id === "STATUS");
+    if (st && !st.text.includes(c.latestActionText)) st.text += `\nLatest action${c.latestActionAt ? ` (${c.latestActionAt.slice(0, 10)})` : ""}: ${c.latestActionText}`;
+  }
   const input = inputFor(c, status, version, parsed.text, parsed.sections, truncated, gathered);
   const table = priceTable(process.env.OPENAI_PRICES_JSON);
   const worst = maxCallCost(limits.model, input.length + INSTRUCTIONS.length, MAX_OUTPUT_TOKENS, table);
@@ -234,8 +239,11 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
     }
     inTok += result.cost.inputTokens; outTok += result.cost.outputTokens; cost += result.cost.usd;
     // 17 Nov, first real run: no draft passed in three tries, mostly for faults a program fixes better than another model call.
-    const repaired = repairDraft(result.draft, { sourceIds: gathered.docs.map(x => x.id), numberedSections: parsed.sections.length > 0 });
+    // A rewrite changes only the parts its failures were about; the rest is kept from the draft before.
+    const kept = prior ? keepWhatWasRight(prior.draft, result.draft, prior.check.failures) : { draft: result.draft, kept: [] as string[] };
+    const repaired = repairDraft(kept.draft, { sourceIds: gathered.docs.map(x => x.id), numberedSections: parsed.sections.length > 0 });
     result.draft = repaired.draft;
+    if (kept.kept.length) repaired.notes.unshift(`kept from the draft before: ${kept.kept.join(", ")}`);
     const check = checkSummary(result.draft, parsed.sections, { truncated, subject: c.title, fullText: parsed.text, sources: gathered.context });
     console.log(`SUMMARY_ATTEMPT ${label} | attempt ${attempt} | written rules ${check.passed ? "PASS" : "FAIL"} | repairs ${repaired.notes.length} | ${JSON.stringify({ failures: check.failures, repairs: repaired.notes.slice(0, 12) }).slice(0, 1300)}`);
     let reader: ReaderTest | undefined;

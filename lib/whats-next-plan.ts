@@ -7,12 +7,14 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-17T02:55:00Z";
-export const PLAN_NOTE = "Your 8:06 PM run rewrote all five summaries, but none is good enough to show: every one was held by the written checks, so the average-reader test never ran (0 of 5 passed; about 3 cents each). Three causes, all fixed in the version now live: two checks raised false alarms (one summary failed only on a false alarm); the writer left jargon unexplained even after two retries, so the site now adds the reviewed plain-words explanation itself; and S.J.Res. 197 went last and got one try before time ran out, so it now goes first and a summary starts only when its full cycle fits. Press Run the update now once more: it rewrites S.J.Res. 197 and two or three others; the rest follow on the next run. Readers still see no summaries and the limit stays at 5.";
+export const PLAN_UPDATED = "2026-11-17T03:50:00Z";
+export const PLAN_NOTE = "Two real runs so far (8:06 PM and 8:45 PM CT): eight rewrites, none passed the written checks, so the average-reader test has still not run on the live site. About 3 cents a summary. Part of that was the checks being wrong (false alarms, now removed) and the writer undoing good parts when it fixed bad ones (now prevented). The larger part is the writing model itself: the low-cost model garbles dense rule text. In S.J.Res. 197 it could not say what the old rule was and mixed up two different insurer fees. The checks were right to hold those. Claude recommends trying the stronger model on these five summaries only (under $2) and comparing. Readers still see no summaries and the limit stays at 5.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Press Run the update now once more", needs: "you",
-    why: "The first real run held all five summaries (0 of 5 passed the written checks; the reader test never ran). The fixes are live. One press rewrites S.J.Res. 197 first and two or three others; Claude then reads each against its sources and reports the pass rate and the cost per summary. Showing summaries to readers and lifting the limit of 5 stay your call after that." },
+  { title: "Try the stronger writing model on the five test summaries", needs: "your go-ahead",
+    why: "The low-cost model writes each summary for about 3 cents but has not produced one that passes in eight tries, and it misreads dense rule text. The stronger model costs roughly 12 to 40 cents a summary. A trial on these five costs under $2 and shows whether it reaches the standard you approved. At the $25 monthly cap it would allow about 60 to 200 summaries a month instead of several hundred." },
+  { title: "Or: run once more on the low-cost model with the latest fixes", needs: "you",
+    why: "The version now live removes five more false alarms and stops a rewrite from undoing parts that were right. It may pass the simpler bills (H.R. 9612, H.R. 2102). It will not fix the misreading of S.J.Res. 197. Free to try: press Run the update now." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",

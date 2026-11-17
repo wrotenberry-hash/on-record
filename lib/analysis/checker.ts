@@ -408,7 +408,8 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
       if (src.cancelsRule && !r.before?.trim()) fail(`What would change row ${i + 1} does not say what the old rule was. For a bill that cancels a rule, give all three: before the rule, now under the rule, and if this bill passes.`);
       claims(`What would change row ${i + 1}`, `${r.label ?? ""}. ${r.before ?? ""} ${r.today} ${r.ifPassed}`);
     });
-    if (rows.length && !rows.some(r => HAS_SPECIFIC.test(`${r.today} ${r.ifPassed}`))) fail("What would change has no number or date in any row. Use the figures in the sources.");
+    // 17 Nov, second run: H.R. 1013 only changes what a plan may invest in; there is no figure to give. Asked for only when the sources hold one for the change.
+    if (rows.length && !rows.some(r => HAS_SPECIFIC.test(`${r.before ?? ""} ${r.today} ${r.ifPassed}`)) && rows.some(r => vagueChangeRow(r as ChangeRow))) fail("What would change has no number or date in any row. Use the figures in the sources.");
     if (!why) fail("Why now is empty: say in one or two sentences why this is being voted on now (a deadline, a new rule, a court ruling, a vote).");
     else {
       const n = sentences(why).length;
@@ -543,7 +544,9 @@ export function unsupportedClaims(claim: string, sources: readonly string[], age
   const corpusRaw = maskAgencies(sources.join(" \n "), agencies);
   const corpus = corpusRaw.toLowerCase();
   const inits = initialsIn(corpusRaw);
-  return claimTerms(maskAgencies(claim, agencies)).filter(t => {
+  // 17 Nov, second run: "the Congressional Research Service (CRS) says …" was refused because the summary it wrote does not name its own author.
+  const stated = claim.replace(/\b(?:the )?Congressional (?:Budget Office|Research Service)(?: \((?:CBO|CRS)\))?|\b(?:CBO|CRS)\b/g, " ");
+  return claimTerms(maskAgencies(stated, agencies)).filter(t => {
     if (t === "AGENCYNAME") return false;
     // The name people know is accurate when the source uses the official one ("HealthCare.gov" for a Federally-facilitated Exchange).
     if (EVERYDAY_NAMES.some(n => n.everyday.test(t) && n.official.test(corpusRaw))) return false;

@@ -75,3 +75,39 @@ test("a bill that cancels a rule: the plain-English part must give one change wi
   assert.equal(plainStatesAChange(RUN["119-sjres-197"].draft.plainEnglish, g.changes), false, "the run's version said only that the rule \"changes costs, plan choices, and enrollment checks\"");
   assert.equal(plainStatesAChange("The rule changes who may vote.", [{ before: "Any member may vote.", today: "Only chairs may vote." }]), true, "rows without figures are not asked for figures");
 });
+
+// ── The second real run (17 Nov, 02:44 UTC, generator b8): three summaries, all held again. ──
+test("a section repeated in brackets inside a point is removed; the citation has its own field", () => {
+  const { draft } = repairDraft(RUN["119-hr-7008"].draft, ctx("119-hr-7008"));
+  assert.doesNotMatch(draft.whatItDoes[0].text, /\[Sec\. 2\]/);
+  assert.equal(draft.whatItDoes[0].section, "Sec. 2");
+});
+
+test("a term the writer explained in running text is not explained twice", async () => {
+  const { unexplainedJargon, plainWordsNearby } = await import("../lib/analysis/standard.ts");
+  const t = "The rule sets the 2027 user fee, the charge insurers pay to sell plans on the federal site, at $0.18 per member per month.";
+  assert.deepEqual(unexplainedJargon(["", t]), []);
+  assert.equal(plainWordsNearby("a notary public's witness to the signature.", 8, "an official witness to a signature"), false, "two of three words is not an explanation");
+});
+
+test("a rewrite keeps every part its failures were not about", async () => {
+  const { keepWhatWasRight } = await import("../lib/analysis/repair.ts");
+  const g = structuredClone(GOLD_EXAMPLES.find(x => x.billId === "119-sjres-197").summary);
+  const next = structuredClone(g);
+  next.whyNow = "The Senate voted 48–51 on September 29, 2026, against taking it up.";
+  for (const r of next.changes) delete r.before; // what the model did on its third try
+  const r = keepWhatWasRight(g, next, ["Why now is 3 sentences; use one or two."]);
+  assert.equal(r.draft.whyNow, next.whyNow, "the part that failed is taken from the rewrite");
+  assert.deepEqual(r.draft.changes, g.changes, "the rows, which had been right, are kept");
+  assert.deepEqual(r.kept, ["changes"]);
+  const whole = keepWhatWasRight(g, next, ["Loaded words: giveaway."]);
+  assert.deepEqual(whole.draft, next, "a failure that could be anywhere takes the rewrite whole");
+});
+
+test("false alarms from the second run", async () => {
+  const { unsupportedClaims } = await import("../lib/analysis/checker.ts");
+  const { HAS_SPECIFIC } = await import("../lib/analysis/standard.ts");
+  assert.deepEqual(unsupportedClaims("The Congressional Research Service (CRS) says 403(b) plans are for schools and charities.", ["403(b) plans are retirement plans for public schools and charities."], []), []);
+  assert.match("The change starts on the first day of the first month after enactment.", HAS_SPECIFIC);
+  assert.deepEqual(unsupportedClaims("The rule covers Medicare.", ["a rule about health plans"], []), ["Medicare"], "the check itself still works");
+});

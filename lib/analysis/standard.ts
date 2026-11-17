@@ -106,6 +106,15 @@ export function explainedAt(text: string, at: number, length: number): boolean {
   return open > close;
 }
 
+const SMALL = new Set("a an the of to for on in at by and or that who with from is are it its their this than as be".split(" "));
+const keyWords = (t: string) => (t.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter(w => !SMALL.has(w)).map(w => w.replace(/(ies|es|s)$/, ""));
+/** Do most of the explanation's own words follow the term within the same sentence? Then the writer explained it in running text. */
+export function plainWordsNearby(text: string, from: number, plain: string): boolean {
+  const rest = text.slice(from, from + 140), stop = rest.search(SENTENCE_END), near = new Set(keyWords(stop < 0 ? rest : rest.slice(0, stop)));
+  const need = [...new Set(keyWords(plain))];
+  return need.length >= 2 && need.filter(w => near.has(w)).length / need.length >= 0.75;
+}
+
 /** Jargon terms used without an explanation on first use. `parts` are the Analysis texts in reading order; the headline comes first. */
 export function unexplainedJargon(parts: readonly string[]): Array<{ term: string; plain: string; part: number }> {
   const out: Array<{ term: string; plain: string; part: number }> = [];
@@ -114,7 +123,7 @@ export function unexplainedJargon(parts: readonly string[]): Array<{ term: strin
       const m = t.re.exec(parts[p]);
       if (!m) continue;
       // The headline has no room to explain a term: it must use the plain words.
-      if (p === 0 || !explainedAt(parts[p], m.index, m[0].length)) out.push({ term: m[0], plain: t.plain, part: p });
+      if (p === 0 || !(explainedAt(parts[p], m.index, m[0].length) || plainWordsNearby(parts[p], m.index + m[0].length, t.plain))) out.push({ term: m[0], plain: t.plain, part: p });
       break; // only the first use needs the explanation
     }
   }
@@ -180,7 +189,7 @@ export const FILLER: Array<[RegExp, string]> = [
 export function fillerIn(text: string): string[] { return [...new Set(FILLER.filter(([re]) => re.test(text)).map(([, label]) => label))]; }
 
 /** A concrete fact: a number, a dollar amount, a percentage, a date or a count of people. */
-export const HAS_SPECIFIC = /\$\s?\d|\d[\d,.]*\s?(?:%|percent|million|billion|thousand|days?|months?|years?|people|states?|votes?)|\b(?:19|20)\d{2}\b|\b\d{1,3}(?:,\d{3})+\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b|\b\d+[–-]\d+\b/;
+export const HAS_SPECIFIC = /\b(?:first|last) day of\b|\b(?:days?|months?|years?) after (?:it|the bill|the law|enactment|this)\b|\$\s?\d|\d[\d,.]*\s?(?:%|percent|million|billion|thousand|days?|months?|years?|people|states?|votes?)|\b(?:19|20)\d{2}\b|\b\d{1,3}(?:,\d{3})+\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b|\b\d+[–-]\d+\b/;
 
 // ───────────── 6. Reasons and stakes ─────────────
 

@@ -50,6 +50,35 @@ export function repairCitation(cite: string, ctx: { sourceIds: readonly string[]
 
 export type Repair = { draft: SummaryDraft; notes: string[] };
 
+/** Which part of the summary a failure message is about; null when it could be anywhere. */
+const PART: Array<[RegExp, Array<keyof SummaryDraft>]> = [
+  [/^(?:The headline|Headline)\b/, ["headline"]], [/^In plain English\b/, ["plainEnglish"]], [/^What would change\b/, ["changes"]],
+  [/^How it works today\b/, ["howItWorksToday"]], [/^Why now\b/, ["whyNow"]], [/^What it does\b/, ["whatItDoes"]], [/^Who it affects\b/, ["whoItAffects"]],
+  [/^What changes for you\b/, ["whatChangesForYou"]], [/^Case for\b/, ["caseFor"]], [/^Case against\b/, ["caseAgainst"]], [/^What we don't know\b/, ["unknowns"]],
+  [/^The voting question\b/, ["question"]], [/^Background\b/, ["background", "backgroundSources"]],
+  [/^Average-reader test\b/, ["headline", "plainEnglish", "changes", "howItWorksToday", "whyNow", "whoItAffects"]],
+];
+
+/**
+ * 17 Nov, second run: on its third try the model fixed two faults in S.J.Res. 197 and dropped the "before the rule" side of
+ * every row, which had been right. A rewrite may change only the parts its failures were about; every other part is kept
+ * from the draft before. When any failure could be anywhere (a loaded word, the total length), the new draft is taken whole.
+ */
+export function keepWhatWasRight(prior: SummaryDraft, next: SummaryDraft, failures: readonly string[]): { draft: SummaryDraft; kept: string[] } {
+  const touched = new Set<keyof SummaryDraft>();
+  for (const f of failures) {
+    const hit = PART.find(([re]) => re.test(f));
+    if (!hit) return { draft: next, kept: [] };
+    for (const k of hit[1]) touched.add(k);
+  }
+  const draft = structuredClone(next) as SummaryDraft, kept: string[] = [];
+  for (const k of Object.keys(prior) as Array<keyof SummaryDraft>) {
+    if (touched.has(k) || JSON.stringify(prior[k]) === JSON.stringify(next[k])) continue;
+    (draft as Record<string, unknown>)[k] = structuredClone(prior[k]); kept.push(k);
+  }
+  return { draft, kept };
+}
+
 export function repairDraft(input: SummaryDraft, ctx: { sourceIds: readonly string[]; numberedSections: boolean }): Repair {
   const d = structuredClone(input) as SummaryDraft, notes: string[] = [];
 
@@ -66,7 +95,8 @@ export function repairDraft(input: SummaryDraft, ctx: { sourceIds: readonly stri
   for (const f of readingFields(d)) {
     const before = f.get();
     if (!before) continue;
-    let after = before.replace(ID_IN_BRACKETS, "");
+    // "(RULE)", "[REPORT; FLOOR]" and a section repeated in brackets ("… reinvestment. [Sec. 2]"): the citation has its own field.
+    let after = before.replace(ID_IN_BRACKETS, "").replace(/\s*\[(?:Sec(?:tion)?s?\.?|§|Full text)[^\]]{0,60}\]/g, "");
     for (const [re, words] of ID_AS_WORD) after = after.replace(re, words);
     after = capitalise(after.replace(/\s+([.,;:])/g, "$1").replace(/\s{2,}/g, " ")).trim();
     if (after !== before.trim()) { f.set(after); notes.push("source id removed from a sentence"); }
@@ -83,9 +113,9 @@ export function repairDraft(input: SummaryDraft, ctx: { sourceIds: readonly stri
     notes.push(`"${a}" spelled out`);
   }
 
-  // 4. Jargon: the reviewed plain-words explanation, in parentheses, at the first use. Never in the headline or a row label.
+  // 4. Jargon: the reviewed plain-words explanation, in parentheses, at the first use. Never in the headline.
   for (let pass = 0; pass < 3; pass++) {
-    const fields = readingFields(d), open = unexplainedJargon(fields.map(f => f.get())).filter(t => fields[t.part].kind === "text");
+    const fields = readingFields(d), open = unexplainedJargon(fields.map(f => f.get())).filter(t => fields[t.part].kind !== "headline");
     if (!open.length) break;
     let changed = false;
     for (const t of open) {
