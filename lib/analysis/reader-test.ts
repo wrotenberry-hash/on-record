@@ -73,8 +73,8 @@ export const readerNote = (d: Pick<SummaryDraft, "headline" | "plainEnglish">) =
 /** What the second reader sees: the page from the headline through "Who it affects". Primers are one tap away, so they are not included. */
 export function readerPage(d: SummaryDraft): string {
   return [d.headline.trim(), `In plain English\n${(d.plainEnglish ?? "").trim()}`,
+    `What would change\n${(d.changes ?? []).map(r => `- ${r.label ?? ""}\n${r.before?.trim() ? `  Before the new rule: ${r.before}\n` : ""}  ${r.before?.trim() ? "Now, under the new rule" : "Today"}: ${r.today}\n  If this passes: ${r.ifPassed}`).join("\n")}`,
     `How it works today\n${(d.howItWorksToday ?? []).map(p => `- ${p.text}`).join("\n")}`,
-    `What would change\n${(d.changes ?? []).map(r => `- Today: ${r.today}\n  If this passes: ${r.ifPassed}`).join("\n")}`,
     `Why now\n${(d.whyNow ?? "").trim()}`, `Who it affects\n${d.whoItAffects.map(p => `- ${p.text}`).join("\n")}`].join("\n\n");
 }
 

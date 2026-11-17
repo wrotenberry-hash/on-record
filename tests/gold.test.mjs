@@ -42,7 +42,7 @@ export function contextFor({ title, billType, sponsor, status, floor, report, re
   // Primers are matched as in production, but unreviewed ones are included here: the owner has not approved them yet.
   const primers = primersFor({ title, text: billText ?? "", actions: sd?.text ?? "" }, true);
   if (primerSourceText(primers)) docs.push({ id: "PRIMER", text: primerSourceText(primers) });
-  return { title, docs: docs.map(d => ({ id: d.id, text: d.text })), agencies, allowedFor, allowedAgainst, needsBackground: false, structure: true, speakers, primers: primers.map(p => p.id) };
+  return { title, docs: docs.map(d => ({ id: d.id, text: d.text })), agencies, allowedFor, allowedAgainst, needsBackground: false, structure: true, cancelsRule: !!cra, speakers, primers: primers.map(p => p.id) };
 }
 
 const T197 = `A joint resolution providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule submitted by the Centers for Medicare & Medicaid Services of the Department of Health and Human Services relating to "Patient Protection and Affordable Care Act, HHS Notice of Benefit and Payment Parameters for 2027; and Basic Health Program".`;

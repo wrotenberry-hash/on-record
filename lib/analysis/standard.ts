@@ -244,7 +244,22 @@ export const EVERYDAY_NAMES: Array<{ everyday: RegExp; official: RegExp }> = [
 
 // ───────────── "How it works today" → "What would change" → "Why now" (owner instruction, 17 Nov 2026) ─────────────
 
-export type ChangeRow = { today: string; ifPassed: string; source: string };
+/**
+ * One change. `label` names the thing that changes ("The most one person can owe for care in a year").
+ * `before` is used when the bill acts on a recent rule or law: what the old rule was, before the new one (owner
+ * review, 17 Nov: "I didn't even know what the new rule was, what the old rule was, or what it changed").
+ */
+export type ChangeRow = { label?: string; before?: string; today: string; ifPassed: string; source: string };
+
+/**
+ * "It raises the most some buyers can owe" tells the reader nothing: from what, to what? A sentence that says
+ * something is raised, cut, lowered or extended must carry the number.
+ */
+// Only when the subject is the rule or bill itself ("it also raises …"), not a description of how something works ("a tax credit that lowers the price").
+const CHANGE_VERB = /\b(?:rule|bill|law|act|it|resolution|measure|agency|change|plan)\s+(?:also\s+|now\s+|would\s+)?(?:raises?|raised|cuts?|lowers?|lowered|increases?|increased|reduces?|reduced|expands?|expanded|extends?|extended|shortens?|lengthens?|tightens?|loosens?|doubles?|halves?)\s+(?:the|a|an|some|its|their|how|what)\b/i;
+export function unquantifiedChanges(text: string): string[] {
+  return text.split(/(?<=[.!?;])\s+/).map(x => x.trim()).filter(x => CHANGE_VERB.test(x) && !/\d/.test(x)).map(x => x.slice(0, 90));
+}
 
 /** A rule flip is concrete without a number: may / may not, must / need not, allowed / banned. */
 const CONTRAST = /\b(?:may|can|could|must|have to|has to|need|allowed|required|banned|barred|legal|illegal|no law|no limit|no rule|cannot|not)\b/i;
@@ -252,7 +267,7 @@ const VAGUE_ROW = /\b(?:some|certain|various|several|a number of|other|different
 
 /** Why a "Today → If this passes" row is too vague to keep, or null when it is concrete. */
 export function vagueChangeRow(row: ChangeRow): string | null {
-  const t = row.today.trim(), p = row.ifPassed.trim();
+  const t = `${row.before?.trim() ? `${row.before.trim()} ` : ""}${row.today.trim()}`.trim(), p = row.ifPassed.trim();
   if (t.split(/\s+/).length < 4 || p.split(/\s+/).length < 4) return "each side needs a full statement";
   if (t.toLowerCase() === p.toLowerCase()) return "both sides say the same thing";
   if (VAGUE_ROW.test(t) || VAGUE_ROW.test(p) || fillerIn(`${t} . ${p}`).length) return "it does not say exactly what changes";

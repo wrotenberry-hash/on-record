@@ -107,7 +107,7 @@ export async function gatherSources(input: { title: string; billType: string; nu
   const topic = primerSourceText(primers);
   if (topic) docs.push({ id: "PRIMER", kind: "primer", label: `Reviewed primer: ${primers.filter(p => p.kind === "topic").map(p => p.title).join("; ")}`, url: primers.find(p => p.kind === "topic")!.sources[0].url, text: topic });
 
-  return { docs, notes, context: { title: input.title, docs: docs.map(d => ({ id: d.id, text: d.text })), agencies: [...new Set(agencies)], allowedFor, allowedAgainst, needsBackground: false, structure: true, speakers }, primers };
+  return { docs, notes, context: { title: input.title, docs: docs.map(d => ({ id: d.id, text: d.text })), agencies: [...new Set(agencies)], allowedFor, allowedAgainst, needsBackground: false, structure: true, cancelsRule: !!cra, speakers }, primers };
 }
 
 /** The sources block of the model's input. */

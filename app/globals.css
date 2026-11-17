@@ -205,3 +205,5 @@ h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middl
 .primer > summary { cursor: pointer; padding: 12px 0; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
 .primer > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .primer[open] { padding-bottom: 12px; }
+.change-rows h3 { font: 700 1rem/1.3 Arial, Helvetica, sans-serif; margin: 0; }
+.change-rows li p + p { border-top: 1px dashed var(--line, #d9ded9); padding-top: 6px; }

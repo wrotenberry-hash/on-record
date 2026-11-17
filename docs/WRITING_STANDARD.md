@@ -78,3 +78,17 @@ timeline) → Who it affects → Cost → What changes for you → Case for and 
 - **Reader test, second part**: a second reader sees the page from the headline through "Who it affects" and must
   correctly describe how things work today, what exactly changes and who is affected.
 - New fields are stored in `analysis_summary_structure` (migration 0032; a new table).
+
+### Owner review, 17 Nov (S.J.Res. 197 card): the old rule, the new rule and the bill come first
+
+On the first b7 card the reader reached the fourth background bullet before learning what the old rule was, what the
+new rule is or what changed, and then only as "raises the most some buyers can owe". Changes:
+
+- Page order is now Headline → In plain English → **What would change** → How it works today → Why now → the rest.
+- For a bill that acts on a recent rule or law (for example a resolution that cancels a new rule), every change row
+  has a label and three states: **Before the new rule**, **Now, under the new rule**, **If this passes**. The
+  plain-English part states the old rule, the new rule and what the bill does, with the numbers.
+- A sentence that says a rule or bill raises, cuts, lowers or extends something without a number fails
+  (`unquantifiedChanges` in standard.ts): say from what, to what.
+- Regression tests: tests/primers.test.mjs ("a change stated without its number fails", "a bill that cancels a rule
+  must give all three states").

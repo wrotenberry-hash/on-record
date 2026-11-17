@@ -39,7 +39,7 @@ export function analysisLimits() {
 
 const point = z.object({ text: z.string(), section: z.string() });
 const argument = z.object({ argument: z.string(), attribution: z.string(), source: z.string() });
-const changeRow = z.object({ today: z.string(), ifPassed: z.string(), source: z.string() });
+const changeRow = z.object({ label: z.string(), before: z.string(), today: z.string(), ifPassed: z.string(), source: z.string() });
 const draftShape = z.object({ headline: z.string(), plainEnglish: z.string(), howItWorksToday: z.array(point), changes: z.array(changeRow), whyNow: z.string(),
   background: z.string(), backgroundSources: z.array(z.string()), question: z.string(), whatItDoes: z.array(point), whoItAffects: z.array(point), whatChangesForYou: z.string(),
   caseFor: z.array(argument), caseAgainst: z.array(argument), unknowns: z.array(z.string()),
@@ -50,7 +50,7 @@ const argSchema = { type: "object", additionalProperties: false, required: ["arg
 const summarySchema = { type: "object", additionalProperties: false,
   required: ["headline", "plainEnglish", "howItWorksToday", "changes", "whyNow", "background", "backgroundSources", "question", "whatItDoes", "whoItAffects", "whatChangesForYou", "caseFor", "caseAgainst", "unknowns", "confidence", "confidenceReason"],
   properties: { headline: { type: "string" }, plainEnglish: { type: "string" }, howItWorksToday: { type: "array", items: pointSchema },
-    changes: { type: "array", items: { type: "object", additionalProperties: false, required: ["today", "ifPassed", "source"], properties: { today: { type: "string" }, ifPassed: { type: "string" }, source: { type: "string" } } } },
+    changes: { type: "array", items: { type: "object", additionalProperties: false, required: ["label", "before", "today", "ifPassed", "source"], properties: { label: { type: "string" }, before: { type: "string" }, today: { type: "string" }, ifPassed: { type: "string" }, source: { type: "string" } } } },
     whyNow: { type: "string" }, background: { type: "string" }, backgroundSources: { type: "array", items: { type: "string" } },
     question: { type: "string" }, whatItDoes: { type: "array", items: pointSchema }, whoItAffects: { type: "array", items: pointSchema },
     whatChangesForYou: { type: "string" }, caseFor: { type: "array", items: argSchema }, caseAgainst: { type: "array", items: argSchema },
@@ -68,11 +68,14 @@ WRITING STANDARD (every field):
 4. Specifics over generalities. Use the concrete facts in the sources: dollar amounts, numbers of people, dates, exactly what changes. Never write filler such as "would affect payment and program standards", "certain provisions", "and for other purposes" or "conforming changes". If the sources truly do not say what changes, say so plainly in unknowns and set confidence to "low". Never pad.
 5. Jargon. Replace every technical term with plain words, or explain it in parentheses the first time: "a vote to end debate (called cloture)". Never leave one unexplained. The checker fails any unexplained use of these and similar terms: ${JARGON.map(t => t.term).join(", ")}. Spell out every abbreviation the first time, or avoid it.
 6. caseFor / caseAgainst: REASONS and STAKES, never the mechanics again. "For" answers: why would someone want this? "Against" answers: what would be lost or harmed? Take each reason from the official record in the sources: what a named member said on the floor (FLOOR), the agency's stated reasons in the rule (RULE), the committee report and its minority views (REPORT), the CRS summary (CRS). Credit each to the named person or body, using the wording in the input's lists, and put that source's id in "source". A number someone cites is their claim: write "Sen. X says up to 2 million people …". If the sources hold no stated reason for a side, return an empty list for that side: the page will say "No public statement of reasons found." Never invent a reason, a quote or a position. 1 or 2 arguments a side, each 15 to 35 words.
-7. Bring the reader up to speed before telling them what changes. The page reads in this order: headline, plainEnglish, howItWorksToday, changes, whyNow, whoItAffects, cost, whatChangesForYou, the cases, unknowns, sources.
+7. The reader wants one thing first: what the rule was, what it is now, and what this bill would make it. The page reads in this order: headline, plainEnglish, changes, howItWorksToday, whyNow, whoItAffects, cost, whatChangesForYou, the cases, unknowns, sources.
+8. Never say something goes up, down, longer or shorter without the number. Not "it raises the most some buyers can owe" but "it raises the most one person can owe in a year from $12,000 to $15,600".
 
 THE SUBJECT FROM ZERO (required):
 - howItWorksToday: 3 to 5 short bullets, each at most 40 words and each citing its source id. Explain the subject from scratch: what the thing is, who uses it, how it is run and paid for, the key numbers, and what current law or the current rule says on exactly the points this bill touches. When a PRIMER is among the sources, build on it.
-- changes: 2 to 6 rows, one per change, each { today, ifPassed, source }. "today" is the rule or arrangement now; "ifPassed" is what it would be. Concrete, with the numbers and dates in the sources. No vague row: never "some rules would change". If the sources do not say what would replace something, say that plainly in unknowns instead of guessing. For a bill that cancels a rule already in force, "today" is life under that rule and "ifPassed" is what cancelling it undoes.
+- changes: 2 to 6 rows, one per change, each { label, before, today, ifPassed, source }. "label" names the thing that changes in a few words ("The fee insurers pay"). "today" is the rule or arrangement now; "ifPassed" is what it would be. Concrete, with the numbers and dates in the sources. No vague row: never "some rules would change". If the sources do not say what would replace something, say that plainly instead of guessing.
+  When the bill acts on a rule or law that itself changed things recently (for example a resolution that cancels a new rule), every row has three states: "before" is the old rule, "today" is the new rule now in force, "ifPassed" is what this bill would make it. Otherwise "before" is "".
+- plainEnglish for such a bill states the old rule, the new rule and what the bill would do, with the numbers.
 - whyNow: one or two sentences, at most 50 words, with the date: why this is being voted on now (a new rule, a deadline, a court ruling, a budget step, a forced vote), from the STATUS source and the record.
 
 FIELDS:

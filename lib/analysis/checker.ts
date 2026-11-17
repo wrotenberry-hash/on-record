@@ -5,7 +5,7 @@
  * failures as feedback; a second failure holds it for an editor.
  */
 // The ".ts" ending lets the node test runner load this without a bundler (tsconfig: allowImportingTsExtensions).
-import { EVERYDAY_NAMES, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, vagueChangeRow, type ChangeRow } from "./standard.ts";
+import { EVERYDAY_NAMES, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, unquantifiedChanges, vagueChangeRow, type ChangeRow } from "./standard.ts";
 
 export type Section = { num: string; heading: string; text?: string };
 
@@ -174,7 +174,7 @@ export function bannedWordsIn(text: string): string[] {
 export function proseOf(d: SummaryDraft): string[] {
   const end = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
   return [end(d.headline), ...(d.plainEnglish ? [d.plainEnglish.trim()] : []), ...(d.howItWorksToday ?? []).map(p => end(p.text)),
-    ...(d.changes ?? []).flatMap(r => [end(r.today), end(r.ifPassed)]), ...(d.whyNow ? [d.whyNow.trim()] : []), ...(d.background ? [d.background.trim()] : []), ...d.whatItDoes.map(p => end(p.text)), ...d.whoItAffects.map(p => end(p.text)), end(d.whatChangesForYou),
+    ...(d.changes ?? []).flatMap(r => [...(r.before?.trim() ? [end(r.before)] : []), end(r.today), end(r.ifPassed)]), ...(d.whyNow ? [d.whyNow.trim()] : []), ...(d.background ? [d.background.trim()] : []), ...d.whatItDoes.map(p => end(p.text)), ...d.whoItAffects.map(p => end(p.text)), end(d.whatChangesForYou),
     ...d.caseFor.map(a => end(a.argument)), ...d.caseAgainst.map(a => end(a.argument)), ...d.unknowns.map(end)];
 }
 
@@ -186,6 +186,8 @@ export type SourceContext = { title: string; docs: ReadonlyArray<{ id: string; t
   allowedFor: readonly string[]; allowedAgainst: readonly string[]; needsBackground: boolean;
   /** b7: "How it works today", "What would change" and "Why now" are required and checked. */
   structure?: boolean;
+  /** The bill would cancel a rule already issued: every change row must say what the old rule was, the new rule, and what passing does. */
+  cancelsRule?: boolean;
   /** What each named member said on the floor: a reason credited to a speaker must come from that speaker's own words. */
   speakers?: ReadonlyArray<{ name: string; text: string }> };
 
@@ -383,7 +385,10 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
       if (why2) fail(`What would change row ${i + 1} is vague: ${why2}. Say what the rule is today and what it would be, with the number or date from the sources.`);
       if (wc(r.today) > L.rowWords || wc(r.ifPassed) > L.rowWords) fail(`What would change row ${i + 1} is too long; each side is at most ${L.rowWords} words.`);
       if (!r.source?.trim()) fail(`What would change row ${i + 1} names no source.`);
-      claims(`What would change row ${i + 1}`, `${r.today} ${r.ifPassed}`);
+      if (!r.label?.trim()) fail(`What would change row ${i + 1} has no label; name the thing that changes in a few words ("The fee insurers pay").`);
+      else if (wc(r.label) > 14) fail(`What would change row ${i + 1}'s label is ${wc(r.label)} words; keep it under 15.`);
+      if (src.cancelsRule && !r.before?.trim()) fail(`What would change row ${i + 1} does not say what the old rule was. For a bill that cancels a rule, give all three: before the rule, now under the rule, and if this bill passes.`);
+      claims(`What would change row ${i + 1}`, `${r.label ?? ""}. ${r.before ?? ""} ${r.today} ${r.ifPassed}`);
     });
     if (rows.length && !rows.some(r => HAS_SPECIFIC.test(`${r.today} ${r.ifPassed}`))) fail("What would change has no number or date in any row. Use the figures in the sources.");
     if (!why) fail("Why now is empty: say in one or two sentences why this is being voted on now (a deadline, a new rule, a court ruling, a vote).");
@@ -396,7 +401,11 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
     }
   }
 
-  const reading = [d.headline, plain, ...today.map(p => p.text), ...rows.flatMap(r => [r.today, r.ifPassed]), why, bg, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou,
+  // Owner review, 17 Nov: "raises the most some buyers can owe" says nothing. From what, to what?
+  if (src.structure) for (const x of unquantifiedChanges([plain, ...today.map(p => p.text), ...rows.flatMap(r => [r.before ?? "", r.today, r.ifPassed])].join(" ")))
+    fail(`"${x}…" says something goes up or down without the number. Say from what to what, with the figures in the sources.`);
+
+  const reading = [d.headline, plain, ...rows.flatMap(r => [r.label ?? "", r.before ?? "", r.today, r.ifPassed]), ...today.map(p => p.text), why, bg, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou,
     ...d.caseFor.map(a => a.argument), ...d.caseAgainst.map(a => a.argument), ...d.unknowns];
   for (const t of unexplainedJargon(reading)) fail(t.part === 0
     ? `The headline uses "${t.term}"; a headline has no room to explain it, so use plain words (${t.plain}).`

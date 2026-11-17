@@ -54,3 +54,24 @@ test("page reader test: must describe today, the exact change and who is affecte
   assert.equal(pageTestResult(good, { howItWorksToday: ok, whatChanges: { verdict: "wrong", why: "The limit is $15,600, not $1,560." }, whoIsAffected: ok }).passed, false);
   assert.equal(pageTestResult(good, { howItWorksToday: ok, whatChanges: ok, whoIsAffected: { verdict: "vague", why: "Says only 'people'." } }).passed, false);
 });
+
+// Owner review, 17 Nov: on the S.J.Res. 197 card the reader reached the fourth bullet before learning what the old
+// rule was, what the new rule is, or what changed, and then only as "raises the most some buyers can owe".
+test("a change stated without its number fails; the same change with the number passes", async () => {
+  const { unquantifiedChanges } = await import("../lib/analysis/standard.ts");
+  assert.equal(unquantifiedChanges("The 2027 rule lets a plan last longer. It also raises the most some buyers can owe in a year and cuts a fee insurers pay.").length, 1);
+  assert.deepEqual(unquantifiedChanges("The rule raises the most one person can owe in a year from $12,000 to $15,600."), []);
+  assert.deepEqual(unquantifiedChanges("The government helps many buyers pay with a tax credit that lowers the monthly price."), [], "how something works is not a claim about a change");
+});
+
+test("a bill that cancels a rule must give all three states in every row: before the rule, today, if this passes", async () => {
+  const { checkSummary } = await import("../lib/analysis/checker.ts");
+  const { GOLD_EXAMPLES } = await import("../lib/analysis/gold-examples.ts");
+  const g = structuredClone(GOLD_EXAMPLES.find(x => x.billId === "119-sjres-197").summary);
+  assert.ok(g.changes.every(r => r.label && r.before && r.today && r.ifPassed), "the gold example has all three");
+  assert.match(g.plainEnglish, /\$12,000/); assert.match(g.plainEnglish, /\$15,600/);
+  const ctx = { title: "x", docs: [{ id: "RULE", text: g.changes.map(r => `${r.label} ${r.before} ${r.today} ${r.ifPassed}`).join(" ") + " HealthCare.gov May July September 2026 2027" }, { id: "PRIMER", text: "" }], agencies: [], allowedFor: [], allowedAgainst: [], needsBackground: false, structure: true, cancelsRule: true };
+  delete g.changes[0].before;
+  const f = checkSummary(g, [], { fullText: "resolution", sources: ctx }).failures.join("\n");
+  assert.match(f, /row 1 does not say what the old rule was/);
+});

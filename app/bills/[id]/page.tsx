@@ -150,11 +150,14 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
 
       {st && <>
+        {/* Owner review, 17 Nov: the old rule, the new rule and what this bill would do come first; background follows. */}
+        <div className="fed-section"><h2>{st.changes.some(r => r.before?.trim()) ? "What the new rule changed, and what this bill would do" : "What would change"} <AnalysisBadge /></h2>
+          <ul className="change-rows">{st.changes.map((r, i) => <li key={i}>{r.label && <h3>{r.label}</h3>}
+            {r.before?.trim() && <p><b>Before the new rule:</b> {r.before}</p>}
+            <p><b>{r.before?.trim() ? "Now, under the new rule:" : "Today:"}</b> {r.today}</p><p><b>If this passes:</b> {r.ifPassed} {cite(r.source)}</p></li>)}</ul></div>
         <div className="fed-section"><h2>How it works today <AnalysisBadge /></h2>
           <ul className="analysis-list">{st.howItWorksToday.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul>
           {primers.filter(p => p.kind === "topic").map(primerBox)}</div>
-        <div className="fed-section"><h2>What would change <AnalysisBadge /></h2>
-          <ul className="change-rows">{st.changes.map((r, i) => <li key={i}><p><b>Today:</b> {r.today}</p><p><b>If this passes:</b> {r.ifPassed} {cite(r.source)}</p></li>)}</ul></div>
         <div className="fed-section"><h2>Why now <AnalysisBadge /></h2><p>{st.whyNow}</p>
           {primers.filter(p => p.kind === "process").map(primerBox)}</div>
       </>}
