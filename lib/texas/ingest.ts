@@ -4,6 +4,7 @@ import { ingestRuns, txSessionStats, txBillActions, txBills, txBillSponsors, txB
 import { chunked, getCursor, setCursor } from "@/lib/federal/ingest";
 import { currentTxSession, LEGISCAN_BASE, legiscanStage, OPENSTATES_BASE, parseLegiscanMasterList, parseOpenStatesBills, parseOpenStatesCommittees, parseOpenStatesEvents,
   parseOpenStatesPeople, tloBillUrl, txBillId, txStage, txTallyMismatch, TX_SESSIONS, type TxBill } from "@/lib/texas/parse";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round H: Texas Legislature ingestion. Open States v3 (OPENSTATES_API_KEY) is
@@ -13,7 +14,7 @@ import { currentTxSession, LEGISCAN_BASE, legiscanStage, OPENSTATES_BASE, parseL
  * (TEXAS_MAX_REQUESTS_PER_RUN, default 12) to respect the free API limits.
  */
 type Db = ReturnType<typeof getDb>;
-const UA = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const UA = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const WEEK = 7 * 86400e3;
 const base = () => process.env.OPENSTATES_BASE?.trim() || OPENSTATES_BASE;
 const lsBase = () => process.env.LEGISCAN_BASE?.trim() || LEGISCAN_BASE;

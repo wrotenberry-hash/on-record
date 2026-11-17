@@ -4,6 +4,7 @@ import { CARD_FORMATS, cardFormat, type Card } from "@/lib/card-content";
 import { latestBriefing, type Briefing } from "@/lib/briefing";
 import { viewerAccess } from "@/lib/viewer";
 import { countEvent } from "@/lib/events";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   const card: Card = { eyebrow: `${b.kind === "daily" ? "DAILY" : "WEEKLY"} BRIEFING · ${b.periodLabel.toUpperCase()}`, title: "What happened", subtitle: "Congress and the Texas Legislature, from official records",
     lines: pick.map(({ i, v, k }) => ({ what: `${i.label}: ${i.title.length > 90 ? `${i.title.slice(0, 88)}…` : i.title}`, describe: { label: "Official", text: i.note.slice(0, 140) }, vote: v, kindLabel: k,
       date: new Date(i.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }), source: k === "Texas" ? "capitol.texas.gov" : "congress.gov" })),
-    note: pick.length ? null : "No votes recorded in this period.", footer: "Talk is cheap." };
+    note: pick.length ? null : "No votes recorded in this period.", footer: BRAND.taglineShort };
   await countEvent("card_render", `briefing:${format}`);
   return new ImageResponse(<CardImage card={card} format={format} />, { ...CARD_FORMATS[format], headers: { "Cache-Control": "private, no-store" } });
 }

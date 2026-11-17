@@ -3,6 +3,7 @@ import { requireEditorUser } from "@/lib/auth";
 import { retentionCounts } from "@/lib/retention";
 import { trialCounts } from "@/lib/trial";
 import { shareFunnel } from "@/lib/share";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function MetricsPage() {
   const [r, t, f] = await Promise.all([retentionCounts().catch(() => null), trialCounts().catch(() => null), shareFunnel(7).catch(() => null)]);
   const row = (k: string, v: React.ReactNode) => <tr><th scope="row">{k}</th><td>{v}</td></tr>;
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/trial">Trial invites</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/trial">Trial invites</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · RETENTION AND SHARING</div><h1>Are readers coming back?</h1>
       <p className="meta">Counts only. No reader, page or bill is identified.</p>

@@ -17,6 +17,7 @@ import { runReaderTest, type ReaderTest } from "@/lib/analysis/reader-test";
 import { keepWhatWasRight, repairDraft } from "@/lib/analysis/repair";
 import { JARGON } from "@/lib/analysis/standard";
 import { goldExamplesBlock } from "@/lib/analysis/gold";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Phase B: one AI-written summary per bill text version, in the template of
@@ -25,7 +26,7 @@ import { goldExamplesBlock } from "@/lib/analysis/gold";
  * from government records and are shown as Official.
  */
 export const PROMPT_VERSION = "b11-2026-11-17";
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const MAX_OUTPUT_TOKENS = 6000;
 
 /** Test-phase limits. Raise them in Vercel when the owner approves wider use. */

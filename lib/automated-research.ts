@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BRAND } from "./brand.ts";
 
 const claim = z.object({ exactText: z.string().min(8), proposition: z.string().min(8), issue: z.string().min(2),
   materiality: z.enum(["M0", "M1", "M2", "M3"]), materialityRationale: z.string().min(8) });
@@ -26,7 +27,7 @@ async function record(model: string, meta: CallMeta | undefined, result: ModelRe
 type Citation = { url: string; title: string };
 
 /** Official sites often refuse anonymous clients. Say who is asking and why. */
-export const SOURCE_USER_AGENT = "Mozilla/5.0 (compatible; OnRecordBot/0.2; +https://on-record-wrotenberry.vercel.app/records) source-preservation for editorial review";
+export const SOURCE_USER_AGENT = `Mozilla/5.0 (compatible; ${BRAND.userAgentName}Bot/0.2; +https://on-record-wrotenberry.vercel.app/records) source-preservation for editorial review`;
 
 function publicUrl(value: string) {
   const url = new URL(value);

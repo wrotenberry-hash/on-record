@@ -4,9 +4,10 @@ import { OfficialBadge } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { comingItems, remindersOf } from "@/lib/reminders";
 import { toggleReminder } from "./actions";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "What's coming · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("What's coming"), robots: { index: false, follow: false } };
 
 /** Floor votes and hearings ahead, Congress and Texas, with one-tap reminders. */
 export default async function ComingPage() {

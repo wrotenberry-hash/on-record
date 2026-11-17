@@ -7,9 +7,10 @@ import { getDb } from "@/db";
 import { officialPoliticians } from "@/db/schema";
 import { compareMembers } from "@/lib/federal/member-stats";
 import { KIND_LABEL, voteKind } from "@/lib/federal/vote-kinds";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Compare members · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Compare members"), robots: { index: false, follow: false } };
 const ID = /^[A-Z]\d{6}$/;
 
 /** Two members' shared roll-call votes, by issue. Official: counts only, no rating. */
@@ -38,7 +39,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         <div className="fed-section"><h2>Recent shared votes</h2><ul className="result-list">{result.details.map(d => <li key={d.rollCallId}>
           <span>{d.billId ? <Link href={`/bills/${d.billId}`}>{d.title ?? d.question}</Link> : d.title ?? d.question}</span>
           <span className="meta">{shortDate(d.votedAt)} · {KIND_LABEL[voteKind(d.question, d.title)]} · {ma!.fullName.split(" ").pop()}: {d.a} · {mb!.fullName.split(" ").pop()}: {d.b} · {d.same ? "same" : "different"}</span></li>)}</ul></div>
-        <p className="meta">Method: roll calls in On Record&apos;s copy of the official record where both members voted Yea or Nay. Present and not voting are left out. This is a count, not a rating.</p>
+        <p className="meta">Method: roll calls in {BRAND.name}&apos;s copy of the official record where both members voted Yea or Nay. Present and not voting are left out. This is a count, not a rating.</p>
       </> : <p className="meta">No shared Yea or Nay votes in the record yet.</p>)}
     </section>
   </PublicShell>;

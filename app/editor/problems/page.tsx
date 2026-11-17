@@ -3,6 +3,7 @@ import { requireEditorUser } from "@/lib/auth";
 import { PROBLEM_REASONS, problemList, type ProblemReason } from "@/lib/problems";
 import { shortDate } from "@/components/federal/badges";
 import { closeProblem } from "./actions";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export default async function ProblemsPage() {
   await requireEditorUser("/editor/problems");
   const [open, closed] = await Promise.all([problemList("open").catch(() => []), problemList("closed").catch(() => [])]);
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/corrections">Corrections</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/corrections">Corrections</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · REPORTED PROBLEMS</div><h1>Reported problems ({open.length} open)</h1>
       <p className="meta">From &ldquo;Report a problem&rdquo; on every card. Readers&apos; notes are seen only here. When you mark one fixed, the page and what you changed appear in the corrections log (not the reader&apos;s note).</p>

@@ -27,15 +27,16 @@ import { REASON_MAX, totalsLine } from "@/lib/verify/rules";
 import { accountForAppUser, currentAccount } from "@/lib/accounts";
 import { Turnstile } from "@/components/verify/turnstile";
 import { countedNote } from "@/lib/verify/flow";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
 /** Bill titles and the Analysis headline reach only viewers allowed to see the page. */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const access = await viewerAccess();
-  if (!access.allowed) return { title: "On Record" };
+  if (!access.allowed) return { title: BRAND.name };
   const data = await getBill((await params).id);
-  if (!data) return { title: "Not found · On Record" };
+  if (!data) return { title: brandTitle("Not found") };
   const summary = await summaryForBill(data.bill.id, false).catch(() => null);
   const meta = billMeta({ label: billLabel(data.bill.billType, data.bill.number), title: data.bill.title }, summary?.summary.headline);
   const { previewMeta } = await import("@/lib/seo"), { SITE } = await import("@/lib/share");
@@ -125,7 +126,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
             <div><h3>For</h3>{s.caseFor.length ? <ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
             <div><h3>Against</h3>{s.caseAgainst.length ? <ul className="analysis-list">{s.caseAgainst.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
           </div>
-          <p className="meta">{analysis?.details ? "Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not On Record's view." : "Both sides are written to the same length and standard. They describe arguments people make; they are not On Record's view."}</p></div>
+          <p className="meta">{analysis?.details ? `Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not ${BRAND.name}'s view.` : `Both sides are written to the same length and standard. They describe arguments people make; they are not ${BRAND.name}'s view.`}</p></div>
   </>;
   const unknownBlock = s && <>
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
@@ -251,7 +252,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           : <li><a href={bill.congressUrl} target="_blank" rel="noopener noreferrer">This bill on Congress.gov</a></li>}
         <li>Record {bill.detailStatus === "complete" ? "completed from the Congress.gov API" : "created from a roll-call vote"}, retrieved {shortDate(bill.retrievedAt)}.</li>
         {subjects.length > 0 && <li>Congress.gov subjects: {subjects.slice(0, 12).join(", ")}{subjects.length > 12 ? "…" : ""}</li>}
-        {s && <li>Analysis written {shortDate(s.createdAt)} by {s.model} from the {s.textVersionLabel.toLowerCase()} text{s.truncated ? " (long bill: the first part was read)" : ""}, checked by On Record&apos;s rule checker{latestCheck ? ` (${latestCheck.passed ? "passed" : "did not pass"}, reading grade ${latestCheck.metrics.readingGrade})` : ""}. Confidence: {s.confidence}. {s.confidenceReason}</li>}
+        {s && <li>Analysis written {shortDate(s.createdAt)} by {s.model} from the {s.textVersionLabel.toLowerCase()} text{s.truncated ? " (long bill: the first part was read)" : ""}, checked by {BRAND.name}&apos;s rule checker{latestCheck ? ` (${latestCheck.passed ? "passed" : "did not pass"}, reading grade ${latestCheck.metrics.readingGrade})` : ""}. Confidence: {s.confidence}. {s.confidenceReason}</li>}
       </ul></div>
     </section>
   </PublicShell>;

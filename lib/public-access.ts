@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /**
  * Anonymous read access is a deliberate, reversible switch, separate from the
  * hosting platform's audience setting. When the Site audience is widened so a
@@ -19,7 +20,7 @@ export function publiclyListable(status: string): boolean {
 }
 
 export const PUBLIC_READ_DISABLED_MESSAGE =
-  "On Record is in private review. Public records are not enabled on this deployment.";
+  `${BRAND.name} is in private review. Public records are not enabled on this deployment.`;
 
 /**
  * The incoming inventory (machine-captured, unreviewed) stays hidden from the

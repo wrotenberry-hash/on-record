@@ -4,8 +4,9 @@ import { committeeReportCitations, committeeReportDoc, crLinkUrl, crPageRefs, di
 import type { BillStatus } from "@/lib/analysis/billtext";
 import type { SourceContext } from "@/lib/analysis/checker";
 import { primersFor, primerSourceText, type Primer } from "@/lib/analysis/primers";
+import { BRAND } from "@/lib/brand";
 
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 
 async function fetchText(url: string, timeoutMs = 20_000): Promise<string | null> {
   try {

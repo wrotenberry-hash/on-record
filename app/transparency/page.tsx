@@ -3,9 +3,10 @@ import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess } from "@/lib/viewer";
 import { transparencyMonths } from "@/lib/verify/transparency";
 import { REASON_LABEL } from "@/lib/verify/rules";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Transparency · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Transparency"), robots: { index: false, follow: false } };
 
 const monthName = (m: string) => new Date(`${m}-01T12:00:00Z`).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);

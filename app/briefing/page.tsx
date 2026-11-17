@@ -5,9 +5,10 @@ import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { briefingArchive, buildBriefing, isSubscribed, latestBriefing, type Briefing, type BriefSection } from "@/lib/briefing";
 import { accountForAppUser, currentAccount } from "@/lib/accounts";
 import { toggleBriefingEmail } from "./actions";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Briefing · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Briefing"), robots: { index: false, follow: false } };
 
 function Section({ s }: { s: BriefSection }) {
   const lists = [["Passed", s.passed], ["Failed", s.failed], ["Stopped by a procedural vote", s.blocked], ["Coming next", s.coming]] as const;
@@ -35,7 +36,7 @@ export default async function BriefingPage({ searchParams }: { searchParams: Pro
       <Section s={b.congress} />
       {b.texas && <Section s={b.texas} />}
       <div className="fed-section">
-        {row && <p><a className="secondary-link" href={`/api/cards/briefing?id=${row.id}&format=feed`} download={`on-record-${row.id}.png`}>Save the briefing card</a></p>}
+        {row && <p><a className="secondary-link" href={`/api/cards/briefing?id=${row.id}&format=feed`} download={`${BRAND.fileSlug}-${row.id}.png`}>Save the briefing card</a></p>}
         {account ? <form action={toggleBriefingEmail}><input type="hidden" name="on" value={subscribed ? "0" : "1"} /><button className="follow-btn">{subscribed ? "Stop the briefing email" : "Email me the briefing"}</button></form>
           : <p className="meta"><Link href="/account">Sign in</Link> to get the briefing by email.</p>}
         {archive.length > 1 && <p className="meta">Earlier: {archive.slice(0, 10).map((a, i) => <span key={a.id}>{i ? " · " : ""}<Link href={`/briefing?id=${a.id}`}>{shortDate(a.createdAt)}</Link></span>)}</p>}

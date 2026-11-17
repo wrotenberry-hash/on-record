@@ -5,6 +5,7 @@ import { alertEvents, betaInvites } from "@/db/schema";
 import { inviteToken, newInviteId, trialGate, verifyInviteToken } from "@/lib/trial-token";
 import { lastSuccessfulCallAt } from "@/lib/model-calls";
 import { utcDay } from "@/lib/event-dims";
+import { BRAND } from "@/lib/brand";
 
 /** Invite-only trial (owner decision 2026-11-15): 25 revocable links, opening on their own. */
 export const TRIAL_COOKIE = "or_trial";
@@ -103,7 +104,7 @@ export async function sendTrialOpenIfDue(send: (subject: string, text: string) =
     if (already) return { sent: false, reason: "already sent" };
     await ensureInvites();
     const open = Number((await db.select({ n: sql<number>`count(*)` }).from(betaInvites).where(isNull(betaInvites.revokedAt)).get())?.n ?? 0);
-    const subject = "[On Record] The invite-only trial is open";
+    const subject = `[${BRAND.name}] The invite-only trial is open`;
     const text = [`OpenAI calls are succeeding in production, so the ${open} trial invite links now work.`, "",
       `Copy them from your phone: ${SITE_URL}/editor/trial`, "",
       "Each link opens the site for one person: Politicians, Issues, bills with their summaries, and Follow. Public reading stays off.",

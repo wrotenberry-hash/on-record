@@ -8,13 +8,14 @@ import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { pickedIssues } from "@/lib/reader-issues";
 import { toggleIssue } from "../actions";
 import { billsInCategory, getCategory } from "@/lib/federal/queries";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  if (!(await viewerAccess()).allowed) return { title: "On Record" };
+  if (!(await viewerAccess()).allowed) return { title: BRAND.name };
   const c = await getCategory((await params).slug);
-  return c ? { ...issueMeta(c.name), alternates: { canonical: `/issues/${c.slug}` } } : { title: "Not found · On Record" };
+  return c ? { ...issueMeta(c.name), alternates: { canonical: `/issues/${c.slug}` } } : { title: brandTitle("Not found") };
 }
 
 export default async function IssuePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ full?: string; followed?: string }> }) {

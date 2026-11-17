@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { people, representations, sourceCaptures, sourceCommunications } from "@/db/schema";
 import { verifyAction } from "@/lib/session-token";
 import { confirmSkip } from "./actions";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function SkipPage({ searchParams }: { searchParams: Promise
     }
   }
   return <main className="skip-page">
-    <div className="eyebrow">ON RECORD · DAILY REVIEW</div>
+    <div className="eyebrow">{BRAND.nameUpper} · DAILY REVIEW</div>
     {body}
     <p className="fine"><Link href="/editor">Open the editor</Link></p>
   </main>;

@@ -5,9 +5,10 @@ import { viewerAccess } from "@/lib/viewer";
 import { congressDashboard } from "@/lib/federal/dashboard";
 import { ROLE_NOTE } from "@/lib/federal/dashboard-rules";
 import { FunnelChart, RowBars, SeatBar } from "@/components/charts/charts";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Congress dashboard · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Congress dashboard"), robots: { index: false, follow: false } };
 const PRESIDENT = { name: "Donald J. Trump", party: "Republican", since: "2025-01-20", source: "https://www.whitehouse.gov/" };
 
 /** Congress at a glance: the bill funnel, history, control, key players, where bills stall, and issues. Official data; method under each figure. */
@@ -33,7 +34,7 @@ export default async function DashboardPage() {
         <table className="chart history" tabIndex={0}><caption>Bills and joint resolutions, roll calls, procedural and party-line shares</caption><thead><tr><th scope="col">Congress</th><th scope="col">Filed</th><th scope="col">Passed a chamber</th><th scope="col">Became law</th><th scope="col">Roll calls on file</th><th scope="col">Procedural</th><th scope="col">Party-line</th></tr></thead>
           <tbody>{d.funnels.map((f, i) => { const r = d.rollStats[i]; return <tr key={f.congress}><th scope="row">{f.congress}th</th><td>{f.all.reach.filed.toLocaleString("en-US") || "loading"}</td><td>{f.all.pct.passed_one}%</td><td>{f.all.reach.law.toLocaleString("en-US")}</td>
             <td>{r.total || "loading"}</td><td>{r.proceduralPct ?? "–"}{r.proceduralPct !== null ? "%" : ""}</td><td>{r.partyLinePct ?? "–"}{r.partyLinePct !== null ? "%" : ""}</td></tr>; })}</tbody></table>
-        <p className="meta">Roll calls: the votes On Record holds; earlier Congresses fill in as the backfill runs. Party-line: most voting Democrats and most voting Republicans on opposite sides. Procedural: cloture, motions to proceed, table, recommit and similar, and House rules.</p></div>}
+        <p className="meta">Roll calls: the votes {BRAND.name} holds; earlier Congresses fill in as the backfill runs. Party-line: most voting Democrats and most voting Republicans on opposite sides. Procedural: cloture, motions to proceed, table, recommit and similar, and House rules.</p></div>}
 
       <div className="fed-section"><h2>Who controls Congress <Link className="src-link" href="/share/card?t=dash&kind=control">Share</Link></h2>
         <SeatBar chamber="House" seats={d.seats.filter(s => s.chamber === "house")} total={435} />
@@ -54,12 +55,12 @@ export default async function DashboardPage() {
 
       {d.stall.length > 0 && <div className="fed-section"><h2>Where bills stall</h2>
         <RowBars caption="Committees by bills referred, with how many they reported" unit="referred" rows={d.stall.map(s => ({ label: `${s.name ?? s.committeeId}${s.chamber ? ` (${s.chamber === "senate" ? "Senate" : "House"})` : ""}`, value: s.referred, note: `· ${s.reported} reported` }))} />
-        <p className="meta">From the {d.fullRecords} bills On Record holds with full action records (voted and recently active bills), not every bill. Chairs are listed under Key players.</p></div>}
+        <p className="meta">From the {d.fullRecords} bills {BRAND.name} holds with full action records (voted and recently active bills), not every bill. Chairs are listed under Key players.</p></div>}
 
       <div className="fed-section"><h2>By issue</h2>
         <table className="chart history" tabIndex={0}><caption>Bills sorted into each issue: filed, passed at least one chamber, became law</caption><thead><tr><th scope="col">Issue</th><th scope="col">Filed</th><th scope="col">Advanced</th><th scope="col">Enacted</th></tr></thead>
           <tbody>{d.byIssue.map(b => <tr key={b.slug}><th scope="row"><Link href={`/issues/${b.slug}`}>{b.name}</Link></th><td>{b.filed}</td><td>{b.advanced}</td><td>{b.enacted}</td></tr>)}</tbody></table>
-        <p className="meta">Covers the bills On Record has sorted into issues (from Congress.gov policy areas and subjects), not every bill.</p></div>
+        <p className="meta">Covers the bills {BRAND.name} has sorted into issues (from Congress.gov policy areas and subjects), not every bill.</p></div>
     </section>
   </PublicShell>;
 }

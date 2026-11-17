@@ -6,10 +6,11 @@ import { viewerAccess } from "@/lib/viewer";
 
 import { summaryCorrections } from "@/lib/analysis/quality";
 import { correctionsFromReports, PROBLEM_REASONS, type ProblemReason } from "@/lib/problems";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Corrections · On Record", description: "How to ask for a correction, what happens next, and every correction and retraction so far." };
+export const metadata = { title: brandTitle("Corrections"), description: "How to ask for a correction, what happens next, and every correction and retraction so far." };
 
 export default async function CorrectionsPage() {
   const items = publicReadEnabled(process.env[PUBLIC_READ_FLAG]) ? await listPublicCorrections() : [];

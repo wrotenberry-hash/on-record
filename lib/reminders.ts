@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { officialBills, officialFloorSchedule, readerAccounts, reminders, txEvents } from "@/db/schema";
 import { weekOf } from "@/lib/federal/depth-parse";
 import { sendTo } from "@/lib/mailer";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round H "What's coming": federal floor schedules and Texas hearings, with a
@@ -45,7 +46,7 @@ export async function sendDueReminders(now = Date.now()) {
     .from(reminders).leftJoin(readerAccounts, eq(readerAccounts.appUserId, reminders.userId)).where(and(lte(reminders.remindAt, now), isNull(reminders.sentAt))).limit(200);
   let sent = 0, skipped = 0;
   for (const r of due) {
-    if (r.email && r.verifiedAt) { const res = await sendTo(r.email, `Coming up: ${r.title.slice(0, 80)}`, [`You asked On Record to remind you.`, "", r.title, "", `${SITE}${r.url}`, "", "One reminder per item. Manage them on the What's coming page."].join("\n")); if (res.ok) sent++; else continue; }
+    if (r.email && r.verifiedAt) { const res = await sendTo(r.email, `Coming up: ${r.title.slice(0, 80)}`, [`You asked ${BRAND.name} to remind you.`, "", r.title, "", `${SITE}${r.url}`, "", "One reminder per item. Manage them on the What's coming page."].join("\n")); if (res.ok) sent++; else continue; }
     else skipped++;
     await db.update(reminders).set({ sentAt: now }).where(and(eq(reminders.userId, r.userId), eq(reminders.itemKey, r.itemKey)));
   }

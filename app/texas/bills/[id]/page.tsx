@@ -8,6 +8,7 @@ import { txBill, txVoteParties } from "@/lib/texas/queries";
 import { TX_SESSIONS, TX_STAGE_LABEL, txVoteKind, type TxStage } from "@/lib/texas/parse";
 import { txSummaryFor } from "@/lib/texas/summaries";
 import { AnalysisBadge } from "@/components/federal/badges";
+import { BRAND } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 const STEPS: TxStage[] = ["filed", "committee", "passed_first", "passed_both", "governor", "law"];
@@ -48,7 +49,7 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
           <div><h3>For</h3><ul className="analysis-list">{args(s.caseFor).map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span></li>)}</ul></div>
           <div><h3>Against</h3><ul className="analysis-list">{args(s.caseAgainst).map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span></li>)}</ul></div></div></div>
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2><ul className="analysis-list">{((s.unknowns as string[]) ?? []).map((u, i) => <li key={i}>{u}</li>)}</ul>
-          <p className="meta">Written by {s.model} from the {s.textLabel.toLowerCase()} text on Texas Legislature Online, checked by On Record&apos;s rule checker ({s.checkPassed ? "passed" : "did not pass"}{s.readingGrade ? `, reading grade ${s.readingGrade}` : ""}). Confidence: {s.confidence}.</p></div>
+          <p className="meta">Written by {s.model} from the {s.textLabel.toLowerCase()} text on Texas Legislature Online, checked by {BRAND.name}&apos;s rule checker ({s.checkPassed ? "passed" : "did not pass"}{s.readingGrade ? `, reading grade ${s.readingGrade}` : ""}). Confidence: {s.confidence}.</p></div>
       </>}
       <div className="fed-section"><h2>Recorded votes <OfficialBadge /></h2>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">

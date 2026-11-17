@@ -4,6 +4,7 @@ import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearch
 import { signAction } from "@/lib/session-token";
 import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend, intakePauseThreshold, intakePausedFor } from "@/lib/monitoring";
 import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince } from "@/lib/model-calls";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Gathers the inputs for lib/monitoring.ts, evaluates, and sends alert emails
@@ -11,7 +12,7 @@ import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSin
  * the run (the caller wraps it). Healthy runs send nothing.
  */
 export const DEFAULT_ALERT_TO = "wrotenberry@gmail.com";
-const DEFAULT_ALERT_FROM = "On Record <onboarding@resend.dev>";
+const DEFAULT_ALERT_FROM = `${BRAND.name} <onboarding@resend.dev>`;
 const RESEND_API_URL = process.env.RESEND_API_URL?.trim() || "https://api.resend.com/emails";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 
