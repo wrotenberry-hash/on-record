@@ -1,0 +1,207 @@
+[
+ {
+  "id": {
+   "bioguide": "C001056",
+   "lis": "S287",
+   "govtrack": 300027
+  },
+  "name": {
+   "first": "John",
+   "last": "Cornyn",
+   "official_full": "John Cornyn"
+  },
+  "terms": [
+   {
+    "type": "sen",
+    "start": "2015-01-06",
+    "end": "2021-01-03",
+    "state": "TX",
+    "class": 2,
+    "party": "Republican",
+    "url": "https://www.cornyn.senate.gov",
+    "address": "517 Hart Senate Office Building Washington DC 20510",
+    "phone": "202-224-2934",
+    "fax": "202-228-2856",
+    "contact_form": "https://www.cornyn.senate.gov/contact",
+    "office": "517 Hart Senate Office Building",
+    "state_rank": "senior",
+    "rss_url": "http://www.cornyn.senate.gov/public/?a=rss.feed"
+   },
+   {
+    "type": "sen",
+    "start": "2021-01-03",
+    "end": "2027-01-03",
+    "state": "TX",
+    "class": 2,
+    "state_rank": "senior",
+    "party": "Republican",
+    "url": "https://www.cornyn.senate.gov",
+    "rss_url": "http://www.cornyn.senate.gov/public/?a=rss.feed",
+    "contact_form": "https://www.cornyn.senate.gov/contact",
+    "address": "517 Hart Senate Office Building Washington DC 20510",
+    "office": "517 Hart Senate Office Building",
+    "phone": "202-224-2934"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "C001098",
+   "lis": "S355",
+   "govtrack": 412573
+  },
+  "name": {
+   "first": "Ted",
+   "last": "Cruz",
+   "official_full": "Ted Cruz"
+  },
+  "terms": [
+   {
+    "type": "sen",
+    "start": "2019-01-03",
+    "end": "2025-01-03",
+    "state": "TX",
+    "class": 1,
+    "party": "Republican",
+    "state_rank": "junior",
+    "url": "https://www.cruz.senate.gov",
+    "contact_form": "https://www.cruz.senate.gov/?p=form&id=16",
+    "address": "167 Russell Senate Office Building Washington DC 20510",
+    "office": "167 Russell Senate Office Building",
+    "phone": "202-224-5922"
+   },
+   {
+    "type": "sen",
+    "start": "2025-01-03",
+    "end": "2031-01-03",
+    "state": "TX",
+    "class": 1,
+    "state_rank": "junior",
+    "party": "Republican",
+    "url": "https://www.cruz.senate.gov",
+    "contact_form": "https://www.cruz.senate.gov/?p=form&id=16",
+    "address": "167 Russell Senate Office Building Washington DC 20510",
+    "office": "167 Russell Senate Office Building",
+    "phone": "202-224-5922"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "R000614",
+   "govtrack": 412826
+  },
+  "name": {
+   "first": "Chip",
+   "last": "Roy",
+   "official_full": "Chip Roy"
+  },
+  "terms": [
+   {
+    "type": "rep",
+    "start": "2023-01-03",
+    "end": "2025-01-03",
+    "state": "TX",
+    "district": 21,
+    "party": "Republican",
+    "url": "https://roy.house.gov",
+    "address": "103 Cannon House Office Building Washington DC 20515-4321",
+    "office": "103 Cannon House Office Building",
+    "phone": "202-225-4236"
+   },
+   {
+    "type": "rep",
+    "start": "2025-01-03",
+    "end": "2027-01-03",
+    "state": "TX",
+    "district": 21,
+    "party": "Republican",
+    "url": "https://roy.house.gov",
+    "address": "103 Cannon House Office Building Washington DC 20515-4321",
+    "office": "103 Cannon House Office Building",
+    "phone": "202-225-4236"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "F000484",
+   "govtrack": 457035
+  },
+  "name": {
+   "first": "Randall",
+   "middle": "Adam",
+   "nickname": "Randy",
+   "last": "Fine",
+   "official_full": "Randy Fine"
+  },
+  "terms": [
+   {
+    "type": "rep",
+    "start": "2025-04-02",
+    "end": "2027-01-03",
+    "state": "FL",
+    "district": 6,
+    "party": "Republican",
+    "url": "https://fine.house.gov",
+    "contact_form": "hhttps://fine.house.gov/address_authentication?form=/contact/email-me",
+    "address": "244 Cannon House Office Building Washington DC 20515-0906",
+    "office": "244 Cannon House Office Building",
+    "phone": "202-225-2706"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "P000622",
+   "govtrack": 457034
+  },
+  "name": {
+   "first": "Jimmy",
+   "middle": "Theo",
+   "last": "Patronis",
+   "suffix": "Jr.",
+   "official_full": "Jimmy Patronis"
+  },
+  "terms": [
+   {
+    "type": "rep",
+    "start": "2025-04-02",
+    "end": "2027-01-03",
+    "state": "FL",
+    "district": 1,
+    "party": "Republican",
+    "url": "https://patronis.house.gov",
+    "contact_form": "https://patronis.house.gov/contact/email-me",
+    "address": "2021 Rayburn House Office Building Washington DC 20515-0901",
+    "office": "2021 Rayburn House Office Building",
+    "phone": "202-225-4136"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "G000607",
+   "govtrack": 457043
+  },
+  "name": {
+   "first": "James",
+   "last": "Gallagher",
+   "official_full": "James Gallagher"
+  },
+  "terms": [
+   {
+    "type": "rep",
+    "start": "2026-06-10",
+    "end": "2027-01-03",
+    "state": "CA",
+    "district": 1,
+    "party": "Republican",
+    "address": "408 Cannon House Office Building Washington DC 20515-0501",
+    "office": "408 Cannon House Office Building",
+    "phone": "202-225-3076",
+    "url": "https://gallagher.house.gov/"
+   }
+  ]
+ }
+]

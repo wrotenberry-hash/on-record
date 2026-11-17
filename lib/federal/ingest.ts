@@ -8,6 +8,8 @@ import { billStatusUrl, parseSponsorship } from "@/lib/analysis/billtext";
 import { congressBillApi, congressForYear, congressGovPage, congressRecentBillsApi, houseRollUrl, LAWMAKING_TYPES, LEGISLATORS_URL,
   parseCongressBill, parseCongressBillList, parseCongressSubjects, parseHouseRoll, parseLegislators, parseSenateMenu, parseSenateVote,
   senateMenuUrl, senateVoteUrl, sessionForYear, type BillRef, type ParsedRollCall } from "@/lib/federal/parse";
+import { DISTRICT_OFFICES_URL, parseDistrictOffices, parseFederalContacts, withDistrictOffices } from "@/lib/contact-parse";
+import { dropContactsExcept, hasContacts, upsertContacts } from "@/lib/contacts";
 
 /**
  * Federal official-record ingestion (docs/TALK_IS_CHEAP_PLAN.md). Uses no
@@ -50,10 +52,12 @@ export async function chunked<T>(rows: T[], size: number, fn: (part: T[]) => Pro
 /** Sitting members from congress-legislators, at most once every 20 hours unless forced. */
 export async function ingestLegislators(db: Db, force = false): Promise<Step> {
   const last = Number(await getCursor(db, "legislators:last") ?? 0);
-  if (!force && Date.now() - last < LEGISLATORS_EVERY_MS) return { ok: true, skipped: "fresh" };
+  // Contact details ride on the same file, so an empty contacts table (first run after they were added) is not "fresh".
+  if (!force && Date.now() - last < LEGISLATORS_EVERY_MS && await hasContacts(db, "federal").catch(() => true)) return { ok: true, skipped: "fresh" };
   const res = await fetchText(LEGISLATORS_URL, 30_000);
   if (!res.ok) return { ok: false, error: `members list answered ${res.status}` };
-  const rows = parseLegislators(JSON.parse(res.text));
+  const json: unknown = JSON.parse(res.text);
+  const rows = parseLegislators(json);
   if (rows.length < 400) return { ok: false, error: `members list had only ${rows.length} rows` };
   const now = Date.now();
   await chunked(rows, 50, part => db.insert(officialPoliticians).values(part.map(p => ({ ...p, isCurrent: 1, sourceUrl: LEGISLATORS_URL, retrievedAt: now })))
@@ -65,7 +69,18 @@ export async function ingestLegislators(db: Db, force = false): Promise<Step> {
   const stale = (await db.select({ id: officialPoliticians.id }).from(officialPoliticians).where(eq(officialPoliticians.isCurrent, 1))).filter(r => !ids.has(r.id)).map(r => r.id);
   if (stale.length) await db.update(officialPoliticians).set({ isCurrent: 0 }).where(inArray(officialPoliticians.id, stale));
   await setCursor(db, "legislators:last", String(now));
-  return { ok: true, members: rows.length, noLongerServing: stale.length };
+  // Test-ready build: office phone, contact form, office address and website from the same file, one row per sitting
+  // member, plus the first district office from the project's district-offices file when it answers.
+  try {
+    const offices = await fetchText(DISTRICT_OFFICES_URL, 30_000).then(r => (r.ok ? parseDistrictOffices(JSON.parse(r.text)) : null)).catch(() => null);
+    const contacts = withDistrictOffices(parseFederalContacts(json), offices ?? new Map());
+    await upsertContacts(db, "federal", contacts, LEGISLATORS_URL, now, { keepDistrict: !offices?.size });
+    await dropContactsExcept(db, "federal", rows.map(r => r.id));
+    return { ok: true, members: rows.length, noLongerServing: stale.length, contacts: contacts.length, withContactForm: contacts.filter(c => c.contactFormUrl).length,
+      districtOffices: offices?.size ? contacts.filter(c => c.districtPhone || c.districtAddress).length : "district offices file not read this run" };
+  } catch (e) {
+    return { ok: false, error: `members stored (${rows.length}); contact details failed: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}`, members: rows.length };
+  }
 }
 
 /** Stores one roll call, its member votes and, when it concerns a bill, a bill stub. Idempotent. */
