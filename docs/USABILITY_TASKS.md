@@ -1,6 +1,6 @@
 # Usability tasks
 
-**Current results: `tests/e2e/report.md` (17 Nov 2026, production build, 390 px, CPU slowed 4×): 26 tasks pass, 0 fail, 2 wait for summaries to be shown to readers; 46 of 46 pages with no accessibility problems; every page usable in under 2 s (slowest 0.48 s). Rerun with `npm run e2e -- --prod`. The tables below are the history from 16 Nov.**
+**Current results: `tests/e2e/report.md` (17 Nov 2026, production build, 390 px, CPU slowed 4×): 28 of 28 tasks pass (the two summary tasks pass now that readers may see summaries that passed; the test copy uses a labelled stand-in summary); 47 of 47 pages with no accessibility problems; every page usable in under 2 s (slowest 0.42 s). Rerun with `npm run e2e -- --prod`. The tables below are the history from 16 Nov.**
 
 Tasks a first-time reader should finish on a phone, with a target time. Each is
 checked by a scripted run at iPhone size (Playwright, local stand-ins for the

@@ -28,3 +28,17 @@ test("no gate compares prompt versions as text", () => {
   assert.ok(!/prompt_?[vV]ersion\}?\s*>=\s*['$]/.test(gate.replace(/cast\(substr\([^)]*\) as integer\)/g, "N")), "publish-gate.ts must compare generator numbers");
   assert.ok(gate.includes("generatorNumber(PUBLIC_MIN_PROMPT)"));
 });
+
+test("Texas summaries do not ride on the federal gate", () => {
+  const gate = readFileSync(new URL("../lib/analysis/publish-gate.ts", import.meta.url), "utf8");
+  const tx = readFileSync(new URL("../lib/texas/summaries.ts", import.meta.url), "utf8");
+  assert.match(gate, /export const TEXAS_SUMMARIES_PUBLIC = false;/);
+  assert.ok(!tx.includes("PUBLIC_MIN_PROMPT"), "Texas summaries must use their own switch");
+});
+
+test("the gate is open from the first generator that passed the full standard", () => {
+  const gate = readFileSync(new URL("../lib/analysis/publish-gate.ts", import.meta.url), "utf8");
+  const min = /export const PUBLIC_MIN_PROMPT = (null|"([^"]+)")/.exec(gate);
+  assert.ok(min, "PUBLIC_MIN_PROMPT not found");
+  if (min[2]) assert.ok(generatorNumber(min[2]) >= 11, "nothing written before generator b11 may be shown");
+});

@@ -1,14 +1,14 @@
 {
-  "startedAt": "2026-11-17T13:25:01.244Z",
+  "startedAt": "2026-11-17T20:14:55.431Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "cpuSlowdown": 4,
-  "shotsDir": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try",
+  "shotsDir": "/tmp/on-record-e2e",
   "server": {
-    "mode": "external",
-    "base": "http://localhost:3106"
+    "mode": "prod",
+    "base": "http://127.0.0.1:33393"
   },
   "tasks": [
     {
@@ -21,34 +21,34 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 2.8,
+      "seconds": 0.9,
       "note": "3 legislators shown after the ZIP, from the welcome screen (typing the ZIP is not a tap)",
       "error": null,
       "status": null,
       "steps": [
         {
-          "step": "open /trial/inv_d0nf1kybpr.6f7cd0efa459fe8c522c04623ba79016",
+          "step": "open /trial/inv_nrqgk41tz0.a2100e6c201794526efeb2670ca356e3",
           "url": "/welcome",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “Start: find my legislators”",
           "url": "/",
-          "at": 2.1
+          "at": 0.6
         },
         {
           "step": "type into .place-form input[name=zip]",
-          "at": 2.2
+          "at": 0.6
         },
         {
           "step": "tap “Show my legislators”",
           "url": "/start",
-          "at": 2.7
+          "at": 0.9
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/01.png",
+      "screenshot": "/tmp/on-record-e2e/01.png",
       "result": "pass"
     },
     {
@@ -61,7 +61,7 @@
       "file": "tasks.mjs",
       "taps": 0,
       "swipes": 0,
-      "seconds": 0.4,
+      "seconds": 0.2,
       "note": "on the home page, no taps",
       "error": null,
       "status": null,
@@ -69,12 +69,12 @@
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/02.png",
+      "screenshot": "/tmp/on-record-e2e/02.png",
       "result": "pass"
     },
     {
@@ -87,26 +87,26 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 1.4,
-      "note": "The bill page has no plain-language summary a reader may see. Readers get summaries only once the owner opens the gate (PUBLIC_MIN_PROMPT in lib/analysis/publish-gate.ts is null), so this cannot pass yet.",
+      "seconds": 0.9,
+      "note": "plain-language summary shown (stand-in summary in the test copy)",
       "error": null,
-      "status": "blocked",
+      "status": null,
       "steps": [
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “the bill my senator last voted on”",
           "url": "/bills/119-hr-9340",
-          "at": 1.4
+          "at": 0.5
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/03.png",
-      "result": "blocked"
+      "screenshot": "/tmp/on-record-e2e/03.png",
+      "result": "pass"
     },
     {
       "id": "4",
@@ -118,7 +118,7 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 8.2,
+      "seconds": 5.8,
       "note": "followed from the picker on the home page; kept after a reload",
       "error": null,
       "status": null,
@@ -126,22 +126,22 @@
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “Pick up to 3 issues”",
           "url": "/",
-          "at": 3.2
+          "at": 2.8
         },
         {
           "step": "tap “Taxes”",
           "url": "/",
-          "at": 5.9
+          "at": 5.5
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/04.png",
+      "screenshot": "/tmp/on-record-e2e/04.png",
       "result": "pass"
     },
     {
@@ -154,7 +154,7 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 2.4,
+      "seconds": 1.1,
       "note": "John Cornyn and Ted Cruz",
       "error": null,
       "status": null,
@@ -162,28 +162,253 @@
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “my senator”",
           "url": "/politicians/C001056",
-          "at": 1.7
+          "at": 0.6
         },
         {
           "step": "tap “Compare with the other senator”",
           "url": "/compare?a=C001056&b=C001098",
-          "at": 2.4
+          "at": 1.1
         }
       ],
       "sideways": [],
-      "smallTargets": [
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/05.png",
+      "result": "pass"
+    },
+    {
+      "id": "6",
+      "name": "Find a bill by keyword",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 1,
+      "note": "typing the words is not a tap",
+      "error": null,
+      "status": null,
+      "steps": [
         {
-          "label": "Compare with the other senator",
-          "height": 16,
-          "width": 146
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “Search”",
+          "url": "/search",
+          "at": 0.4
+        },
+        {
+          "step": "type into input[name=\"q\"]",
+          "at": 0.6
+        },
+        {
+          "step": "tap “Search”",
+          "url": "/search?q=hospital",
+          "at": 0.9
         }
       ],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/05.png",
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/06.png",
+      "result": "pass"
+    },
+    {
+      "id": "7",
+      "name": "Turn on alerts",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 3,
+      "swipes": 1,
+      "seconds": 3.7,
+      "note": "Account is at the far end of the menu (1 swipe)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “Account”",
+          "url": "/account",
+          "at": 0.5
+        },
+        {
+          "step": "tap “When my legislators vote”",
+          "url": "/account",
+          "at": 3.2
+        },
+        {
+          "step": "tap “Save alert choices”",
+          "url": "/account?m=saved",
+          "at": 3.5
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/07.png",
+      "result": "pass"
+    },
+    {
+      "id": "8",
+      "name": "Texas Legislature this week",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 1,
+      "swipes": 1,
+      "seconds": 0.6,
+      "note": "Texas is off-screen in the menu (1 swipe)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “Texas”",
+          "url": "/texas",
+          "at": 0.6
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/08.png",
+      "result": "pass"
+    },
+    {
+      "id": "9",
+      "name": "What changed since my last visit",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 0,
+      "swipes": 0,
+      "seconds": 0.2,
+      "note": "1 changes listed, no taps",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/09.png",
+      "result": "pass"
+    },
+    {
+      "id": "10",
+      "name": "Bills that became law this Congress",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 1,
+      "swipes": 1,
+      "seconds": 0.6,
+      "note": "Dashboard is off-screen in the menu (1 swipe)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “Dashboard”",
+          "url": "/dashboard",
+          "at": 0.6
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/10.png",
+      "result": "pass"
+    },
+    {
+      "id": "11",
+      "name": "Who controls the Texas Senate, who runs it",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 1,
+      "swipes": 1,
+      "seconds": 0.6,
+      "note": "Texas is off-screen in the menu (1 swipe)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “Texas”",
+          "url": "/texas",
+          "at": 0.6
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/11.png",
+      "result": "pass"
+    },
+    {
+      "id": "12",
+      "name": "Committee that stalls the most bills",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 1,
+      "swipes": 1,
+      "seconds": 0.6,
+      "note": "Dashboard is off-screen in the menu (1 swipe)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “Dashboard”",
+          "url": "/dashboard",
+          "at": 0.6
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/12.png",
       "result": "pass"
     },
     {
@@ -194,32 +419,266 @@
         "seconds": 30
       },
       "file": "tasks.mjs",
-      "taps": 2,
+      "taps": 1,
       "swipes": 0,
-      "seconds": 12.7,
-      "note": "through the bill page (no scheduled bill on the home page could be answered there: their records are not loaded in the local copy); answer saved and kept",
+      "seconds": 3.2,
+      "note": "one tap on the home page; answer saved and kept",
       "error": null,
       "status": null,
       "steps": [
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         },
         {
-          "step": "tap “the bill my senator last voted on”",
-          "url": "/bills/119-hr-9340",
-          "at": 6.9
-        },
-        {
-          "step": "tap “Support”",
-          "url": "/bills/119-hr-9340",
-          "at": 10.3
+          "step": "tap “Support (on the home page)”",
+          "url": "/",
+          "at": 2.9
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/13.png",
+      "screenshot": "/tmp/on-record-e2e/13.png",
+      "result": "pass"
+    },
+    {
+      "id": "14",
+      "name": "My district vs my legislator",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 1,
+      "swipes": 0,
+      "seconds": 0.8,
+      "note": "district totals beside the member's vote (28 seeded test answers; real totals need the Turnstile and Twilio keys)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “my senator”",
+          "url": "/politicians/C001056",
+          "at": 0.7
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/14.png",
+      "result": "pass"
+    },
+    {
+      "id": "15",
+      "name": "Verify and cast a first counted vote",
+      "target": {
+        "taps": null,
+        "seconds": 90
+      },
+      "file": "tasks.mjs",
+      "taps": 7,
+      "swipes": 0,
+      "seconds": 12.6,
+      "note": "local stand-ins for the text message, bot check and district lookup; by hand this needs the Turnstile and Twilio keys",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /account",
+          "url": "/account",
+          "at": 0
+        },
+        {
+          "step": "type into #v-phone",
+          "at": 0.2
+        },
+        {
+          "step": "tap “consent to one text”",
+          "url": "/account",
+          "at": 2.9
+        },
+        {
+          "step": "tap “Text me a code”",
+          "url": "/account?v=code&ok=1&t=Code%20sent%20to%20the%20number%20ending%201358.%20It%20works%20for%2010%20minutes.",
+          "at": 11.1
+        },
+        {
+          "step": "type into #v-code",
+          "at": 11.2
+        },
+        {
+          "step": "tap “Confirm”",
+          "url": "/account?v=address&ok=1&t=Phone%20confirmed.%20You%20are%20verified%20as%20a%20real%20person.",
+          "at": 11.4
+        },
+        {
+          "step": "type into #v-street",
+          "at": 11.3
+        },
+        {
+          "step": "type into #v-city",
+          "at": 11.3
+        },
+        {
+          "step": "type into #v-state",
+          "at": 11.4
+        },
+        {
+          "step": "type into #v-zip",
+          "at": 11.4
+        },
+        {
+          "step": "tap “Match my district”",
+          "url": "/account?v=done&ok=1&t=Matched%20to%20district%20TX-37.%20Your%20answers%20now%20count%20for%20TX-37%20as%20well.",
+          "at": 11.6
+        },
+        {
+          "step": "tap “This week”",
+          "url": "/moving",
+          "at": 12
+        },
+        {
+          "step": "tap “a bill”",
+          "url": "/bills/119-s-4410",
+          "at": 12.2
+        },
+        {
+          "step": "tap “Support”",
+          "url": "/bills/119-s-4410?c=from-1795032986894",
+          "at": 12.6
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/15.png",
+      "result": "pass"
+    },
+    {
+      "id": "16",
+      "name": "Share a vote card to Stories",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 3,
+      "swipes": 0,
+      "seconds": 3.5,
+      "note": "share sheet opened with on-record-vote-story.png (the phone's share sheet is a local stand-in)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “my senator”",
+          "url": "/politicians/C001056",
+          "at": 0.6
+        },
+        {
+          "step": "tap “Share (on the latest vote)”",
+          "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
+          "at": 0.9
+        },
+        {
+          "step": "tap “Share”",
+          "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
+          "at": 3.5
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/16.png",
+      "result": "pass"
+    },
+    {
+      "id": "17",
+      "name": "Share a bill carousel",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 3,
+      "swipes": 0,
+      "seconds": 3.5,
+      "note": "five slides handed to the share sheet (local stand-in)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “the bill my senator last voted on”",
+          "url": "/bills/119-hr-9340",
+          "at": 0.5
+        },
+        {
+          "step": "tap “5-slide explainer”",
+          "url": "/share/card?t=carousel&bill=119-hr-9340",
+          "at": 0.9
+        },
+        {
+          "step": "tap “Share all 5 slides”",
+          "url": "/share/card?t=carousel&bill=119-hr-9340",
+          "at": 3.5
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/17.png",
+      "result": "pass"
+    },
+    {
+      "id": "18",
+      "name": "Copy a link that previews correctly",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 3,
+      "swipes": 0,
+      "seconds": 4.8,
+      "note": "short link opens the exact card; preview image 1200×630 (outside previews stay blank while the site is private)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0
+        },
+        {
+          "step": "tap “my senator”",
+          "url": "/politicians/C001056",
+          "at": 0.6
+        },
+        {
+          "step": "tap “Share (on the latest vote)”",
+          "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
+          "at": 0.9
+        },
+        {
+          "step": "tap “Copy link”",
+          "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
+          "at": 3.9
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/18.png",
       "result": "pass"
     },
     {
@@ -230,28 +689,33 @@
         "seconds": 30
       },
       "file": "contact.mjs",
-      "taps": 1,
+      "taps": 2,
       "swipes": 0,
-      "seconds": 3.4,
-      "note": "No official phone numbers or contact forms are loaded in this local database (legislator_contacts is empty; they arrive with the scheduled official-records update), so the phone and form links cannot be checked here. The message and the copy button were present.",
+      "seconds": 5.8,
+      "note": "John Cornyn: phone link, Open the official contact form (opens in, editable message, copied",
       "error": null,
-      "status": "blocked",
+      "status": null,
       "steps": [
         {
           "step": "open /bills/119-hr-2347",
           "url": "/bills/119-hr-2347",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “John Cornyn: Call or write”",
           "url": "/bills/119-hr-2347",
-          "at": 3.4
+          "at": 2.9
+        },
+        {
+          "step": "tap “Copy message”",
+          "url": "/bills/119-hr-2347",
+          "at": 5.8
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/contact.png",
-      "result": "blocked"
+      "screenshot": "/tmp/on-record-e2e/contact.png",
+      "result": "pass"
     },
     {
       "id": "flow",
@@ -261,17 +725,97 @@
         "seconds": 60
       },
       "file": "flow.task.mjs",
-      "taps": 0,
+      "taps": 2,
       "swipes": 0,
-      "seconds": null,
-      "note": "",
-      "error": "tests/e2e/flow.mjs --only zip did not finish (exit 1). }  Node.js v22.22.0",
+      "seconds": 3.2,
+      "note": "3 legislators in 2.6 s (1 tap), first answer saved at 3.2 s; typed at a person's speed",
+      "error": null,
       "status": null,
       "steps": [],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": null,
-      "result": "fail"
+      "screenshot": "/tmp/on-record-e2e/flow/zip-one-district-5-home-returning.png",
+      "result": "pass"
+    },
+    {
+      "id": "flow-split",
+      "name": "The 60-second flow: a ZIP that crosses districts",
+      "target": {
+        "taps": 3,
+        "seconds": 60
+      },
+      "file": "flow.task.mjs",
+      "taps": 3,
+      "swipes": 0,
+      "seconds": 3.7,
+      "note": "3 legislators after choosing the district; first answer at 3.7 s",
+      "error": null,
+      "status": null,
+      "steps": [],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/flow/zip-several-districts-5-home-returning.png",
+      "result": "pass"
+    },
+    {
+      "id": "flow-address",
+      "name": "The 60-second flow: ZIP and street address, five legislators",
+      "target": {
+        "taps": 3,
+        "seconds": 60
+      },
+      "file": "flow.task.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 5.4,
+      "note": "5 legislators (John Cornyn, Ted Cruz, Lloyd Doggett, Sarah Eckhardt, Gina Hinojosa); first answer at 5.4 s; the address lookup is a local stand-in for the Census service",
+      "error": null,
+      "status": null,
+      "steps": [],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/flow/texas-address-5-home-returning.png",
+      "result": "pass"
+    },
+    {
+      "id": "flow-mistakes",
+      "name": "The 60-second flow: a wrong ZIP or address is explained and the typing is kept",
+      "target": {
+        "taps": null,
+        "seconds": null
+      },
+      "file": "flow.task.mjs",
+      "taps": 0,
+      "swipes": 0,
+      "seconds": null,
+      "note": "no ZIP: “Enter your 5-digit ZIP code.”; wrong ZIP: “We could not find that ZIP code. Check the five digits.”; letters: “Enter your 5-digit ZIP code.”; address not found: “The Census Bureau could not place that street address. Check”",
+      "error": null,
+      "status": null,
+      "steps": [],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/flow/mistakes-address-not-found.png",
+      "result": "pass"
+    },
+    {
+      "id": "flow-issues",
+      "name": "The 60-second flow: picking an issue brings its bills first",
+      "target": {
+        "taps": null,
+        "seconds": null
+      },
+      "file": "flow.task.mjs",
+      "taps": 0,
+      "swipes": 0,
+      "seconds": null,
+      "note": "after picking Health care the first line reads “House · week of Nov 16 · on your issues: Health care”",
+      "error": null,
+      "status": null,
+      "steps": [],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/on-record-e2e/flow/issues-resorted.png",
+      "result": "pass"
     },
     {
       "id": "fb-2",
@@ -283,7 +827,7 @@
       "file": "quality.task.mjs",
       "taps": 0,
       "swipes": 0,
-      "seconds": 19.3,
+      "seconds": 1.6,
       "note": "second day: not asked; the day was counted once",
       "error": null,
       "status": null,
@@ -291,12 +835,12 @@
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/fb-2.png",
+      "screenshot": "/tmp/on-record-e2e/fb-2.png",
       "result": "pass"
     },
     {
@@ -309,7 +853,7 @@
       "file": "quality.task.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 5.7,
+      "seconds": 3.2,
       "note": "asked once on day 3, answer stored (audience “trial”, no invite or page kept), not asked again",
       "error": null,
       "status": null,
@@ -317,21 +861,21 @@
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "type into #fb-answer",
-          "at": 0.6
+          "at": 0.3
         },
         {
           "step": "tap “Send”",
           "url": "/",
-          "at": 3.5
+          "at": 3
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/fb-3.png",
+      "screenshot": "/tmp/on-record-e2e/fb-3.png",
       "result": "pass"
     },
     {
@@ -344,7 +888,7 @@
       "file": "quality.task.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 5.5,
+      "seconds": 3.2,
       "note": "dismissed, nothing stored, not asked again",
       "error": null,
       "status": null,
@@ -352,17 +896,17 @@
         {
           "step": "open /",
           "url": "/",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “Not now”",
           "url": "/",
-          "at": 3.3
+          "at": 2.9
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/fb-no.png",
+      "screenshot": "/tmp/on-record-e2e/fb-no.png",
       "result": "pass"
     },
     {
@@ -375,7 +919,7 @@
       "file": "quality.task.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 8.5,
+      "seconds": 1.1,
       "note": "report filed with the page it was about; also works with JavaScript off",
       "error": null,
       "status": null,
@@ -383,29 +927,804 @@
         {
           "step": "open /bills/119-hr-2347",
           "url": "/bills/119-hr-2347",
-          "at": 0.1
+          "at": 0
         },
         {
           "step": "tap “Something wrong? Tell us”",
-          "url": "/bills/119-hr-2347",
-          "at": 3.5
+          "url": "/report?page=%2Fbills%2F%5Bid%5D",
+          "at": 0.5
         },
         {
           "step": "type into textarea[name=\"details\"]",
-          "at": 3.8
+          "at": 0.5
         },
         {
           "step": "tap “Send report”",
           "url": "/report?page=%2Fbills%2F119-hr-2347&reported=ok",
-          "at": 4.9
+          "at": 0.7
         }
       ],
       "sideways": [],
       "smallTargets": [],
-      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/wrong.png",
+      "screenshot": "/tmp/on-record-e2e/wrong.png",
       "result": "pass"
     }
   ],
-  "axe": null,
-  "speed": null
+  "axe": {
+    "version": "4.13.0",
+    "pages": [
+      {
+        "page": "/",
+        "seenAs": "task 1",
+        "violations": []
+      },
+      {
+        "page": "/ (newcomer)",
+        "violations": []
+      },
+      {
+        "page": "/about",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/account",
+        "seenAs": "task 7",
+        "violations": []
+      },
+      {
+        "page": "/account?t=Code sent to the number ending 1358. It works for 10 minutes.",
+        "seenAs": "task 15",
+        "violations": []
+      },
+      {
+        "page": "/account?t=Matched to district TX-37. Your answers now count for TX-37 as well.",
+        "seenAs": "task 15",
+        "violations": []
+      },
+      {
+        "page": "/account?t=Phone confirmed. You are verified as a real person.",
+        "seenAs": "task 15",
+        "violations": []
+      },
+      {
+        "page": "/bills/[id]",
+        "seenAs": "task 3",
+        "violations": []
+      },
+      {
+        "page": "/briefing",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/coming",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/compare",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/compare?a&b",
+        "seenAs": "task 5",
+        "violations": []
+      },
+      {
+        "page": "/corrections",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/dashboard",
+        "seenAs": "task 10",
+        "violations": []
+      },
+      {
+        "page": "/dashboard/texas",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/following",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/issues",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/issues/[id]",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/legislators",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/login",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/method",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/moving",
+        "seenAs": "task 15",
+        "violations": []
+      },
+      {
+        "page": "/no-such-page",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/pledge",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/politicians",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/politicians/[id]",
+        "seenAs": "task 5",
+        "violations": []
+      },
+      {
+        "page": "/privacy",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/recap",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/records",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/report",
+        "seenAs": "task wrong",
+        "violations": []
+      },
+      {
+        "page": "/search",
+        "seenAs": "task 6",
+        "violations": []
+      },
+      {
+        "page": "/search?q",
+        "seenAs": "task 6",
+        "violations": []
+      },
+      {
+        "page": "/share/card",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/share/card?t=bill",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/share/card?t=carousel",
+        "seenAs": "task 17",
+        "violations": []
+      },
+      {
+        "page": "/share/card?t=vote",
+        "seenAs": "task 16",
+        "violations": []
+      },
+      {
+        "page": "/start",
+        "seenAs": "task 1",
+        "violations": []
+      },
+      {
+        "page": "/start (newcomer)",
+        "violations": []
+      },
+      {
+        "page": "/start?step=2",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/terms",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/texas",
+        "seenAs": "task 8",
+        "violations": []
+      },
+      {
+        "page": "/texas/bills/[id]",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/texas/members/[id]",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/transparency",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/trial",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/voice",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/welcome",
+        "seenAs": "task 1",
+        "violations": []
+      }
+    ]
+  },
+  "speed": {
+    "budgetMs": 2000,
+    "runs": 2,
+    "pages": [
+      {
+        "page": "/",
+        "firstByteMs": 24,
+        "domInteractiveMs": 217,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 217,
+        "loadMs": 225,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 473,
+        "ok": true
+      },
+      {
+        "page": "/about",
+        "firstByteMs": 11,
+        "domInteractiveMs": 125,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 125,
+        "loadMs": 134,
+        "jsFiles": 8,
+        "jsTransferredKb": 4,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/account",
+        "firstByteMs": 15,
+        "domInteractiveMs": 112,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 112,
+        "loadMs": 120,
+        "jsFiles": 9,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 472,
+        "ok": true
+      },
+      {
+        "page": "/briefing",
+        "firstByteMs": 18,
+        "domInteractiveMs": 106,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 106,
+        "loadMs": 113,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/coming",
+        "firstByteMs": 18,
+        "domInteractiveMs": 106,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 106,
+        "loadMs": 114,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/compare",
+        "firstByteMs": 27,
+        "domInteractiveMs": 423,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 423,
+        "loadMs": 434,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/corrections",
+        "firstByteMs": 21,
+        "domInteractiveMs": 141,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 141,
+        "loadMs": 151,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/dashboard",
+        "firstByteMs": 12,
+        "domInteractiveMs": 141,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 141,
+        "loadMs": 158,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/dashboard/texas",
+        "firstByteMs": 21,
+        "domInteractiveMs": 192,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 192,
+        "loadMs": 254,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/following",
+        "firstByteMs": 13,
+        "domInteractiveMs": 95,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 95,
+        "loadMs": 104,
+        "jsFiles": 8,
+        "jsTransferredKb": 5,
+        "jsUnpackedKb": 469,
+        "ok": true
+      },
+      {
+        "page": "/issues",
+        "firstByteMs": 13,
+        "domInteractiveMs": 132,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 132,
+        "loadMs": 141,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/legislators",
+        "firstByteMs": 23,
+        "domInteractiveMs": 140,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 140,
+        "loadMs": 151,
+        "jsFiles": 8,
+        "jsTransferredKb": 5,
+        "jsUnpackedKb": 470,
+        "ok": true
+      },
+      {
+        "page": "/login",
+        "firstByteMs": 6,
+        "domInteractiveMs": 89,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 89,
+        "loadMs": 97,
+        "jsFiles": 8,
+        "jsTransferredKb": 4,
+        "jsUnpackedKb": 467,
+        "ok": true
+      },
+      {
+        "page": "/method",
+        "firstByteMs": 12,
+        "domInteractiveMs": 167,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 167,
+        "loadMs": 176,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/moving",
+        "firstByteMs": 22,
+        "domInteractiveMs": 133,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 133,
+        "loadMs": 141,
+        "jsFiles": 8,
+        "jsTransferredKb": 5,
+        "jsUnpackedKb": 469,
+        "ok": true
+      },
+      {
+        "page": "/pledge",
+        "firstByteMs": 9,
+        "domInteractiveMs": 102,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 102,
+        "loadMs": 109,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/politicians",
+        "firstByteMs": 57,
+        "domInteractiveMs": 264,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 264,
+        "loadMs": 274,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/privacy",
+        "firstByteMs": 16,
+        "domInteractiveMs": 161,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 161,
+        "loadMs": 177,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/recap",
+        "firstByteMs": 17,
+        "domInteractiveMs": 130,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 130,
+        "loadMs": 764,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 471,
+        "ok": true
+      },
+      {
+        "page": "/records",
+        "firstByteMs": 9,
+        "domInteractiveMs": 99,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 99,
+        "loadMs": 107,
+        "jsFiles": 9,
+        "jsTransferredKb": 17,
+        "jsUnpackedKb": 508,
+        "ok": true
+      },
+      {
+        "page": "/report",
+        "firstByteMs": 13,
+        "domInteractiveMs": 131,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 131,
+        "loadMs": 142,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/search",
+        "firstByteMs": 10,
+        "domInteractiveMs": 114,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 114,
+        "loadMs": 121,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/share/card",
+        "firstByteMs": 10,
+        "domInteractiveMs": 69,
+        "lastLongTaskEndMs": 169,
+        "longTasks": 1,
+        "interactiveMs": 169,
+        "loadMs": 76,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/start",
+        "firstByteMs": 33,
+        "domInteractiveMs": 134,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 134,
+        "loadMs": 142,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 473,
+        "ok": true
+      },
+      {
+        "page": "/terms",
+        "firstByteMs": 14,
+        "domInteractiveMs": 114,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 114,
+        "loadMs": 123,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/texas",
+        "firstByteMs": 36,
+        "domInteractiveMs": 135,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 135,
+        "loadMs": 142,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/transparency",
+        "firstByteMs": 13,
+        "domInteractiveMs": 125,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 125,
+        "loadMs": 138,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/trial",
+        "firstByteMs": 6,
+        "domInteractiveMs": 97,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 97,
+        "loadMs": 107,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 467,
+        "ok": true
+      },
+      {
+        "page": "/voice",
+        "firstByteMs": 16,
+        "domInteractiveMs": 98,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 98,
+        "loadMs": 122,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/welcome",
+        "firstByteMs": 10,
+        "domInteractiveMs": 97,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 97,
+        "loadMs": 120,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/politicians/[id]",
+        "firstByteMs": 53,
+        "domInteractiveMs": 291,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 291,
+        "loadMs": 301,
+        "jsFiles": 8,
+        "jsTransferredKb": 7,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/bills/[id]",
+        "firstByteMs": 47,
+        "domInteractiveMs": 121,
+        "lastLongTaskEndMs": 199,
+        "longTasks": 1,
+        "interactiveMs": 199,
+        "loadMs": 233,
+        "jsFiles": 8,
+        "jsTransferredKb": 8,
+        "jsUnpackedKb": 478,
+        "ok": true
+      },
+      {
+        "page": "/issues/[id]",
+        "firstByteMs": 15,
+        "domInteractiveMs": 104,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 104,
+        "loadMs": 128,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/compare?a&b",
+        "firstByteMs": 31,
+        "domInteractiveMs": 268,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 268,
+        "loadMs": 319,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/search?q",
+        "firstByteMs": 22,
+        "domInteractiveMs": 100,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 100,
+        "loadMs": 109,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/start?step=2",
+        "firstByteMs": 21,
+        "domInteractiveMs": 121,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 121,
+        "loadMs": 130,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 473,
+        "ok": true
+      },
+      {
+        "page": "/share/card?t=vote",
+        "firstByteMs": 15,
+        "domInteractiveMs": 146,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 146,
+        "loadMs": 472,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/share/card?t=bill",
+        "firstByteMs": 14,
+        "domInteractiveMs": 118,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 118,
+        "loadMs": 421,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/texas/bills/[id]",
+        "firstByteMs": 13,
+        "domInteractiveMs": 130,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 130,
+        "loadMs": 168,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/texas/members/[id]",
+        "firstByteMs": 13,
+        "domInteractiveMs": 99,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 99,
+        "loadMs": 122,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/no-such-page",
+        "firstByteMs": 3,
+        "domInteractiveMs": 94,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 94,
+        "loadMs": 102,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 467,
+        "ok": true
+      }
+    ]
+  }
 }

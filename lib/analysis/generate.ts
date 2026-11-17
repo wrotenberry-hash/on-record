@@ -33,8 +33,9 @@ const MAX_OUTPUT_TOKENS = 6000;
 export function analysisLimits() {
   const num = (v: string | undefined, d: number) => { const n = Number(v); return v?.trim() && Number.isFinite(n) && n >= 0 ? n : d; };
   // Master plan (16 Nov): summaries are capped by money, $25 a month (ANALYSIS_SPEND_CAP_USD), alert at 75%.
-  // ANALYSIS_MAX_SUMMARIES stays 5 until the first five pass the strict review (Round 1), then rises.
-  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 5),
+  // Owner, 17 Nov ("Go coverage", after 4 of the 5 test summaries passed): the limit rises from 5 to 40, enough for every bill
+  // voted on in the last 90 days (31 that day) with room for new votes. The monthly spend cap is unchanged.
+  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 40),
     model: process.env.OPENAI_SUMMARY_MODEL?.trim() || process.env.OPENAI_EXTRACT_MODEL?.trim() || "gpt-5.4-mini",
     // Owner decision, 17 Nov ("Try the stronger model"): after two real runs in which the low-cost model passed nothing and misread
     // the rule behind S.J.Res. 197, the WRITER is the stronger model, as a trial on the five test summaries (the cap stays 5).
@@ -136,10 +137,18 @@ const FULL_CYCLE_MS = 75_000;
 /** The owner's test case is rewritten first. */
 const PRIORITY_BILLS = (process.env.ANALYSIS_PRIORITY_BILLS ?? "119-sjres-197").split(",").map(x => x.trim()).filter(Boolean);
 
+/**
+ * When a false alarm in the check is fixed, summaries the old check held deserve one more try. A held summary whose last
+ * check ran before this moment is written again once; its new check is later than this, so it is not tried again.
+ * 17 Nov 20:15 UTC: the sentence count no longer treats "Sen." or "H.R." as the end of a sentence.
+ */
+export const CHECK_FIXED_AT = Date.UTC(2026, 10, 17, 20, 15);
+
 async function staleSummaries() {
   const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? "5");
+  const heldBeforeFix = sql`(${analysisBillSummaries.status} = 'held' and coalesce((select max(${analysisChecks.createdAt}) from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id}), 0) < ${CHECK_FIXED_AT})`;
   const rows = await getDb().select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence })
-    .from(analysisBillSummaries).where(and(sql`${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION}`, sql`${analysisBillSummaries.status} <> 'rejected'`))
+    .from(analysisBillSummaries).where(and(sql`(${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION} or ${heldBeforeFix})`, sql`${analysisBillSummaries.status} <> 'rejected'`))
     .orderBy(asc(analysisBillSummaries.sequence)).limit(50);
   const first = (id: string) => (PRIORITY_BILLS.includes(id) ? 0 : 1);
   return rows.sort((a, b) => first(a.billId) - first(b.billId) || a.sequence - b.sequence).slice(0, Number.isInteger(per) && per >= 0 ? per : 5);

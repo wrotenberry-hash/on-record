@@ -248,7 +248,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       </div>
 
       <div className="fed-section" id="share"><h2>Share this bill</h2>
-        <p className="meta">{s && <><Link href={`/share/card?t=carousel&bill=${bill.id}`}>5-slide explainer</Link> · </>}<Link href={`/share/card?t=bill&bill=${bill.id}`}>Bill card</Link>
+        <p className="meta">{s && <><Link className="tap" href={`/share/card?t=carousel&bill=${bill.id}`}>5-slide explainer</Link> · </>}<Link className="tap" href={`/share/card?t=bill&bill=${bill.id}`}>Bill card</Link>
           {votes.filter(v => isQuietKill(voteKind(v.question, v.title ?? bill.title), v.question, v.result)).map(v => <span key={v.id}> · <Link href={`/share/card?t=quiet&roll=${v.id}`}>Stopped by a procedural vote, {shortDate(v.votedAt)}</Link></span>)}</p>
         <p className="meta">Cards are built from the record only. Each has the badges, the date, the source and a &ldquo;Report a problem&rdquo; link.</p></div>
 

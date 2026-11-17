@@ -8,6 +8,16 @@
  * The task contract is in tests/e2e/README.md.
  */
 import { STANDIN_SMS_CODE } from "./lib/standins.mjs";
+import { standInSummary } from "./seed.mjs";
+
+const SUMMARY_HEADINGS = 'h2:has-text("What it does"), h2:has-text("In plain English"), h2:has-text("What would change")';
+/** On a bill page with no summary: add the test copy's stand-in (seed.mjs) and load the page again. Not a tap. */
+async function withStandIn(t) {
+  const billId = decodeURIComponent(new URL(t.page.url()).pathname.split("/").filter(Boolean).pop() ?? "");
+  if (!(await standInSummary(billId))) return false;
+  await t.page.reload({ waitUntil: "load" });
+  return true;
+}
 
 const SECONDS = 30;
 const menu = label => `nav.mobile-nav a:text-is("${label}")`;
@@ -45,9 +55,11 @@ export const tasks = [
       await t.start();
       await t.tap(CARD_BILL, "the bill my senator last voted on");
       await t.see("h1", "the bill page");
-      if (!(await t.has('h2:has-text("What it does"), h2:has-text("In plain English"), h2:has-text("What would change")')))
-        t.blocked("The bill page has no plain-language summary a reader may see. Readers get summaries only once the owner opens the gate (PUBLIC_MIN_PROMPT in lib/analysis/publish-gate.ts is null), so this cannot pass yet.");
-      return "plain-language summary shown";
+      let standIn = false;
+      if (!(await t.has(SUMMARY_HEADINGS))) standIn = await withStandIn(t);
+      if (!(await t.has(SUMMARY_HEADINGS)))
+        t.blocked("The bill page has no plain-language summary a reader may see: either this bill has none that passed, or the gate is closed (PUBLIC_MIN_PROMPT in lib/analysis/publish-gate.ts).");
+      return `plain-language summary shown${standIn ? " (stand-in summary in the test copy)" : ""}`;
     } },
 
   { id: "4", name: "Follow an issue", target: { taps: 3, seconds: SECONDS }, reader: "onboarded", issues: [],
@@ -223,8 +235,9 @@ export const tasks = [
     async run(t) {
       await t.start();
       await t.tap(CARD_BILL, "the bill my senator last voted on");
+      if (!(await t.has('a[href^="/share/card?t=carousel"]'))) await withStandIn(t);
       if (!(await t.has('a[href^="/share/card?t=carousel"]')))
-        t.blocked("The bill has no summary a reader may see, so there is no 5-slide explainer to share. Readers get summaries only once the owner opens the gate (PUBLIC_MIN_PROMPT is null).");
+        t.blocked("The bill has no summary a reader may see, so there is no 5-slide explainer to share: either this bill has none that passed, or the gate is closed (PUBLIC_MIN_PROMPT).");
       await t.tap('a[href^="/share/card?t=carousel"]', "5-slide explainer");
       await t.see('.share-actions button:has-text("Share all 5 slides")', "the 5 slides and their share button");
       await t.tap('.share-actions button:has-text("Share all 5 slides")');

@@ -1,4 +1,4 @@
-import { texasSummariesPaused, PUBLIC_MIN_PROMPT } from "@/lib/analysis/publish-gate";
+import { texasSummariesPaused, TEXAS_SUMMARIES_PUBLIC } from "@/lib/analysis/publish-gate";
 import { and, desc, eq, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { txBills, txBillSponsors, txBillSummaries, txBillVersions } from "@/db/schema";
@@ -68,5 +68,5 @@ export async function runTexasSummaries({ budgetMs = 120_000, max = 3 }: { budge
 
 export async function txSummaryFor(billId: string, includeHeld: boolean) {
   const row = await getDb().select().from(txBillSummaries).where(eq(txBillSummaries.billId, billId)).get();
-  return row && ((row.status === "visible" && PUBLIC_MIN_PROMPT !== null) || includeHeld) ? row : null; // owner pause, 16 Nov
+  return row && ((row.status === "visible" && TEXAS_SUMMARIES_PUBLIC) || includeHeld) ? row : null; // readers see no Texas summary until they meet the standard
 }

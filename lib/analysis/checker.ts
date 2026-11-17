@@ -571,7 +571,21 @@ export const CIRCULAR_CHANGE = /\bonly\s+(?:matter|matters|apply|applies|affect|
 // retired after a combat injury and 12 years of service could keep …" were refused. A kind of person, then what happens to them.
 export const HAS_EXAMPLE = /\bfor (?:example|instance)\b|(?:^|[.!?]\s+)(?:A|An|One|Someone)\s+(?:[a-z0-9-]+\s+){0,5}(?:who|whose|in|with|buying|earning|working|living|receiving|running|filing|paying|retiring|serving|shopping|enrolled|getting|using|covered)\b|(?:^|[.!?]\s+)(?:A|An|One|Someone)\s+(?:[\w'’$,()%.-]+\s+){1,16}?(?:would|could|will|can|may|must|might)\b/;
 
-export function sentences(text: string): string[] { return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean); }
+/**
+ * 17 Nov: S.J.Res. 197 was held three times for "Why now is 3 sentences" when it had two: "Sen. Baldwin" was counted as
+ * the end of a sentence. A full stop after a title, a bill-number part, "U.S.", "No." and the like, or after a single
+ * capital initial, does not end a sentence.
+ */
+const NOT_A_SENTENCE_END = /(?:\b(?:Sens?|Reps?|Gov|Lt|Gen|Col|Dr|Mr|Mrs|Ms|Jr|Sr|St|No|Nos|Sec|Secs|Rept|Res|Con|Stat|Pub|vs|etc|approx|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec|U\.S|D\.C|H\.R|H\.J|S\.J|a\.m|p\.m|e\.g|i\.e)|\b[A-Z])\.$/;
+export function sentences(text: string): string[] {
+  const out: string[] = [];
+  for (const piece of text.split(/(?<=[.!?])\s+/)) {
+    const prev = out[out.length - 1];
+    if (prev !== undefined && NOT_A_SENTENCE_END.test(prev)) out[out.length - 1] = `${prev} ${piece}`;
+    else out.push(piece);
+  }
+  return out.map(x => x.trim()).filter(Boolean);
+}
 
 /** Does an attribution name one of the actors the record supplies? Generic labels ("budget analysts") do not. */
 export function attributionAllowed(attribution: string, allowed: readonly string[]): boolean {

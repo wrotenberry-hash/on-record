@@ -9,7 +9,12 @@ import { generatorNumber, generatorNumberSql } from "./prompt-order";
  * null = readers see none (the signed-in editor still previews them, labelled). Versions are compared by generator
  * number ("b11" is after "b9"), never as text: see lib/analysis/prompt-order.ts.
  */
-export const PUBLIC_MIN_PROMPT = null as string | null;
+// Owner, 17 Nov ("Trial readers should see the summaries that passed"): open from generator b11, the first to pass the full
+// standard (written rules and the average-reader test). Held summaries stay with the editor. The site itself is still
+// reachable only by trial invite or the editor's key.
+export const PUBLIC_MIN_PROMPT = "b11-2026-11-17" as string | null;
+/** Texas summaries are in the old format and have not met the standard: readers see none, whatever the federal gate says. */
+export const TEXAS_SUMMARIES_PUBLIC = false;
 
 /**
  * Federal summaries run again from generator b5 (16 Nov): what they write stays hidden from readers (PUBLIC_MIN_PROMPT

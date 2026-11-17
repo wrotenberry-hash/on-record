@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseBillStatus, parseBillTextHtml, billStatusUrl, MAX_TEXT_CHARS } from "../lib/analysis/billtext.ts";
-import { checkSummary, bannedWordsIn, citeExists, readingGrade, isSampled, routeSummary, spreadAcrossCategories, LIMITS } from "../lib/analysis/checker.ts";
+import { checkSummary, bannedWordsIn, citeExists, readingGrade, isSampled, routeSummary, spreadAcrossCategories, sentences, LIMITS } from "../lib/analysis/checker.ts";
 import { callCost, maxCallCost, priceFor, priceTable, DEFAULT_PRICES } from "../lib/model-cost.ts";
 
 // Fixtures: govinfo.gov files for H.R. 2102 fetched on 2026-11-13 (BILLSTATUS trimmed of actions and cosponsors).
@@ -234,4 +234,14 @@ test("an argument framed as \"X could say\" fails; the reason itself passes", ()
   assert.match(checkSummary(framed, SECTIONS).failures.join(" "), /could say/);
   const plain = good(); plain.caseFor[0].argument = "The bill could give covered plans access to more pooled investment options for their members.";
   assert.doesNotMatch(checkSummary(plain, SECTIONS).failures.join(" "), /could say/);
+});
+
+test("a title or a bill number does not end a sentence", () => {
+  const why = "The rule took effect July 20, 2026, and applies to 2027 plans. Sen. Baldwin used a fast-vote process for cancelling a new agency rule; on September 29, 2026, senators voted 48–51 against debating it.";
+  assert.equal(sentences(why).length, 2);
+  assert.equal(sentences("The House passed H.R. 2102 on Nov. 12. It went to the Senate.").length, 2);
+  assert.equal(sentences("Rep. Lucas and Sen. J. Smith spoke. The U.S. Senate has not voted.").length, 2);
+  assert.equal(sentences("It passed. It went to the Senate. The President signed it.").length, 3);
+  assert.equal(sentences("Who pays? Insurers do! The fee falls.").length, 3);
+  assert.equal(sentences("The fee is 2.5 percent. It was 3 percent.").length, 2);
 });

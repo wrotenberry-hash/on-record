@@ -6,6 +6,7 @@
  *   - for task 14, counted answers from made-up accounts whose ids start "e2e-".
  * Run by tests/e2e/run.mjs; `node tests/e2e/seed.mjs --cleanup` removes leftovers by hand.
  */
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -46,6 +47,33 @@ export async function ensureTrialOpen() {
   if (Number(ok) > 0) return false;
   await retry(() => run("insert into model_calls (id, purpose, model, input_tokens, cached_input_tokens, output_tokens, web_search_calls, cost_usd, created_at) values (?, 'e2e', 'e2e-stand-in', 0, 0, 0, 0, 0, ?)",
     [`e2e-${crypto.randomUUID()}`, Date.now()]));
+  return true;
+}
+
+/**
+ * The local copy holds real bills and votes but not production's summaries. For a bill with no summary at all, this adds
+ * a stand-in: a copy of the newest summary in the local copy that passed its check, under the current generator's
+ * version, with an id starting "e2e-" so cleanup() removes it. It lets the suite test what a trial reader sees on a bill
+ * page with a passing summary. Whether readers may see it is still the publish gate's decision: with the gate closed the
+ * page shows none. Returns true when a stand-in was added.
+ */
+export async function standInSummary(billId) {
+  if (!billId || (await all("select 1 from analysis_bill_summaries where bill_id = ?", [billId])).length) return false;
+  const version = /PROMPT_VERSION = "([^"]+)"/.exec(readFileSync(resolve(ROOT, "lib/analysis/generate.ts"), "utf8"))?.[1];
+  const source = (await all(`select s.id from analysis_bill_summaries s join analysis_summary_structure x on x.summary_id = s.id
+    where s.status = 'visible' and s.check_passed = 1 and s.id not like 'e2e-%' order by s.created_at desc limit 1`))[0]?.id;
+  if (!version || !source) return false;
+  const id = `e2e-${crypto.randomUUID()}`;
+  const sequence = Number((await all("select coalesce(max(sequence), 0) + 1 as n from analysis_bill_summaries"))[0].n);
+  const copy = async (table, key, change) => {
+    const row = (await all(`select * from ${table} where ${key} = ?`, [source]))[0];
+    if (!row) return;
+    const next = { ...row, ...change }, cols = Object.keys(next);
+    await retry(() => run(`insert into ${table} (${cols.join(", ")}) values (${cols.map(() => "?").join(", ")})`, cols.map(c => next[c])));
+  };
+  await copy("analysis_bill_summaries", "id", { id, bill_id: billId, sequence, prompt_version: version, created_at: Date.now(), reviewed_at: null });
+  await copy("analysis_summary_details", "summary_id", { summary_id: id, prompt_version: version });
+  await copy("analysis_summary_structure", "summary_id", { summary_id: id, prompt_version: version });
   return true;
 }
 
@@ -121,6 +149,8 @@ export async function cleanup() {
   for (const u of users) { await retry(() => run("delete from reader_accounts where app_user_id = ?", [u])); await retry(() => run("delete from app_users where id = ?", [u])); }
   await retry(() => run("delete from beta_invites where label = ?", [LABEL]));
   await retry(() => run("delete from model_calls where purpose = 'e2e'"));
+  for (const t of ["analysis_summary_details", "analysis_summary_structure"]) if (tables.includes(t)) await retry(() => run(`delete from ${t} where summary_id like 'e2e-%'`));
+  if (tables.includes("analysis_bill_summaries")) await retry(() => run("delete from analysis_bill_summaries where id like 'e2e-%'"));
   for (const b of seededBills) await recomputeTotals(b);
   return { invites: invites.length, readers: users.length };
 }
