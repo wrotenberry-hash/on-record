@@ -10,16 +10,19 @@ import { CREDIT, gatherTxSources } from "../lib/texas/analysis/gather.ts";
 import { needsRewrite, runTxBatch, txCheckContext, txLabel, txModelInput, txReviewPacketLines, writeTxSummary } from "../lib/texas/analysis/generate.ts";
 import { parseTxDraft, TX_INSTRUCTIONS, TX_PROMPT_VERSION, txSourcesBlock, txSummarySchema } from "../lib/texas/analysis/prompt.ts";
 import { runTxReaderTest, TX_READER_INSTRUCTIONS, txReaderNote, txReaderPage } from "../lib/texas/analysis/reader.ts";
-import { checkTxSummary, hide, repairTxDraft, spellOutBillNumbers, TX_JARGON, TX_NO_CASE_AGAINST, txEverydayFlag, txUnexplainedJargon, unhide } from "../lib/texas/analysis/standard.ts";
+import { checkTxSummary, hide, repairTxDraft, spellOutBillNumbers, TX_CASE_UNREAD, TX_JARGON, TX_NO_CASE_AGAINST, TX_NO_CASE_FOR, txCaseNote, txEverydayFlag, txUnexplainedJargon, unhide } from "../lib/texas/analysis/standard.ts";
 import { checkSummary } from "../lib/analysis/checker.ts";
 import { unexplainedJargon } from "../lib/analysis/standard.ts";
 import { DEFAULT_PRICES } from "../lib/model-cost.ts";
+import { readFileSync } from "node:fs";
 import { ACTIONS, fx, SB4, standInFetch } from "./texas-summaries-helpers.mjs";
 
 const GOLD = JSON.parse(fx("gold-draft-89R-SB4.json")).summary;
 const gold = (change = {}) => ({ ...structuredClone(GOLD), ...change });
-// The sources as gathered when the House Research Organization's site refuses (as it did from the build machine) …
-const NO_HRO = (await gatherTxSources(SB4, { fetch: standInFetch({ "hro.house.texas.gov": 0, "statutes.capitol.texas.gov/Docs/TX": 0 }).fetch })).gathered;
+// The sources as gathered when the House Research Organization published no analysis of the bill …
+const NO_HRO = (await gatherTxSources(SB4, { fetch: standInFetch({ "hro.house.texas.gov": 404, "statutes.capitol.texas.gov/Docs/TX": 0 }).fetch })).gathered;
+// … when its site refuses, as it did from the build machine …
+const HRO_REFUSED = (await gatherTxSources(SB4, { fetch: standInFetch({ "hro.house.texas.gov": 0, "statutes.capitol.texas.gov/Docs/TX": 0 }).fetch })).gathered;
 // … and with the hand-made sample of an HRO analysis, which prints what supporters and critics say.
 const WITH_HRO = (await gatherTxSources(SB4, { fetch: standInFetch().fetch })).gathered;
 const ctx = g => txCheckContext(SB4, g);
@@ -88,6 +91,20 @@ test("the hand-written summary of 89R S.B. 4 passes every federal rule against t
   assert.equal(parseTxDraft(JSON.stringify(GOLD)).headline, GOLD.headline, "and it is in the shape the model must answer in");
 });
 
+test("the gold draft the owner reads (docs/TEXAS_GOLD_DRAFT.md) is the summary that was checked, and its quotes are in the saved documents", () => {
+  const doc = readFileSync(new URL("../docs/TEXAS_GOLD_DRAFT.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+  const said = [GOLD.headline, GOLD.plainEnglish, GOLD.whyNow, GOLD.whatChangesForYou, GOLD.question, ...GOLD.changes.flatMap(r => [r.label, r.today, r.ifPassed]), ...GOLD.howItWorksToday.map(p => p.text),
+    ...GOLD.whoItAffects.map(p => p.text), ...GOLD.caseFor.map(a => a.argument), ...GOLD.unknowns, txCaseNote("against", false, HRO_REFUSED.unread)];
+  for (const t of said) assert.ok(doc.includes(t), `the draft shows: ${t.slice(0, 60)}`);
+  const corpus = [NO_HRO.text.text, NO_HRO.text.certification, ...NO_HRO.docs.map(d => d.text), fx("fiscalnote-89R-SB00004F.htm"), fx("analysis-89R-SB00004F.htm")].join(" ").replace(/<[^>]+>/g, " ").replace(/[«»]/g, "").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+  for (const quote of ["of $140,000 [$100,000] of the appraised value", "applies only to an ad valorem tax year that begins on or after January 1, 2025.", "If that amendment is not approved by the voters, Article 1 of this Act has no effect.",
+    "will provide an estimated savings of $363.44 to a homeowner's school tax at the statewide ISD average tax rate of $.9086", "would provide a $40,000 increase from the current amount", "would total $1,324.2 million in fiscal year 2026, $1,418.4 million in fiscal year 2027",
+    "a negative impact of ($2,743,461,146) through the biennium ending August 31, 2027.", "by the following vote: Yeas 31, Nays 0.", "by the following vote: Yeas 143, Nays 0, one present not voting.", "are partially transferred to the state."]) {
+    assert.ok(corpus.includes(quote), `in the saved documents: ${quote}`);
+    assert.ok(doc.includes(quote), `quoted in the draft: ${quote}`);
+  }
+});
+
 test("the federal checker alone cannot read a Texas draft: that is why the Texas ids and section numbers are translated", () => {
   const sections = NO_HRO.text.sections.map(s => ({ num: s.num, heading: s.heading, text: s.text }));
   const direct = checkSummary(gold(), sections, { subject: SB4.title, fullText: NO_HRO.text.text, sources: { title: SB4.title, docs: NO_HRO.docs.map(d => ({ id: d.id, text: d.text })), agencies: [], allowedFor: [CREDIT.intentSenate], allowedAgainst: [], needsBackground: false, structure: true } });
@@ -151,6 +168,11 @@ test("with no official analysis that prints reasons against, the summary may not
   const experts = gold({ caseFor: [{ ...GOLD.caseFor[0], attribution: "experts" }] });
   assert.ok(checkTxSummary(experts, ctx(NO_HRO)).failures.some(x => /Case for argument 1 is attributed to "experts", who is not in the record/.test(x)));
   assert.match(TX_NO_CASE_AGAINST, /^No official record of arguments against this bill was found\.$/);
+  // What the page prints under a side with no argument: none on record, or the document could not be read. Never an argument of the site's own.
+  assert.equal(txCaseNote("against", false, []), TX_NO_CASE_AGAINST);
+  assert.equal(txCaseNote("for", false, []), TX_NO_CASE_FOR);
+  assert.equal(txCaseNote("against", false, HRO_REFUSED.unread), TX_CASE_UNREAD);
+  assert.equal(txCaseNote("against", true, HRO_REFUSED.unread), null);
 });
 
 test("a reason must come from the part of the document it is credited to, and a side the record prints is not left out", () => {
@@ -233,7 +255,7 @@ test("what the model is told: the Texas instructions, the sources by id, who may
   assert.match(input, /\[ANALYSIS\] Bill analysis by the Senate Research Center, for the enrolled version, the one summarised\n/);
   assert.match(input, /\[FISCAL\] Legislative Budget Board fiscal note, 2025-05-21 \(Enrolled\)\n/);
   assert.match(input, /\[STATUS\] Actions and recorded votes on the bill/);
-  assert.match(input, /Not available: The House Research Organization analysis could not be read: hro\.house\.texas\.gov refused the request\./);
+  assert.match(input, /Not available: The House Research Organization analysis was not found \(404\)\./);
   assert.match(input, /Credit lines for a reason FOR the bill .*"the author's statement of intent in the Senate Research Center bill analysis"\./);
   assert.match(input, /Credit lines for a reason AGAINST the bill \(same rule\): no official source in this input; leave caseAgainst empty\./);
   assert.match(input, /Section list: Sec\. 1\.01 Section 11\.13\(b\), Tax Code, is amended to read as follows \| Sec\. 1\.02 /);
@@ -367,7 +389,8 @@ test("what is stored for a summary that passes: shown to readers, with its struc
   assert.equal(rec.details.question, GOLD.question);
   assert.deepEqual(rec.details.sourceDocs.map(d => [d.id, d.kind, d.date]), [["ANALYSIS", "bill_analysis", "2025-08-25"], ["FISCAL", "fiscal_note", "2025-05-21"], ["STATUS", "status", "2025-06-16"]]);
   assert.match(rec.details.fiscal.headline, /a negative impact of \(\$2,743,461,146\)/);
-  assert.ok(rec.details.notes.some(n => /House Research Organization analysis could not be read/.test(n)), "what could not be read is kept with the summary");
+  assert.ok(rec.details.notes.some(n => /House Research Organization analysis was not found/.test(n)), "what was not available is kept with the summary");
+  assert.deepEqual(rec.details.unread, []);
   assert.equal(rec.structure.changes.length, 4);
   assert.equal(rec.structure.whyNow, GOLD.whyNow);
   assert.deepEqual(rec.content.caseAgainst, [], "no case against was written; the page prints the no-record line");
@@ -395,6 +418,15 @@ test("routing: a failed check or low confidence is held for the editor; the fift
   const four = [0, 1, 2, 3].map(i => ({ id: `s${i}`, billId: `old-${i}`, sequence: i, promptVersion: TX_PROMPT_VERSION, textVersion: "I", status: "visible", updatedAt: Date.now(), attemptsSoFar: 1 }));
   const fifth = await batch([FOUR[3]], { store: memoryStore(four), limits: { maxSummaries: 6 } });
   assert.deepEqual([fifth.store.saved[0].sequence, fifth.store.saved[0].route.status, fifth.store.saved[0].route.queue], [4, "visible", "sample"]);
+});
+
+test("a summary is held when the analysis that prints the arguments exists but could not be read", async () => {
+  const { run, store, log } = await batch([FOUR[3]], { gather: async () => ({ ok: true, gathered: HRO_REFUSED }) });
+  const rec = store.saved[0];
+  assert.deepEqual([rec.route.status, rec.route.queue, run.made[0].status, run.made[0].readerTest, run.made[0].attempts], ["held", "check_failed", "held", "pass", 1], "it passed every rule and the reader test, and is still held");
+  assert.equal(rec.checks.at(-1).failures.at(-1), "Could not be read: the House Research Organization analysis, which prints what supporters and critics say. Held for review, because arguments it prints may be missing from this summary.");
+  assert.deepEqual(rec.details.unread, HRO_REFUSED.unread);
+  assert.ok(log.includes("TX_SUMMARY_HELD TX HB 4 (89R) | unread source | the House Research Organization analysis, which prints what supporters and critics say"));
 });
 
 test("the limits: the Texas summary limit, this run's limit, and the shared monthly cap", async () => {

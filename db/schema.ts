@@ -861,7 +861,8 @@ export const txSummaryDetails = sqliteTable("tx_summary_details", {
   plainEnglish: text("plain_english").notNull(), question: text("question").notNull(),
   sourceDocs: text("source_docs", { mode: "json" }).$type<Array<{ id: string; kind: string; label: string; url: string; date: string | null }>>().notNull(),
   fiscal: text("fiscal", { mode: "json" }).$type<{ url: string; date: string | null; describes: string; headline: string | null; noSignificantImpact: boolean } | null>(),
-  notes: text("notes", { mode: "json" }).$type<string[]>().notNull(), // sources that could not be read
+  notes: text("notes", { mode: "json" }).$type<string[]>().notNull(), // sources that were not found or could not be read
+  unread: text("unread", { mode: "json" }).$type<string[]>().notNull(), // an analysis that prints arguments and could not be read: the summary is held
   promptVersion: text("prompt_version").notNull(), updatedAt: integer("updated_at").notNull(),
 });
 

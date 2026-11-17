@@ -124,7 +124,7 @@ export type TxSummaryRecord = { id: string; billId: string; sequence: number; re
     sources: Array<{ label: string; url: string; date: string | null }> };
   structure: { howItWorksToday: NonNullable<SummaryDraft["howItWorksToday"]>; changes: NonNullable<SummaryDraft["changes"]>; whyNow: string; primers: string[] };
   details: { plainEnglish: string; question: string; sourceDocs: Array<{ id: string; kind: string; label: string; url: string; date: string | null }>;
-    fiscal: { url: string; date: string | null; describes: string; headline: string | null; noSignificantImpact: boolean } | null; notes: string[] };
+    fiscal: { url: string; date: string | null; describes: string; headline: string | null; noSignificantImpact: boolean } | null; notes: string[]; unread: string[] };
   checks: Array<{ attempt: number; passed: boolean; failures: string[]; warnings: string[]; metrics: CheckResult["metrics"]; repairs: string[]; model: string; costUsd: number }>;
   readerTests: Array<{ attempt: number; passed: boolean; headline: string; plainEnglish: string; reader: unknown; judge: unknown; reasons: string[]; costUsd: number; model: string }> };
 
@@ -157,7 +157,7 @@ export function txRecord(c: TxCandidate, g: TxGathered, w: TxWritten, id: string
       inputTokens: w.inputTokens, outputTokens: w.outputTokens, costUsd: w.costUsd, sources: g.sourceList },
     structure: { howItWorksToday: d.howItWorksToday ?? [], changes: d.changes ?? [], whyNow: d.whyNow ?? "", primers: g.primers.map(p => p.id) },
     details: { plainEnglish: d.plainEnglish ?? "", question: d.question ?? "", sourceDocs: g.docs.map(x => ({ id: x.id, kind: x.kind, label: x.label, url: x.url, date: x.date })),
-      fiscal: g.fiscal ? { url: g.fiscal.url, date: g.fiscal.date, describes: g.fiscal.describes, headline: g.fiscal.headline, noSignificantImpact: g.fiscal.noSignificantImpact } : null, notes: g.notes },
+      fiscal: g.fiscal ? { url: g.fiscal.url, date: g.fiscal.date, describes: g.fiscal.describes, headline: g.fiscal.headline, noSignificantImpact: g.fiscal.noSignificantImpact } : null, notes: g.notes, unread: g.unread },
     checks: w.attempts.map((x, i) => ({ attempt: first + i, passed: x.check.passed, failures: x.check.failures, warnings: x.check.warnings, metrics: x.check.metrics, repairs: x.repairs, model: x.model, costUsd: x.costUsd })),
     readerTests: w.attempts.flatMap((x, i) => x.reader ? [{ attempt: first + i, passed: x.reader.passed, headline: x.draft.headline, plainEnglish: x.draft.plainEnglish ?? "", reader: x.reader.reader, judge: x.reader.judge,
       reasons: x.reader.reasons, costUsd: x.reader.costUsd, model: x.reader.model }] : []) };
@@ -215,6 +215,12 @@ export async function runTxBatch(a: { candidates: readonly TxCandidate[]; gather
       const id = ex?.id ?? newId();
       const w = await writeTxSummary({ client: a.client, limits: a.limits, candidate: c, gathered: g.gathered, summaryId: id, deadline, spentSoFar: () => spent, log, now });
       if ("stop" in w) { stoppedBy = w.stop; break; }
+      // A document that prints the arguments exists but could not be read: the summary cannot say there is no case against, so the editor decides.
+      if (g.gathered.unread.length) {
+        w.final.check.passed = false;
+        w.final.check.failures.push(`Could not be read: ${g.gathered.unread.join("; ")}. Held for review, because arguments it prints may be missing from this summary.`);
+        log(`TX_SUMMARY_HELD ${label} | unread source | ${g.gathered.unread.join("; ")}`);
+      }
       const rec = txRecord(c, g.gathered, w, id, ex ? ex.sequence : existing + fresh, ex, eligibility);
       await a.store.save(rec);
       for (const line of txReviewPacketLines(label, rec, g.gathered)) log(line);

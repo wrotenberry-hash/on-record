@@ -300,6 +300,12 @@ export function checkTxSummary(draft: SummaryDraft, ctx: TxCheckContext): CheckR
 export const TX_NO_CASE = "No official record of arguments on this side was found.";
 export const TX_NO_CASE_FOR = "No official record of arguments for this bill was found.";
 export const TX_NO_CASE_AGAINST = "No official record of arguments against this bill was found.";
+/** When the official analysis that prints the arguments exists but could not be read: the page says that, not that there are none. */
+export const TX_CASE_UNREAD = "The official analysis that prints arguments on this side could not be read when this summary was written.";
+/** The line a page prints under "For" or "Against" when the summary gives no argument there; null when it gives one. */
+export function txCaseNote(side: "for" | "against", has: boolean, unread: readonly string[]): string | null {
+  return has ? null : unread.length ? TX_CASE_UNREAD : side === "for" ? TX_NO_CASE_FOR : TX_NO_CASE_AGAINST;
+}
 
 // ───────────── The average-reader test: what a Texas reader knows ─────────────
 

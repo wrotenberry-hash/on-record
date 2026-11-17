@@ -29,6 +29,12 @@ export type TxBillInput = { id: string; identifier: string; tloSession: string; 
 export type TxGathered = {
   text: TxBillText & { url: string; versionLabel: string; versionCode: string; date: string | null };
   docs: TxSourceDoc[]; sides: TxSide[]; notes: string[]; agencies: string[]; primers: Primer[]; fiscal: (TxFiscalNote & { url: string; describes: string }) | null;
+  /**
+   * An analysis that prints arguments and should exist but could not be read (a refusal, a PDF with no reader, no time
+   * left). The summary is then held for the editor whatever else it passes: with that document unread, nobody can say
+   * there is no official case against. A document that is simply not published (404) is not listed here.
+   */
+  unread: string[];
   /** Everything a page's source list needs: title, address and date. */
   sourceList: Array<{ label: string; url: string; date: string | null }>;
   requests: number };
@@ -50,15 +56,19 @@ export function matchTxPrimers(list: readonly Primer[], ctx: { title: string; te
   return list.filter(p => p.reviewed && ((p.match.title?.test(ctx.title) ?? false) || (p.match.text?.test(ctx.text) ?? false) || (p.match.actions?.test(ctx.actions) ?? false)));
 }
 
-export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher; primers?: readonly Primer[]; pdfToText?: (bytes: Uint8Array) => Promise<string>; paceMs?: number; sleep?: (ms: number) => Promise<void>; maxLaw?: number }): Promise<GatherOutcome> {
-  const notes: string[] = [], docs: TxSourceDoc[] = [], sides: TxSide[] = [], agencies = new Set<string>(["Legislative Budget Board", "House Research Organization", "Senate Research Center", "Texas Legislature Online"]);
+export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher; primers?: readonly Primer[]; pdfToText?: (bytes: Uint8Array) => Promise<string>; paceMs?: number; sleep?: (ms: number) => Promise<void>; maxLaw?: number;
+  /** When the run must be done. With under a minute left, the documents a summary can do without are not requested. */
+  deadline?: number; now?: () => number }): Promise<GatherOutcome> {
+  const notes: string[] = [], unread: string[] = [], docs: TxSourceDoc[] = [], sides: TxSide[] = [], agencies = new Set<string>(["Legislative Budget Board", "House Research Organization", "Senate Research Center", "Texas Legislature Online"]);
   const down = new Set<string>();
   let requests = 0;
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
-  const get = async (url: string, what: string, timeoutMs = 30_000): Promise<FetchResult | null> => {
+  const now = deps.now ?? Date.now;
+  const get = async (url: string, what: string, timeoutMs = 20_000, optional = true): Promise<FetchResult | null> => {
     if (!isOfficialUrl(url)) { notes.push(`${what} was not read: its address is not on an official Texas site.`); return null; }
     const host = new URL(url).hostname;
-    if (down.has(host)) return null;
+    if (down.has(host)) return { status: 0 };
+    if (optional && deps.deadline && deps.deadline - now() < 60_000) { notes.push(`${what} was not read: this run was out of time.`); return { status: 0 }; }
     if (requests && deps.paceMs) await sleep(deps.paceMs);
     requests++;
     const r = await deps.fetch(url, timeoutMs).catch((e): FetchResult => ({ status: 0, error: e instanceof Error ? e.message : "request failed" }));
@@ -69,7 +79,7 @@ export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher;
   const body = (r: FetchResult | null) => (r?.status === 200 && r.bytes ? decodeBody(r.bytes) : null);
 
   // 1. Which versions exist, and which text, analysis and fiscal note belong together.
-  const listing = await get(tloTextPageUrl(bill.tloSession, bill.identifier), "The list of versions on Texas Legislature Online");
+  const listing = await get(tloTextPageUrl(bill.tloSession, bill.identifier), "The list of versions on Texas Legislature Online", 20_000, false);
   if (listing && refusedStatus(listing.status)) return { ok: false, reason: "refused", detail: notes.at(-1)!, requests };
   let rows: TloVersionRow[] = body(listing) ? parseTloTextPage(body(listing)!) : [];
   if (!rows.some(r => r.textUrl)) {
@@ -81,7 +91,7 @@ export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher;
   if (!pick) return { ok: false, reason: "no_text", detail: "No published text was found for this bill.", requests };
 
   // 2. The bill text for that version.
-  const textRes = await get(pick.text.textUrl!, `The ${pick.text.version.toLowerCase()} text`, 45_000);
+  const textRes = await get(pick.text.textUrl!, `The ${pick.text.version.toLowerCase()} text`, 30_000, false);
   if (textRes && refusedStatus(textRes.status)) return { ok: false, reason: "refused", detail: notes.at(-1)!, requests };
   const parsed = body(textRes) ? parseTloBillText(body(textRes)!) : null;
   if (!parsed || parsed.chars < 80) return { ok: false, reason: "no_text", detail: "The bill text could not be read.", requests };
@@ -121,6 +131,7 @@ export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher;
   if (reachedHouseFloor(bill.actions)) {
     const url = hroAnalysisUrl(bill.tloSession, bill.identifier);
     const r = url ? await get(url, "The House Research Organization analysis") : null;
+    const before = docs.length;
     if (r?.status === 200 && r.bytes) {
       const pdf = /pdf/i.test(r.contentType ?? "") || (r.bytes[0] === 0x25 && r.bytes[1] === 0x50 && r.bytes[2] === 0x44 && r.bytes[3] === 0x46);
       let plain: string | null = null;
@@ -135,6 +146,8 @@ export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher;
         if (against) sides.push({ side: "against", sourceId: "HRO", attribution: CREDIT.hroAgainst, text: against });
       } else if (plain) notes.push("The House Research Organization analysis was not in the expected form and was left out.");
     }
+    // Asked for and answered, but not read; or refused; or no time: the arguments it prints are unknown, not absent.
+    if (r && docs.length === before) unread.push("the House Research Organization analysis, which prints what supporters and critics say");
   } else notes.push("The bill has not reached the House floor, so there is no House Research Organization analysis.");
 
   // 6. What the Legislature has done with the bill, from the database.
@@ -160,7 +173,7 @@ export async function gatherTxSources(bill: TxBillInput, deps: { fetch: Fetcher;
   const sourceList = [{ label: "This bill on Texas Legislature Online (the official record)", url: bill.tloUrl, date: bill.latestActionDate ?? null },
     { label: `Bill text: ${text.versionLabel} version, Texas Legislature Online`, url: text.url, date: text.date },
     ...docs.filter(d => d.kind !== "status").map(d => ({ label: d.label, url: d.url, date: d.date }))];
-  return { ok: true, gathered: { text, docs, sides, notes, agencies: [...agencies], primers, fiscal, sourceList, requests } };
+  return { ok: true, gathered: { text, docs, sides, notes, unread, agencies: [...agencies], primers, fiscal, sourceList, requests } };
 }
 
 /** Log lines carrying each source, for the editor's review from the runtime log (1,500 characters a line), in the federal REVIEW_PACKET form. */
@@ -171,6 +184,6 @@ export function txSourcePacketLines(label: string, g: TxGathered, size = 1500): 
     for (let k = 0; k < parts; k++) out.push(`TX_REVIEW_PACKET ${label} | SOURCE ${d.id} | part ${k + 1}/${parts} | ${t.slice(k * size, (k + 1) * size)}`);
   }
   out.push(`TX_REVIEW_PACKET ${label} | CONTEXT | part 1/1 | ${JSON.stringify({ text: { version: g.text.versionLabel, url: g.text.url, chars: g.text.chars }, allowedFor: g.sides.filter(s => s.side === "for").map(s => s.attribution),
-    allowedAgainst: g.sides.filter(s => s.side === "against").map(s => s.attribution), notes: g.notes, requests: g.requests })}`.slice(0, 1700));
+    allowedAgainst: g.sides.filter(s => s.side === "against").map(s => s.attribution), notes: g.notes, unread: g.unread, requests: g.requests })}`.slice(0, 1700));
   return out;
 }

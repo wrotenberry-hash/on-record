@@ -12,8 +12,9 @@ import { BRAND } from "@/lib/brand";
 import { gatherTxSources, type Fetcher, type GatherOutcome } from "@/lib/texas/analysis/gather";
 import { runTxBatch, type TxCandidate, type TxExisting, type TxLimits, type TxRun, type TxStore, type TxSummaryRecord } from "@/lib/texas/analysis/generate";
 import { TX_PROMPT_VERSION } from "@/lib/texas/analysis/prompt";
+import { isOfficialUrl } from "@/lib/texas/analysis/sources";
 import type { TxModelClient } from "@/lib/texas/analysis/reader";
-import { TX_NO_CASE_AGAINST, TX_NO_CASE_FOR } from "@/lib/texas/analysis/standard";
+import { txCaseNote } from "@/lib/texas/analysis/standard";
 
 /**
  * Texas bill summaries to the same standard as the federal ones (owner instruction, 17 Nov 2026, Texas build point 3:
@@ -59,6 +60,8 @@ export async function summariesSpendThisMonth(now = Date.now()): Promise<number>
 const officialFetch: Fetcher = async (url, timeoutMs = 30_000) => {
   try {
     const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html,application/pdf;q=0.9,*/*;q=0.5" }, signal: AbortSignal.timeout(timeoutMs), cache: "no-store", redirect: "follow" });
+    // A redirect that leaves the official sites is not followed into: the document counts as not found.
+    if (res.url && !isOfficialUrl(res.url)) return { status: 404, error: "redirected away from the official site" };
     return { status: res.status, contentType: res.headers.get("content-type") ?? "", bytes: res.ok ? new Uint8Array(await res.arrayBuffer()) : undefined };
   } catch (error) { return { status: 0, error: (error instanceof Error ? error.message : "request failed").slice(0, 160) }; }
 };
@@ -136,7 +139,7 @@ export async function runTexasSummaries({ budgetMs = 120_000, max, primers = [] 
   try {
     const gather = async (c: TxCandidate): Promise<GatherOutcome> => {
       if (requests + 7 > limits.maxRequestsPerRun) return { ok: false, reason: "refused", detail: `this run's limit of ${limits.maxRequestsPerRun} requests to official sites was reached`, requests: 0 };
-      const out = await gatherTxSources(c, { fetch: officialFetch, primers, paceMs: limits.paceMs });
+      const out = await gatherTxSources(c, { fetch: officialFetch, primers, paceMs: limits.paceMs, deadline: started + budgetMs });
       requests += out.ok ? out.gathered.requests : out.requests;
       return out;
     };
@@ -176,7 +179,7 @@ export async function txSummaryForPage(billId: string, includeHeld: boolean) {
     // The federal page reads details.background and details.backgroundSources; a Texas summary never has them.
     details: d ? { ...d, background: null as string | null, backgroundSources: [] as string[] } : null, structure: same(structure),
     /** The line to print where a side has no argument. The summary never writes one itself. */
-    caseNotes: { for: summary.caseFor.length ? null : TX_NO_CASE_FOR, against: summary.caseAgainst.length ? null : TX_NO_CASE_AGAINST },
+    caseNotes: { for: txCaseNote("for", summary.caseFor.length > 0, d?.unread ?? []), against: txCaseNote("against", summary.caseAgainst.length > 0, d?.unread ?? []) },
     /** Official: the Legislative Budget Board fiscal note's own top line, its date and address, for a "Cost" section. */
     fiscal: d?.fiscal ?? null,
     /** Sources that could not be read when the summary was written (for the editor's preview). */

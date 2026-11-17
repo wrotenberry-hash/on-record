@@ -218,6 +218,7 @@ test("gathering: six paced requests to official hosts, each source with its titl
   assert.match(g.sides[2].text, /Sample critics' reason.*Sample second reason/, "what critics and other critics say");
   assert.deepEqual(g.notes, ["Section 46.071 of the Education Code was not found (404)."]);
   assert.deepEqual(g.primers, [], "no explainers unless they are passed in");
+  assert.deepEqual(g.unread, [], "every analysis that prints arguments was read");
   const packet = txSourcePacketLines("TX SB 4 (89R)", g);
   assert.ok(packet.every(l => l.startsWith("TX_REVIEW_PACKET TX SB 4 (89R) | ") && l.length < 1800));
   assert.match(packet[0], /^TX_REVIEW_PACKET TX SB 4 \(89R\) \| SOURCE ANALYSIS \| part 1\/\d+ \| /);
@@ -233,6 +234,10 @@ test("gathering: a host that refuses is asked once, never again, and the summary
   assert.deepEqual(out.gathered.docs.map(d => d.id), ["ANALYSIS", "FISCAL", "STATUS"]);
   assert.deepEqual(out.gathered.sides.map(s => s.side), ["for"], "with no House Research Organization analysis there is no official case against");
   assert.match(out.gathered.notes[0], /House Research Organization analysis could not be read: hro\.house\.texas\.gov refused the request\. It was not tried again\./);
+  assert.deepEqual(out.gathered.unread, ["the House Research Organization analysis, which prints what supporters and critics say"], "unread is not the same as absent: the summary will be held");
+  // An analysis that is simply not published (the House Research Organization does not analyse every bill) is absent, not unread.
+  const absent = await gatherTxSources(SB4, { fetch: standInFetch({ "hro.house.texas.gov": 404 }).fetch });
+  assert.deepEqual([absent.gathered.unread, absent.gathered.sides.map(s => s.side)], [[], ["for"]]);
   assert.match(out.gathered.notes[1], /statutes\.capitol\.texas\.gov refused the request \(403\)/);
 });
 
@@ -266,12 +271,21 @@ test("gathering: the House Research Organization analysis is skipped before the 
   const out = await gatherTxSources({ ...SB4, actions: ACTIONS.filter(a => a.date < "2025-05-10") }, { fetch: early.fetch });
   assert.ok(!early.seen.some(u => u.includes("hro.house.texas.gov")));
   assert.ok(out.gathered.notes.some(n => /has not reached the House floor/.test(n)));
+  assert.deepEqual(out.gathered.unread, []);
   const pdf = { status: 200, contentType: "application/pdf", bytes: new TextEncoder().encode("%PDF-1.7 sample") };
   const noReader = await gatherTxSources(SB4, { fetch: standInFetch({ "hro.house.texas.gov": pdf }).fetch });
   assert.ok(!noReader.gathered.docs.some(d => d.id === "HRO"));
   assert.ok(noReader.gathered.notes.some(n => /published as a PDF, and no PDF reader is installed/.test(n)));
+  assert.equal(noReader.gathered.unread.length, 1, "a document that is there but cannot be read holds the summary");
   const withReader = await gatherTxSources(SB4, { fetch: standInFetch({ "hro.house.texas.gov": pdf }).fetch, pdfToText: async () => fx("hro-sample.txt") });
   assert.ok(withReader.gathered.docs.some(d => d.id === "HRO"));
+  assert.deepEqual(withReader.gathered.unread, []);
+  // With under a minute left in the run, the documents a summary can do without are not requested at all.
+  const late = standInFetch();
+  const hurried = await gatherTxSources(SB4, { fetch: late.fetch, deadline: 1_050_000, now: () => 1_000_000 });
+  assert.deepEqual(late.seen.map(u => u.split("/").at(-1)), ["Text.aspx?LegSess=89R&Bill=SB4", "SB00004F.htm"], "only the list of versions and the bill text");
+  assert.equal(hurried.gathered.unread.length, 1);
+  assert.ok(hurried.gathered.notes.some(n => /was not read: this run was out of time/.test(n)));
 });
 
 test("approved explainers are used only when passed in, approved and matching", async () => {
