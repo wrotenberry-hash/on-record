@@ -47,3 +47,12 @@ test("the owner's own steps are told apart from what is still to build", () => {
   const slow = readiness({ ...everything, quality: { ...everything.quality, speed: { ...run, slowestMs: 2600, slowestPage: "/dashboard" }, breakageNow: true } });
   assert.deepEqual(slow.filter(x => x.state === "fail").map(x => x.id), ["quality.speed", "quality.errors"]);
 });
+
+// 17 Nov: the bill page passed "preview" (true for trial readers too) as "may see held summaries". Only the editor may.
+test("a summary that has not passed is never loaded for a trial reader", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../app/bills/[id]/page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(page, /summaryForBill\([^)]*access\.preview/);
+  assert.doesNotMatch(page, /!held \|\| access\.preview/);
+  assert.match(page, /summaryForBill\(bill\.id, !!access\.editor\)/);
+});
