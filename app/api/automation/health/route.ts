@@ -210,6 +210,8 @@ export async function GET() {
     trial: await trialCounts().catch(() => "unavailable" as const),
     readers: await digestCounts().catch(() => "unavailable" as const),
     events7d: await eventTotals(7).catch(() => "unavailable" as const),
+    // The test-ready checklist in numbers (docs/TEST_READY_BUILD.md); the lines themselves are on Editor → What's next.
+    readiness: await import("@/lib/readiness-data").then(m => m.readinessNow()).then(r => ({ ...r.totals, notYet: r.checks.filter(c => c.state === "fail").map(c => c.id), needsOwner: r.checks.filter(c => c.state === "owner").map(c => c.id) })).catch(() => null),
     time: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } });
 }

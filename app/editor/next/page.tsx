@@ -5,6 +5,8 @@ import { ALERT_PLAIN, flags, ownerStepDone, standing } from "@/lib/whats-next";
 import { OWNER_STEPS, PLAN_NOTE, PLAN_UPDATED, RECOMMENDED, ROUNDS } from "@/lib/whats-next-plan";
 import { ownerEmailsEnabled } from "@/lib/monitoring-runtime";
 import { runUpdateNow } from "./actions";
+import { readinessNow } from "@/lib/readiness-data";
+import { ReadinessList } from "@/components/editor/readiness-list";
 import { brandTitle } from "@/lib/brand";
 import { Wordmark } from "@/components/brand/wordmark";
 
@@ -23,6 +25,7 @@ export default async function WhatsNextPage({ searchParams }: { searchParams: Pr
   const h = await headers(), host = h.get("x-forwarded-host") ?? h.get("host"), proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
   const probe = await fetch(`${proto}://${host}/api/automation/health`, { cache: "no-store", signal: AbortSignal.timeout(20_000) }).then(r => r.json()).catch(() => null) as Record<string, any> | null; // eslint-disable-line @typescript-eslint/no-explicit-any
   const now = new Date().toISOString(), sp = await searchParams;
+  const ready = await readinessNow().catch(() => null);
   const fl = probe ? flags(probe) : [], recent = ((probe?.recentAlerts ?? []) as { kind: string; sentAt: string }[]).filter(a => Date.parse(now) - Date.parse(a.sentAt) < 7 * 86400e3 && a.kind !== "DAILY_CASE" && a.kind !== "DAILY_NUDGE").slice(0, 8);
   const steps = OWNER_STEPS.map(s => ({ ...s, done: probe ? ownerStepDone(s, probe) : null }));
   const open = steps.filter(s => s.done !== true), minutes = open.filter(s => s.key !== "threads").reduce((a, s) => a + s.minutes, 0);
@@ -46,6 +49,9 @@ export default async function WhatsNextPage({ searchParams }: { searchParams: Pr
       {!probe ? <p className="gate gate-closed" role="status">The live numbers could not be loaded. Reload in a minute.</p>
         : fl.length ? <ul className="next-flags">{fl.map((f, i) => <li key={i} className={`next-${f.level}`}><b>{f.level === "blocker" ? "Blocking" : f.level === "soon" ? "Soon" : "FYI"}</b> {f.text}{f.href && <> <Link href={f.href}>Open</Link></>}</li>)}</ul>
         : <p className="following-note">Nothing needs you right now.</p>}
+
+      <h2 id="ready">Trial readiness: your seven points</h2>
+      {ready ? <ReadinessList checks={ready.checks} totals={ready.totals} /> : <p className="gate gate-closed" role="status">The checklist could not be loaded. Reload in a minute.</p>}
 
       <h2>Where things stand</h2>
       <p><b>Claude&apos;s note, {fmt(PLAN_UPDATED)} CT:</b> {PLAN_NOTE}</p>
