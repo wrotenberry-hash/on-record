@@ -33,7 +33,7 @@ test("primers match the right bills and not the others", () => {
   const a7008 = S.statusDoc(fx("billstatus-119hr7008.xml"), "x").text, t7008 = fx("BILLS-119hr7008pcs.htm");
   assert.deepEqual(primersFor({ title: "Stop Insider Trading Act", text: t7008, actions: a7008 }, true).map(p => p.id), ["sixty-votes"]);
   const a2102 = S.statusDoc(fx("billstatus-119hr2102.xml"), "x").text, t2102 = fx("BILLS-119hr2102eh.htm");
-  assert.deepEqual(primersFor({ title: "To amend title 10", text: t2102, actions: a2102 }, true).map(p => p.id), ["military-retirement-disability-pay"]);
+  assert.deepEqual(primersFor({ title: "To amend title 10", text: t2102, actions: a2102 }, true).map(p => p.id), ["military-retirement-disability-pay", "house-debate-terms"], "the House set this bill's debate terms with H. Res. 1247");
   assert.match(primerSourceText(primersFor({ title: "To amend title 10", text: t2102, actions: a2102 }, true)), /dollar for dollar/);
 });
 

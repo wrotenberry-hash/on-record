@@ -4,6 +4,7 @@ import { parityReport, rereviewSummary } from "@/lib/analysis/quality";
 import { readerTestStats } from "@/lib/analysis/queries";
 import { DRIFT, MIN_PER_PARTY } from "@/lib/analysis/parity-rules";
 import { shortDate } from "@/components/federal/badges";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 const NAME: Record<string, string> = { D: "Democratic", R: "Republican", I: "Independent", "?": "No sponsor party" };
@@ -13,7 +14,7 @@ export default async function QualityPage() {
   await requireEditorUser("/editor/quality");
   const [r, p, t] = await Promise.all([rereviewSummary(90).catch(() => null), parityReport().catch(() => null), readerTestStats().catch(() => null)]);
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/analysis">Bill summaries</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/analysis">Bill summaries</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · SUMMARY QUALITY</div><h1>Are the summaries still right, and even-handed?</h1>
       <h2>Average-reader test</h2>

@@ -1,0 +1,21 @@
+/* Contact your legislator (test-ready build). Layout only; colours and type follow app/globals.css. */
+.tool { display: grid; gap: 10px; margin-top: 10px; min-width: 0; }
+.chosen { background: #e8f1ec; border: 1px solid #c8d6ce; border-radius: 6px; padding: 10px 12px; margin: 0; font-size: 15px; line-height: 1.45; }
+.person summary { align-items: center; }
+.person summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.cue { color: #163b3c; font: 600 14px Arial, sans-serif; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.body { display: grid; gap: 12px; padding: 4px 0 14px; min-width: 0; }
+.body p { margin: 0; }
+.calls, .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.btn { display: inline-flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 44px; box-sizing: border-box; padding: 9px 16px; background: #163b3c; color: #fff !important;
+  border: 1px solid #163b3c; border-radius: 3px; font: 600 16px/1.25 Arial, sans-serif; text-decoration: none; cursor: pointer; text-align: left; max-width: 100%; overflow-wrap: anywhere; }
+.btn small { font: 400 13px/1.2 Arial, sans-serif; opacity: .92; }
+.btn.second { background: #fff; color: #163b3c !important; }
+.btn:focus-visible, .message:focus-visible, .place input:focus-visible { outline: 2px solid #163b3c; outline-offset: 2px; }
+.message { width: 100%; box-sizing: border-box; min-height: 300px; font: 16px/1.45 Arial, sans-serif !important; font-weight: 400; color: #172224; background: #fff; resize: vertical; }
+.place { display: grid; gap: 4px; font-size: 14px; font-weight: 700; color: #39514b; }
+.place input { font: 16px Arial, sans-serif; padding: 9px; border: 1px solid #c8d6ce; border-radius: 3px; min-height: 44px; width: 100%; max-width: 320px; box-sizing: border-box; background: #fff; }
+.place :global(.meta) { font-weight: 400; }
+.none { font-weight: 700; color: #39514b; }
+.small { font-size: 13px; line-height: 1.5; color: #5d6b69; overflow-wrap: anywhere; }
+.reset { justify-self: start; min-height: 44px; text-align: left; }

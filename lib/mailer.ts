@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /**
  * Email to a reader through Resend (the account already used for alerts). Until a
  * sending domain is verified in Resend, its shared test sender delivers only to
@@ -5,7 +6,7 @@
  * says so plainly instead of pretending the email went.
  */
 const RESEND_API_URL = process.env.RESEND_API_URL?.trim() || "https://api.resend.com/emails";
-const DEFAULT_FROM = "On Record <onboarding@resend.dev>";
+const DEFAULT_FROM = `${BRAND.name} <onboarding@resend.dev>`;
 
 export type SendResult = { ok: true; id?: string } | { ok: false; error: string; domainNeeded: boolean };
 

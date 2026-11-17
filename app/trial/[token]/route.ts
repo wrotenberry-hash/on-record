@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { countEvent } from "@/lib/events";
 import { gateState, inviteForToken, TRIAL_COOKIE, TRIAL_COOKIE_MAX_AGE_S } from "@/lib/trial";
+import { inviteLanding } from "@/lib/trial-welcome";
 
 export const dynamic = "force-dynamic";
 
 /**
  * An invite link. A genuine, unrevoked link sets the trial cookie once the trial
- * has opened, then lands on the home page. Otherwise it explains why, without
+ * has opened, then lands on the welcome screen (the home page on later visits). Otherwise it explains why, without
  * revealing anything about the site's content.
  */
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
@@ -17,7 +18,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const gate = await gateState();
   if (!gate.open) { await countEvent("invite_blocked", "not_open"); return NextResponse.redirect(new URL("/trial?state=not_open", base)); }
   await countEvent("invite_redeemed", "trial");
-  const response = NextResponse.redirect(new URL("/", base));
+  // Test-ready build: the first visit lands on the welcome screen (what to try, how to give feedback); later visits go home.
+  const response = NextResponse.redirect(new URL(inviteLanding(invite.activeDays ?? 0), base));
   response.cookies.set(TRIAL_COOKIE, token, { httpOnly: true, secure: base.protocol === "https:", sameSite: "lax", path: "/", maxAge: TRIAL_COOKIE_MAX_AGE_S });
   return response;
 }

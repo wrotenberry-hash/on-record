@@ -6,6 +6,7 @@ import { voteKind } from "@/lib/federal/vote-kinds";
 import { weekOf } from "@/lib/federal/depth-parse";
 import { currentTxSession } from "@/lib/texas/parse";
 import { sendTo } from "@/lib/mailer";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round H briefing: a two-minute read for Congress and Texas, built only from
@@ -81,7 +82,7 @@ export async function runBriefing(now = Date.now()) {
   let sent = 0, failed = 0;
   for (const s of subs) {
     if (s.lastSentId === id || !s.verifiedAt) continue;
-    const r = await sendTo(s.email, `On Record briefing: ${b.periodLabel}`, briefingText(b, id));
+    const r = await sendTo(s.email, `${BRAND.name} briefing: ${b.periodLabel}`, briefingText(b, id));
     if (r.ok) { sent++; await db.update(briefingSubscriptions).set({ lastSentId: id }).where(eq(briefingSubscriptions.accountId, s.accountId)); } else failed++;
   }
   if (sent) await db.update(briefings).set({ emailedAt: now }).where(and(eq(briefings.id, id), isNull(briefings.emailedAt)));
@@ -92,7 +93,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrot
 export function briefingText(b: Briefing, id: string) {
   const block = (s: BriefSection) => [`${s.name}${s.inSession ? "" : " (not in session)"}`, ...([["Passed", s.passed], ["Failed", s.failed], ["Stopped by a procedural vote", s.blocked], ["Coming next", s.coming]] as const)
     .filter(([, l]) => l.length).flatMap(([h, l]) => [`  ${h}:`, ...l.map(i => `   - ${i.label}: ${i.title} (${i.date}). ${i.note}`)]), ""];
-  return [`On Record briefing, ${b.periodLabel}. Official records only.`, "", ...block(b.congress), ...(b.texas ? block(b.texas) : []), `Read it on the site: ${SITE}/briefing?id=${id}`, "",
+  return [`${BRAND.name} briefing, ${b.periodLabel}. Official records only.`, "", ...block(b.congress), ...(b.texas ? block(b.texas) : []), `Read it on the site: ${SITE}/briefing?id=${id}`, "",
     "You get this because you turned on the briefing on your Account page. Turn it off there."].join("\n");
 }
 

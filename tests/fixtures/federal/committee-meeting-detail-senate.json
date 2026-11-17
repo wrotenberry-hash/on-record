@@ -1,0 +1,15 @@
+{
+  "_note": "HAND-MADE fixture, not a capture. Senate meetings are all typed \"Meeting\" (documentation, item level). Empty elements are left out by the API, so this one has no location, no related items and no congress or chamber of its own.",
+  "committeeMeeting": {
+    "committees": [
+      { "name": "Senate Finance Committee", "systemCode": "ssfi00", "url": "https://api.congress.gov/v3/committee/senate/ssfi00?format=json" },
+      { "name": "Senate Finance Subcommittee on Health Care", "systemCode": "ssfi10" }
+    ],
+    "date": "2026-12-02T15:30:00Z",
+    "eventId": "336120",
+    "meetingStatus": "Postponed",
+    "title": "Hearings to examine the cost of prescription drugs.",
+    "type": "Meeting",
+    "updateDate": "2026-11-16T21:40:00Z"
+  }
+}

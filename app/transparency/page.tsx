@@ -3,9 +3,10 @@ import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess } from "@/lib/viewer";
 import { transparencyMonths } from "@/lib/verify/transparency";
 import { REASON_LABEL } from "@/lib/verify/rules";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Transparency · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Transparency"), robots: { index: false, follow: false } };
 
 const monthName = (m: string) => new Date(`${m}-01T12:00:00Z`).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
@@ -28,7 +29,7 @@ export default async function TransparencyPage() {
         <p><b>Answers set aside from totals, by reason</b>{sum(m.quarantined) > 0 ? " (one answer can match more than one reason)" : ": none"}</p>
         {sum(m.quarantined) > 0 && <ul className="analysis-list">{Object.entries(m.quarantined).map(([r, n]) => <li key={r}>{REASON_LABEL[r] ?? r}: {n}</li>)}</ul>}
       </div>) : <p className="meta">Nothing blocked or set aside yet.</p>}
-      <p className="meta">Counts only: no names, accounts, numbers or addresses. <Link href="/method">How a claim is checked</Link></p>
+      <p className="meta">Counts only: no names, accounts, numbers or addresses. <Link href="/method#numbers">How reader totals are counted</Link></p>
     </section>
   </PublicShell>;
 }

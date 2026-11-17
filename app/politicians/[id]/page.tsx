@@ -19,14 +19,16 @@ import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
 import { getDb } from "@/db";
 import { officialPoliticians, sentimentTotals } from "@/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { BRAND, brandTitle } from "@/lib/brand";
+import { ContactForMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
 
 /** Names reach only viewers allowed to see the page; anyone else gets the site name. */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  if (!(await viewerAccess()).allowed) return { title: "On Record" };
+  if (!(await viewerAccess()).allowed) return { title: BRAND.name };
   const p = await getPolitician((await params).id);
-  if (!p) return { title: "Not found · On Record" };
+  if (!p) return { title: brandTitle("Not found") };
   const meta = memberMeta(p), { previewMeta } = await import("@/lib/seo"), { SITE } = await import("@/lib/share");
   return { ...meta, ...previewMeta(SITE, `/politicians/${p.id}`, meta.title, meta.description, `/api/cards/g?t=member&member=${p.id}&format=link`), alternates: { canonical: `/politicians/${p.id}` } };
 }
@@ -90,9 +92,13 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <FollowButton politicianId={p.id} following={followed.has(p.id)} canFollow={!!access.editor || !!access.invite} />
       </div>
 
+      {/* BEGIN contact-your-legislator (test-ready build): official phone, contact form and an editable message for this member. */}
+      <ContactForMember member={p} />
+      {/* END contact-your-legislator */}
+
       {agreement && <div className="fed-section your-view"><h2>You and {p.fullName} <OpinionBadge /></h2>
         {agreement.rows.length ? <><ul className="analysis-list">{agreement.rows.map(r => <li key={r.issueSlug}><b>{issueName(r.issueSlug)}:</b> {agreementLine(r)} <Link className="src-link" href={`/share/agreement/${p.id}/${r.issueSlug}`}>Share</Link></li>)}</ul>
-          <p className="meta">From your own Support/Oppose answers and this member&apos;s votes on passing those bills; procedural votes are left out. Only you see this. It is your comparison, not a rating of the member by On Record.</p></>
+          <p className="meta">From your own Support/Oppose answers and this member&apos;s votes on passing those bills; procedural votes are left out. Only you see this. It is your comparison, not a rating of the member by {BRAND.name}.</p></>
           : <p className="meta">{agreement.answered ? "None of the bills you answered has a vote by this member on passing it yet." : "Say Support or Oppose on a bill page, and this shows how often this member's votes on passing those bills matched yours. Only you see it."}</p>}</div>}
 
       {constituents && <div className="fed-section sentiment"><h2>What verified readers say <OpinionBadge /></h2>
@@ -113,7 +119,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           <div className="stat"><b>{stats.missedRate ?? 0}%</b>missed votes ({stats.missed} of {stats.rollCalls})</div>
           {stats.withPartyRate !== null && <div className="stat"><b>{stats.withPartyRate}%</b>voted with most of their own party ({stats.withParty} of {stats.partyCounted})</div>}
         </div>
-        <details className="method"><summary>How these are counted</summary><p className="meta">Both figures use the {stats.rollCalls} roll calls in On Record&apos;s copy of the official record that list this member. Missed: listed &ldquo;Not Voting&rdquo;. With own party: on roll calls where this member voted Yea or Nay, whether they voted the way most other {stats.party} members voted; ties, and roll calls with fewer than two other {stats.party} members voting, are left out. The same method is used for every member. These are counts, not ratings.</p></details>
+        <details className="method"><summary>How these are counted</summary><p className="meta">Both figures use the {stats.rollCalls} roll calls in {BRAND.name}&apos;s copy of the official record that list this member. Missed: listed &ldquo;Not Voting&rdquo;. With own party: on roll calls where this member voted Yea or Nay, whether they voted the way most other {stats.party} members voted; ties, and roll calls with fewer than two other {stats.party} members voting, are left out. The same method is used for every member. These are counts, not ratings.</p></details>
         <p className="meta">{partner && <><Link href={`/compare?a=${p.id}&b=${partner.id}`}>Compare with {partner.fullName}</Link> · </>}<Link href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
 
       {ranks.length > 0 && <div className="fed-section"><h2>Votes against most of their own party <OfficialBadge /></h2>
@@ -135,7 +141,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
             <ul className="vote-list">{unsorted.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul></details>}</div></>}
 
       <h2>Bills sponsored and cosponsored <OfficialBadge /></h2>
-      <p className="meta">Bills in On Record&apos;s record (those with a recorded vote or recent action), from govinfo&apos;s bill status records. Not every bill this member has signed.</p>
+      <p className="meta">Bills in {BRAND.name}&apos;s record (those with a recorded vote or recent action), from govinfo&apos;s bill status records. Not every bill this member has signed.</p>
       <div className="issue-groups">
         <details className="issue-group" open={sponsor.sponsored.length > 0 && sponsor.sponsored.length <= 5}><summary><b>Sponsored</b> <span className="meta">{sponsor.sponsored.length} bill{sponsor.sponsored.length === 1 ? "" : "s"}</span></summary>
           {sponsor.sponsored.length ? <ul className="bill-list compact">{sponsor.sponsored.map(b => <li key={b.id}>{billLine(b)}{b.introducedAt && <small>Introduced {shortDate(b.introducedAt)}</small>}</li>)}</ul> : <p className="meta">None in the record.</p>}</details>

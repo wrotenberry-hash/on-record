@@ -8,6 +8,7 @@ import { tickAuthorized } from "@/lib/tick-auth";
 import { archiveOldCases, intakePauseState, runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
+import { fireSummaryChain } from "@/lib/analysis/chain";
 import { runClassifyBatch, type ClassifyRun } from "@/lib/analysis/classify";
 import { sendSummariesReadyIfDue } from "@/lib/analysis/report";
 import { intakeAllowed } from "@/lib/monitoring";
@@ -24,6 +25,9 @@ export const maxDuration = 300;
 const MAX_CAPTURE_ATTEMPTS = 3;
 export const dynamic = "force-dynamic";
 
+/** Where this deployment answers, for handing summary writing over to its own route (set at the start of each run). */
+let origin = "";
+
 /** Vercel Cron calls the job with GET and the CRON_SECRET bearer. */
 export async function GET(request: Request) { return runTick(request); }
 
@@ -36,6 +40,7 @@ async function runTick(request: Request) {
     { cronSecret: process.env.CRON_SECRET, tickSecret: process.env.AUTOMATION_TICK_SECRET });
   if (!via) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const now = Date.now(), slot = new Date(now).toISOString().slice(0, 13), day = slot.slice(0, 10);
+  origin = new URL(request.url).origin;
   const db = getDb();
   // Owner decision 2026-11-16: waiting cases older than 14 days are archived (never deleted) on every
   // run, before the backlog check, so the pause lifts on its own. The editor can restore any of them.
@@ -86,8 +91,16 @@ async function runTick(request: Request) {
   const claimed = await db.insert(automationRuns).values({ id, slot, day, status: "RUNNING", startedAt: now })
     .onConflictDoNothing().returning({ id: automationRuns.id });
   if (!claimed.length) return Response.json({ status: "ALREADY_RUNNING_OR_COMPLETE", slot });
+  // 17 Nov: the first intake run with a working OpenAI key ran past the host's 300 s limit and was cut off (records update, then
+  // capture, then research, each allowed minutes). The run now watches the clock: the records update gets 90 s, a capture attempt
+  // starts only in the first 170 s, research only in the first 175 s, and each stage logs where the time went.
+  const stage = (name: string) => console.log(`TICK ${slot} | ${name} | ${Math.round((Date.now() - now) / 1000)} s`);
+  // Bill summaries never wait behind intake: they run in their own back-to-back runs (lib/analysis/chain.ts).
+  await fireSummaryChain(origin, 1);
+  stage("start");
   // The federal official record uses no model calls, so it runs first and on its own, even when the OpenAI budget is exhausted.
-  const federal = await federalStep();
+  const federal = await federalStep(90_000);
+  stage("records updated");
   try {
     const requeued = await requeueBudgetFailures();
     const discovered = await runDiscovery();
@@ -99,12 +112,14 @@ async function runTick(request: Request) {
     let captured: Response | undefined;
     const attempts: string[] = [];
     for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt++) {
+      if (attempt > 0 && Date.now() - now > 170_000) { attempts.push("STOPPED: no time for another lead in this run"); break; }
       captured = await processOneCandidate({}, "scheduled-worker");
       result = await captured.json();
       attempts.push(`${result.status ?? (captured.ok ? "NONE" : "ERROR")}${result.error ? `: ${result.error.slice(0, 120)}` : ""}`);
       if (!captured.ok) throw Error(`Capture: ${result.error ?? captured.status}`);
       if (!result.id || result.status === "CAPTURED") break; // captured, or the queue is empty
     }
+    stage(`capture ${attempts.length} attempt(s)`);
     // Keep what the capture step established even if research fails afterwards.
     await db.update(automationRuns).set({ candidateId: result.id, captureStatus: result.id ? (result.status ?? "NONE") : "NO_QUEUED_LEAD",
       error: result.status === "CAPTURED" ? null : attempts.join(" | ").slice(0, 400) }).where(eq(automationRuns.id, id));
@@ -115,7 +130,8 @@ async function runTick(request: Request) {
       .orderBy(desc(representations.extractedAt)).limit(1).get();
     const representationId = pending?.id;
     let researchStatus = "NO_NEW_CLAIM";
-    if (representationId) {
+    if (representationId && Date.now() - now > 175_000) researchStatus = "NO_TIME_LEFT"; // the case waits; the next run researches it
+    else if (representationId) {
       const researched = await runMachineResearch(representationId);
       const draft = await researched.json() as { status?: string; error?: string };
       // The daily research budget is shared with the editor. Reaching it is a
@@ -124,6 +140,7 @@ async function runTick(request: Request) {
       else if (!researched.ok) throw Error(`Research: ${draft.error ?? researched.status}`);
       else researchStatus = draft.status ?? "COMPLETE";
     }
+    stage(`research ${researchStatus}`);
     await db.update(automationRuns).set({ status: "COMPLETE", finishedAt: Date.now(), representationId, researchStatus })
       .where(eq(automationRuns.id, id));
     return Response.json({ status: "COMPLETE", slot, via, federal, requeued, candidateId: result.id,
@@ -173,6 +190,8 @@ async function analysisStep(startedAt: number, reserveMs = 0): Promise<(Analysis
   let analysis: AnalysisRun | { status: "FAILED"; error: string };
   try { analysis = await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
   catch (error) { analysis = { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
+  // Test-ready build: summaries left over for lack of time continue in their own back-to-back runs (lib/analysis/chain.ts).
+  if ("stoppedBy" in analysis && analysis.stoppedBy === "time budget") await fireSummaryChain(origin, 1);
   // Round 1 review without email: write what this run wrote or rewrote to the function log, beside the cited bill sections.
   if ("made" in analysis && analysis.made.length) await import("@/lib/analysis/report").then(m => m.logReviewPackets(analysis.made.map(x => x.billId))).catch(() => null);
   // Issue suggestions for unsorted bills use whatever time is left; never after a billing refusal (AI work stops).

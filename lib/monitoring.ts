@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /**
  * Exception-only monitoring rules. Pure: no database, no network, no clock of
  * its own, so every rule is unit-tested. The runtime (lib/monitoring-runtime.ts)
@@ -149,7 +150,7 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   else {
     checks.spend = `$${input.spend.monthToDateUsd.toFixed(2)} of $${input.monthlyLimitUsd.toFixed(2)} (${input.spend.source})`;
     if (input.spend.monthToDateUsd > threshold) found.push({ kind: "SPEND_75_PERCENT", subject: "OpenAI spend above 75% of the monthly limit",
-      detail: `Month-to-date OpenAI spend is ${input.spend.monthToDateUsd.toFixed(2)} (${input.spend.source === "openai-costs-api" ? "from the OpenAI Costs API" : "priced from On Record's ledger of every model call"}), above 75% of the ${input.monthlyLimitUsd.toFixed(2)} limit (OPENAI_MONTHLY_LIMIT_USD). Check the OpenAI usage page and the organisation's monthly limit.` });
+      detail: `Month-to-date OpenAI spend is ${input.spend.monthToDateUsd.toFixed(2)} (${input.spend.source === "openai-costs-api" ? "from the OpenAI Costs API" : `priced from ${BRAND.name}'s ledger of every model call`}), above 75% of the ${input.monthlyLimitUsd.toFixed(2)} limit (OPENAI_MONTHLY_LIMIT_USD). Check the OpenAI usage page and the organisation's monthly limit.` });
   }
 
   // (4) API key expiring within 21 days (or already expired).
@@ -191,12 +192,12 @@ export function formatAlertEmail(alerts: Alert | readonly Alert[], checks: Recor
   const subject = list.length === 1 ? list[0].subject : `${list[0].subject} (+${list.length - 1} more)`;
   const body = list.length === 1 ? [list[0].detail] : list.flatMap(a => [`${a.subject.toUpperCase()}`, a.detail, ""]);
   const lines = [
-    `On Record alert: ${subject}.`, "", ...body, "",
+    `${BRAND.name} alert: ${subject}.`, "", ...body, "",
     "Current checks:", ...Object.entries(checks).map(([k, v]) => `- ${k}: ${v}`), "",
     `Editor: ${siteUrl}/editor`, `Health: ${siteUrl}/api/automation/health`, "",
     `Sent ${iso(now)}. A continuing problem is repeated every ${DEDUPE_WINDOW_MS / HOUR_MS} hours. Healthy runs send nothing.`,
   ];
-  return { subject: `[On Record] ${subject}`, text: lines.join("\n") };
+  return { subject: `[${BRAND.name}] ${subject}`, text: lines.join("\n") };
 }
 
 /* ---------------------------------------------------------------------------
@@ -261,8 +262,8 @@ function nudgeAlert(input: RhythmInput): Alert {
 export function formatRhythmEmail(alert: Alert, caseId: string, siteUrl: string, skipUrl?: string | null): { subject: string; text: string } {
   const lines = [alert.detail, "", `Open the case: ${siteUrl}/editor?case=${encodeURIComponent(caseId)}`,
     ...(skipUrl ? ["", `Not today? ${skipUrl}`, "One tap moves this case to the back of the order; tomorrow's email picks another. The link works for 48 hours and changes nothing until you confirm."] : []),
-    "", "Sent by On Record's scheduled run. No case ready means no email."];
-  return { subject: `[On Record] ${alert.subject}`, text: lines.join("\n") };
+    "", `Sent by ${BRAND.name}'s scheduled run. No case ready means no email.`];
+  return { subject: `[${BRAND.name}] ${alert.subject}`, text: lines.join("\n") };
 }
 
 function iso(ms: number) { return new Date(ms).toISOString().replace(".000Z", "Z"); }

@@ -17,6 +17,7 @@ import { runReaderTest, type ReaderTest } from "@/lib/analysis/reader-test";
 import { keepWhatWasRight, repairDraft } from "@/lib/analysis/repair";
 import { JARGON } from "@/lib/analysis/standard";
 import { goldExamplesBlock } from "@/lib/analysis/gold";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Phase B: one AI-written summary per bill text version, in the template of
@@ -25,7 +26,7 @@ import { goldExamplesBlock } from "@/lib/analysis/gold";
  * from government records and are shown as Official.
  */
 export const PROMPT_VERSION = "b11-2026-11-17";
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const MAX_OUTPUT_TOKENS = 6000;
 
 /** Test-phase limits. Raise them in Vercel when the owner approves wider use. */
@@ -120,12 +121,13 @@ async function candidates(limit = 60): Promise<Candidate[]> {
     lastVote: sql<number | null>`(select max(${officialRollCalls.votedAt}) from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id})`,
     categorySlug: sql<string>`(select bc.category_slug from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialBills.id} order by ic.sort_order limit 1)` })
     .from(officialBills).leftJoin(officialPoliticians, eq(officialPoliticians.id, officialBills.sponsorId))
+    // Test-ready build: a bill with a roll-call vote is covered even when it has no issue category yet (international affairs, law, …).
     .where(and(eq(officialBills.detailStatus, "complete"), inArray(officialBills.billType, [...LAWMAKING_TYPES]), notExists(hasSummary),
-      sql`exists (select 1 from ${billCategories} where ${billCategories.billId} = ${officialBills.id})`))
+      sql`(exists (select 1 from ${billCategories} where ${billCategories.billId} = ${officialBills.id}) or exists (select 1 from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id}))`))
     .orderBy(sql`(select max(${officialRollCalls.votedAt}) from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id}) is null`,
       desc(sql`(select max(${officialRollCalls.votedAt}) from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id})`), desc(officialBills.latestActionAt))
     .limit(limit);
-  return rows.map(r => ({ ...r, sponsorName: r.sponsorName ?? null }));
+  return rows.map(r => ({ ...r, sponsorName: r.sponsorName ?? null, categorySlug: r.categorySlug ?? "" }));
 }
 
 /** Summaries the current generator has not written (an older PROMPT_VERSION), oldest first, at most ANALYSIS_REGEN_PER_RUN. */
@@ -332,6 +334,9 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
     return run;
   };
   if (analysisPaused()) return finish("SKIPPED", "paused by the owner (16 Nov): the generator is being rebuilt; set ANALYSIS_PAUSED=0 to run");
+  // Back-to-back runs (lib/analysis/chain.ts) and the scheduled update must not write the same summary twice.
+  const busy = await db.select({ id: ingestRuns.id }).from(ingestRuns).where(and(eq(ingestRuns.job, "analysis"), eq(ingestRuns.status, "RUNNING"), sql`${ingestRuns.startedAt} > ${started - 290_000}`)).get();
+  if (busy) return finish("SKIPPED", "another summary run is in progress");
   if (!key) return finish("SKIPPED", "OPENAI_API_KEY not set");
   const existing = Number((await db.select({ n: sql<number>`count(*)` }).from(analysisBillSummaries).get())?.n ?? 0);
   const room = Math.min(max ?? Infinity, limits.maxSummaries - existing);

@@ -8,6 +8,7 @@ import { compareSections } from "@/lib/federal/depth-parse";
 import { callCost, priceTable } from "@/lib/model-cost";
 import { spendSince } from "@/lib/model-calls";
 import { analysisLimits } from "@/lib/analysis/generate";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round A: what changed between a bill's two latest text versions. The section
@@ -15,7 +16,7 @@ import { analysisLimits } from "@/lib/analysis/generate";
  * five plain-English bullets on top are Analysis, written within the monthly
  * summary cap (purpose "analysis", so the same $25 cap and alert cover them).
  */
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const INSTRUCTIONS = `You explain, for a general reader at about an 8th-grade level, how a bill's text changed between two official versions.
 Use only the section text given. Write at most 5 bullets, each one plain sentence of at most 30 words naming what changed, and cite the section ("Sec. 3").
 Neutral wording: no adjectives that praise or criticise, no guesses about motives or effects beyond the text. If a change is only renumbering or wording, say so.`;

@@ -1,0 +1,156 @@
+[
+ {
+  "id": {
+   "bioguide": "C001056"
+  },
+  "offices": [
+   {
+    "id": "C001056-austin",
+    "address": "221 W. Sixth St.",
+    "suite": "Suite 1350",
+    "building": "Chase Tower",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "78701",
+    "latitude": 30.2681008,
+    "longitude": -97.7448471,
+    "fax": "512-469-6020",
+    "phone": "512-469-6034"
+   },
+   {
+    "id": "C001056-dallas",
+    "address": "5001 Spring Valley Rd.",
+    "suite": "Suite 1125 E",
+    "city": "Dallas",
+    "state": "TX",
+    "zip": "75244",
+    "latitude": 32.9400414,
+    "longitude": -96.82359749999999,
+    "fax": "972-239-2110",
+    "phone": "972-239-1310"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "C001098"
+  },
+  "offices": [
+   {
+    "id": "C001098-austin",
+    "address": "300 E 8th",
+    "suite": "Suite 961",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "78701",
+    "latitude": 30.269401,
+    "longitude": -97.7390867,
+    "fax": "512-916-5839",
+    "phone": "512-916-5834"
+   },
+   {
+    "id": "C001098-dallas",
+    "address": "3626 N. Hall St.",
+    "suite": "Suite 410",
+    "building": "Lee Park Tower II",
+    "city": "Dallas",
+    "state": "TX",
+    "zip": "75219",
+    "latitude": 32.8092691,
+    "longitude": -96.8059281,
+    "fax": "214-361-3518",
+    "phone": "214-599-8749"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "R000614"
+  },
+  "offices": [
+   {
+    "id": "R000614-kerrville",
+    "address": "125 Lehmann Drive",
+    "suite": "Suite 201",
+    "city": "Kerrville",
+    "state": "TX",
+    "zip": "78028",
+    "latitude": 30.03953229999999,
+    "longitude": -99.1466098,
+    "hours": "Monday-Friday 8:00AM-12:00PM",
+    "phone": "830-896-0154"
+   },
+   {
+    "id": "R000614-san_antonio",
+    "address": "16414 San Pedro Ave",
+    "suite": "Suite 817",
+    "city": "San Antonio",
+    "state": "TX",
+    "zip": "78232",
+    "latitude": 29.5913105,
+    "longitude": -98.47233209999999,
+    "hours": "Monday-Friday 8:00AM-5:00PM",
+    "fax": "771-200-5819",
+    "phone": "210-821-5024"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "F000484"
+  },
+  "offices": [
+   {
+    "id": "F000484-palm_coast",
+    "address": "31 Lupi Court",
+    "suite": "Suite 130",
+    "city": "Palm Coast",
+    "state": "FL",
+    "zip": "32137-4761",
+    "latitude": 29.5549017,
+    "longitude": -81.2341902,
+    "phone": "386-302-0442",
+    "fax": "386-283-5164"
+   },
+   {
+    "id": "F000484-deland",
+    "address": "120 S. Florida Ave.",
+    "city": "Deland",
+    "state": "FL",
+    "zip": "32720-5422",
+    "latitude": 29.0278849,
+    "longitude": -81.30618919999999,
+    "phone": "386-279-0707",
+    "fax": "386-279-0874"
+   }
+  ]
+ },
+ {
+  "id": {
+   "bioguide": "P000622"
+  },
+  "offices": [
+   {
+    "id": "P000622-crestview",
+    "address": "805 E. James Lee Blvd.",
+    "city": "Crestview",
+    "state": "FL",
+    "zip": "32539",
+    "latitude": 30.7619635,
+    "longitude": -86.56192159999999,
+    "phone": "850-603-6690"
+   },
+   {
+    "id": "P000622-pensacola",
+    "address": "1000 College Boulevard",
+    "suite": "Building 20, Room 2030",
+    "city": "Pensacola",
+    "state": "FL",
+    "zip": "32504",
+    "latitude": 30.47862319999999,
+    "longitude": -87.2024593,
+    "phone": "850-479-1183"
+   }
+  ]
+ }
+]

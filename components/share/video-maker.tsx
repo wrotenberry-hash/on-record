@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { logShare } from "@/components/share/share-panel";
+import { BRAND } from "@/lib/brand";
 
 /**
  * A 15–30 second captioned vertical video (9:16), made on the reader's own phone:
@@ -39,8 +40,8 @@ function draw(ctx: CanvasRenderingContext2D, s: Scene, t: number, i: number, n: 
   ctx.globalAlpha = 1;
   if (s.foot) { ctx.font = "20px sans-serif"; ctx.fillStyle = C.muted; wrap(ctx, s.foot, W - 96).slice(0, 2).forEach((l, j) => ctx.fillText(l, 48, H - 170 + j * 26)); }
   ctx.fillStyle = C.line; ctx.fillRect(48, H - 110, W - 96, 3);
-  ctx.font = "700 38px sans-serif"; ctx.fillStyle = C.ink; ctx.fillText("Talk is cheap.", 48, H - 88);
-  ctx.font = "700 22px sans-serif"; ctx.fillStyle = C.line; ctx.fillText("ON RECORD", W - 190, H - 78);
+  ctx.font = "700 38px sans-serif"; ctx.fillStyle = C.ink; ctx.fillText(BRAND.taglineShort, 48, H - 88);
+  ctx.font = "700 22px sans-serif"; ctx.fillStyle = C.line; ctx.fillText(BRAND.nameUpper, Math.min(W - 190, W - 48 - ctx.measureText(BRAND.nameUpper).width), H - 78);
 }
 
 export function VideoMaker({ scenes, filename, caption, kind }: { scenes: Scene[]; filename: string; caption: string; kind: string }) {

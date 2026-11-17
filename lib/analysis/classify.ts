@@ -8,6 +8,7 @@ import { billLabel } from "@/components/federal/badges";
 import { billStatusUrl, parseBillStatus } from "@/lib/analysis/billtext";
 import { callCost, priceTable } from "@/lib/model-cost";
 import { decideSuggestion } from "@/lib/analysis/classify-rules";
+import { BRAND } from "@/lib/brand";
 
 /**
  * AI issue suggestions for bills Congress.gov has not given a policy area
@@ -22,7 +23,7 @@ const shape = z.object({ category: z.string(), confidence: z.number(), rationale
 const INSTRUCTIONS = `Sort one U.S. bill into at most one of these issues, or "none" if no issue clearly fits: ${ISSUE_CATEGORIES.map(c => `${c.slug} (${c.name})`).join(", ")}.
 Judge only what the bill is about, never whether it is good. Use only the material given. confidence is your probability (0 to 1) that a careful editor would pick the same issue; use "none" with high confidence for ceremonial or commemorative measures that fit no issue. rationale: one short neutral sentence.`;
 
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 
 export type ClassifyRun = { status: "COMPLETE" | "PARTIAL" | "FAILED" | "SKIPPED"; done: number; applied: number; queued: number; noFit: number; costUsd: number; stoppedBy: string | null; error?: string };
 

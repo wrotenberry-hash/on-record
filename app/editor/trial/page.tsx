@@ -7,6 +7,7 @@ import { labelInvite, setInviteRevoked } from "./actions";
 import { CopyLink } from "./copy-link";
 import { feedbackList } from "@/lib/feedback";
 import { FEEDBACK_QUESTION } from "@/lib/feedback-rules";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function TrialAdminPage() {
   const [links, counts, events, feedback] = await Promise.all([inviteLinks(), trialCounts(), eventTotals(7).catch(() => []), feedbackList().catch(() => [])]);
   const trialViews = events.filter(e => e.name === "page_view" && e.dim.startsWith("trial:"));
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link>
       <nav><Link href="/editor">Cases</Link><Link href="/editor/analysis">Bill summaries</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <p className="crumbs"><Link href="/editor">← Cases</Link></p>

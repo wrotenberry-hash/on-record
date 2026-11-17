@@ -2,6 +2,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { officialBillCosponsors, officialBills, officialPoliticians } from "@/db/schema";
 import { districtsFromCensus, stateForZip, type Districts } from "@/lib/federal/depth-parse";
+import { congressForYear } from "@/lib/federal/parse";
+import { censusCongress } from "@/lib/flow/rules";
 
 /**
  * Round A: an address or ZIP to all of a reader's legislators. The address goes
@@ -12,14 +14,33 @@ import { districtsFromCensus, stateForZip, type Districts } from "@/lib/federal/
  */
 const CENSUS = () => process.env.CENSUS_GEOCODER_BASE?.trim() || "https://geocoding.geo.census.gov";
 
-export async function geocodeAddress(address: string): Promise<{ ok: true; districts: Districts } | { ok: false; reason: "unreachable" | "no_match" }> {
-  const q = new URLSearchParams({ address, benchmark: "Public_AR_Current", vintage: "Current_Current", layers: "all", format: "json" });
-  try {
+/**
+ * One address → its districts. The Census Bureau's "current" map can run ahead of the Congress that is sitting: on
+ * 17 Nov 2026 it already answered with the 120th Congress map (Texas redrawn) while the 119th was still in office,
+ * which would have named the wrong representative. So when the map is not the sitting Congress's, the House district
+ * is asked for again from the vintage that holds the sitting map; if that cannot be found the House district is left
+ * empty (the caller offers a choice) rather than guessed. State districts come from the current map.
+ */
+export async function geocodeAddress(address: string, now = Date.now()): Promise<{ ok: true; districts: Districts } | { ok: false; reason: "unreachable" | "no_match" }> {
+  const ask = async (vintage: string) => {
+    const q = new URLSearchParams({ address, benchmark: "Public_AR_Current", vintage, layers: "all", format: "json" });
     const res = await fetch(`${CENSUS()}/geocoder/geographies/onelineaddress?${q}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
-    if (!res.ok) return { ok: false, reason: "unreachable" };
-    const body = await res.json() as { result?: { addressMatches?: unknown[] } };
-    const d = districtsFromCensus(body.result?.addressMatches?.[0]);
-    return d ? { ok: true, districts: d } : { ok: false, reason: "no_match" };
+    if (!res.ok) throw new Error(`census ${res.status}`);
+    return ((await res.json()) as { result?: { addressMatches?: unknown[] } }).result?.addressMatches?.[0];
+  };
+  try {
+    const match = await ask("Current_Current");
+    const d = districtsFromCensus(match);
+    if (!d) return { ok: false, reason: "no_match" };
+    const year = new Date(now).getUTCFullYear(), sitting = congressForYear(year), used = censusCongress(match);
+    if (d.congressional && used !== null && used !== sitting) {
+      d.congressional = null;
+      for (const vintage of [`ACS${year - 1}_Current`, `ACS${year - 2}_Current`]) {
+        const older = await ask(vintage).catch(() => undefined);
+        if (older && censusCongress(older) === sitting) { d.congressional = districtsFromCensus(older)?.congressional ?? null; break; }
+      }
+    }
+    return { ok: true, districts: d };
   } catch { return { ok: false, reason: "unreachable" }; }
 }
 

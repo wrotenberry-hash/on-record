@@ -115,11 +115,32 @@ export function parseOpenStatesPeople(data: unknown): { people: TxPerson[]; maxP
 /* --------------------------------------------------------- Committees --- */
 
 export type TxCommittee = { id: string; name: string; chamber: "upper" | "lower" | "legislature" | null; members: Array<{ personId: string | null; name: string; role: string }> };
-export function parseOpenStatesCommittees(data: unknown): TxCommittee[] {
-  const d = data as { results?: Array<{ id?: string; name?: string; parent_id?: string; classification?: string; memberships?: Array<{ person_name?: string; role?: string; person?: { id?: string } | null }> }> } | null;
-  return (d?.results ?? []).flatMap(c => c?.id && c.name ? [{ id: c.id, name: c.name, chamber: /upper|senate/i.test(c.parent_id ?? "") ? "upper" as const : /lower|house/i.test(c.parent_id ?? "") ? "lower" as const : null,
-    members: (c.memberships ?? []).map(m => ({ personId: m.person?.id ?? null, name: m.person_name ?? "", role: m.role ?? "member" })) }] : []);
+type RawCommittee = { id?: string; name?: string; parent_id?: string; classification?: string; memberships?: Array<{ person_name?: string; role?: string; person?: { id?: string; name?: string } | null }> };
+/**
+ * Open States /committees?jurisdiction=tx&classification=committee&chamber=…&include=memberships, one page.
+ * `chamber` is the chamber that was asked for: the API's parent_id is the id of the chamber's organization (an
+ * opaque "ocd-organization/<uuid>"), so the chamber cannot be read from a committee by itself. Without it the old
+ * guess from parent_id is kept. Members with no name are left out; a member is counted once.
+ */
+export function parseOpenStatesCommitteePage(data: unknown, chamber: "upper" | "lower" | "legislature" | null = null): { committees: TxCommittee[]; page: number; maxPage: number; total: number | null } {
+  const d = data as { results?: RawCommittee[]; pagination?: { page?: number; max_page?: number; total_items?: number } } | null;
+  const committees = (Array.isArray(d?.results) ? d!.results : []).flatMap((c): TxCommittee[] => {
+    if (!c?.id || !c.name) return [];
+    const seen = new Set<string>();
+    const members = (Array.isArray(c.memberships) ? c.memberships : []).flatMap(m => {
+      const name = (m?.person_name ?? m?.person?.name ?? "").trim();
+      if (!name || seen.has(name)) return [];
+      seen.add(name);
+      return [{ personId: m?.person?.id ?? null, name, role: (m?.role ?? "").trim() || "member" }];
+    });
+    return [{ id: c.id, name: c.name.trim(), chamber: chamber ?? (/upper|senate/i.test(c.parent_id ?? "") ? "upper" : /lower|house/i.test(c.parent_id ?? "") ? "lower" : null), members }];
+  });
+  const n = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) && v >= 1 ? v : fallback);
+  return { committees, page: n(d?.pagination?.page, 1), maxPage: n(d?.pagination?.max_page, 1), total: typeof d?.pagination?.total_items === "number" ? d.pagination.total_items : null };
 }
+export function parseOpenStatesCommittees(data: unknown): TxCommittee[] { return parseOpenStatesCommitteePage(data).committees; }
+/** How a committee role reads: Open States sends "Chair", "Vice Chair", "member". */
+export const isCommitteeChair = (role: string) => /^chair/i.test(role.trim());
 
 /* ------------------------------------------------------------- Events --- */
 

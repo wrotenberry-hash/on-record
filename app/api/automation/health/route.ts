@@ -182,9 +182,9 @@ async function lastAlert() {
  * in use and the status words (plus generic error notes) of the last scheduled run. It never reveals a
  * secret, a captured statement, or spends model budget.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const tick = Boolean(process.env.AUTOMATION_TICK_SECRET?.trim()), cron = Boolean(process.env.CRON_SECRET?.trim());
-  return Response.json({ service: "on-record", status: "reachable", tickSecretConfigured: tick, cronSecretConfigured: cron,
+  const body: Record<string, unknown> = { service: "on-record", status: "reachable", tickSecretConfigured: tick, cronSecretConfigured: cron,
     openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()), editorAllowlistConfigured: Boolean((process.env.EDITOR_EMAILS ?? process.env.EDITOR_USER_IDS ?? "").trim()),
     database: databaseSettings().source, databaseHost: databaseHost(), lastRun: await lastRun(),
     monitoring: { resendConfigured: monitoringConfigured().resend, spendSource: monitoringConfigured().spendSource, keyExpires: monitoringConfigured().keyExpires, keyDaysLeft: daysUntil(monitoringConfigured().keyExpires, Date.now()), lastAlert: await lastAlert() },
@@ -215,6 +215,11 @@ export async function GET() {
     trial: await trialCounts().catch(() => "unavailable" as const),
     readers: await digestCounts().catch(() => "unavailable" as const),
     events7d: await eventTotals(7).catch(() => "unavailable" as const),
-    time: new Date().toISOString() },
-    { headers: { "Cache-Control": "no-store" } });
+    // The test-ready checklist in numbers (docs/TEST_READY_BUILD.md); the lines themselves are on Editor → What's next.
+    readiness: await import("@/lib/readiness-data").then(m => m.readinessNow()).then(r => ({ ...r.totals, notYet: r.checks.filter(c => c.state === "fail").map(c => c.id), needsOwner: r.checks.filter(c => c.state === "owner").map(c => c.id) })).catch(() => null),
+    time: new Date().toISOString() };
+  // ?only=analysis,readiness returns just those parts (plus service, status and time), for a quick check of one thing.
+  const only = new URL(request.url).searchParams.get("only")?.split(",").map(k => k.trim()).filter(Boolean);
+  const out = only?.length ? Object.fromEntries(Object.entries(body).filter(([k]) => only.includes(k) || k === "service" || k === "status" || k === "time")) : body;
+  return Response.json(out, { headers: { "Cache-Control": "no-store" } });
 }

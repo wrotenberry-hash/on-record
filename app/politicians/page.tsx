@@ -3,9 +3,10 @@ import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge, memberLine } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, listPoliticians, listStates } from "@/lib/federal/queries";
+import { BRAND, brandTitle, recordSectionLabel } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Politicians · On Record", description: "Every sitting senator and representative, with how they voted. Copied from official roll calls; no grades." };
+export const metadata = { title: brandTitle(recordSectionLabel("Politicians")), description: "Every sitting senator and representative, with how they voted. Copied from official roll calls; no grades." };
 
 export default async function PoliticiansPage({ searchParams }: { searchParams: Promise<{ q?: string; state?: string; chamber?: string }> }) {
   const access = await viewerAccess();
@@ -14,9 +15,9 @@ export default async function PoliticiansPage({ searchParams }: { searchParams: 
     ? await Promise.all([listPoliticians(params), listStates(), currentAppUserId().then(followedIds)]) : [[], [], new Set<string>()];
   return <PublicShell current="/politicians" access={access}>
     <section className="fed-page">
-      <div className="eyebrow">MEMBERS OF CONGRESS <OfficialBadge /></div>
+      <div className="eyebrow">{BRAND.hasSeparateRecordName ? `${BRAND.recordSection.toUpperCase()} · ` : ""}MEMBERS OF CONGRESS <OfficialBadge /></div>
       <h1>Politicians</h1>
-      <p className="lede">Every sitting senator and representative, with how they voted. On Record shows the record; it does not grade anyone.</p>
+      <p className="lede">Every sitting senator and representative, with how they voted. {BRAND.name} shows the record; it does not grade anyone.</p>
       <form className="fed-filter" method="get">
         <label>Name<input name="q" defaultValue={params.q ?? ""} placeholder="e.g. Cornyn" /></label>
         <label>State<select name="state" defaultValue={params.state ?? ""}><option value="">All</option>{states.map(s => <option key={s}>{s}</option>)}</select></label>

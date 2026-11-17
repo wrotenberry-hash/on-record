@@ -1,20 +1,52 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { txBillActions, txBills, txBillSponsors, txBillVersions, txEvents, txMemberVotes, txPeople, txVotes } from "@/db/schema";
-import { currentTxSession, TX_SESSIONS } from "@/lib/texas/parse";
+import { txBillActions, txBills, txBillSponsors, txBillVersions, txCommitteeMembers, txCommittees, txEvents, txMemberVotes, txPeople, txVotes } from "@/db/schema";
+import { isCommitteeChair } from "@/lib/texas/parse";
+import { addDays, txSessionState, txToday } from "@/lib/texas/calendar";
+import { txCoverageView, txSeatCoverage } from "@/lib/texas/coverage";
 
-/** Round H reads over the Texas tables. Official data only. */
+/**
+ * Round H reads over the Texas tables. Official data only. The session shown follows the data: the session in
+ * progress or coming up when its bills are on file, else the last session that has bills (lib/texas/coverage.ts).
+ */
 export async function txOverview(now = Date.now()) {
-  const db = getDb(), today = new Date(now).toISOString().slice(0, 10), weekAgo = new Date(now - 7 * 86400e3).toISOString().slice(0, 10);
-  const { session, inSession } = currentTxSession(today);
-  const upcoming = TX_SESSIONS.filter(s => s.start > today).sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
-  const focus = upcoming && !inSession ? upcoming : session;
-  const [counts, moving, events] = await Promise.all([
+  const db = getDb(), today = txToday(now), weekAgo = addDays(today, -7);
+  const st = txSessionState(today), { current: session, inSession, upcoming } = st;
+  const bySession = await db.select({ session: txBills.session, n: sql<number>`count(*)`, newest: sql<string | null>`max(${txBills.latestActionDate})` }).from(txBills).groupBy(txBills.session);
+  const coverage = txCoverageView(today, Object.fromEntries(bySession.map(s => [s.session, Number(s.n)])));
+  const focus = coverage.shown ?? st.focus, ids = [...new Set([focus.id, st.focus.id, session.id])];
+  const [counts, moving, events, people] = await Promise.all([
     db.select({ stage: txBills.stage, n: sql<number>`count(*)` }).from(txBills).where(eq(txBills.session, focus.id)).groupBy(txBills.stage),
-    db.select().from(txBills).where(and(inArray(txBills.session, [focus.id, session.id]), gte(txBills.latestActionDate, weekAgo))).orderBy(desc(txBills.latestActionDate)).limit(30),
+    db.select().from(txBills).where(and(inArray(txBills.session, ids), gte(txBills.latestActionDate, weekAgo))).orderBy(desc(txBills.latestActionDate)).limit(30),
     db.select().from(txEvents).where(gte(txEvents.start, today)).orderBy(asc(txEvents.start)).limit(20),
+    db.select({ chamber: txPeople.chamber, district: txPeople.district, party: txPeople.party }).from(txPeople).where(eq(txPeople.isCurrent, 1)),
   ]);
-  return { session, inSession, upcoming, focus, counts: Object.fromEntries(counts.map(c => [c.stage, Number(c.n)])), total: counts.reduce((s, c) => s + Number(c.n), 0), moving, events };
+  const parties = (ch: string) => { const m = new Map<string, number>(); for (const p of people) if (p.chamber === ch) m.set(p.party || "Unknown", (m.get(p.party || "Unknown") ?? 0) + 1);
+    return [...m].map(([party, n]) => ({ party, n })).sort((a, b) => b.n - a.n || a.party.localeCompare(b.party)); };
+  return { today, session, inSession, upcoming, focus, counts: Object.fromEntries(counts.map(c => [c.stage, Number(c.n)])), total: counts.reduce((s, c) => s + Number(c.n), 0), moving, events,
+    coverage, newestAction: bySession.find(s => s.session === focus.id)?.newest ?? null, seats: txSeatCoverage(people), parties: { upper: parties("upper"), lower: parties("lower") } };
+}
+
+/** Texas committees by chamber, with how many members are listed for each (0 when the source lists none). */
+export async function txCommitteesByChamber() {
+  const db = getDb();
+  const [rows, members] = await Promise.all([
+    db.select({ id: txCommittees.id, name: txCommittees.name, chamber: txCommittees.chamber, retrievedAt: txCommittees.retrievedAt }).from(txCommittees).orderBy(asc(txCommittees.name)),
+    db.select({ committeeId: txCommitteeMembers.committeeId, n: sql<number>`count(*)` }).from(txCommitteeMembers).groupBy(txCommitteeMembers.committeeId),
+  ]);
+  const chairs = await db.select({ committeeId: txCommitteeMembers.committeeId, name: txCommitteeMembers.name, personId: txCommitteeMembers.personId, role: txCommitteeMembers.role }).from(txCommitteeMembers)
+    .where(sql`lower(${txCommitteeMembers.role}) like 'chair%'`);
+  const count = new Map(members.map(m => [m.committeeId, Number(m.n)])), chair = new Map(chairs.filter(c => isCommitteeChair(c.role)).map(c => [c.committeeId, c]));
+  const of = (ch: string | null) => rows.filter(r => (r.chamber ?? null) === ch).map(r => ({ id: r.id, name: r.name, members: count.get(r.id) ?? 0, chair: chair.get(r.id) ?? null }));
+  const groups = [{ key: "upper", label: "Texas Senate committees", committees: of("upper") }, { key: "lower", label: "Texas House committees", committees: of("lower") },
+    { key: "legislature", label: "Joint committees (House and Senate together)", committees: of("legislature") }, { key: "other", label: "Other committees", committees: of(null) }];
+  return { total: rows.length, groups, retrievedAt: rows.reduce((m, r) => Math.max(m, r.retrievedAt), 0) || null };
+}
+
+/** The committees a member sits on, by the member's Open States id. */
+export async function txPersonCommittees(personId: string) {
+  return getDb().select({ id: txCommittees.id, name: txCommittees.name, chamber: txCommittees.chamber, role: txCommitteeMembers.role }).from(txCommitteeMembers)
+    .innerJoin(txCommittees, eq(txCommittees.id, txCommitteeMembers.committeeId)).where(eq(txCommitteeMembers.personId, personId)).orderBy(asc(txCommittees.name));
 }
 
 export async function txBill(id: string) {

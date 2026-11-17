@@ -87,9 +87,26 @@ export async function analysisCounts() {
     openReviews: Number(open?.n ?? 0), summaryCostUsd: Math.round(byStatus.reduce((n, r) => n + Number(r.usd), 0) * 10000) / 10000,
     analysisCallsUsd: Math.round(Number(spend?.usd ?? 0) * 10000) / 10000, analysisCalls: Number(spend?.calls ?? 0),
     each: each.map(e => ({ ...e, checkPassed: e.checkPassed === 1, costUsd: Math.round(e.costUsd * 10000) / 10000 })),
-    readerTest,
+    readerTest, coverage90d: await coverage90d().catch(() => null),
     lastRun: last ? { status: last.status, startedAt: new Date(last.startedAt).toISOString(), made: Array.isArray(detail.made) ? detail.made.length : 0, stoppedBy: detail.stoppedBy ?? null,
       error: last.error ? last.error.replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) : null } : null };
+}
+
+/**
+ * The owner's coverage bar (17 Nov): every federal bill with a roll-call vote in the last 90 days has a summary that
+ * passes the full standard. "Passing" = written, passed the written rules and the average-reader test, and not held.
+ */
+export async function coverage90d(now = Date.now()) {
+  const since = now - 90 * 86_400_000;
+  const rows = await getDb().all<{ status: string | null; passed: number | null; complete: number; n: number }>(sql`
+    select s.status as status, s.check_passed as passed, (b.detail_status = 'complete') as complete, count(*) as n
+    from official_bills b left join analysis_bill_summaries s on s.bill_id = b.id
+    where b.bill_type in ('hr', 's', 'hjres', 'sjres') and exists (select 1 from official_roll_calls r where r.bill_id = b.id and r.voted_at >= ${since})
+    group by s.status, s.check_passed, (b.detail_status = 'complete')`);
+  const sum = (f: (r: (typeof rows)[number]) => boolean) => rows.filter(f).reduce((n, r) => n + Number(r.n), 0);
+  const bills = sum(() => true), passing = sum(r => r.status === "visible" && Number(r.passed) === 1), held = sum(r => r.status === "held"), rejected = sum(r => r.status === "rejected");
+  return { bills, passing, held, rejected, notWritten: sum(r => r.status === null), recordNotComplete: sum(r => r.status === null && !Number(r.complete)),
+    coveredPct: bills ? Math.round((passing / bills) * 1000) / 10 : null };
 }
 
 /**

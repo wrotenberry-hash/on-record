@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /**
  * What a share card says (Round 3). Pure; tested in tests/trial.test.mjs. Cards
  * are built only from record data: never from anything a reader types. A reader's
@@ -34,11 +35,11 @@ export function voteLine(v: CardVote): CardLine {
 
 export function voteCard(member: { name: string; seat: string }, v: CardVote): Card {
   return { eyebrow: "HOW THEY VOTED", title: member.name, subtitle: member.seat, lines: [voteLine(v)],
-    note: v.kind === "procedural" ? "A procedural vote decides how the chamber proceeds. It is not a vote on the bill itself." : null, footer: "Talk is cheap." };
+    note: v.kind === "procedural" ? "A procedural vote decides how the chamber proceeds. It is not a vote on the bill itself." : null, footer: BRAND.taglineShort };
 }
 
 export function agreementCard(member: { name: string; seat: string }, issueName: string, agreed: number, differed: number, votes: CardVote[]): Card {
   const total = agreed + differed;
   return { eyebrow: `MY VIEWS AND THEIR VOTES · ${issueName.toUpperCase()}`, title: member.name, subtitle: `${member.seat} · we agreed on ${agreed} of ${total} bill${total === 1 ? "" : "s"}`,
-    lines: votes.slice(0, 3).map(voteLine), note: "My own Support/Oppose answers compared with their votes on passing each bill. Not a rating by On Record.", footer: "Talk is cheap." };
+    lines: votes.slice(0, 3).map(voteLine), note: `My own Support/Oppose answers compared with their votes on passing each bill. Not a rating by ${BRAND.name}.`, footer: BRAND.taglineShort };
 }

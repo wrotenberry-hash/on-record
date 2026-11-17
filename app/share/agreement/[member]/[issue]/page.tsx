@@ -4,9 +4,10 @@ import { PublicShell } from "@/components/public/public-shell";
 import { SharePanel } from "@/components/share/share-panel";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { agreementCardFor } from "@/lib/cards";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Share my agreement · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Share my agreement"), robots: { index: false, follow: false } };
 
 /** Share your own agreement with a member on one issue. Private until you share it. */
 export default async function ShareAgreementPage({ params }: { params: Promise<{ member: string; issue: string }> }) {
@@ -23,7 +24,7 @@ export default async function ShareAgreementPage({ params }: { params: Promise<{
       <div className="eyebrow">SHARE MY AGREEMENT</div>
       <h1>Share how your views compare with {data.member}&apos;s votes</h1>
       <p className="meta">This is private until you share it. The card shows up to three bills: their recorded vote on passing each, the date, the bill&apos;s summary labelled Analysis, and the official source.</p>
-      <SharePanel imageBase={`/api/cards/agreement?member=${member}&issue=${issue}`} filename={`on-record-${member}-${issue}`} defaultCaption="" />
+      <SharePanel imageBase={`/api/cards/agreement?member=${member}&issue=${issue}`} filename={`${BRAND.fileSlug}-${member}-${issue}`} defaultCaption="" />
     </section>
   </PublicShell>;
 }

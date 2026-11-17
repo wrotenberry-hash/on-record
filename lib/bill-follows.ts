@@ -4,6 +4,7 @@ import { alertPrefs, billFollows, officialBillDepth, officialBills, readerAccoun
 import { STAGE_LABEL, type StageKey } from "@/lib/federal/depth-parse";
 import { billLabel } from "@/components/federal/badges";
 import { sendTo } from "@/lib/mailer";
+import { BRAND } from "@/lib/brand";
 
 /** Round B: a reader follows a bill and gets one email when its stage changes. Follows are the reader's own; never shown to others. */
 export async function isFollowingBill(userId: string | null, billId: string) {
@@ -39,7 +40,7 @@ export async function runBillAlerts() {
     if (m.lastStage) await import("@/lib/push").then(p => p.notifyUser(m.userId, { title: `${label}: ${stage}`, body: m.title, url: `/bills/${m.billId}` })).catch(() => null);
     if (!m.lastStage || !m.email || !m.verifiedAt) { skipped++; await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); continue; }
     const r = await sendTo(m.email, `${label}: ${stage}`, [`A bill you follow moved.`, "", `${label}, ${m.title}`, `Now: ${stage}${m.stageDate ? ` (${m.stageDate})` : ""}.`, "",
-      `See the bill: ${SITE}/bills/${m.billId}`, "", "You get this because you follow this bill on On Record. Unfollow on the bill page to stop."].join("\n"));
+      `See the bill: ${SITE}/bills/${m.billId}`, "", `You get this because you follow this bill on ${BRAND.name}. Unfollow on the bill page to stop.`].join("\n"));
     if (r.ok) { sent++; await db.update(billFollows).set(set).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); } else failed++;
   }
   return { checked: moved.length, sent, skipped, failed };

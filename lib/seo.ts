@@ -1,10 +1,12 @@
+import { BRAND } from "./brand.ts";
 /**
  * Titles and descriptions for search and link previews. Pure; tested in
  * tests/trial.test.mjs. Builders never invent content: they combine official
  * fields (name, seat, bill number and title) and, for bills, the Analysis
  * headline, which is labelled as such on the page itself.
  */
-export const SITE_NAME = "On Record";
+/** The product name (lib/brand.ts). Kept under this name for the callers and tests that already use it. */
+export const SITE_NAME = BRAND.name;
 export const TITLE_MAX = 60, DESCRIPTION_MAX = 160;
 
 export function clamp(text: string, max: number) {
@@ -43,6 +45,6 @@ export function robotsRules(publicRead: boolean, siteUrl: string) {
 /** Round G: per-item link previews (X, Facebook, Threads, Bluesky, LinkedIn, iMessage all read Open Graph; X also reads twitter:*). */
 export function previewMeta(siteUrl: string, path: string, title: string, description: string, imagePath: string) {
   const image = { url: `${siteUrl}${imagePath}`, width: 1200, height: 630, alt: title };
-  return { openGraph: { title, description, url: `${siteUrl}${path}`, siteName: "On Record", type: "article" as const, images: [image] },
+  return { openGraph: { title, description, url: `${siteUrl}${path}`, siteName: SITE_NAME, type: "article" as const, images: [image] },
     twitter: { card: "summary_large_image" as const, title, description, images: [image.url] } };
 }

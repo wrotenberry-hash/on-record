@@ -14,13 +14,14 @@ import { profileFor } from "@/lib/verify/store";
 import { PENDING_PHONE_COOKIE } from "@/lib/verify/flow";
 import { countsFrom } from "@/lib/verify/rules";
 import { Turnstile } from "@/components/verify/turnstile";
+import { brandTitle } from "@/lib/brand";
 
 const TIER_LABEL = ["Visitor: your answers are private and not counted", "Real person: your answers count toward national totals", "District-matched: your answers count nationally and for your district"];
 const requestTime = () => Date.now();
 const when = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) + " ET";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Your account · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Your account"), robots: { index: false, follow: false } };
 
 const MESSAGES: Record<string, string> = { signedin: "You are signed in on this device.", signedout: "Signed out on this device.", saved: "Saved.",
   expired: "That sign-in link has expired or was already used. Ask for a new one below.", closed: "Sign-in is open to trial readers only for now.",

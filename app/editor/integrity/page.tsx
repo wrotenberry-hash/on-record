@@ -6,6 +6,7 @@ import { verificationCounts } from "@/lib/verify/store";
 import { shortHash } from "@/lib/verify/crypto";
 import { REASON_LABEL } from "@/lib/verify/rules";
 import { decideIntegrityFlag } from "./actions";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function IntegrityPage() {
   const [flags, counts] = await Promise.all([flagsForEditor().catch(() => []), verificationCounts().catch(() => null)]);
   const open = flags.filter(f => f.status === "open"), decided = flags.filter(f => f.status !== "open");
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link>
       <nav><Link href="/editor">Cases</Link><Link href="/editor/trial">Trial invites</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <p className="crumbs"><Link href="/editor">← Cases</Link></p>

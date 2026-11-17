@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /**
  * The weekly "how your members voted" email (Round 3). Pure; tested in
  * tests/trial.test.mjs. Every vote line says what kind of vote it was, so a
@@ -28,10 +29,10 @@ export function formatDigest(members: readonly DigestMember[], links: { site: st
       lines.push(`- ${v.date} · ${v.kindLabel}: ${v.voteText}`, `  ${v.billLabel}: ${v.billTitle}`);
       if (v.headline) lines.push(`  [Analysis] ${v.headline}`);
       lines.push(`  Official source: ${v.sourceUrl}`);
-      if (v.billUrl) lines.push(`  On Record: ${v.billUrl}`);
+      if (v.billUrl) lines.push(`  ${BRAND.name}: ${v.billUrl}`);
     }
     lines.push("");
   }
-  lines.push(`Following: ${links.site}/following`, `Share your recap card: ${links.site}/recap`, "", `Stop these emails: ${links.unsubscribe}`, "On Record shows what officials did. It does not grade them.");
-  return { subject: `[On Record] How your members voted: ${items} vote${items === 1 ? "" : "s"}`, text: lines.join("\n"), items };
+  lines.push(`Following: ${links.site}/following`, `Share your recap card: ${links.site}/recap`, "", `Stop these emails: ${links.unsubscribe}`, `${BRAND.name} shows what officials did. It does not grade them.`);
+  return { subject: `[${BRAND.name}] How your members voted: ${items} vote${items === 1 ? "" : "s"}`, text: lines.join("\n"), items };
 }
