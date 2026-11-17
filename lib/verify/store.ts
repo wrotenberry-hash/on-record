@@ -163,6 +163,12 @@ export async function deleteAccountAndPositions(account: Account) {
   await db.delete(reminders).where(eq(reminders.userId, account.appUserId));
   await db.delete(verificationProfiles).where(eq(verificationProfiles.accountId, account.id));
   await db.delete(digestSends).where(eq(digestSends.accountId, account.id));
+  // A briefing subscription points at the account: with it left in place the database refused to delete the account row,
+  // so the email stayed behind (found while writing the privacy draft; tests/trust.test.mjs). The bot-check record of each sign-in link goes too.
+  const { briefingSubscriptions, linkChallenges } = await import("@/db/schema");
+  await db.delete(briefingSubscriptions).where(eq(briefingSubscriptions.accountId, account.id));
+  const links = await db.select({ nonce: magicLinks.nonce }).from(magicLinks).where(eq(magicLinks.emailHash, account.emailHash));
+  if (links.length) await db.delete(linkChallenges).where(inArray(linkChallenges.nonce, links.map(l => l.nonce)));
   await db.delete(magicLinks).where(eq(magicLinks.emailHash, account.emailHash));
   await db.delete(readerAccounts).where(eq(readerAccounts.id, account.id));
   for (const b of bills) await recomputeBill(b.billId);

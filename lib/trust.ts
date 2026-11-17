@@ -1,0 +1,360 @@
+import { ACCOUNT_MIN_AGE_MS, MIN_SHOWN } from "./verify/rules.ts";
+
+/**
+ * The facts the trust pages are built from (Methodology, Pledge, About, Privacy, Terms), as data. The pages render
+ * these lists and tests/trust.test.mjs checks them against the code, so a page cannot say one thing while the code
+ * does another. When you add an official source, a cookie or an outside service anywhere in the code, add it here:
+ * the test fails with the name of what is missing until you do.
+ *
+ * Pure: the only import is the pure rules file, so the tests load it directly. No product name appears here; the
+ * pages add it from lib/brand.ts.
+ */
+
+/* ───────────────────────────── 1. Where the facts come from ───────────────────────────── */
+
+export type SourceGroup = "congress" | "summaries" | "texas" | "lookup";
+export type Source = {
+  id: string; group: SourceGroup; name: string;
+  /** Who publishes it. */
+  publisher: string;
+  /** True when a government body publishes it; false for an open copy of public records kept by someone else. */
+  government: boolean;
+  /** The source's public home page. */
+  url: string;
+  /** What the site reads from it, in plain words. */
+  reads: string;
+  /** How often, as the code does it. */
+  refreshed: string;
+  /** Hosts the code contacts or links for this source; checked against the code by the test. */
+  hosts: string[];
+};
+
+export const SOURCE_GROUPS: Record<SourceGroup, { title: string; note: string }> = {
+  congress: { title: "Congress: votes, bills and members", note: "The site updates itself twice a day, at 13:00 and 19:00 UTC (morning and afternoon in the United States). Each update picks up where the last one stopped. A roll-call vote is one where each member's vote is recorded by name." },
+  summaries: { title: "Documents a bill summary may use", note: "These are read when a summary is written for a bill, and linked from that summary." },
+  texas: { title: "Texas Legislature", note: "Texas data comes through two services that copy the Legislature's records. Every Texas bill links to its page on Texas Legislature Online, which is the source of record." },
+  lookup: { title: "Finding your legislators", note: "" },
+};
+
+export const SOURCES: Source[] = [
+  { id: "house-clerk", group: "congress", name: "Clerk of the U.S. House: roll-call votes", publisher: "Office of the Clerk, U.S. House of Representatives", government: true,
+    url: "https://clerk.house.gov/Votes", hosts: ["clerk.house.gov"],
+    reads: "Every recorded House vote: the question, the result, the official totals, and how each member voted.",
+    refreshed: "New votes at every update, at most 40 each time. Earlier votes of this Congress are filled in 40 per update." },
+  { id: "senate", group: "congress", name: "U.S. Senate: roll-call votes and floor schedule", publisher: "U.S. Senate", government: true,
+    url: "https://www.senate.gov/legislative/votes_new.htm", hosts: ["www.senate.gov"],
+    reads: "Every recorded Senate vote (question, result, official totals, each senator's vote) and the bills named on the Senate floor schedule.",
+    refreshed: "New votes at every update, at most 40 each time. The floor schedule at every update." },
+  { id: "congress-gov", group: "congress", name: "Congress.gov", publisher: "Library of Congress", government: true,
+    url: "https://www.congress.gov/", hosts: ["api.congress.gov", "www.congress.gov"],
+    reads: "Bill titles, sponsors, subjects, every official action on a bill, amendments, text versions, the full list of bills in a Congress, and Congress.gov's own counts of bills and laws. The plain explanations of vote types are fixed text written from its glossary.",
+    refreshed: "The list of recently changed bills once a day. A bill's details when its latest action changes, 25 bills per update, voted bills first." },
+  { id: "govinfo", group: "congress", name: "govinfo: bill status records and bill text", publisher: "U.S. Government Publishing Office", government: true,
+    url: "https://www.govinfo.gov/", hosts: ["www.govinfo.gov"],
+    reads: "Each bill's status record (sponsor, cosponsors, text versions, the Congressional Research Service summary, the list of cost estimates) and the text of the bill itself.",
+    refreshed: "Sponsors and cosponsors once a week per bill. Bill text when a summary is written or re-checked." },
+  { id: "house-floor", group: "congress", name: "House floor schedule: bills this week", publisher: "Office of the Clerk, U.S. House of Representatives", government: true,
+    url: "https://docs.house.gov/floor/", hosts: ["docs.house.gov"],
+    reads: "The bills the House plans to take up this week.",
+    refreshed: "At every update." },
+  { id: "congress-legislators", group: "congress", name: "congress-legislators member file", publisher: "The @unitedstates project, a public-domain data project kept by volunteers. Not a government site.", government: false,
+    url: "https://github.com/unitedstates/congress-legislators", hosts: ["unitedstates.github.io"],
+    reads: "The list of sitting members of Congress (name, party, state, district, term, official website), committees and who sits on them, and leadership posts.",
+    refreshed: "Members about once a day (at most every 20 hours). Committees once a week." },
+  { id: "white-house", group: "congress", name: "The White House", publisher: "Executive Office of the President", government: true,
+    url: "https://www.whitehouse.gov/", hosts: ["www.whitehouse.gov"],
+    reads: "The President's name and party on the Congress dashboard.",
+    refreshed: "Entered by hand, with the date the term began." },
+
+  { id: "crs", group: "summaries", name: "Congressional Research Service summary", publisher: "Congressional Research Service, Library of Congress", government: true,
+    url: "https://www.congress.gov/", hosts: ["www.congress.gov"],
+    reads: "The short official summary of a bill, as published on Congress.gov and carried in the bill's status record.",
+    refreshed: "When a summary is written." },
+  { id: "cbo", group: "summaries", name: "Congressional Budget Office cost estimates", publisher: "Congressional Budget Office", government: true,
+    url: "https://www.cbo.gov/cost-estimates", hosts: [],
+    reads: "The list of cost estimates in the bill's status record, with a link to each. The figures are used only when a committee report or the Congressional Record prints the estimate.",
+    refreshed: "When a summary is written." },
+  { id: "committee-reports", group: "summaries", name: "Committee reports", publisher: "U.S. Government Publishing Office (govinfo)", government: true,
+    url: "https://www.govinfo.gov/app/collection/crpt", hosts: ["www.govinfo.gov"],
+    reads: "The committee's stated purpose and background for the bill, the cost estimate it reprints, and any minority or dissenting views.",
+    refreshed: "When a summary is written." },
+  { id: "congressional-record", group: "summaries", name: "Congressional Record", publisher: "U.S. Government Publishing Office (govinfo)", government: true,
+    url: "https://www.govinfo.gov/app/collection/crec", hosts: ["www.govinfo.gov"],
+    reads: "What each named member said about the bill on the House or Senate floor.",
+    refreshed: "When a summary is written." },
+  { id: "federal-register", group: "summaries", name: "Federal Register", publisher: "Office of the Federal Register, National Archives", government: true,
+    url: "https://www.federalregister.gov/", hosts: ["www.federalregister.gov", "www.govinfo.gov"],
+    reads: "For a bill that would cancel an agency rule: the rule, the agency's own summary, its stated reasons, its main changes and its own estimates.",
+    refreshed: "When a summary is written." },
+  { id: "us-code", group: "summaries", name: "U.S. Code", publisher: "U.S. Government Publishing Office (govinfo)", government: true,
+    url: "https://www.govinfo.gov/app/collection/uscode", hosts: ["www.govinfo.gov"],
+    reads: "The sections of current law that a bill would change.",
+    refreshed: "When a summary is written." },
+
+  { id: "open-states", group: "texas", name: "Open States", publisher: "Plural Policy. An open-data service that copies state legislatures' records. Not a government site.", government: false,
+    url: "https://openstates.org/", hosts: ["v3.openstates.org"],
+    reads: "Texas bills with their actions, votes, sponsors and text versions; Texas legislators; committees; and scheduled hearings.",
+    refreshed: "Bills and hearings at every update, at most 12 requests each time. Legislators and committees once a week." },
+  { id: "legiscan", group: "texas", name: "LegiScan", publisher: "LegiScan LLC. A service that copies state legislatures' records. Not a government site.", government: false,
+    url: "https://legiscan.com/", hosts: ["api.legiscan.com"],
+    reads: "Used only as a fallback: Texas bill numbers, titles and status when Open States is missing or not answering, and bill counts for earlier sessions. It supplies no votes.",
+    refreshed: "When Open States cannot be reached; session counts once a week." },
+  { id: "tlo", group: "texas", name: "Texas Legislature Online", publisher: "Texas Legislative Council", government: true,
+    url: "https://capitol.texas.gov/", hosts: ["capitol.texas.gov"],
+    reads: "The source of record. Every Texas bill on the site links to its history page here, so you can check the copy against the original.",
+    refreshed: "Linked, not copied." },
+  { id: "texas-officers", group: "texas", name: "Texas Governor, Lieutenant Governor and Speaker of the House", publisher: "Their official sites", government: true,
+    url: "https://gov.texas.gov/", hosts: ["gov.texas.gov", "www.ltgov.texas.gov", "house.texas.gov"],
+    reads: "The names of the three presiding officers on the Texas dashboard, when Open States does not report them.",
+    refreshed: "Entered by hand, labelled with the session they were checked for." },
+
+  { id: "census", group: "lookup", name: "U.S. Census Bureau geocoder", publisher: "U.S. Census Bureau", government: true,
+    url: "https://geocoding.geo.census.gov/geocoder/", hosts: ["geocoding.geo.census.gov"],
+    reads: "Turns a street address into a U.S. House district and the two state legislative districts. A ZIP code alone is matched to a state by its first three digits, inside the site, without asking anyone.",
+    refreshed: "Each time a reader looks up an address." },
+];
+
+/* ───────────────────────────── 2. Official and Analysis ───────────────────────────── */
+
+export const LABELS = [
+  { label: "Official", means: "Copied from a government record, with a link to that record. Nothing is added or reworded.",
+    where: "Votes and how each member voted, bill titles and status, sponsors, committees, the floor schedule, and counts made directly from those records." },
+  { label: "Analysis", means: "Written by the site to explain a record. An AI model drafts it and fixed rules check it. It is never mixed into an Official section.",
+    where: "Bill summaries (the headline, the plain-English part and every section under them), the note on what changed between two versions of a bill, and the tag on a bill that was sorted into an issue by AI." },
+  { label: "Your view", means: "Your own Support, Oppose or Unsure answer. Only you see it.",
+    where: "The answer box on a bill page, and your own page of answers." },
+] as const;
+
+/* ───────────────────────────── 3. How a bill summary is written and checked ───────────────────────────── */
+
+/** The parts of a summary, in page order (docs/WRITING_STANDARD.md). */
+export const SUMMARY_PARTS = [
+  { part: "Headline", rule: "At most 15 words. Starts with a plain verb, names the everyday thing people know, and uses no abbreviations." },
+  { part: "In plain English", rule: "Two or three sentences, at most 80 words: what the bill does, who feels it, and why it is being argued over now." },
+  { part: "What would change", rule: "Two to six rows, each “Today: … → If this passes: …”, with the numbers and dates from the sources." },
+  { part: "How it works today", rule: "Three to five short points, each tied to a source, so a reader who has never heard of the subject can follow." },
+  { part: "Why now", rule: "One or two sentences with the date or the vote that put the bill in front of Congress." },
+  { part: "Who it affects", rule: "Each point cites the section of the bill or the source that says it." },
+  { part: "The case for and the case against", rule: "Reasons, not mechanics, each credited to the named person or body that gave it in the official record. If the record holds no reason for one side, the page says “No public statement of reasons found.”" },
+  { part: "What we don't know", rule: "One to three points the sources leave open." },
+  { part: "Sources", rule: "Every document the summary used, linked." },
+] as const;
+
+/** The written checks, run by a program on every draft (lib/analysis/checker.ts and standard.ts). */
+export const WRITTEN_CHECKS = [
+  "Every point cites a section of the bill or one of the sources, and shares key words with what it cites.",
+  "Names, numbers and dates in the summary must appear in a source. An agency's name does not count as a mention of a program.",
+  "Terms on the site's list of jargon must be replaced with plain words or explained on first use. Abbreviations are spelled out.",
+  "No loaded words. A fixed list of words such as “sweeping”, “radical”, “common-sense” and “bipartisan” fails a draft, as does any verdict, grade or first-person opinion.",
+  "Balance. The case for and the case against must be of similar length, and each reason must be credited to someone the official record names on that side.",
+  "A change stated without its number fails: say from what, to what.",
+  "Reading level. A draft above a 12th-grade reading level fails; the target is about 8th grade.",
+] as const;
+
+/** Who does what. `by` is "program" (fixed rules, no AI), "ai" (a model call) or "person" (the editor). */
+export const SUMMARY_STEPS = [
+  { step: "Gather the official documents for the bill.", by: "program" },
+  { step: "Draft the summary from those documents only.", by: "ai" },
+  { step: "Fix small faults a program fixes reliably, such as an abbreviation that was not spelled out.", by: "program" },
+  { step: "Run the written checks.", by: "program" },
+  { step: "Run the average-reader test: two AI readers read the summary cold, and a checking call compares their answers with the documents.", by: "ai" },
+  { step: "Rewrite a failed draft with the exact failure as feedback, at most twice.", by: "ai" },
+  { step: "Read every summary that still fails, or that the model marked low-confidence. It stays hidden until the editor approves it.", by: "person" },
+  { step: "Audit one summary in every five that passed.", by: "person" },
+  { step: "Approve each reusable explainer before it is used anywhere.", by: "person" },
+  { step: "Each week, check a random 20% of the summaries on show against the bill text again. One that fails is taken down and listed on the corrections page.", by: "program" },
+] as const;
+
+/* ───────────────────────────── 4. How the numbers are computed ───────────────────────────── */
+
+/** The member page's "How these are counted" block says the same thing; tests/trust.test.mjs holds the two together. */
+export const MEMBER_STATS_METHOD = {
+  base: "Both figures use the roll calls (votes recorded by name) in the site's copy of the official record that list the member.",
+  missed: "Missed votes: the roll calls where the member is listed “Not Voting”.",
+  withParty: "Voted with most of their own party: on roll calls where the member voted Yea or Nay (yes or no), whether they voted the way most other members of their party voted. Ties, and roll calls with fewer than two other members of that party voting, are left out.",
+  same: "The same method is used for every member. These are counts, not ratings.",
+} as const;
+
+const HOURS = ACCOUNT_MIN_AGE_MS / 3_600_000;
+export const READER_TOTALS = {
+  minShown: MIN_SHOWN, waitHours: HOURS,
+  rules: [
+    "An answer is counted only from a verified real person: a confirmed email, an automatic bot check, and a text-message code sent to a U.S. mobile number that is not an internet (VoIP) number and has not verified another account.",
+    "District totals count only readers whose street address the Census Bureau places in that district.",
+    `A new account's answers start counting ${HOURS} hours after the account was created.`,
+    `A total is never shown below ${MIN_SHOWN} answers. Until then the page says “fewer than ${MIN_SHOWN} so far”.`,
+    "“Unsure” is a private answer. It is never counted.",
+    "Answers that look like coordinated activity (a sudden surge, many new accounts from one network or device, the same reason text from several accounts) are set aside from the totals until the editor has looked. They are never deleted.",
+    "Every total carries the words “Not a scientific poll”.",
+  ],
+} as const;
+
+/* ───────────────────────────── 5. How a claim is checked ───────────────────────────── */
+
+export const CLAIM_STEPS = [
+  { title: "The original is captured", text: "We start from the statement itself: an official release, a speech, an interview, a post. The page is saved as published, with its address and the time. A later edit or removal is recorded as a new observation. We do not guess at motive." },
+  { title: "The exact words are kept", text: "The sentence is quoted word for word, inside the passage it came from. A reviewer opens the original and confirms the sentence is there and in context. If it cannot be found, the case stops." },
+  { title: "The claim is written out plainly", text: "Beside the quote sits the factual claim in neutral words, with its time, place and scope. Two people making the same claim share one wording, so the same evidence applies to both." },
+  { title: "How much it matters is decided first", text: "A reviewer decides how much the claim matters and writes down why, before any evidence is read. That decision is locked, so it cannot be adjusted to fit what the evidence later shows." },
+  { title: "Evidence is searched for in both directions", text: "Every record documents a search for evidence that supports the claim and a search for evidence against it. An AI model may suggest leads, but each lead counts for nothing until a person has opened it and judged whether it bears on this exact claim." },
+  { title: "A person reviews, then publishes as CHECKING", text: "The reviewer records what the evidence shows and what is still open, and publishes. Every record carries the status CHECKING. It says what is being examined and what has been found so far. It does not assign a number." },
+] as const;
+
+/* ───────────────────────────── 6. The pledge ───────────────────────────── */
+
+export type PledgeItem = { id: string; promise: string; check: string };
+
+export const PLEDGE_ALWAYS: PledgeItem[] = [
+  { id: "same-rules", promise: "Use the same rules for every member and every party.",
+    check: "The wording of a vote, the counts on a member's page and the checks on a summary are fixed rules that work the same way whatever the party. The site also compares summaries of bills from each party for length, loaded words and balance, and alerts the editor if they drift apart." },
+  { id: "sources", promise: "Show where every fact came from.",
+    check: "Each vote, bill and status line links to the government page it was copied from. Each summary lists the documents it used." },
+  { id: "labels", promise: "Label what is Official and what is Analysis.",
+    check: "On a bill page each section of content is labelled Official or Analysis, and your own answer is labelled Your view. A copied record and the site's own explanation are never mixed in one section." },
+  { id: "both-sides", promise: "Give the case for and the case against, each credited to who said it.",
+    check: "A summary fails its checks if a reason is not credited to a named person or body in the official record, or if one side is written at much greater length than the other. When the record holds no reason for a side, the page says so." },
+  { id: "unknowns", promise: "Say what we do not know.",
+    check: "Every summary has a “What we don't know” section. A summary with no concrete fact must say the sources do not say." },
+  { id: "corrections", promise: "Correct errors in public.",
+    check: "The corrections page lists every correction, every summary withdrawn after a re-check, and every fix made after a reader's report. Earlier versions are kept, not overwritten." },
+  { id: "private-answers", promise: "Keep your answers private.",
+    check: `Your Support, Oppose or Unsure answer is shown only to you. Only totals are shown to anyone else, and never below ${MIN_SHOWN} answers.` },
+];
+
+export const PLEDGE_NEVER: PledgeItem[] = [
+  { id: "no-grades", promise: "Grade, rate or score a member or a party.",
+    check: "No page carries a rating. Where the site shows a count, such as missed votes, it shows the count, how it was made, and the same count for every member." },
+  { id: "no-endorsements", promise: "Endorse a candidate, a party or a bill, or tell you how to vote.",
+    check: "A summary that contains a verdict, a recommendation or a first-person opinion fails its checks and is not shown." },
+  { id: "no-procedural-spin", promise: "Present a procedural vote as a vote for or against a bill.",
+    check: "Every vote is sorted by type. A vote on whether or how to proceed is labelled “a procedural step (not a vote on the bill itself)”." },
+  { id: "no-news-sources", promise: "Write a summary from news stories or advocacy groups.",
+    check: "The only documents a summary may use are the official ones listed on the How this works page. Each is linked from the summary." },
+  { id: "no-data-sharing", promise: "Sell your information, or share it with a campaign, a party or a political committee.",
+    check: "The site has no advertising or tracking code from outside companies. Usage is counted as daily totals only, with no record of who read what." },
+  { id: "no-sending", promise: "Send a message to an official in your name.",
+    check: "Nothing on the site sends mail, makes a call or fills in a form for you." },
+];
+
+/* ───────────────────────────── 7. Privacy: cookies ───────────────────────────── */
+
+export type Cookie = {
+  name: string;
+  /** "cookie", or "tab" for a value kept in the browser tab only and never sent to the site. */
+  kind: "cookie" | "tab";
+  purpose: string; holds: string; lasts: string;
+  /** "everyone", "verification" (only with real-person verification on) or "editor" (never set for a reader). */
+  who: "everyone" | "verification" | "editor";
+};
+
+export const COOKIES: Cookie[] = [
+  { name: "or_trial", kind: "cookie", who: "everyone", purpose: "Lets you in as an invited trial reader.", holds: "The code from your invite link.", lasts: "60 days" },
+  { name: "or_reader", kind: "cookie", who: "everyone", purpose: "Keeps you signed in after you tap the link in your email.", holds: "A signed token naming your account.", lasts: "90 days" },
+  { name: "or_loc", kind: "cookie", who: "everyone", purpose: "Remembers which legislators are yours.", holds: "Your state and district codes, such as TX and TX-37. Not your ZIP code and not your address.", lasts: "400 days" },
+  { name: "or_issues", kind: "cookie", who: "everyone", purpose: "Remembers the issues you picked.", holds: "Up to three issue names.", lasts: "400 days" },
+  { name: "or_lv", kind: "cookie", who: "everyone", purpose: "Lets the site show what is new since you last visited.", holds: "The time of your last visit and the one before. Times only, never pages.", lasts: "400 days" },
+  { name: "or_dev", kind: "cookie", who: "everyone", purpose: "Limits how often one device can ask for sign-in links, answer, or send reports.", holds: "A random number for this browser. The site stores only a scrambled form of it.", lasts: "400 days" },
+  { name: "or_fb", kind: "cookie", who: "everyone", purpose: "Stops the one-question feedback prompt from asking you twice.", holds: "The word “sent” or “dismissed”.", lasts: "365 days" },
+  { name: "or_from_share", kind: "cookie", who: "everyone", purpose: "Counts, in total, how many people who arrive through a shared link go on to set up the site.", holds: "The short code of the shared link. Deleted when you finish getting started.", lasts: "7 days" },
+  { name: "or_pp", kind: "cookie", who: "verification", purpose: "Holds your phone number while you type in the text-message code.", holds: "Your phone number, encrypted. Deleted when the code is confirmed.", lasts: "10 minutes" },
+  { name: "on_record_session", kind: "cookie", who: "editor", purpose: "Keeps the editor signed in. Never set for a reader.", holds: "A signed token.", lasts: "30 days" },
+  { name: "or_v", kind: "tab", who: "everyone", purpose: "Stops one visit from being recorded twice in the same tab.", holds: "The digit 1. It stays in your browser and is never sent to the site.", lasts: "Until you close the tab" },
+];
+
+/* ───────────────────────────── 8. Privacy: who else handles data ───────────────────────────── */
+
+export type Processor = {
+  id: string; name: string; url: string; role: string;
+  /** What it receives about a reader; "Nothing about readers." when it receives none. */
+  receives: string;
+  /** "always", "optional" (only if the reader uses the feature) or "verification" (only with verification on). */
+  when: "always" | "optional" | "verification";
+  readerData: boolean;
+  hosts: string[];
+};
+
+export const PROCESSORS: Processor[] = [
+  { id: "vercel", name: "Vercel", url: "https://vercel.com/", role: "Hosts the site.", when: "always", readerData: true, hosts: [],
+    receives: "Every request to the site passes through Vercel, as with any web host: your internet address, the page asked for, and anything you send in a form." },
+  { id: "turso", name: "Turso", url: "https://turso.tech/", role: "Stores the site's database.", when: "always", readerData: true, hosts: [],
+    receives: "Everything listed under “What the site stores”." },
+  { id: "resend", name: "Resend", url: "https://resend.com/", role: "Sends the site's email.", when: "optional", readerData: true, hosts: ["api.resend.com"],
+    receives: "Your email address and the text of each email sent to you: the sign-in link; the weekly email and bill alerts, unless you turn them off; and any briefing, vote alert or reminder you turned on." },
+  { id: "census", name: "U.S. Census Bureau geocoder", url: "https://geocoding.geo.census.gov/geocoder/", role: "Finds the districts for a street address.", when: "optional", readerData: true, hosts: ["geocoding.geo.census.gov"],
+    receives: "The street address you type, sent from the site's server. The Census Bureau does not receive your name, your email or your device's internet address." },
+  { id: "push", name: "Your browser's notification service (Apple, Google or Mozilla)", url: "https://developer.mozilla.org/en-US/docs/Web/API/Push_API", role: "Wakes your device when you have turned on alerts.", when: "optional", readerData: true, hosts: [],
+    receives: "An empty signal with no content. Your device then asks the site itself for the text of the alert." },
+  { id: "twilio", name: "Twilio", url: "https://www.twilio.com/", role: "Checks that a phone number is a real mobile line and texts the code.", when: "verification", readerData: true, hosts: ["lookups.twilio.com", "verify.twilio.com"],
+    receives: "Your phone number and the code you type." },
+  { id: "turnstile", name: "Cloudflare Turnstile", url: "https://www.cloudflare.com/application-services/products/turnstile/", role: "The automatic bot check on the sign-in form, the phone step, and a verified reader's first counted answer.", when: "verification", readerData: true, hosts: ["challenges.cloudflare.com"],
+    receives: "Its script runs in your browser on those forms, so Cloudflare sees your browser and internet address. The site also sends Cloudflare your internet address with the result of the check." },
+  { id: "openai", name: "OpenAI", url: "https://openai.com/", role: "Drafts and tests bill summaries, sorts bills into issues, and suggests research leads on officials' public statements.", when: "always", readerData: false, hosts: ["api.openai.com"],
+    receives: "Nothing about readers. It receives bill text, official documents and public statements by officials." },
+  { id: "social", name: "Bluesky and Threads", url: "https://bsky.app/", role: "Where the site's own accounts would post once the site is public. Switched off while the site is private.", when: "always", readerData: false, hosts: ["bsky.social", "graph.threads.net"],
+    receives: "Nothing about readers. Only the site's own posts, built from the official record." },
+];
+
+/* ───────────────────────────── 9. Privacy: what is stored ───────────────────────────── */
+
+export type Stored = { what: string; detail: string; when: "everyone" | "account" | "optional" | "verification" };
+
+export const STORED: Stored[] = [
+  { when: "everyone", what: "Your place", detail: "Your state and district codes, kept in a cookie and, for an invited reader, in the database so they follow you to another device. The site does not keep your ZIP code or your street address from a legislator lookup." },
+  { when: "everyone", what: "Your issues and follows", detail: "Up to three issues you picked, and the members and bills you follow." },
+  { when: "everyone", what: "Your answers", detail: "Support, Oppose or Unsure on a bill; each change you make to an answer, with the time; and the reason you may add, up to 280 characters. Shown only to you." },
+  { when: "everyone", what: "Visit times", detail: "The time of your last visit and the one before, to show what is new. For an invite link: the first and last day it was used and on how many days. Never which pages you opened." },
+  { when: "account", what: "Your email address", detail: "Kept to send your sign-in link and the site's emails to you. The sign-in links you asked for are kept with it." },
+  { when: "account", what: "Emails that are on unless you turn them off", detail: "Once you sign in: a weekly email on how the members you follow voted, and an email when a bill you follow moves. Each can be switched off on the Account page, and the weekly email from the link at the bottom of it. The site keeps your choice and a log of the weekly emails sent." },
+  { when: "optional", what: "Emails and alerts you turn on", detail: "The briefing, instant alerts when your legislators vote on your issues, and reminders you set, with the item's title and date. The site keeps your choices and the text of alerts sent to you." },
+  { when: "optional", what: "Push alerts", detail: "If you turn them on: the address your browser gives the site for sending a notification to this device, and its two keys." },
+  { when: "optional", what: "Reports and feedback", detail: "A problem report holds the page, the reason you chose and your optional note. The one-question feedback answer is stored with no link to you." },
+  { when: "everyone", what: "Limits on repeated use", detail: "A scrambled form of your device's random number and of your network range, kept for 48 hours, to stop one device or network from flooding the site. The raw internet address is not stored." },
+  { when: "verification", what: "Phone number", detail: "Never stored. The site keeps only a keyed hash of it (a scrambled fingerprint that cannot be turned back into the number), so one phone cannot verify two accounts, plus the line type and the time it was confirmed. While you type the code, the number sits encrypted in a cookie on your own device for 10 minutes." },
+  { when: "verification", what: "Home address", detail: "Sent to the Census Bureau to find your district, then stored encrypted, with your district and state codes. Totals use the district code alone." },
+  { when: "verification", what: "Sign-up checks", detail: "The time you passed the bot check, and a scrambled form of the network range and device you signed up from, cleared after 30 days. A counted answer also carries a scrambled form of the network range and device it came from." },
+];
+
+/* ───────────────────────────── 10. Markers for the lawyer and the founder ───────────────────────────── */
+
+/** Every place where a lawyer must decide. The Privacy and Terms pages show each as "[LEGAL REVIEW: …]". */
+export const LEGAL_REVIEW = {
+  entity: "the legal name and address of the person or company that runs the site and is responsible for reader data",
+  effectiveDate: "the date this policy takes effect, and how readers are told",
+  hostLogs: "what Vercel and Turso log and for how long, and whether a data processing agreement is in place with each service named here",
+  sensitive: "whether political opinions need separate, explicit consent in any state or country the site will serve, and whether a notice for California, Texas or other state privacy laws is required",
+  retention: "how long to keep an email address, answers, the answer history, encrypted addresses and inactive accounts. The code sets no end date for these; it deletes them only when the reader deletes the account",
+  countedHashes: "the scrambled network range and device kept with each counted answer have no deletion date in the code; decide one",
+  deletionGaps: "account deletion leaves one row behind: a random id tied to the invite link the reader came in with. It holds no email and no answers. Decide whether it must go too",
+  noAccountDelete: "a reader who never signed in by email has no delete button; their answers and follows are tied to the invite link. Decide how such a reader asks for deletion and how fast it is done",
+  databaseAccess: "the person who runs the site can read the database directly, including which invite gave which answers; say who has access and under what rule",
+  keyRotation: "phone hashes and stored addresses are protected by keys derived from one site secret; decide whether separate keys or a key-change plan are required",
+  emailDefault: "the weekly email and bill alerts are switched on by default for a signed-in reader; decide whether they must be off until the reader chooses them",
+  requests: "how a reader asks for a copy of their data or a correction, and the time limit for answering",
+  breach: "the duty to tell readers about a data breach, and how",
+  age: "the minimum age to use the site (13, 16 or 18) and the wording. The code does not ask for or check age",
+  changes: "how much notice readers get before a change takes effect",
+  privacyContact: "the contact address for privacy requests",
+  termsEntity: "the legal name of the person or company offering the service",
+  termsAge: "the minimum age and whether a parent's consent is needed",
+  conduct: "whether the list of things a reader may not do is complete, and the right to end access",
+  ownership: "who owns the site's own summaries and explainers, and what a reader may copy or share. Official records are public documents",
+  aiNotice: "whether the notice that summaries are drafted by an AI model is enough where the site will operate",
+  warranty: "the no-warranty wording",
+  liability: "the limit of liability, and whether it is allowed for consumers in every state served",
+  disputes: "governing law, the court or county for disputes, and whether to require arbitration",
+  termsChanges: "how changes to these terms are announced and when they take effect",
+  termsContact: "the contact address for legal notices",
+} as const;
+export type LegalKey = keyof typeof LEGAL_REVIEW;
+
+/** Every place where the founder must write or decide. The editor sees each as "[Founder: …]"; readers see the neutral line. */
+export const FOUNDER_PLACEHOLDERS = {
+  who: { editor: "your name, where you are based, and one sentence on why you started this.", reader: "A named profile of the founder will be here before public launch." },
+  funding: { editor: "confirm how the site is paid for.", reader: "" },
+  fundingPledge: { editor: "decide the funding rule (for example: no advertising, no money from campaigns, parties, political committees or advocacy groups) and confirm it. Until you do, the pledge makes no promise about funding.",
+    reader: "The rule on what money the site will and will not accept is still to be confirmed by the founder. It will be stated here before public launch." },
+  contact: { editor: "a contact address for the record; set PUBLIC_CONTACT_EMAIL in Vercel.", reader: "A contact address will be listed here before public launch." },
+} as const;
+export type FounderKey = keyof typeof FOUNDER_PLACEHOLDERS;
+
+export const DRAFT_BANNER = "Draft for legal review. Not yet in force.";

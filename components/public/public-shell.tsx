@@ -23,14 +23,17 @@ export const PUBLIC_PAGES = [
   { href: "/briefing", label: "Briefing" },
   { href: "/following", label: "Following" },
   { href: "/account", label: "Account" },
-  { href: "/method", label: "How a claim is checked" },
+  { href: "/method", label: "How this works" },
   { href: "/about", label: "Who runs this" },
   { href: "/corrections", label: "Corrections" },
   { href: "/transparency", label: "Transparency" },
+  { href: "/pledge", label: "Pledge" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
   { href: "/records", label: "Published records" },
 ] as const;
 
-const INFO_PAGES = new Set(["/method", "/about", "/corrections", "/transparency", "/records"]);
+const INFO_PAGES = new Set(["/method", "/about", "/corrections", "/transparency", "/pledge", "/privacy", "/terms", "/records"]);
 
 type Access = { allowed: boolean; preview: boolean; editor?: unknown; invite?: { activeDays?: number } | null; audience?: Audience };
 

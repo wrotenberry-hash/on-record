@@ -29,7 +29,7 @@ export default async function TransparencyPage() {
         <p><b>Answers set aside from totals, by reason</b>{sum(m.quarantined) > 0 ? " (one answer can match more than one reason)" : ": none"}</p>
         {sum(m.quarantined) > 0 && <ul className="analysis-list">{Object.entries(m.quarantined).map(([r, n]) => <li key={r}>{REASON_LABEL[r] ?? r}: {n}</li>)}</ul>}
       </div>) : <p className="meta">Nothing blocked or set aside yet.</p>}
-      <p className="meta">Counts only: no names, accounts, numbers or addresses. <Link href="/method">How a claim is checked</Link></p>
+      <p className="meta">Counts only: no names, accounts, numbers or addresses. <Link href="/method#numbers">How reader totals are counted</Link></p>
     </section>
   </PublicShell>;
 }
