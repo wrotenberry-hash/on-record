@@ -77,7 +77,7 @@ export const PRIMERS: Primer[] = [
       { label: "10 U.S.C. 1413a (the combat-injury payment)", url: USC(10, "1413a") }],
     lawAsOf: "2026-11-17", reviewed: true, match: { text: /section 1413a|section 1414 of (?:such )?title|concurrent receipt/i } },
 
-  // Written 17 Nov 2026 from the agencies' own pages; they wait for the owner's approval (reviewed: false), so no page or prompt uses them yet.
+  // Written 17 Nov 2026 from the agencies' own pages; approved by the owner on 17 Nov 2026 ("Explainers are approved").
   { id: "medicare", kind: "topic", title: "Medicare",
     bullets: [
       "Medicare is federal health insurance for people 65 and older, and for some younger people with disabilities or certain conditions. It covered about 69 million people in 2025.",
@@ -89,7 +89,7 @@ export const PRIMERS: Primer[] = [
       { label: "Medicare.gov: how Medicare is funded", url: "https://www.medicare.gov/about-us/how-is-medicare-funded" },
       { label: "Medicare.gov: what Medicare costs in 2026", url: "https://www.medicare.gov/basics/costs/medicare-costs" },
       { label: "2026 Medicare Trustees Report (people covered, taxes, the 2033 projection)", url: "https://www.cms.gov/oact/tr/2026" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { text: /title XVIII of the Social Security Act|\bMedicare (?:program|beneficiar(?:y|ies)|Advantage|part [ABCD]\b|trust fund)|part [ABD] of (?:the )?Medicare/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { text: /title XVIII of the Social Security Act|\bMedicare (?:program|beneficiar(?:y|ies)|Advantage|part [ABCD]\b|trust fund)|part [ABD] of (?:the )?Medicare/i } },
 
   { id: "medicaid", kind: "topic", title: "Medicaid",
     bullets: [
@@ -104,7 +104,7 @@ export const PRIMERS: Primer[] = [
       { label: "Medicaid.gov: people covered, July 2026", url: "https://www.medicaid.gov/medicaid/program-information/medicaid-and-chip-enrollment-data/report-highlights" },
       { label: "Federal Register: the federal share for each state (the 50 and 83 percent limits)", url: "https://www.govinfo.gov/content/pkg/FR-2025-11-28/html/2025-21332.htm" },
       { label: "Medicare.gov: Medicaid and the 2027 work rule", url: "https://www.medicare.gov/basics/costs/help/medicaid" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { text: /title XIX of the Social Security Act|\bMedicaid (?:program|beneficiar(?:y|ies)|eligib\w+|expansion|coverage)|State plan under title XIX/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { text: /title XIX of the Social Security Act|\bMedicaid (?:program|beneficiar(?:y|ies)|eligib\w+|expansion|coverage)|State plan under title XIX/i } },
 
   { id: "social-security", kind: "topic", title: "Social Security",
     bullets: [
@@ -117,7 +117,7 @@ export const PRIMERS: Primer[] = [
       { label: "Federal Register: Social Security amounts for 2026", url: "https://www.govinfo.gov/content/pkg/FR-2025-11-03/html/2025-19763.htm" },
       { label: "26 U.S.C. 3101 (the tax on wages)", url: USC(26, "3101") },
       { label: "HealthCare.gov glossary: Social Security", url: "https://www.healthcare.gov/glossary/social-security/" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { text: /title II of the Social Security Act|old-age, survivors, and disability insurance|Social Security (?:benefits?|retirement|trust funds?|Administration)|Federal Old-Age and Survivors Insurance Trust Fund/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { text: /title II of the Social Security Act|old-age, survivors, and disability insurance|Social Security (?:benefits?|retirement|trust funds?|Administration)|Federal Old-Age and Survivors Insurance Trust Fund/i } },
 
   { id: "yearly-spending-bills", kind: "topic", title: "How Congress pays for the government each year",
     bullets: [
@@ -131,7 +131,7 @@ export const PRIMERS: Primer[] = [
       { label: "Budget of the U.S. Government, 2027: budget concepts (shares of spending, stopgap laws, shutdowns)", url: "https://www.govinfo.gov/content/pkg/BUDGET-2027-PER/pdf/BUDGET-2027-PER-4-2.pdf" },
       { label: "House Practice: the 12 regular spending bills", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-5.pdf" },
       { label: "U.S. Senate: bills, acts and laws", url: "https://www.senate.gov/legislative/bills_acts_laws.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /\bmaking (?:(?:further|additional|continuing|supplemental|emergency|consolidated|full-year|omnibus) )*appropriations\b|\bAppropriations Act\b|\bContinuing Appropriations\b/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /\bmaking (?:(?:further|additional|continuing|supplemental|emergency|consolidated|full-year|omnibus) )*appropriations\b|\bAppropriations Act\b|\bContinuing Appropriations\b/i } },
 
   { id: "budget-majority-route", kind: "process", title: "The budget route that passes the Senate with a simple majority",
     bullets: [
@@ -141,7 +141,7 @@ export const PRIMERS: Primer[] = [
       "There are limits. Any senator can ask to strike a part that does not change spending or taxes, and keeping it takes 60 votes. The bill may not change Social Security."],
     sources: [{ label: "2 U.S.C. 641 (the instructions, the 20-hour limit, Social Security)", url: USC(2, "641") }, { label: "2 U.S.C. 644 (parts that do not belong)", url: USC(2, "644") },
       { label: "U.S. Senate: ending debate", url: "https://www.senate.gov/about/powers-procedures/filibusters-cloture.htm" }, { label: "U.S. Senate: voting", url: "https://www.senate.gov/about/powers-procedures/voting.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /\breconciliation\b/i, text: /\bto provide for reconciliation pursuant to\b/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /\breconciliation\b/i, text: /\bto provide for reconciliation pursuant to\b/i } },
 
   { id: "tariffs", kind: "topic", title: "Tariffs",
     bullets: [
@@ -156,10 +156,10 @@ export const PRIMERS: Primer[] = [
       { label: "Federal Register, 25 February 2026: order ending the emergency tariffs", url: "https://www.govinfo.gov/content/pkg/FR-2026-02-25/html/2026-03832.htm" },
       { label: "Budget of the U.S. Government, 2027: customs duties and fees by year", url: "https://www.govinfo.gov/content/pkg/BUDGET-2027-TAB/xls/BUDGET-2027-TAB-3-5.xlsx" },
       { label: "Government Accountability Office: what a tariff is", url: "https://www.govinfo.gov/content/pkg/GAOREPORTS-NSIAD-00-210/html/GAOREPORTS-NSIAD-00-210.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /\btariffs?\b/i, text: /Harmonized Tariff Schedule|section 232 of the Trade Expansion Act|section 301 of the Trade Act|section 122 of the Trade Act|\brates? of duty\b/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /\btariffs?\b/i, text: /Harmonized Tariff Schedule|section 232 of the Trade Expansion Act|section 301 of the Trade Act|section 122 of the Trade Act|\brates? of duty\b/i } },
 
   // Written 17 Nov 2026 for the test-ready build, from the House's rules and manual, House Practice, the Constitution, the U.S. Code and
-  // Senate.gov. They wait for the owner's approval (reviewed: false), so no page or prompt uses them yet.
+  // Senate.gov. Approved by the owner on 17 Nov 2026 ("Explainers are approved").
   { id: "house-fast-track", kind: "process", title: "The House's fast track for bills with wide support",
     bullets: [
       "The House has a shortcut for bills that few members oppose (called suspension of the rules). It is used often.",
@@ -169,7 +169,7 @@ export const PRIMERS: Primer[] = [
     sources: [{ label: "Rules of the House, 119th Congress: Rule XV, clause 1", url: "https://www.govinfo.gov/content/pkg/HMAN-119/html/HMAN-119-pg716.htm" },
       { label: "House Practice: suspension of the rules", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-54.pdf" },
       { label: "How Our Laws Are Made (House Document 110-49)", url: "https://www.govinfo.gov/content/pkg/CDOC-110hdoc49/html/CDOC-110hdoc49.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /\bsuspend the rules\b/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { actions: /\bsuspend the rules\b/i } },
 
   { id: "house-debate-terms", kind: "process", title: "How the House sets the terms of debate on a bill",
     bullets: [
@@ -181,7 +181,7 @@ export const PRIMERS: Primer[] = [
       { label: "House Practice: the previous question", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-40.pdf" },
       { label: "Rules of the House, 119th Congress: Rule XIII, clause 6", url: "https://www.govinfo.gov/content/pkg/HMAN-119/html/HMAN-119-pg667.htm" },
       { label: "An example: H. Res. 1650, setting the terms for H.R. 1013", url: "https://www.govinfo.gov/content/pkg/BILLS-119hres1650rh/html/BILLS-119hres1650rh.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /Considered under the provisions of rule H\. ?Res\.|Rule provides for consideration of/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { actions: /Considered under the provisions of rule H\. ?Res\.|Rule provides for consideration of/i } },
 
   { id: "veto-override", kind: "process", title: "What happens when the President vetoes a bill",
     bullets: [
@@ -192,7 +192,7 @@ export const PRIMERS: Primer[] = [
     sources: [{ label: "U.S. Constitution, Article I, section 7 (House Document 110-50)", url: "https://www.govinfo.gov/content/pkg/CDOC-110hdoc50/html/CDOC-110hdoc50.htm" },
       { label: "House Practice: veto of bills", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-58.pdf" },
       { label: "U.S. Senate: vetoes, 1789 to present", url: "https://www.senate.gov/legislative/vetoes/vetoCounts.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /\bvetoed\b|\bveto message\b|objections of the President/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { actions: /\bvetoed\b|\bveto message\b|objections of the President/i } },
 
   { id: "war-powers", kind: "process", title: "How Congress can order troops out of a conflict",
     bullets: [
@@ -204,7 +204,7 @@ export const PRIMERS: Primer[] = [
       { label: "50 U.S.C. 1546 and 1546a (priority for these measures)", url: USC(50, "1546a") },
       { label: "U.S. Senate glossary (the two kinds of measure)", url: "https://www.senate.gov/about/research-tools/glossary.htm" },
       { label: "House Practice: war powers", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-15.pdf" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /War Powers Resolution|remov(?:e|al of) United States Armed Forces/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /War Powers Resolution|remov(?:e|al of) United States Armed Forces/i } },
 
   { id: "constitutional-amendment", kind: "process", title: "How the Constitution gets amended",
     bullets: [
@@ -216,7 +216,7 @@ export const PRIMERS: Primer[] = [
       { label: "Constitution Annotated: Article V", url: "https://www.govinfo.gov/content/pkg/GPO-CONAN-2022/pdf/GPO-CONAN-2022-12.pdf" },
       { label: "U.S. Senate: measures proposed to amend the Constitution", url: "https://www.senate.gov/legislative/MeasuresProposedToAmendTheConstitution.htm" },
       { label: "1 U.S.C. 106b (how a ratified amendment is certified)", url: USC(1, "106b") }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /Proposing an amendment to the Constitution/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /Proposing an amendment to the Constitution/i } },
 ];
 
 export type PrimerContext = { title: string; text: string; actions: string };
