@@ -1,0 +1,14 @@
+{
+  "_note": "HAND-MADE fixture, not a capture. It follows the list shape in the Library of Congress documentation (Documentation/CommitteeMeetingEndpoint.md, read 17 Nov 2026). Replace with a real response once the production key has been used.",
+  "committeeMeetings": [
+    { "chamber": "House", "congress": 119, "eventId": "119501", "updateDate": "2026-11-17T14:02:11Z", "url": "https://api.congress.gov/v3/committee-meeting/119/house/119501?format=json" },
+    { "chamber": "House", "congress": 119, "eventId": "119488", "updateDate": "2026-11-16T21:40:00Z", "url": "https://api.congress.gov/v3/committee-meeting/119/house/119488?format=json" },
+    { "chamber": "House", "congress": 119, "eventId": "119502", "updateDate": "2026-11-17T16:30:45Z", "url": "https://api.congress.gov/v3/committee-meeting/119/house/119502?format=json" },
+    { "chamber": "House", "congress": 119, "eventId": "118001", "updateDate": "2026-02-03T10:00:00Z", "url": "https://api.congress.gov/v3/committee-meeting/119/house/118001?format=json" },
+    { "chamber": "House", "congress": 119, "eventId": "119501", "updateDate": "2026-11-17T14:02:11Z", "url": "https://api.congress.gov/v3/committee-meeting/119/house/119501?format=json" },
+    { "chamber": "House", "congress": 119, "updateDate": "2026-11-17T14:02:11Z" },
+    "not an item"
+  ],
+  "pagination": { "count": 2713, "next": "https://api.congress.gov/v3/committee-meeting/119/house?offset=250&limit=250&format=json" },
+  "request": { "chamber": "house", "congress": "119", "contentType": "application/json", "format": "json" }
+}

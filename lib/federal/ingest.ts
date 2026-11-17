@@ -318,6 +318,8 @@ export async function runFederalIngest({ budgetMs = 120_000, trigger = "schedule
   const depth = await import("@/lib/federal/depth");
   await step("committees", () => depth.ingestCommittees(db));
   await step("floor", () => depth.ingestFloor(db));
+  // Test-ready build: committee hearings and markups for the next three weeks (Congress.gov committee-meeting records).
+  await step("meetings", async () => (await import("@/lib/federal/meetings")).ingestMeetings(db, deadline));
   await step("depth", () => depth.ingestDepth(db, deadline));
   await step("tally", () => depth.checkTallies(db));
   await step("counts", () => depth.ingestCongressCounts(db));

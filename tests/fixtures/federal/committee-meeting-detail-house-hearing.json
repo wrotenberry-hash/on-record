@@ -1,0 +1,38 @@
+{
+  "_note": "HAND-MADE fixture, not a capture. Field names and example values follow the Library of Congress documentation of the item level (Documentation/CommitteeMeetingEndpoint.md, read 17 Nov 2026).",
+  "committeeMeeting": {
+    "chamber": "House",
+    "committees": [
+      { "name": "House Natural Resources Subcommittee on Indian and Insular Affairs", "systemCode": "hsii24", "url": "https://api.congress.gov/v3/committee/house/hsii24?format=json" }
+    ],
+    "congress": 119,
+    "date": "2026-11-24T15:00:00Z",
+    "eventId": "119501",
+    "hearingTranscript": [],
+    "location": { "building": "Longworth House Office Building", "room": "1324" },
+    "meetingDocuments": [
+      { "documentType": "Support Document", "format": "PDF", "name": "Hearing Notice", "url": "https://www.congress.gov/119/meeting/house/119501/documents/HHRG-119-II24-20261124-SD001.pdf" }
+    ],
+    "meetingStatus": "Scheduled",
+    "relatedItems": {
+      "bills": [
+        { "congress": 119, "number": "1246", "type": "HR", "url": "https://api.congress.gov/v3/bill/119/hr/1246?format=json" },
+        { "congress": 119, "number": "1532", "type": "HR", "url": "https://api.congress.gov/v3/bill/119/hr/1532?format=json" },
+        { "congress": 119, "number": "1532", "type": "HR", "url": "https://api.congress.gov/v3/bill/119/hr/1532?format=json" },
+        { "congress": 119, "number": "88", "type": "SJRES", "url": "https://api.congress.gov/v3/bill/119/sjres/88?format=json" },
+        { "congress": 119, "number": "12", "type": "PN" }
+      ],
+      "nominations": [],
+      "treaties": []
+    },
+    "title": "Legislative hearing on: •H.R. 1246 (Rep. Hageman), To authorize leases of up to 99 years for land held in trust for federally recognized Indian tribes; and•H.R. 1532 (Rep. Hageman), To authorize any Indian Tribe to lease, sell, convey, warrant, or otherwise transfer real property to which that Indian Tribe holds fee title without the consent of the Federal Government, and for other purposes.",
+    "type": "Hearing",
+    "updateDate": "2026-11-17T14:02:11Z",
+    "videos": [],
+    "witnessDocuments": [],
+    "witnesses": [
+      { "name": "Mr. Thomas DiNanno", "organization": "U.S. Department of Homeland Security", "position": "Assistant Administrator" }
+    ]
+  },
+  "request": { "chamber": "house", "congress": "119", "contentType": "application/json", "eventId": "119501", "format": "json" }
+}

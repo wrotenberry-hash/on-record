@@ -135,7 +135,7 @@ export async function checkTallies(db: Db): Promise<Step> {
 /** Counts only, for the health probe. */
 export async function depthCounts(db = getDb()) {
   const count = async (q: Promise<{ n: number } | undefined>) => Number((await q)?.n ?? 0);
-  const [billsWithActions, actions, amendments, texts, committees, memberships, floor, tallyChecked, tallyBad, stages] = await Promise.all([
+  const [billsWithActions, actions, amendments, texts, committees, memberships, floor, tallyChecked, tallyBad, stages, meetingsUpcoming] = await Promise.all([
     count(db.select({ n: sql<number>`count(*)` }).from(officialBillDepth).where(isNotNull(officialBillDepth.actionsAt)).get()),
     count(db.select({ n: sql<number>`count(*)` }).from(officialBillActions).get()),
     count(db.select({ n: sql<number>`count(*)` }).from(officialAmendments).get()),
@@ -146,8 +146,10 @@ export async function depthCounts(db = getDb()) {
     count(db.select({ n: sql<number>`count(*)` }).from(officialTallyChecks).get()),
     count(db.select({ n: sql<number>`count(*)` }).from(officialTallyChecks).where(eq(officialTallyChecks.ok, 0)).get()),
     db.select({ stage: officialBillDepth.stage, n: sql<number>`count(*)` }).from(officialBillDepth).groupBy(officialBillDepth.stage),
+    // Committee hearings and markups still ahead (official_committee_meetings); -1 when the count could not be read.
+    import("@/lib/federal/meetings").then(m => m.upcomingMeetingCount(db)).catch(() => -1),
   ]);
-  return { billsWithActions, actions, amendments, textVersions: texts, committees, committeeMemberships: memberships, floorItemsThisWeek: floor,
+  return { billsWithActions, actions, amendments, textVersions: texts, committees, committeeMemberships: memberships, floorItemsThisWeek: floor, committeeMeetingsUpcoming: meetingsUpcoming,
     tally: { checked: tallyChecked, mismatches: tallyBad }, stages: Object.fromEntries(stages.map(s => [s.stage ?? "unread", Number(s.n)])) };
 }
 
