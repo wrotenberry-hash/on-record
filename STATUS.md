@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-17 02:30 UTC (writing standard and reader test built; gold examples await the owner). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-17 04:00 UTC (new summary structure built; summary writing paused; gold examples await the owner). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
@@ -12,6 +12,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Done
 
+- **New summary structure (17 Nov, generator b7; summary writing PAUSED until the owner approves).** How it works today, What would change (Today → If this passes), Why now; process and topic primers in lib/analysis/primers.ts (5 written, none used until approved); a second reader test on the page; page order per the owner. Gold examples redone and sent for approval (same page). New table analysis_summary_structure.
 - **Writing standard and average-reader test (17 Nov, generator b6; docs/WRITING_STANDARD.md).** Verb-first 15-word headlines, plain English with the daily-life change, jargon list (59 terms), no filler, reasons from the record (floor statements, the rule's preamble, committee reports). Reader test gates every summary (2 retries, then held); results in analysis_reader_tests, pass rate and cost on the probe and Summary quality. Three gold examples written from the records, passing the checker and a stand-in reader, sent to the owner for approval; not in the prompt until approved. Bill page layered: headline, plain English, Explain more, sources. Cap stays 5; readers see no summaries.
 - **Owner review (16 Nov, 23:30 UTC): summaries rebuilt as b5; none shown to readers until the owner approves S.J.Res. 197.** S.J.Res. 197's headline named Medicare and Medicaid; the rule is the 2027 ACA marketplace payment rule. Root cause and fixes in docs/ROUND1_REVIEW.md "Owner review": official sources (CRS, CBO, committee reports, Federal Register rule, U.S. Code), source-backed claim check, In plain English, Background, concrete example, record-only attributions, full-text check for resolutions; timeline floor-vote steps; plain voting question. Texas summaries paused.
 - **Round 1, second review (16 Nov, owner-started run at 21:35 UTC):** the 5 summaries were rewritten under b3 for $0.0175 (0.35 cents each); all five accurate against the bill text; 3 shown, 1 held for reading level (subject words), 1 held for missing bill text. Fixes shipped as generator b4 (title words count as plain words; no "X could say" arguments); "Run the update now" limited to one start per 10 minutes. Texas loaded for the first time: 178 legislators, 100 bills, 183 votes, 0 tally mismatches. The 5-summary limit lifts after the b4 rewrite passes on 17 Nov.

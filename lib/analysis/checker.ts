@@ -5,14 +5,14 @@
  * failures as feedback; a second failure holds it for an editor.
  */
 // The ".ts" ending lets the node test runner load this without a bundler (tsconfig: allowImportingTsExtensions).
-import { EVERYDAY_NAMES, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, unexplainedAcronyms, unexplainedJargon } from "./standard.ts";
+import { EVERYDAY_NAMES, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, vagueChangeRow, type ChangeRow } from "./standard.ts";
 
 export type Section = { num: string; heading: string; text?: string };
 
 /** Normalise a citation such as "Sec. 2", "Section 2(a)" or "§ 3" to its section number, or null. */
 export function citedSection(cite: string): string | null {
   const id = cite.trim().toUpperCase();
-  if (/^(FULL|RULE|REPORT|CRS|CBO|BILL|STATUS|FLOOR\d?|USC \d+ §[0-9A-Z-]+)$/.test(id)) return id;
+  if (/^(FULL|RULE|REPORT|CRS|CBO|BILL|STATUS|PRIMER|FLOOR\d?|USC \d+ §[0-9A-Z-]+)$/.test(id)) return id;
   if (/^full text$/i.test(cite.trim())) return "FULL";
   const m = cite.match(/(?:sec(?:tion)?s?\.?|§)\s*(\d+[A-Za-z]?)/i);
   return m ? m[1].toUpperCase() : null;
@@ -64,6 +64,12 @@ export type SummaryDraft = {
   backgroundSources?: string[];
   /** b5+: the reader's voting question, from the plain headline ("Do you support blocking …?"). */
   question?: string;
+  /** b7+ (owner, 17 Nov): the subject from zero, in 3 to 5 short bullets, before the reader is told what changes. */
+  howItWorksToday?: Point[];
+  /** b7+: one row per change, "Today: … → If this passes: …". */
+  changes?: ChangeRow[];
+  /** b7+: one or two sentences on why this is being voted on now. */
+  whyNow?: string;
   whatItDoes: Point[];
   whoItAffects: Point[];
   whatChangesForYou: string;
@@ -100,7 +106,7 @@ const OPINION_PATTERNS: Array<[RegExp, string]> = [
 const VAGUE_ATTRIBUTION = /^(some|many|others|people|critics|supporters|opponents|proponents|experts|observers|some people|many people|it is argued)$/i;
 
 export const LIMITS = { headlineWords: 20, pointWords: 35, changesWords: 45, argumentWords: 40, argumentMinWords: 8,
-  unknownWords: 30, totalWords: 360, totalWordsB5: 520, plainWords: 80, backgroundWords: 90, questionWords: 18, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
+  unknownWords: 30, totalWords: 360, totalWordsB5: 900, plainWords: 80, backgroundWords: 90, questionWords: 18, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
 
 export function words(text: string): string[] { return text.trim().split(/\s+/).filter(Boolean); }
 const wc = (t: string) => words(t).length;
@@ -167,7 +173,8 @@ export function bannedWordsIn(text: string): string[] {
 /** Every sentence the model wrote, for the word, opinion and reading-level checks. */
 export function proseOf(d: SummaryDraft): string[] {
   const end = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
-  return [end(d.headline), ...(d.plainEnglish ? [d.plainEnglish.trim()] : []), ...(d.background ? [d.background.trim()] : []), ...d.whatItDoes.map(p => end(p.text)), ...d.whoItAffects.map(p => end(p.text)), end(d.whatChangesForYou),
+  return [end(d.headline), ...(d.plainEnglish ? [d.plainEnglish.trim()] : []), ...(d.howItWorksToday ?? []).map(p => end(p.text)),
+    ...(d.changes ?? []).flatMap(r => [end(r.today), end(r.ifPassed)]), ...(d.whyNow ? [d.whyNow.trim()] : []), ...(d.background ? [d.background.trim()] : []), ...d.whatItDoes.map(p => end(p.text)), ...d.whoItAffects.map(p => end(p.text)), end(d.whatChangesForYou),
     ...d.caseFor.map(a => end(a.argument)), ...d.caseAgainst.map(a => end(a.argument)), ...d.unknowns.map(end)];
 }
 
@@ -177,6 +184,8 @@ export function proseOf(d: SummaryDraft): string[] {
  */
 export type SourceContext = { title: string; docs: ReadonlyArray<{ id: string; text: string }>; agencies: readonly string[];
   allowedFor: readonly string[]; allowedAgainst: readonly string[]; needsBackground: boolean;
+  /** b7: "How it works today", "What would change" and "Why now" are required and checked. */
+  structure?: boolean;
   /** What each named member said on the floor: a reason credited to a speaker must come from that speaker's own words. */
   speakers?: ReadonlyArray<{ name: string; text: string }> };
 
@@ -263,7 +272,8 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
   if (banned.length) fail(`Loaded words: ${banned.join(", ")}.`);
   for (const [re, label] of OPINION_PATTERNS) if (re.test(all)) fail(`Contains ${label}.`);
 
-  if (sources) checkB5(d, sources, fail, warn);
+  // The bill's own text is a source too: a fact in "What would change" may come straight from it.
+  if (sources) checkB5(d, { ...sources, docs: [...sources.docs, { id: "BILL", text: opts.fullText ?? sectionsIn.map(x => `${x.heading} ${x.text ?? ""}`).join(" ") }] }, fail, warn);
 
   const totalWords = prose.reduce((n, s) => n + wc(s), 0);
   if (totalWords > (sources ? LIMITS.totalWordsB5 : LIMITS.totalWords)) fail(`The summary is ${totalWords} words; the limit is ${sources ? LIMITS.totalWordsB5 : LIMITS.totalWords} (about two phone screens).`);
@@ -357,7 +367,36 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
   }
 
   // ── The 17 Nov writing standard (lib/analysis/standard.ts) ──
-  const reading = [d.headline, plain, bg, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou,
+  // ── b7: how it works today → what would change → why now ──
+  const today = d.howItWorksToday ?? [], rows = d.changes ?? [], why = d.whyNow?.trim() ?? "";
+  if (src.structure) {
+    const L = STRUCTURE_LIMITS;
+    if (today.length < L.todayMin || today.length > L.todayMax) fail(`How it works today needs ${L.todayMin} to ${L.todayMax} short bullets that explain the subject from zero; it has ${today.length}.`);
+    today.forEach((p, i) => {
+      if (wc(p.text) > L.todayWords) fail(`How it works today bullet ${i + 1} is ${wc(p.text)} words; the limit is ${L.todayWords}.`);
+      if (!p.section.trim() || !src.docs.some(x => x.id.toUpperCase() === p.section.trim().toUpperCase()) && !/^(?:sec|full)/i.test(p.section.trim())) fail(`How it works today bullet ${i + 1} cites "${p.section}", which is not one of the sources provided.`);
+      claims(`How it works today bullet ${i + 1}`, p.text);
+    });
+    if (rows.length < L.changesMin || rows.length > L.changesMax) fail(`What would change needs ${L.changesMin} to ${L.changesMax} rows, one per change ("Today: … → If this passes: …"); it has ${rows.length}.`);
+    rows.forEach((r, i) => {
+      const why2 = vagueChangeRow(r);
+      if (why2) fail(`What would change row ${i + 1} is vague: ${why2}. Say what the rule is today and what it would be, with the number or date from the sources.`);
+      if (wc(r.today) > L.rowWords || wc(r.ifPassed) > L.rowWords) fail(`What would change row ${i + 1} is too long; each side is at most ${L.rowWords} words.`);
+      if (!r.source?.trim()) fail(`What would change row ${i + 1} names no source.`);
+      claims(`What would change row ${i + 1}`, `${r.today} ${r.ifPassed}`);
+    });
+    if (rows.length && !rows.some(r => HAS_SPECIFIC.test(`${r.today} ${r.ifPassed}`))) fail("What would change has no number or date in any row. Use the figures in the sources.");
+    if (!why) fail("Why now is empty: say in one or two sentences why this is being voted on now (a deadline, a new rule, a court ruling, a vote).");
+    else {
+      const n = sentences(why).length;
+      if (n > 2) fail(`Why now is ${n} sentences; use one or two.`);
+      if (wc(why) > L.whyNowWords) fail(`Why now is ${wc(why)} words; the limit is ${L.whyNowWords}.`);
+      if (!HAS_SPECIFIC.test(why)) fail("Why now gives no date or vote. Say what happened and when, from the sources.");
+      claims("Why now", why);
+    }
+  }
+
+  const reading = [d.headline, plain, ...today.map(p => p.text), ...rows.flatMap(r => [r.today, r.ifPassed]), why, bg, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou,
     ...d.caseFor.map(a => a.argument), ...d.caseAgainst.map(a => a.argument), ...d.unknowns];
   for (const t of unexplainedJargon(reading)) fail(t.part === 0
     ? `The headline uses "${t.term}"; a headline has no room to explain it, so use plain words (${t.plain}).`

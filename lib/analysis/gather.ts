@@ -1,8 +1,9 @@
-import { changesExistingLaw, committeeReportCitations, committeeReportDoc, crLinkUrl, crPageRefs, disapprovedRule, statusDoc, federalRegisterDoc, federalRegisterSearchUrl, floorDoc, frAgencies,
+import { committeeReportCitations, committeeReportDoc, crLinkUrl, crPageRefs, disapprovedRule, statusDoc, federalRegisterDoc, federalRegisterSearchUrl, floorDoc, frAgencies,
   frFullTextUrl, parseCommitteeReport, parseFloorSpeeches, parseFrPreamble, parseUsCodeSection, pickFederalRegisterRule, recordMentionsBill, reportPackage, reportUrl, usCodeCites, usCodeUrl,
   type FrDoc, type SourceDoc } from "@/lib/analysis/sources";
 import type { BillStatus } from "@/lib/analysis/billtext";
 import type { SourceContext } from "@/lib/analysis/checker";
+import { primersFor, primerSourceText, type Primer } from "@/lib/analysis/primers";
 
 const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 
@@ -13,7 +14,7 @@ async function fetchText(url: string, timeoutMs = 20_000): Promise<string | null
   } catch { return null; }
 }
 
-export type Gathered = { docs: SourceDoc[]; context: SourceContext; notes: string[] };
+export type Gathered = { docs: SourceDoc[]; context: SourceContext; notes: string[]; primers: Primer[] };
 
 /**
  * Owner instruction, 16 Nov 2026: gather every official source the summary may use, each with an id the model cites.
@@ -101,8 +102,12 @@ export async function gatherSources(input: { title: string; billType: string; nu
     if (doc) docs.push(doc); else notes.push(`${c.title} U.S.C. ${c.section} could not be read.`);
   }
 
-  const needsBackground = changesExistingLaw(input.title, input.billText) && docs.some(d => d.kind === "federal_register" || d.kind === "us_code" || d.kind === "committee_report" || d.kind === "crs");
-  return { docs, notes, context: { title: input.title, docs: docs.map(d => ({ id: d.id, text: d.text })), agencies: [...new Set(agencies)], allowedFor, allowedAgainst, needsBackground, speakers } };
+  // Reviewed primers that apply: the topic primer becomes a source ("PRIMER"), so related summaries explain the subject the same way.
+  const primers = primersFor({ title: input.title, text: input.billText, actions: status?.text ?? "" });
+  const topic = primerSourceText(primers);
+  if (topic) docs.push({ id: "PRIMER", kind: "primer", label: `Reviewed primer: ${primers.filter(p => p.kind === "topic").map(p => p.title).join("; ")}`, url: primers.find(p => p.kind === "topic")!.sources[0].url, text: topic });
+
+  return { docs, notes, context: { title: input.title, docs: docs.map(d => ({ id: d.id, text: d.text })), agencies: [...new Set(agencies)], allowedFor, allowedAgainst, needsBackground: false, structure: true, speakers }, primers };
 }
 
 /** The sources block of the model's input. */
@@ -111,7 +116,7 @@ export function sourcesBlock(g: Gathered): string {
   return [
     "OFFICIAL SOURCES (cite by the id in brackets; use nothing else):", list || "(none beyond the bill text)",
     g.notes.length ? `Not available: ${g.notes.join(" ")}` : "",
-    `Background required: ${g.context.needsBackground ? "yes (the bill changes or blocks an existing rule or law)" : "no"}.`,
+    g.primers.some(p => p.kind === "topic") ? "A reviewed PRIMER on this subject is among the sources. Build \"How it works today\" on it and do not contradict it; add what current law or the current rule says on the exact points this bill touches." : "",
     `Who may be credited with a reason FOR the bill (use one of these, worded as given, and only for a reason that person or body actually gave in the source you cite; a floor speaker belongs on the side they spoke for): ${g.context.allowedFor.length ? g.context.allowedFor.map(x => `"${x}"`).join("; ") : "nobody in the record; leave caseFor empty"}.`,
     `Who may be credited with a reason AGAINST the bill (same rule): ${g.context.allowedAgainst.length ? g.context.allowedAgainst.map(x => `"${x}"`).join("; ") : "nobody in the record; leave caseAgainst empty"}.`,
     "If the sources hold no stated reason for a side, leave that side empty. Never invent one.",

@@ -15,6 +15,7 @@ import { changesFor } from "@/lib/analysis/changes";
 import { isFollowingBill } from "@/lib/bill-follows";
 import { Timeline } from "@/components/federal/timeline";
 import { stanceQuestion } from "@/lib/federal/stance-question";
+import { primerById } from "@/lib/analysis/primers";
 import { PartySplit } from "@/components/federal/party-split";
 import { Glossed } from "@/components/ui/glossed";
 import { VoteExplainer, YesNo } from "@/components/federal/vote-row";
@@ -101,6 +102,36 @@ export default async function BillPage({ params, searchParams }: { params: Promi
   // summary here (summaryForBill gates it); a held one is used only for the signed-in editor's preview.
   const ask = stanceQuestion({ question: s && (!held || access.preview) ? analysis?.details?.question ?? null : null, headline: s && (!held || access.preview) ? s.headline : null });
 
+  // Owner, 17 Nov: bring the reader up to speed first. With the new structure the page reads: headline, plain English,
+  // how it works today, what would change, why now, (status), who it affects, cost, what changes for you, the cases,
+  // what we don't know, sources. Older summaries keep the "Explain more" layer.
+  const st = s ? analysis?.structure ?? null : null;
+  const primers = (st?.primers ?? []).map(primerById).filter((p): p is NonNullable<typeof p> => !!p && p.reviewed);
+  const lastFloor = timeline ? [...timeline.steps].reverse().find(x => "floor" in x) as { label?: string; meaning?: string } | undefined : undefined;
+  const primerBox = (p: (typeof primers)[number]) => <details key={p.id} className="primer"><summary>{p.kind === "process" ? "How this works: " : "Background: "}{p.title}</summary>
+    <ul className="analysis-list">{p.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+    {p.kind === "process" && lastFloor?.label && <p><b>In this case:</b> {lastFloor.label}. {lastFloor.meaning}</p>}
+    <p className="meta">Sources: {p.sources.map((x, i) => <span key={x.url}>{i ? " · " : ""}<a href={x.url} target="_blank" rel="noopener noreferrer">{x.label}</a></span>)}. Checked {shortDate(p.lawAsOf)}.</p></details>;
+  const whoBlock = s && <>
+    <div className="fed-section"><h2>Who it affects <AnalysisBadge /></h2>
+          <ul className="analysis-list">{s.whoItAffects.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
+  </>;
+  const youBlock = s && <>
+        <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
+  </>;
+  const caseBlock = s && <>
+        <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2>
+          <div className="case-grid">
+            <div><h3>For</h3>{s.caseFor.length ? <ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
+            <div><h3>Against</h3>{s.caseAgainst.length ? <ul className="analysis-list">{s.caseAgainst.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
+          </div>
+          <p className="meta">{analysis?.details ? "Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not On Record's view." : "Both sides are written to the same length and standard. They describe arguments people make; they are not On Record's view."}</p></div>
+  </>;
+  const unknownBlock = s && <>
+        <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
+          <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
+  </>;
+
   return <PublicShell current="/issues" access={access} page="/bills/[id]">
     <section className="fed-page bill-page">
       <p className="crumbs"><Link href="/issues">← Issues</Link></p>
@@ -118,6 +149,16 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
 
+      {st && <>
+        <div className="fed-section"><h2>How it works today <AnalysisBadge /></h2>
+          <ul className="analysis-list">{st.howItWorksToday.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul>
+          {primers.filter(p => p.kind === "topic").map(primerBox)}</div>
+        <div className="fed-section"><h2>What would change <AnalysisBadge /></h2>
+          <ul className="change-rows">{st.changes.map((r, i) => <li key={i}><p><b>Today:</b> {r.today}</p><p><b>If this passes:</b> {r.ifPassed} {cite(r.source)}</p></li>)}</ul></div>
+        <div className="fed-section"><h2>Why now <AnalysisBadge /></h2><p>{st.whyNow}</p>
+          {primers.filter(p => p.kind === "process").map(primerBox)}</div>
+      </>}
+
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
         {timeline && <Timeline steps={timeline.steps} current={timeline.currentStep} sourceUrl={`${bill.congressUrl}/all-actions`} />}
         {bill.latestActionText ? <p>Latest action: <Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
@@ -129,28 +170,24 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       {/* Owner, 17 Nov: layers. Headline, then plain English, then "Explain more", then sources. A reader who stops
           after the plain-English part should still understand the bill; an older summary with no plain-English part opens the details. */}
-      {s && <details className="explain-more" open={!analysis?.details?.plainEnglish}>
+      {s && st && whoBlock}
+      {s && !st && <details className="explain-more" open={!analysis?.details?.plainEnglish}>
         <summary>Explain more <span className="meta">background, details, the case for and against</span></summary>
         {analysis?.details?.background && <div className="fed-section"><h2>Background <AnalysisBadge /></h2><p>{analysis.details.background} {analysis.details.backgroundSources.map(id => <span key={id}>{cite(id)} </span>)}</p></div>}
         <div className="fed-section"><h2>What it does <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.whatItDoes.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
-        <div className="fed-section"><h2>Who it affects <AnalysisBadge /></h2>
-          <ul className="analysis-list">{s.whoItAffects.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
-        <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
-        <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2>
-          <div className="case-grid">
-            <div><h3>For</h3>{s.caseFor.length ? <ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
-            <div><h3>Against</h3>{s.caseAgainst.length ? <ul className="analysis-list">{s.caseAgainst.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
-          </div>
-          <p className="meta">{analysis?.details ? "Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not On Record's view." : "Both sides are written to the same length and standard. They describe arguments people make; they are not On Record's view."}</p></div>
-        <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
-          <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
+        {whoBlock}
+        {youBlock}
+        {caseBlock}
+        {unknownBlock}
       </details>}
 
       <div className="fed-section"><h2>Cost <OfficialBadge /></h2>
         {cbo.length ? <ul className="analysis-list">{cbo.map(e => <li key={e.url}><a href={e.url} target="_blank" rel="noopener noreferrer">Congressional Budget Office estimate</a>, {shortDate(e.pubDate)}{e.description ? `: ${e.description}` : ""}</li>)}</ul>
           : <p className="meta">{s ? "No Congressional Budget Office cost estimate has been published for this bill." : "Cost estimates are read when the summary is written."}</p>}
       </div>
+
+      {s && st && <>{youBlock}{caseBlock}{unknownBlock}</>}
 
 
       {changes && <div className="fed-section"><h2>What changed between versions {changes.bullets ? <AnalysisBadge /> : <OfficialBadge />}</h2>

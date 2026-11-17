@@ -787,3 +787,15 @@ export const analysisReaderTests = sqliteTable("analysis_reader_tests", {
   reasons: text("reasons", { mode: "json" }).$type<string[]>().notNull(),
   costUsd: real("cost_usd").notNull(), model: text("model").notNull(), promptVersion: text("prompt_version").notNull(), at: integer("at").notNull(),
 }, t => [index("analysis_reader_tests_summary_idx").on(t.summaryId, t.at), index("analysis_reader_tests_at_idx").on(t.at)]);
+
+// ── "How it works today → what would change → why now" (owner instruction, 17 Nov 2026; migration 0032). New table only.
+// One row per summary, replaced when the summary is rewritten (earlier wording stays in analysis_summary_versions).
+export const analysisSummaryStructure = sqliteTable("analysis_summary_structure", {
+  summaryId: text("summary_id").primaryKey().references(() => analysisBillSummaries.id),
+  howItWorksToday: text("how_it_works_today", { mode: "json" }).$type<Array<{ text: string; section: string }>>().notNull(),
+  changes: text("changes", { mode: "json" }).$type<Array<{ today: string; ifPassed: string; source: string }>>().notNull(),
+  whyNow: text("why_now").notNull(),
+  primers: text("primers", { mode: "json" }).$type<string[]>().notNull(), // ids of the process and topic primers that applied
+  promptVersion: text("prompt_version").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});

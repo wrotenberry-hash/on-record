@@ -35,7 +35,11 @@ export const JARGON: JargonTerm[] = [
   j("defrayal", "defray(?:al|s|ed|ing)?", "paying the cost"),
   j("open enrollment", "open enrollment", "the yearly sign-up period"),
   j("special enrollment period", "special enrollment periods?", "a chance to sign up outside the yearly sign-up period"),
+  j("premium", "premiums?(?! tax credit)", "the monthly price of a plan"),
+  j("enrolled", "enroll(?:ed|ees?|ment|ing|s)?", "signed up; people in the plans"),
+  j("marketplace", "(?:state |federal |health insurance )?marketplaces?", "the government site where people buy health plans"),
   // Money and budgets
+  j("deficit", "deficits?", "the gap between what the government spends and takes in"),
   j("appropriations", "appropriat(?:ions?|es?|ed|ing)", "money Congress approves to be spent"),
   j("authorization", "authoriz(?:ation|ations|es) of appropriations|reauthoriz(?:es?|ation|ed|ing)", "permission for a program to exist and be funded"),
   j("reconciliation", "(?:budget )?reconciliation", "a budget process that lets the Senate pass a bill with 51 votes instead of 60"),
@@ -68,6 +72,9 @@ export const JARGON: JargonTerm[] = [
   j("statute", "statut(?:e|es|ory)", "law"),
   j("provisions", "provisions?", "parts of the law"),
   j("affidavit", "affidavits?", "a sworn written statement"),
+  j("notary", "notar(?:y|ies|ized|ization)(?:'s)?", "an official witness to a signature"),
+  j("sponsor", "(?:co-?)?sponsors?", "the member who wrote the bill"),
+  j("substantially the same", "substantially (?:the same|similar)", "nearly identical"),
   j("provisional ballot", "provisional ballots?", "a ballot set aside until officials confirm the voter is eligible"),
   j("fiduciary", "fiduciar(?:y|ies)", "someone legally required to act in another person's interest"),
   j("stakeholders", "stakeholders?|interested parties", "the people and groups affected"),
@@ -234,3 +241,41 @@ export const EVERYDAY_NAMES: Array<{ everyday: RegExp; official: RegExp }> = [
   { everyday: /^IRS$/, official: /internal revenue (?:service|code)/i },
   { everyday: /^Pentagon$/i, official: /department of defense|secretary of defense/i },
 ];
+
+// ───────────── "How it works today" → "What would change" → "Why now" (owner instruction, 17 Nov 2026) ─────────────
+
+export type ChangeRow = { today: string; ifPassed: string; source: string };
+
+/** A rule flip is concrete without a number: may / may not, must / need not, allowed / banned. */
+const CONTRAST = /\b(?:may|can|could|must|have to|has to|need|allowed|required|banned|barred|legal|illegal|no law|no limit|no rule|cannot|not)\b/i;
+const VAGUE_ROW = /\b(?:some|certain|various|several|a number of|other|different|new|updated|revised|additional)\s+(?:rules|changes|provisions|requirements|standards|policies|limits|conditions|terms)\b|\b(?:would|will) (?:change|be changed|be updated|be affected|differ)\b\.?$|^(?:n\/?a|none|same|unchanged|no change|not applicable|status quo)\.?$/i;
+
+/** Why a "Today → If this passes" row is too vague to keep, or null when it is concrete. */
+export function vagueChangeRow(row: ChangeRow): string | null {
+  const t = row.today.trim(), p = row.ifPassed.trim();
+  if (t.split(/\s+/).length < 4 || p.split(/\s+/).length < 4) return "each side needs a full statement";
+  if (t.toLowerCase() === p.toLowerCase()) return "both sides say the same thing";
+  if (VAGUE_ROW.test(t) || VAGUE_ROW.test(p) || fillerIn(`${t} . ${p}`).length) return "it does not say exactly what changes";
+  if (!HAS_SPECIFIC.test(`${t} ${p}`) && !(CONTRAST.test(t) || CONTRAST.test(p))) return "it has no number, date or clear rule (may / may not, must / need not)";
+  return null;
+}
+
+export const STRUCTURE_LIMITS = { todayMin: 3, todayMax: 5, todayWords: 40, changesMin: 2, changesMax: 6, rowWords: 38, whyNowWords: 50 } as const;
+
+// ───────────── The reader test on the whole page: how it works today, what exactly changes, who is affected ─────────────
+
+export type PageAnswers = { howItWorksToday: string; whatChanges: string; whoIsAffected: string };
+export type PageVerdicts = { howItWorksToday: Verdict; whatChanges: Verdict; whoIsAffected: Verdict };
+
+export function pageTestResult(reader: PageAnswers, judge: PageVerdicts): { passed: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  const q: Array<[string, string, Verdict]> = [["How do things work today?", reader.howItWorksToday, judge.howItWorksToday], ["What exactly would change?", reader.whatChanges, judge.whatChanges],
+    ["Who is affected?", reader.whoIsAffected, judge.whoIsAffected]];
+  for (const [question, answer, v] of q) {
+    const a = answer.trim();
+    if (!a || VAGUE_ANSWER.test(a) || a.split(/\s+/).length < 6) reasons.push(`A reader given the page (through "Who it affects") could not answer "${question}" (they said: "${a.slice(0, 160)}"). Explain it from zero, concretely.`);
+    else if (v.verdict === "wrong") reasons.push(`A reader of the page got "${question}" wrong. They said: "${a.slice(0, 160)}". The sources say otherwise: ${v.why.slice(0, 220)}`);
+    else if (v.verdict === "vague") reasons.push(`A reader of the page answered "${question}" too vaguely ("${a.slice(0, 160)}"): ${v.why.slice(0, 220)}`);
+  }
+  return { passed: reasons.length === 0, reasons };
+}

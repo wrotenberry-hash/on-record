@@ -10,12 +10,12 @@
  * Parsers are pure and tested against saved official files (tests/fixtures/sources).
  */
 
-export type SourceKind = "bill_text" | "crs" | "cbo" | "committee_report" | "federal_register" | "us_code" | "floor" | "status";
+export type SourceKind = "bill_text" | "crs" | "cbo" | "committee_report" | "federal_register" | "us_code" | "floor" | "status" | "primer";
 export type SourceDoc = { id: string; kind: SourceKind; label: string; url: string; text: string };
 
 export const SOURCE_LABELS: Record<SourceKind, string> = {
   bill_text: "Bill text", crs: "CRS summary (Congress.gov)", cbo: "CBO cost estimate", committee_report: "Committee report",
-  federal_register: "The rule (Federal Register)", us_code: "Current law (U.S. Code)", floor: "Floor debate (Congressional Record)", status: "Actions in Congress (bill status record)",
+  federal_register: "The rule (Federal Register)", us_code: "Current law (U.S. Code)", floor: "Floor debate (Congressional Record)", status: "Actions in Congress (bill status record)", primer: "Reviewed primer",
 };
 
 const decode = (s: string) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
@@ -182,14 +182,12 @@ export function parseFrPreamble(html: string, max = 11000): { why: string | null
   // Dollar amounts a person would meet: limits, fees and payments stated for a plan year, anywhere in the rule.
   // (Dashed lines also frame tables, so the footnote stripping used above would swallow text here.)
   const body = text.slice(Math.max(0, exec)).replace(/\\\d+\\/g, "").replace(/\s+/g, " ");
-  const dollarSentences = body.split(/(?<=[.])\s+(?=[A-Z])/).filter(x => x.length < 700 && /\$\d{1,3}(?:,\d{3})+|\$\d+(?:\.\d+)? (?:million|billion)/.test(x)
+  const dollarSentences = body.split(/(?<=[.])\s+(?=[A-Z])/).map(x => x.replace(/\s*-{5,}[\s\S]*$/, "").trim()).filter(x => x.length < 700 && /\$\d{1,3}(?:,\d{3})+|\$\d+(?:\.\d+)? (?:million|billion)/.test(x)
     && /\b(?:out-of-pocket|cost sharing|deductible|annual limit|self-only|user fee)/i.test(x) && /\b(?:PY|plan year|benefit year) 20\d\d\b|\bfor 20\d\d\b/.test(x) && !/PMPM|\d x \d|=|commenters?/.test(x));
-  // The year the rule is about: the plan year it names most often.
-  const years = new Map<string, number>();
-  for (const m of body.matchAll(/\b(?:PY|plan year|benefit year) (20\d\d)\b/g)) years.set(m[1], (years.get(m[1]) ?? 0) + 1);
-  const latest = [...years.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  // The year the rule is about, from its title ("… Parameters for 2027"); sentences about that year come first.
+  const latest = text.slice(0, 4000).match(/\bfor (20\d\d)\b/)?.[1] ?? "";
   const rankD = (x: string) => (new RegExp(`\\b${latest}\\b`).test(x) ? 0 : 2) + (/self-only|out-of-pocket|annual limitation/i.test(x) ? 0 : 1);
-  const consumer = [...new Set(dollarSentences)].sort((a, b) => rankD(a) - rankD(b)).slice(0, 8).map(x => x.length > 420 ? `…${x.slice(-420)}` : x).join(" ").slice(0, 3400) || null;
+  const consumer = [...new Set(dollarSentences)].sort((a, b) => rankD(a) - rankD(b)).slice(0, 14).map(x => x.length > 420 ? `…${x.slice(-420)}` : x).join(" ").slice(0, 5200) || null;
   const effective = clean(text.slice(0, 6000)).match(/(?:These regulations are|This (?:final )?rule is) effective (?:on )?([A-Z][a-z]+ \d{1,2}, \d{4})/)?.[1] ?? null;
   return { why: exec >= 0 ? clean(text.slice(exec, background > exec ? background : exec + 4000)).slice(0, 2500) : null,
     major: major >= 0 ? clean(text.slice(major, afterMajor > major ? afterMajor : major + 30000)).slice(0, max) : null, impact, consumer, effective,

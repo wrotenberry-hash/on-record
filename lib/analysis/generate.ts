@@ -2,7 +2,7 @@ import { analysisPaused } from "@/lib/analysis/publish-gate";
 import { and, asc, desc, eq, inArray, notExists, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisReviewQueue, analysisSummaryDetails, analysisSummaryVersions, billCategories, ingestRuns, issueCategories, officialBills,
+import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisReviewQueue, analysisSummaryDetails, analysisSummaryStructure, analysisSummaryVersions, billCategories, ingestRuns, issueCategories, officialBills,
   officialCostEstimates, officialPoliticians, officialRollCalls } from "@/db/schema";
 import { outputText, responseRequest } from "@/lib/automated-research";
 import { billStatusUrl, MAX_TEXT_CHARS, parseBillStatus, parseBillTextHtml, type BillStatus } from "@/lib/analysis/billtext";
@@ -23,7 +23,7 @@ import { goldExamplesBlock } from "@/lib/analysis/gold";
  * model; the official title, status, cost estimate, votes and sources come
  * from government records and are shown as Official.
  */
-export const PROMPT_VERSION = "b6-2026-11-17";
+export const PROMPT_VERSION = "b7-2026-11-17";
 const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 const MAX_OUTPUT_TOKENS = 6000;
 
@@ -39,15 +39,19 @@ export function analysisLimits() {
 
 const point = z.object({ text: z.string(), section: z.string() });
 const argument = z.object({ argument: z.string(), attribution: z.string(), source: z.string() });
-const draftShape = z.object({ headline: z.string(), plainEnglish: z.string(), background: z.string(), backgroundSources: z.array(z.string()), question: z.string(), whatItDoes: z.array(point), whoItAffects: z.array(point), whatChangesForYou: z.string(),
+const changeRow = z.object({ today: z.string(), ifPassed: z.string(), source: z.string() });
+const draftShape = z.object({ headline: z.string(), plainEnglish: z.string(), howItWorksToday: z.array(point), changes: z.array(changeRow), whyNow: z.string(),
+  background: z.string(), backgroundSources: z.array(z.string()), question: z.string(), whatItDoes: z.array(point), whoItAffects: z.array(point), whatChangesForYou: z.string(),
   caseFor: z.array(argument), caseAgainst: z.array(argument), unknowns: z.array(z.string()),
   confidence: z.enum(["high", "medium", "low"]), confidenceReason: z.string() });
 
 const pointSchema = { type: "object", additionalProperties: false, required: ["text", "section"], properties: { text: { type: "string" }, section: { type: "string" } } };
 const argSchema = { type: "object", additionalProperties: false, required: ["argument", "attribution", "source"], properties: { argument: { type: "string" }, attribution: { type: "string" }, source: { type: "string" } } };
 const summarySchema = { type: "object", additionalProperties: false,
-  required: ["headline", "plainEnglish", "background", "backgroundSources", "question", "whatItDoes", "whoItAffects", "whatChangesForYou", "caseFor", "caseAgainst", "unknowns", "confidence", "confidenceReason"],
-  properties: { headline: { type: "string" }, plainEnglish: { type: "string" }, background: { type: "string" }, backgroundSources: { type: "array", items: { type: "string" } },
+  required: ["headline", "plainEnglish", "howItWorksToday", "changes", "whyNow", "background", "backgroundSources", "question", "whatItDoes", "whoItAffects", "whatChangesForYou", "caseFor", "caseAgainst", "unknowns", "confidence", "confidenceReason"],
+  properties: { headline: { type: "string" }, plainEnglish: { type: "string" }, howItWorksToday: { type: "array", items: pointSchema },
+    changes: { type: "array", items: { type: "object", additionalProperties: false, required: ["today", "ifPassed", "source"], properties: { today: { type: "string" }, ifPassed: { type: "string" }, source: { type: "string" } } } },
+    whyNow: { type: "string" }, background: { type: "string" }, backgroundSources: { type: "array", items: { type: "string" } },
     question: { type: "string" }, whatItDoes: { type: "array", items: pointSchema }, whoItAffects: { type: "array", items: pointSchema },
     whatChangesForYou: { type: "string" }, caseFor: { type: "array", items: argSchema }, caseAgainst: { type: "array", items: argSchema },
     unknowns: { type: "array", items: { type: "string" } }, confidence: { type: "string", enum: ["high", "medium", "low"] }, confidenceReason: { type: "string" } } };
@@ -64,10 +68,15 @@ WRITING STANDARD (every field):
 4. Specifics over generalities. Use the concrete facts in the sources: dollar amounts, numbers of people, dates, exactly what changes. Never write filler such as "would affect payment and program standards", "certain provisions", "and for other purposes" or "conforming changes". If the sources truly do not say what changes, say so plainly in unknowns and set confidence to "low". Never pad.
 5. Jargon. Replace every technical term with plain words, or explain it in parentheses the first time: "a vote to end debate (called cloture)". Never leave one unexplained. The checker fails any unexplained use of these and similar terms: ${JARGON.map(t => t.term).join(", ")}. Spell out every abbreviation the first time, or avoid it.
 6. caseFor / caseAgainst: REASONS and STAKES, never the mechanics again. "For" answers: why would someone want this? "Against" answers: what would be lost or harmed? Take each reason from the official record in the sources: what a named member said on the floor (FLOOR), the agency's stated reasons in the rule (RULE), the committee report and its minority views (REPORT), the CRS summary (CRS). Credit each to the named person or body, using the wording in the input's lists, and put that source's id in "source". A number someone cites is their claim: write "Sen. X says up to 2 million people …". If the sources hold no stated reason for a side, return an empty list for that side: the page will say "No public statement of reasons found." Never invent a reason, a quote or a position. 1 or 2 arguments a side, each 15 to 35 words.
-7. Layers: headline, then plainEnglish, then the details (background, whatItDoes, whoItAffects, whatChangesForYou, the cases, unknowns). Each layer stands on its own.
+7. Bring the reader up to speed before telling them what changes. The page reads in this order: headline, plainEnglish, howItWorksToday, changes, whyNow, whoItAffects, cost, whatChangesForYou, the cases, unknowns, sources.
+
+THE SUBJECT FROM ZERO (required):
+- howItWorksToday: 3 to 5 short bullets, each at most 40 words and each citing its source id. Explain the subject from scratch: what the thing is, who uses it, how it is run and paid for, the key numbers, and what current law or the current rule says on exactly the points this bill touches. When a PRIMER is among the sources, build on it.
+- changes: 2 to 6 rows, one per change, each { today, ifPassed, source }. "today" is the rule or arrangement now; "ifPassed" is what it would be. Concrete, with the numbers and dates in the sources. No vague row: never "some rules would change". If the sources do not say what would replace something, say that plainly in unknowns instead of guessing. For a bill that cancels a rule already in force, "today" is life under that rule and "ifPassed" is what cancelling it undoes.
+- whyNow: one or two sentences, at most 50 words, with the date: why this is being voted on now (a new rule, a deadline, a court ruling, a budget step, a forced vote), from the STATUS source and the record.
 
 FIELDS:
-- background: when "Background required" is yes: 1 to 3 sentences, at most 90 words, on what the existing rule or law does today, in plain terms, from the RULE, USC, REPORT or CRS source; backgroundSources lists the ids used. Otherwise "" and [].
+- background: leave "" and backgroundSources [] (howItWorksToday now carries the background).
 - question: the reader's voting question, "Do you support …?", at most 18 words, in the headline's everyday words.
 - whatItDoes: up to 3 points, most important first, each at most 30 words, each with the concrete change and each citing the one bill section ("Sec. N" or "Full text") or source id it comes from.
 - whoItAffects: 1 to 3 points, same citation rule, each at most 30 words: which people, how many if the sources say, and what happens to them.
@@ -246,6 +255,8 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   } else {
     await db.insert(analysisBillSummaries).values({ id: summaryId, billId: c.id, sequence, ...content, createdAt: Date.now() });
   }
+  const structure = { howItWorksToday: d.howItWorksToday ?? [], changes: d.changes ?? [], whyNow: d.whyNow ?? "", primers: gathered.primers.map(x => x.id), promptVersion: PROMPT_VERSION, updatedAt: Date.now() };
+  await db.insert(analysisSummaryStructure).values({ summaryId, ...structure }).onConflictDoUpdate({ target: analysisSummaryStructure.summaryId, set: structure });
   const details = { plainEnglish: d.plainEnglish ?? "", background: d.background?.trim() || null, backgroundSources: d.backgroundSources ?? [], question: d.question ?? "",
     sourceDocs: gathered.docs.map(x => ({ id: x.id, kind: x.kind, label: x.label, url: x.url })), promptVersion: PROMPT_VERSION, updatedAt: Date.now() };
   await db.insert(analysisSummaryDetails).values({ summaryId, ...details }).onConflictDoUpdate({ target: analysisSummaryDetails.summaryId, set: details });

@@ -225,6 +225,13 @@
       "when": 1794875547644,
       "tag": "0031_reader_tests",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1794878389143,
+      "tag": "0032_summary_structure",
+      "breakpoints": true
     }
   ]
 }

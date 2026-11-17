@@ -7,12 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-17T02:30:00Z";
-export const PLAN_NOTE = "You asked for a new writing standard and an average-reader test. Both are built (generator b6): headlines of 15 words or fewer that start with a clear verb, a plain-English part that says what changes in daily life, a jargon list, reasons taken from floor debates and the rule itself, and a test where a separate reader sees only the headline and plain-English part and must answer three questions correctly. Three gold examples (S.J.Res. 197, H.R. 2102, H.R. 7008) are written and waiting for your approval. Readers see no summaries and the limit stays at 5 until you approve. The next run rewrites the five under the new rules and gives the first real pass rate and cost.";
+export const PLAN_UPDATED = "2026-11-17T04:00:00Z";
+export const PLAN_NOTE = "Summary writing is paused while the summary structure changes. Every summary will now bring the reader up to speed first: how it works today, then what would change row by row (today, and if this passes), then why it is being voted on now, with tap-open explainers for special processes and recurring subjects. A second test reader must correctly describe today, the change and who is affected from the page alone. The three gold examples are redone in this structure and waiting for your approval. Readers see no summaries and the limit stays at 5 until you approve.";
 
 export const RECOMMENDED: Recommendation[] = [
   { title: "Approve the three gold summaries", needs: "you",
-    why: "They are the examples the generator will learn from: S.J.Res. 197, H.R. 2102 and H.R. 7008, each shown next to the current version. Claude sent you the page. Reply approve, or say what to change. Nothing is shown to readers and the 5-summary limit stays until you do." },
+    why: "They are redone in the new structure (how it works today, what would change, why now) with five explainers: S.J.Res. 197, H.R. 2102 and H.R. 7008, each next to the current version. Claude sent you the page. Reply approve, or say what to change. Summary writing stays paused until you do." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",

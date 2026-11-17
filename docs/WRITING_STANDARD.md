@@ -53,3 +53,28 @@ official index per bill).
 `lib/analysis/gold-examples.ts`: S.J.Res. 197, H.R. 2102, H.R. 7008, written by hand from the records and checked by
 `tests/gold.test.mjs` against the same rules. They enter the generator prompt only when the owner approves them
 (`GOLD_APPROVED` in `lib/analysis/gold.ts`).
+
+## Bring the reader up to speed first (owner instruction, 17 Nov 2026, generator b7)
+
+Page order: Headline → In plain English → How it works today → What would change → Why now → (official status
+timeline) → Who it affects → Cost → What changes for you → Case for and against → What we don't know → Sources.
+
+- **How it works today** (required): 3 to 5 short bullets, each tied to a source: what the thing is, who uses it, how
+  it is run and paid for, the key numbers, and what current law or the current rule says on the exact points the bill
+  touches.
+- **What would change**: 2 to 6 rows, each "Today: … → If this passes: …", with the numbers and dates in the sources.
+  A row with no number, date or clear rule flip (may / may not) fails, as does "some rules would change". When the
+  records do not say what would replace something, the row says so.
+- **Why now**: one or two sentences with the date or the vote.
+- **Process primers** (`lib/analysis/primers.ts`, kind "process"): a one-tap explainer when a bill uses a special
+  route (cancelling an agency rule, a vote on whether to start debate, the 60-vote step), with "In this case" from the
+  bill's own timeline.
+- **Topic primers** (kind "topic"): written once from official sources for a recurring subject, held to the same
+  wording rules (tests/primers.test.mjs), used only when `reviewed` is true (the owner's approval). A reviewed topic
+  primer is given to the generator as the source "PRIMER" so every related summary explains the subject the same
+  way, and is linked from the page. Each carries `lawAsOf`; recheck it when a law on its subject is enacted.
+  Written so far: health plans bought on HealthCare.gov; military retirement and veterans' disability pay. To write:
+  Medicare, Medicaid, Social Security, the federal budget process, tariffs.
+- **Reader test, second part**: a second reader sees the page from the headline through "Who it affects" and must
+  correctly describe how things work today, what exactly changes and who is affected.
+- New fields are stored in `analysis_summary_structure` (migration 0032; a new table).

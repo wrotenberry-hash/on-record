@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { readerVisible } from "@/lib/analysis/publish-gate";
-import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisSummaryDetails, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
+import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisSummaryDetails, analysisSummaryStructure, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
 
 /**
  * The summary shown on a bill page. Readers see only a visible summary; the
@@ -14,13 +14,15 @@ export async function summaryForBill(billId: string, includeHeld: boolean) {
     .orderBy(desc(analysisBillSummaries.createdAt)).limit(1);
   const summary = rows[0];
   if (!summary) return null;
-  const [checks, queue, details] = await Promise.all([
+  const [checks, queue, details, structure] = await Promise.all([
     db.select().from(analysisChecks).where(eq(analysisChecks.summaryId, summary.id)).orderBy(desc(analysisChecks.attempt)),
     db.select().from(analysisReviewQueue).where(eq(analysisReviewQueue.summaryId, summary.id)).get(),
     db.select().from(analysisSummaryDetails).where(eq(analysisSummaryDetails.summaryId, summary.id)).get(),
+    db.select().from(analysisSummaryStructure).where(eq(analysisSummaryStructure.summaryId, summary.id)).get(),
   ]);
   // b5 parts belong to the summary only when written by the same generator run.
-  return { summary, checks, queue: queue ?? null, details: details && details.promptVersion === summary.promptVersion ? details : null };
+  return { summary, checks, queue: queue ?? null, details: details && details.promptVersion === summary.promptVersion ? details : null,
+    structure: structure && structure.promptVersion === summary.promptVersion ? structure : null };
 }
 
 export async function costEstimates(billId: string) {

@@ -1,0 +1,56 @@
+// Primers and the "today → if this passes" structure (owner instruction, 17 Nov 2026).
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { PRIMERS, primersFor, primerSourceText } from "../lib/analysis/primers.ts";
+import { unexplainedJargon, unexplainedAcronyms, vagueChangeRow, pageTestResult, fillerIn } from "../lib/analysis/standard.ts";
+import { plainGrade } from "../lib/analysis/checker.ts";
+import * as S from "../lib/analysis/sources.ts";
+
+const fx = name => readFileSync(new URL(`./fixtures/sources/${name}`, import.meta.url), "utf8");
+
+for (const p of PRIMERS) test(`primer "${p.title}" meets the same written rules as a summary`, () => {
+  assert.ok(p.bullets.length >= 3 && p.bullets.length <= 5, "3 to 5 bullets");
+  for (const b of p.bullets) assert.ok(b.split(/\s+/).length <= 55, `bullet too long: ${b.slice(0, 40)}`);
+  assert.deepEqual(unexplainedJargon(["", ...p.bullets]).map(x => x.term), [], "no unexplained jargon");
+  assert.deepEqual(unexplainedAcronyms(p.bullets), [], "no bare abbreviations");
+  assert.deepEqual(fillerIn(p.bullets.join(" ")), []);
+  assert.ok(plainGrade(p.bullets.join(" ")) <= 10, `reading grade ${plainGrade(p.bullets.join(" "))}`);
+  assert.ok(p.sources.length >= 1 && p.sources.every(s => /^https:\/\/(www\.govinfo\.gov|www\.senate\.gov|www\.healthcare\.gov)\//.test(s.url)), "official sources only");
+  assert.match(p.lawAsOf, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("primers are used only after the owner approves them", () => {
+  const actions = S.statusDoc(fx("billstatus-119sjres197.xml"), "x").text;
+  const title = `A joint resolution providing for congressional disapproval under chapter 8 of title 5, United States Code, of the rule submitted by the Centers for Medicare & Medicaid Services of the Department of Health and Human Services relating to "Patient Protection and Affordable Care Act, HHS Notice of Benefit and Payment Parameters for 2027; and Basic Health Program".`;
+  const all = primersFor({ title, text: "", actions }, true).map(p => p.id);
+  assert.deepEqual(all, ["cancel-agency-rule", "vote-to-start-debate", "health-plans-healthcare-gov"]);
+  const reviewed = primersFor({ title, text: "", actions }).map(p => p.id);
+  assert.deepEqual(reviewed, PRIMERS.filter(p => p.reviewed && all.includes(p.id)).map(p => p.id));
+});
+
+test("primers match the right bills and not the others", () => {
+  const a7008 = S.statusDoc(fx("billstatus-119hr7008.xml"), "x").text, t7008 = fx("BILLS-119hr7008pcs.htm");
+  assert.deepEqual(primersFor({ title: "Stop Insider Trading Act", text: t7008, actions: a7008 }, true).map(p => p.id), ["sixty-votes"]);
+  const a2102 = S.statusDoc(fx("billstatus-119hr2102.xml"), "x").text, t2102 = fx("BILLS-119hr2102eh.htm");
+  assert.deepEqual(primersFor({ title: "To amend title 10", text: t2102, actions: a2102 }, true).map(p => p.id), ["military-retirement-disability-pay"]);
+  assert.match(primerSourceText(primersFor({ title: "To amend title 10", text: t2102, actions: a2102 }, true)), /dollar for dollar/);
+});
+
+test("what would change: a vague row fails, a concrete one passes", () => {
+  assert.ok(vagueChangeRow({ today: "Current rules apply to plans.", ifPassed: "Some rules would change.", source: "RULE" }));
+  assert.ok(vagueChangeRow({ today: "The program has certain requirements.", ifPassed: "The program would have new requirements.", source: "RULE" }));
+  assert.ok(vagueChangeRow({ today: "Same.", ifPassed: "No change", source: "RULE" }));
+  assert.equal(vagueChangeRow({ today: "Insurers pay a fee of 1.9 percent of premiums for 2027.", ifPassed: "The fee goes back to 2.5 percent.", source: "RULE" }), null);
+  assert.equal(vagueChangeRow({ today: "Members of Congress may buy stock in any company.", ifPassed: "They may not buy stock in publicly traded companies.", source: "Sec. 2" }), null, "a clear rule flip needs no number");
+});
+
+const ok = { verdict: "correct", why: "matches" };
+test("page reader test: must describe today, the exact change and who is affected", () => {
+  const good = { howItWorksToday: "People buy their own insurance on a government site and many get help paying each month.", whatChanges: "A rule that lets cheap plans last 10 years and lets buyers owe up to $15,600 a year would be cancelled.", whoIsAffected: "People who buy their own health insurance, and the insurance companies that sell it." };
+  assert.equal(pageTestResult(good, { howItWorksToday: ok, whatChanges: ok, whoIsAffected: ok }).passed, true);
+  const r = pageTestResult({ ...good, howItWorksToday: "It doesn't say." }, { howItWorksToday: ok, whatChanges: ok, whoIsAffected: ok });
+  assert.equal(r.passed, false); assert.match(r.reasons[0], /How do things work today/);
+  assert.equal(pageTestResult(good, { howItWorksToday: ok, whatChanges: { verdict: "wrong", why: "The limit is $15,600, not $1,560." }, whoIsAffected: ok }).passed, false);
+  assert.equal(pageTestResult(good, { howItWorksToday: ok, whatChanges: ok, whoIsAffected: { verdict: "vague", why: "Says only 'people'." } }).passed, false);
+});
