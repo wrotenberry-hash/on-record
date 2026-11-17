@@ -2,7 +2,7 @@
  * Primers (owner instruction, 17 Nov 2026): reusable, reviewed explainers that bring a reader up to speed from zero.
  *
  *  - PROCESS primers explain a special route a bill can take (cancelling an agency rule, a vote on whether to start
- *    debate, the 60-vote step in the Senate, a discharge petition). One tap away on the bill page.
+ *    debate, the 60-vote step in the Senate, the budget route that needs only a simple majority). One tap away on the bill page.
  *  - TOPIC primers explain a recurring subject (health plans bought on HealthCare.gov, military retirement and
  *    veterans' disability pay …). They are given to the generator as a source ("PRIMER") so every related summary
  *    explains the subject the same way, and are linked from the page.
@@ -118,6 +118,45 @@ export const PRIMERS: Primer[] = [
       { label: "26 U.S.C. 3101 (the tax on wages)", url: USC(26, "3101") },
       { label: "HealthCare.gov glossary: Social Security", url: "https://www.healthcare.gov/glossary/social-security/" }],
     lawAsOf: "2026-11-17", reviewed: false, match: { text: /title II of the Social Security Act|old-age, survivors, and disability insurance|Social Security (?:benefits?|retirement|trust funds?|Administration)|Federal Old-Age and Survivors Insurance Trust Fund/i } },
+
+  { id: "yearly-spending-bills", kind: "topic", title: "How Congress pays for the government each year",
+    bullets: [
+      "The federal budget year runs from October 1 to September 30. Agencies may spend only money that Congress has approved by law, so each year Congress must pass new spending bills. Today there are 12 regular ones.",
+      "Those yearly bills cover about 27 percent of federal spending: $1,875 billion in the 2025 budget year. The other 73 percent is set by other laws and continues without a yearly vote. It includes Social Security, Medicare and interest on the national debt.",
+      "If the yearly bills are not finished by October 1, Congress usually passes a stopgap law (called a continuing resolution). It keeps agencies running at a set level until a set date.",
+      "With no yearly bill and no stopgap, agencies without money must by law stop most work. That is a government shutdown. Work that protects human life or property goes on, and federal workers sent home are paid once it ends.",
+      "Since 1977, Congress has finished every regular spending bill on time in only three budget years: 1989, 1995 and 1997."],
+    sources: [{ label: "31 U.S.C. 1102 (the budget year)", url: USC(31, "1102") }, { label: "31 U.S.C. 1341 (no spending without approval; back pay)", url: USC(31, "1341") },
+      { label: "31 U.S.C. 1342 (work that goes on in a shutdown)", url: USC(31, "1342") },
+      { label: "Budget of the U.S. Government, 2027: budget concepts (shares of spending, stopgap laws, shutdowns)", url: "https://www.govinfo.gov/content/pkg/BUDGET-2027-PER/pdf/BUDGET-2027-PER-4-2.pdf" },
+      { label: "House Practice: the 12 regular spending bills", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-5.pdf" },
+      { label: "U.S. Senate: bills, acts and laws", url: "https://www.senate.gov/legislative/bills_acts_laws.htm" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { title: /\bmaking (?:(?:further|additional|continuing|supplemental|emergency|consolidated|full-year|omnibus) )*appropriations\b|\bAppropriations Act\b|\bContinuing Appropriations\b/i } },
+
+  { id: "budget-majority-route", kind: "process", title: "The budget route that passes the Senate with a simple majority",
+    bullets: [
+      "Most bills need 60 of the 100 senators to end debate before the Senate can vote. One kind of budget bill does not.",
+      "Congress first passes a budget plan. The plan can tell committees to change spending, taxes or the federal borrowing limit by set amounts. A bill that carries out those instructions (a reconciliation bill) follows special rules.",
+      "By law, Senate debate on that bill is limited to 20 hours. Debate ends on its own, so the 60-vote step is not needed and the bill can pass with a simple majority.",
+      "There are limits. Any senator can ask to strike a part that does not change spending or taxes, and keeping it takes 60 votes. The bill may not change Social Security."],
+    sources: [{ label: "2 U.S.C. 641 (the instructions, the 20-hour limit, Social Security)", url: USC(2, "641") }, { label: "2 U.S.C. 644 (parts that do not belong)", url: USC(2, "644") },
+      { label: "U.S. Senate: ending debate", url: "https://www.senate.gov/about/powers-procedures/filibusters-cloture.htm" }, { label: "U.S. Senate: voting", url: "https://www.senate.gov/about/powers-procedures/voting.htm" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { title: /\breconciliation\b/i, text: /\bto provide for reconciliation pursuant to\b/i } },
+
+  { id: "tariffs", kind: "topic", title: "Tariffs",
+    bullets: [
+      "A tariff is a tax on goods brought into the United States from other countries. It is usually a percentage of the value of the goods.",
+      "The business that brings the goods in owes the tax when they arrive. It pays a federal agency, U.S. Customs and Border Protection, and the money goes to the Treasury.",
+      "The Constitution gives Congress the power to set tariffs, and Congress keeps a schedule of rates. Congress has also passed laws that let the President add tariffs in set cases. Examples: when imports threaten national security, or when another country trades unfairly.",
+      "On February 20, 2026, the Supreme Court ruled that tariffs the President had imposed since February 2025 under an emergency-powers law were unlawful. The government is refunding them to the businesses that paid. Tariffs under the national-security and unfair-trade laws stayed in place.",
+      "Tariffs and customs fees brought in about $195 billion in the 2025 budget year, up from about $77 billion in 2024. The 2025 total includes tariffs the Court later struck down."],
+    sources: [{ label: "19 U.S.C. 1505 (who pays, and when)", url: USC(19, "1505") }, { label: "19 U.S.C. 1862 (national security)", url: USC(19, "1862") },
+      { label: "19 U.S.C. 2411 (unfair trade by another country)", url: USC(19, "2411") },
+      { label: "Federal Register, 8 July 2026: customs notice on the Supreme Court ruling", url: "https://www.govinfo.gov/content/pkg/FR-2026-07-08/html/2026-13771.htm" },
+      { label: "Federal Register, 25 February 2026: order ending the emergency tariffs", url: "https://www.govinfo.gov/content/pkg/FR-2026-02-25/html/2026-03832.htm" },
+      { label: "Budget of the U.S. Government, 2027: customs duties and fees by year", url: "https://www.govinfo.gov/content/pkg/BUDGET-2027-TAB/xls/BUDGET-2027-TAB-3-5.xlsx" },
+      { label: "Government Accountability Office: what a tariff is", url: "https://www.govinfo.gov/content/pkg/GAOREPORTS-NSIAD-00-210/html/GAOREPORTS-NSIAD-00-210.htm" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { title: /\btariffs?\b/i, text: /Harmonized Tariff Schedule|section 232 of the Trade Expansion Act|section 301 of the Trade Act|section 122 of the Trade Act|\brates? of duty\b/i } },
 ];
 
 export type PrimerContext = { title: string; text: string; actions: string };
