@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-17 04:00 UTC (new summary structure built; summary writing paused; gold examples await the owner). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-17 05:00 UTC (gold summaries and five explainers approved; summary writing resumed; first real reader-test run pending). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
@@ -12,6 +12,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Done
 
+- **Owner approved the gold summaries and the first five explainers (17 Nov).** Examples are in the generator prompt, primers are live, summary writing resumed. Next run rewrites the five summaries in the approved shape with both reader tests. Readers still see none; cap stays 5 until the owner's go-ahead. To write next: primers for Medicare, Medicaid, Social Security, the budget process, tariffs.
 - **New summary structure (17 Nov, generator b7; summary writing PAUSED until the owner approves).** How it works today, What would change (Today → If this passes), Why now; process and topic primers in lib/analysis/primers.ts (5 written, none used until approved); a second reader test on the page; page order per the owner. Gold examples redone and sent for approval (same page). New table analysis_summary_structure.
 - **Writing standard and average-reader test (17 Nov, generator b6; docs/WRITING_STANDARD.md).** Verb-first 15-word headlines, plain English with the daily-life change, jargon list (59 terms), no filler, reasons from the record (floor statements, the rule's preamble, committee reports). Reader test gates every summary (2 retries, then held); results in analysis_reader_tests, pass rate and cost on the probe and Summary quality. Three gold examples written from the records, passing the checker and a stand-in reader, sent to the owner for approval; not in the prompt until approved. Bill page layered: headline, plain English, Explain more, sources. Cap stays 5; readers see no summaries.
 - **Owner review (16 Nov, 23:30 UTC): summaries rebuilt as b5; none shown to readers until the owner approves S.J.Res. 197.** S.J.Res. 197's headline named Medicare and Medicaid; the rule is the 2027 ACA marketplace payment rule. Root cause and fixes in docs/ROUND1_REVIEW.md "Owner review": official sources (CRS, CBO, committee reports, Federal Register rule, U.S. Code), source-backed claim check, In plain English, Background, concrete example, record-only attributions, full-text check for resolutions; timeline floor-vote steps; plain voting question. Texas summaries paused.

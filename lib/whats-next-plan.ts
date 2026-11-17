@@ -7,12 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-17T04:00:00Z";
-export const PLAN_NOTE = "Summary writing is paused while the summary structure changes. Every summary will now bring the reader up to speed first: how it works today, then what would change row by row (today, and if this passes), then why it is being voted on now, with tap-open explainers for special processes and recurring subjects. A second test reader must correctly describe today, the change and who is affected from the page alone. The three gold examples are redone in this structure and waiting for your approval. Readers see no summaries and the limit stays at 5 until you approve.";
+export const PLAN_UPDATED = "2026-11-17T05:00:00Z";
+export const PLAN_NOTE = "You approved the three gold summaries and the first five explainers. They are now in use: every new summary opens with the old rule, the new rule and what the bill would do, then the background, with tap-open explainers. Summary writing has resumed. The next run rewrites the five summaries in this shape and runs both reader tests on the live site for the first time; Claude then checks each against its sources and reports the pass rate and the cost per summary. Readers still see no summaries and the limit stays at 5 until you give the go-ahead.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Approve the three gold summaries", needs: "you",
-    why: "They are redone in the new structure (how it works today, what would change, why now) with five explainers: S.J.Res. 197, H.R. 2102 and H.R. 7008, each next to the current version. Claude sent you the page. Reply approve, or say what to change. Summary writing stays paused until you do." },
+  { title: "Run the update, then decide on showing summaries and lifting the limit", needs: "your go-ahead",
+    why: "The next run (13:00 UTC, or sooner with Run the update now) rewrites the five summaries in the approved shape and runs both reader tests for real. Claude reports the pass rate and cost per summary. If they pass, the next step is your call: show summaries to trial readers and lift the 5-summary limit." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",

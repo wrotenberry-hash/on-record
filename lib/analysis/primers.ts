@@ -9,7 +9,7 @@
  *
  * Each primer is written once from official sources, must pass the same written rules as a summary (jargon list,
  * abbreviations, reading level: tests/primers.test.mjs), and is used only when `reviewed` is true, which the owner's
- * approval sets. `lawAsOf` is the date its facts were checked; when a law on its subject is enacted, it is rechecked.
+ * approval sets. The first five were approved by the owner on 17 Nov 2026. `lawAsOf` is the date its facts were checked; when a law on its subject is enacted, it is rechecked.
  * Pure: no imports, so the tests load it directly.
  */
 
@@ -36,7 +36,7 @@ export const PRIMERS: Primer[] = [
       "In the Senate this kind of measure moves faster than most. If a committee sits on it for 20 days, 30 senators can sign a petition to bring it out, and debate is limited to 10 hours.",
       "If it becomes law, the rule is treated as if it never took effect. The agency may not issue a nearly identical rule unless a later law allows it."],
     sources: [{ label: "5 U.S.C. 801 (what cancelling a rule does)", url: USC(5, "801") }, { label: "5 U.S.C. 802 (the fast Senate steps)", url: USC(5, "802") }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /congressional disapproval under chapter 8 of title 5/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /congressional disapproval under chapter 8 of title 5/i } },
 
   { id: "vote-to-start-debate", kind: "process", title: "What a vote to start debate means",
     bullets: [
@@ -44,7 +44,7 @@ export const PRIMERS: Primer[] = [
       "If that vote fails, the measure itself has not been voted on. It simply does not move forward that day.",
       "For a measure that cancels an agency rule, the law lets senators make the same request again later, even after it has failed once."],
     sources: [{ label: "5 U.S.C. 802(d) (the vote to take up a measure that cancels a rule)", url: USC(5, "802") }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /motion to proceed to (?:the )?(?:consideration of )?(?:the )?measure (?:rejected|not agreed to|agreed to)/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { actions: /motion to proceed to (?:the )?(?:consideration of )?(?:the )?measure (?:rejected|not agreed to|agreed to)/i } },
 
   { id: "sixty-votes", kind: "process", title: "Why some Senate votes need 60",
     bullets: [
@@ -52,7 +52,7 @@ export const PRIMERS: Primer[] = [
       "To end debate and force a vote, three-fifths of the Senate must agree. That is 60 of the 100 senators.",
       "So a measure can have more than half the Senate behind it and still stall. A vote of 53 to 47 to end debate falls 7 short."],
     sources: [{ label: "U.S. Senate: ending debate", url: "https://www.senate.gov/about/powers-procedures/filibusters-cloture.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /cloture[^.]*\b(?:not invoked|invoked)\b/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { actions: /cloture[^.]*\b(?:not invoked|invoked)\b/i } },
 
   { id: "health-plans-healthcare-gov", kind: "topic", title: "Health plans people buy for themselves on HealthCare.gov",
     bullets: [
@@ -65,7 +65,7 @@ export const PRIMERS: Primer[] = [
       { label: "HealthCare.gov: premium tax credit", url: "https://www.healthcare.gov/glossary/premium-tax-credit/" },
       { label: "HealthCare.gov: plan categories", url: "https://www.healthcare.gov/choose-a-plan/plans-categories/" },
       { label: "The 2027 rule, Federal Register (enrollment figures)", url: "https://www.govinfo.gov/content/pkg/FR-2026-05-20/html/2026-10050.htm" }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { title: /Patient Protection and Affordable Care Act|Notice of Benefit and Payment Parameters/i, text: /qualified health plans?|Federally-facilitated Exchange|health insurance exchange/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { title: /Patient Protection and Affordable Care Act|Notice of Benefit and Payment Parameters/i, text: /qualified health plans?|Federally-facilitated Exchange|health insurance exchange/i } },
 
   { id: "military-retirement-disability-pay", kind: "topic", title: "Military retirement pay and veterans' disability pay",
     bullets: [
@@ -75,7 +75,7 @@ export const PRIMERS: Primer[] = [
       "Congress has made exceptions. Retirees with 20 years of service whom the department rates at least 50 percent disabled get both. Retirees hurt in combat can apply for a separate monthly payment that returns part of what they give up."],
     sources: [{ label: "38 U.S.C. 5304 and 5305 (the dollar-for-dollar rule)", url: USC(38, "5304") }, { label: "10 U.S.C. 1414 (retirees who get both)", url: USC(10, "1414") },
       { label: "10 U.S.C. 1413a (the combat-injury payment)", url: USC(10, "1413a") }],
-    lawAsOf: "2026-11-17", reviewed: false, match: { text: /section 1413a|section 1414 of (?:such )?title|concurrent receipt/i } },
+    lawAsOf: "2026-11-17", reviewed: true, match: { text: /section 1413a|section 1414 of (?:such )?title|concurrent receipt/i } },
 ];
 
 export type PrimerContext = { title: string; text: string; actions: string };

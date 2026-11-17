@@ -16,7 +16,9 @@ export const PUBLIC_MIN_PROMPT = null as string | null;
  */
 // Owner instruction, 17 Nov: the summary structure is changing ("how it works today", "what would change"). No summary is
 // written until the owner has approved the redone gold examples. Set ANALYSIS_PAUSED=0 (or change this default) to resume.
-export function analysisPaused(): boolean { return process.env.ANALYSIS_PAUSED?.trim() !== "0"; }
+// 17 Nov, later: the owner approved the redone gold examples and the first five explainers, so writing resumes.
+// What is written stays hidden from readers (PUBLIC_MIN_PROMPT is null) and the cap stays at 5 until the owner says otherwise.
+export function analysisPaused(): boolean { return process.env.ANALYSIS_PAUSED?.trim() === "1"; }
 /** Texas summaries still use the old template, so they stay paused unless TEXAS_SUMMARIES_PAUSED=0. */
 export function texasSummariesPaused(): boolean { return process.env.TEXAS_SUMMARIES_PAUSED?.trim() !== "0"; }
 
