@@ -1,0 +1,41 @@
+/* Trust pages only (How this works, Pledge, About, Privacy, Terms): each wraps its text in <article class="prose trust">, and every rule here needs that
+   second class or a trust-only class name, so nothing here changes another page. */
+.prose.trust p+p,.prose.trust ul+p,.prose.trust ol+p,.prose.trust dl+p,.prose.trust p+ul,.prose.trust p+ol,.prose.trust div+p{margin-top:12px}
+.prose.trust h3{font:600 18px/1.35 Georgia,serif;margin:24px 0 6px;color:#172224}
+.prose.trust section{scroll-margin-top:16px}
+.prose.trust .answer{font-size:18px;line-height:1.5;font-weight:600;color:#172224;border-left:4px solid #163b3c;padding:2px 0 2px 12px;margin:8px 0 16px}
+.prose.trust code{font:600 .9em ui-monospace,Menlo,Consolas,monospace;background:#eef0ec;color:#22332f;padding:1px 5px;border-radius:3px;overflow-wrap:anywhere}
+.prose.trust .small{font-size:15px;color:#4b5a58}
+.draft-banner{background:#fdf3d7;border:2px solid #9a6410;color:#4a3305;padding:12px 14px;font-size:16px;line-height:1.5;margin:0 0 20px}
+.draft-banner b{display:block;font-size:18px}
+.legal-review{background:#fdf3d7;color:#4a3305;box-shadow:inset 0 -1px 0 #9a6410;padding:1px 3px;font-weight:600}
+.founder-note{background:#eae6f4;color:#33275a;padding:1px 3px;font-weight:600}
+.prose nav.trust-toc{background:#fff;border:1px solid #d9ded9;padding:8px 14px;margin:18px 0 8px}
+.trust-toc b{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#4f6b68;padding-top:6px}
+.prose .trust-toc ol{list-style:decimal;margin:0;padding-left:1.4em}
+.prose .trust-toc li{margin:0;font-size:16px}
+.trust-toc a{display:flex;align-items:center;min-height:44px;color:#163b3c;text-decoration:underline;text-underline-offset:2px}
+.prose ul.trust-list{list-style:none;padding:0;margin:10px 0 18px;display:grid;gap:10px}
+.prose ul.trust-list>li{background:#fff;border:1px solid #d9ded9;padding:12px 14px;margin:0;font-size:16px;line-height:1.5;min-width:0;overflow-wrap:anywhere}
+.trust-list .t-name{display:block;font-weight:700;font-size:17px;color:#172224}
+.trust-list .t-name a{display:inline-flex;align-items:center;min-height:44px;color:#163b3c;text-decoration:underline;text-underline-offset:2px}
+.trust-list .t-sub{display:block;font-size:14px;color:#55625f;margin:0 0 6px}
+.trust-list .t-row{display:block;margin-top:4px}
+.trust-list .t-row b{color:#33463f}
+.prose ol.trust-steps,.prose ul.trust-steps{padding-left:1.4em}
+.trust-steps li b{color:#172224}
+.by-tag{display:inline-block;font:700 11px/1 Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:4px 6px;border-radius:3px;margin-right:6px;vertical-align:middle;border:1px solid #c8d6ce;background:#fff;color:#33463f;white-space:nowrap}
+.by-tag.by-ai{background:#eae6f4;border-color:#cdc4e4;color:#45366e}
+.by-tag.by-person{background:#fbefe1;border-color:#ecd2ae;color:#7a4510}
+.by-tag.by-program{background:#e3efe6;border-color:#b9d5c2;color:#245236}
+.prose dl.trust-dl{margin:10px 0 18px;display:grid;gap:10px}
+.trust-dl>div{background:#fff;border:1px solid #d9ded9;padding:12px 14px}
+.trust-dl dt{font-weight:700;font-size:17px;color:#172224;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.trust-dl dd{margin:4px 0 0;font-size:16px;line-height:1.5;color:#2c3b39}
+.pledge-list .t-check{display:block;margin-top:4px;color:#2c3b39}
+.pledge-block{background:#fff;border:1px solid #d9ded9;padding:14px 16px;margin:10px 0 0}
+.prose .pledge-block ul{margin:6px 0 10px}
+.prose .trust-links{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:0}
+.prose .trust-links li{margin:0}
+.trust-links a{display:flex;align-items:center;min-height:44px;color:#163b3c;text-decoration:underline;text-underline-offset:2px}
+@media(max-width:700px){.prose.trust .answer{font-size:17px}.prose.trust h3{font-size:17px}}
