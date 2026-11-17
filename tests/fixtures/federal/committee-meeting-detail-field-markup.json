@@ -1,0 +1,17 @@
+{
+  "_note": "HAND-MADE fixture, not a capture. A field meeting has an address instead of a room and building (documentation, <location>). The shape of <address> in JSON is not shown in the documentation, so the parser accepts a string or an object of parts.",
+  "committeeMeeting": {
+    "chamber": "House",
+    "committees": [ { "name": "House Agriculture Committee", "systemCode": "hsag00" } ],
+    "congress": 119,
+    "date": "2026-11-30T16:00:00Z",
+    "eventId": "119502",
+    "isManuallyCurated": "Y",
+    "location": { "address": { "buildingName": "Lubbock Memorial Civic Center", "streetAddress": "1501 Mac Davis Ln", "city": "Lubbock", "state": "TX", "postalCode": "79401" } },
+    "meetingStatus": "Canceled",
+    "relatedItems": { "bills": { "bill": [ { "congress": 119, "number": 7254, "type": "hr" } ] } },
+    "title": "Full Committee Markup of H.R. 7254",
+    "type": "Markup",
+    "updateDate": "2026-11-17T16:30:45Z"
+  }
+}

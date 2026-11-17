@@ -12,6 +12,7 @@ import { NavProgress } from "@/components/ui/nav-progress";
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
   { href: "/legislators", label: "Your legislators" },
+  { href: "/voice", label: "Your voice" },
   { href: "/search", label: "Search" },
   { href: "/moving", label: "This week" },
   { href: "/dashboard", label: "Dashboard" },
