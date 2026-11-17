@@ -35,7 +35,7 @@ export default async function IssuePage({ params, searchParams }: { params: Prom
       <form action={toggleIssue} className="issue-follow"><input type="hidden" name="slug" value={slug} />
         {following ? <><span className="following-note" role="status">Following this issue: its bills show on your home page.</span> <button className="link-button">Stop following</button></>
           : <button>Follow this issue</button>}</form>
-      {sp.full && !following && <p className="gate gate-closed" role="status">You already follow 3 issues, the most at once. <Link href="/start?step=2">Change your issues</Link></p>}
+      {sp.full && !following && <p className="gate gate-closed" role="status">You already follow 3 issues, the most at once. <Link href="/start#coming-up">Change your issues</Link></p>}
       {bills.length ? <ul className="bill-list">{bills.map(b => <li key={b.id}><Link href={`/bills/${b.id}`}>
         <span className="bill-tag">{billLabel(b.billType, b.number)}</span><b>{b.title}</b>{b.method === "ai" && <span className="ai-sorted">Sorted into this issue by AI <AnalysisBadge /></span>}
         {b.latestActionText && <small>{shortDate(b.latestActionAt)} · {b.latestActionText}</small>}</Link></li>)}</ul>
