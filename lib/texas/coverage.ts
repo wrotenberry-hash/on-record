@@ -107,12 +107,16 @@ export function planSessions(today: string, source: SourceSession[] | null, sess
   if (source && !source.length) source = null; // an empty list means it was not read, not that the source has no sessions
   const find = (s: TxSession): string | null => {
     if (!source) return s.id;
-    return (source.find(x => x.identifier === s.id) ?? source.find(x => norm(x.name) === norm(s.name)))?.identifier ?? null;
+    // 17 Nov: Open States names recent regular sessions "89R" and "90R" (older ones "88", "87"), which is the code Texas
+    // Legislature Online uses. Matching only on "90" left the prefiled 2027 bills unread.
+    return (source.find(x => x.identifier === s.id) ?? source.find(x => x.identifier.toUpperCase() === s.tlo.toUpperCase())
+      ?? source.find(x => norm(x.name) === norm(s.name)))?.identifier ?? null;
   };
   const plan: SessionPlanItem[] = st.ingestOrder.map(id => { const s = sessions.find(x => x.id === id)!; return { id, name: s.name, sourceId: find(s), known: true }; });
   const newest = Math.max(...sessions.map(s => Number(s.id.slice(0, 2))).filter(Number.isFinite));
   const claimed = new Set(plan.map(p => p.sourceId)), knownIds = new Set(sessions.map(s => s.id));
-  const extra = (source ?? []).filter(x => /^\d{2,3}$/.test(x.identifier) && !knownIds.has(x.identifier) && !claimed.has(x.identifier) && Number(x.identifier.slice(0, 2)) >= newest)
+  const knownTlo = new Set(sessions.map(x => x.tlo.toUpperCase()));
+  const extra = (source ?? []).filter(x => /^\d{2,3}R?$/i.test(x.identifier) && !knownIds.has(x.identifier) && !knownTlo.has(x.identifier.toUpperCase()) && !claimed.has(x.identifier) && Number(x.identifier.slice(0, 2)) >= newest)
     .sort((a, b) => b.identifier.padEnd(3, "0").localeCompare(a.identifier.padEnd(3, "0")));
   // A newer session the site does not know goes first: it is what the Legislature is working on.
   return [...extra.map(x => ({ id: x.identifier, name: txSessionLabel(x.identifier, sessions), sourceId: x.identifier, known: false })), ...plan];

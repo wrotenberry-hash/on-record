@@ -78,6 +78,9 @@ test("which sessions to load: the upcoming one first, and it is reported when th
   assert.deepEqual(planSessions("2026-11-17", src(["89", "892", "90"])).map(p => [p.id, p.sourceId, p.known]), [["90", "90", true], ["892", "892", true]]);
   // From opening day only the 90th is loaded.
   assert.deepEqual(planSessions("2027-01-12", src(["892", "90"])).map(p => p.id), ["90"]);
+  // The source's own names for recent regular sessions: "89R", "90R" (as on 17 Nov 2026).
+  assert.deepEqual(planSessions("2026-11-17", src(["88", "881", "89R", "891", "892", "90R"])).map(p => [p.id, p.sourceId, p.known]), [["90", "90R", true], ["892", "892", true]]);
+  assert.deepEqual(planSessions("2027-02-01", src(["89R", "892", "90R"])).map(p => [p.id, p.sourceId]), [["90", "90R"]]);
   // A called session the site has no dates for is loaded first and flagged; older sessions the site does not list are ignored.
   const summer = planSessions("2027-07-10", src(["85", "881", "90", "901"]));
   assert.deepEqual(summer.map(p => [p.id, p.known]), [["901", false], ["90", true]]);
