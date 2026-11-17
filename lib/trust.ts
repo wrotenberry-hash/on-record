@@ -260,6 +260,7 @@ export const COOKIES: Cookie[] = [
   { name: "or_from_share", kind: "cookie", who: "everyone", purpose: "Counts, in total, how many people who arrive through a shared link go on to set up the site.", holds: "The short code of the shared link. Deleted when you finish getting started.", lasts: "7 days" },
   { name: "or_pp", kind: "cookie", who: "verification", purpose: "Holds your phone number while you type in the text-message code.", holds: "Your phone number, encrypted. Deleted when the code is confirmed.", lasts: "10 minutes" },
   { name: "on_record_session", kind: "cookie", who: "editor", purpose: "Keeps the editor signed in. Never set for a reader.", holds: "A signed token.", lasts: "30 days" },
+  { name: "or_err", kind: "tab", who: "everyone", purpose: "Stops the same error page from being counted twice in the same tab.", holds: "A short code for each error page already counted. It stays in your browser and is never sent to the site.", lasts: "Until you close the tab" },
   { name: "or_v", kind: "tab", who: "everyone", purpose: "Stops one visit from being recorded twice in the same tab.", holds: "The digit 1. It stays in your browser and is never sent to the site.", lasts: "Until you close the tab" },
 ];
 
@@ -310,6 +311,7 @@ export const STORED: Stored[] = [
   { when: "optional", what: "Emails and alerts you turn on", detail: "The briefing, instant alerts when your legislators vote on your issues, and reminders you set, with the item's title and date. The site keeps your choices and the text of alerts sent to you." },
   { when: "optional", what: "Push alerts", detail: "If you turn them on: the address your browser gives the site for sending a notification to this device, and its two keys." },
   { when: "optional", what: "Reports and feedback", detail: "A problem report holds the page, the reason you chose and your optional note. The one-question feedback answer is stored with no link to you." },
+  { when: "everyone", what: "Errors on the site", detail: "When a page fails, the site counts it: the day, the kind of page (never the exact address) and a short technical message. Nothing about you is kept with it." },
   { when: "everyone", what: "Limits on repeated use", detail: "A scrambled form of your device's random number and of your network range, kept for 48 hours, to stop one device or network from flooding the site. The raw internet address is not stored." },
   { when: "verification", what: "Phone number", detail: "Never stored. The site keeps only a keyed hash of it (a scrambled fingerprint that cannot be turned back into the number), so one phone cannot verify two accounts, plus the line type and the time it was confirmed. While you type the code, the number sits encrypted in a cookie on your own device for 10 minutes." },
   { when: "verification", what: "Home address", detail: "Sent to the Census Bureau to find your district, then stored encrypted, with your district and state codes. Totals use the district code alone." },

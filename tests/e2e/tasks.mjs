@@ -12,28 +12,31 @@ import { STANDIN_SMS_CODE } from "./lib/standins.mjs";
 const SECONDS = 30;
 const menu = label => `nav.mobile-nav a:text-is("${label}")`;
 const ISSUES = ["health-care", "defense-veterans", "elections-government"];
-const HOME_VOTES = 'section.personal h2:has-text("latest votes on bills")';
+const CARD = "section.personal .flow-cards .flow-card:not(.flow-placeholder)";
+const MY_SENATOR = `${CARD} a.flow-name`;
+const CARD_BILL = `${CARD} a[href^="/bills/"]`;
 
 export const tasks = [
   { id: "1", name: "Find my legislators", target: { taps: 2, seconds: SECONDS }, reader: "new",
     async run(t) {
-      await t.start();
-      await t.tap('main a:has-text("Find your legislators")');
-      await t.type("#zip", "78701");
-      await t.tap('form.start-form button:has-text("Next")');
-      await t.see('ul.leg-list li.leg-card a[href^="/politicians/"]', "the reader's legislators, as links");
-      const n = await t.page.locator("ul.leg-list li.leg-card").count();
-      if (n < 2) t.fail(`Only ${n} legislator shown for ZIP 78701; expected the two senators at least.`);
-      return `${n} legislators shown after the ZIP (typing the ZIP is not a tap)`;
+      // A first-time reader starts at the invite link, which opens the welcome screen.
+      await t.start(`/trial/${t.tools.invite.token}`);
+      await t.tap('main a[href="/"]:has-text("find my legislators")', "Start: find my legislators");
+      await t.type(".place-form input[name=zip]", "78701");
+      await t.tap(".place-form button[type=submit]", "Show my legislators");
+      await t.see(".flow-cards .flow-card a.flow-name", "the reader's legislators, as links");
+      const n = await t.page.locator(".flow-cards .flow-card:not(.flow-placeholder) .flow-name").count();
+      if (n < 3) t.fail(`Only ${n} legislators shown for ZIP 78701; expected two senators and a representative.`);
+      return `${n} legislators shown after the ZIP, from the welcome screen (typing the ZIP is not a tap)`;
     } },
 
   { id: "2", name: "How my senator voted on the latest bill", target: { taps: 2, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.see(HOME_VOTES, "“Your legislators' latest votes on bills” on the home page");
-      const row = t.page.locator('section.personal .fed-section:has(h2:has-text("latest votes on bills")) li').first();
-      const line = (await row.innerText()).replace(/\s+/g, " ");
-      if (!/voted (yes|no|present)|did not vote/i.test(line)) t.fail(`The first row does not say how the member voted: “${line.slice(0, 120)}”`);
+      await t.see(CARD, "the reader's legislators on the home page");
+      const row = t.page.locator(CARD).first();
+      const line = (await row.locator(".flow-line").first().innerText()).replace(/\s+/g, " ");
+      if (!/voted (yes|no|present)|did not vote/i.test(line)) t.fail(`The first legislator's card does not say how they voted: “${line.slice(0, 120)}”`);
       if (!(await row.locator('a[href^="/bills/"]').count())) t.fail("The vote is not linked to its bill.");
       return "on the home page, no taps";
     } },
@@ -41,27 +44,29 @@ export const tasks = [
   { id: "3", name: "Understand what a bill does", target: { taps: 2, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.tap('section.personal .fed-section:has(h2:has-text("Moving on your issues")) ul.result-list li a[href^="/bills/"]', "first bill under “Moving on your issues”");
+      await t.tap(CARD_BILL, "the bill my senator last voted on");
       await t.see("h1", "the bill page");
       if (!(await t.has('h2:has-text("What it does"), h2:has-text("In plain English"), h2:has-text("What would change")')))
         t.blocked("The bill page has no plain-language summary a reader may see. Readers get summaries only once the owner opens the gate (PUBLIC_MIN_PROMPT in lib/analysis/publish-gate.ts is null), so this cannot pass yet.");
       return "plain-language summary shown";
     } },
 
-  { id: "4", name: "Follow an issue", target: { taps: 3, seconds: SECONDS }, reader: "onboarded", issues: ISSUES.slice(0, 2),
+  { id: "4", name: "Follow an issue", target: { taps: 3, seconds: SECONDS }, reader: "onboarded", issues: [],
     async run(t) {
       await t.start();
-      await t.tap('main a:has-text("Browse by issue")');
-      await t.tap('main a[href="/issues/taxes"]', "Taxes");
-      await t.tap('form.issue-follow button:has-text("Follow this issue")');
-      await t.see('form.issue-follow [role="status"]:has-text("Following this issue")', "confirmation that the issue is followed");
-      return "followed from the issue page";
+      await t.tap(".flow-issues > summary", "Pick up to 3 issues");
+      await t.tap('.flow-issues label.chip-check:has(input[value="taxes"])', "Taxes");
+      await t.page.waitForFunction(() => /Taxes/.test(document.querySelector(".flow-issues > summary")?.textContent ?? ""), null, { timeout: 15000 }).catch(() => {});
+      if (!/Taxes/.test(await t.text(".flow-issues > summary"))) t.fail("The picker does not name the issue after it was ticked.");
+      await t.page.reload({ waitUntil: "load" });
+      await t.see('section.personal h2:has-text("Moving on your issues")', "“Moving on your issues” on the home page after following");
+      return "followed from the picker on the home page; kept after a reload";
     } },
 
   { id: "5", name: "Compare two members", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.tap('section.personal a[href^="/politicians/"]', "my senator");
+      await t.tap(MY_SENATOR, "my senator");
       await t.tap('a[href^="/compare?a="][href*="&b="]', "Compare with the other senator");
       await t.see("h1", "the comparison");
       const h1 = await t.text("h1");
@@ -148,18 +153,27 @@ export const tasks = [
   { id: "13", name: "Say whether I support a bill", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.tap('section.personal .fed-section:has(h2:has-text("Moving on your issues")) ul.result-list li a[href^="/bills/"]', "first bill under “Moving on your issues”");
+      // One tap when a scheduled bill on the home page can be answered there; otherwise through the bill page.
+      const here = t.page.locator('#coming-up .flow-bills > li button:text-is("Support")').first();
+      if (await here.count()) {
+        await t.tap(here, "Support (on the home page)");
+        await t.see('#coming-up .flow-saved:has-text("Support")', "“Saved: Support” under the bill");
+        await t.page.reload({ waitUntil: "load" });
+        await t.see('#coming-up .flow-saved:has-text("Your answer: Support")', "the answer kept after a reload");
+        return "one tap on the home page; answer saved and kept";
+      }
+      await t.tap(CARD_BILL, "the bill my senator last voted on");
       await t.tap('#your-view button[name="stance"][value="support"]', "Support");
       await t.see('#your-view button[name="stance"][value="support"][aria-pressed="true"]', "Support shown as chosen");
       await t.page.reload({ waitUntil: "load" });
       await t.see('#your-view button[name="stance"][value="support"][aria-pressed="true"]', "the answer kept after a reload");
-      return "answer saved and kept";
+      return "through the bill page (no scheduled bill on the home page could be answered there: their records are not loaded in the local copy); answer saved and kept";
     } },
 
   { id: "14", name: "My district vs my legislator", target: { taps: 3, seconds: SECONDS }, reader: "onboarded", needs: ["standins", "districtAnswers"],
     async run(t) {
       await t.start();
-      await t.tap('section.personal a[href^="/politicians/"]', "my senator");
+      await t.tap(MY_SENATOR, "my senator");
       await t.see('h2:has-text("What verified readers say")', "“What verified readers say” on the member page");
       const text = await t.text('.fed-section.sentiment');
       if (!/District-matched in [A-Z]{2}(-\d{2}|-AL)?: \d+ support · \d+ oppose/.test(text)) t.fail(`District totals are not shown beside the member's vote: “${text.slice(0, 160)}”`);
@@ -196,7 +210,7 @@ export const tasks = [
   { id: "16", name: "Share a vote card to Stories", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.tap('section.personal a[href^="/politicians/"]', "my senator");
+      await t.tap(MY_SENATOR, "my senator");
       await t.tap('a[href^="/share/card?t=vote"]', "Share (on the latest vote)");
       await t.see('.share-formats button[aria-checked="true"]:has-text("Story")', "Story as the default size");
       await t.tap('.share-actions button:text-is("Share")');
@@ -209,7 +223,7 @@ export const tasks = [
   { id: "17", name: "Share a bill carousel", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.tap('section.personal .fed-section:has(h2:has-text("Moving on your issues")) ul.result-list li a[href^="/bills/"]', "first bill under “Moving on your issues”");
+      await t.tap(CARD_BILL, "the bill my senator last voted on");
       if (!(await t.has('a[href^="/share/card?t=carousel"]')))
         t.blocked("The bill has no summary a reader may see, so there is no 5-slide explainer to share. Readers get summaries only once the owner opens the gate (PUBLIC_MIN_PROMPT is null).");
       await t.tap('a[href^="/share/card?t=carousel"]', "5-slide explainer");
@@ -223,7 +237,7 @@ export const tasks = [
   { id: "18", name: "Copy a link that previews correctly", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
       await t.start();
-      await t.tap('section.personal a[href^="/politicians/"]', "my senator");
+      await t.tap(MY_SENATOR, "my senator");
       await t.tap('a[href^="/share/card?t=vote"]', "Share (on the latest vote)");
       const card = new URL(t.page.url());
       await t.tap('.share-actions button:has-text("Copy link")');

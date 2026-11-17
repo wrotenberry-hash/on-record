@@ -30,6 +30,11 @@ const value = name => { const i = argv.indexOf(`--${name}`); return i >= 0 ? arg
 const only = value("only")?.split(",").map(s => s.trim()).filter(Boolean) ?? null;
 const shotsDir = resolve(value("shots") ?? process.env.E2E_SHOTS ?? resolve(tmpdir(), "on-record-e2e"));
 const say = (...a) => console.log(...a);
+/** What a task returns: a note, or { note, taps, seconds, screenshot } when it counted for itself. */
+function apply(result, returned) {
+  if (returned && typeof returned === "object") { for (const k of ["taps", "seconds", "screenshot"]) if (returned[k] !== undefined && returned[k] !== null) result[k] = returned[k]; result.note = returned.note ?? ""; }
+  else result.note = returned ?? "";
+}
 
 /** Every task: the table in tasks.mjs, then the files named in registry.mjs, then any *.task.mjs in this folder. */
 async function loadTasks() {
@@ -92,21 +97,31 @@ async function main() {
       try {
         if (needs.includes("standins") && !standins) throw new TaskBlocked("Needs the Turnstile and Twilio keys, or run without --base so the runner can start its local stand-ins.", "needs keys");
         if (needs.includes("districtAnswers")) { if (!sample.bill) throw new TaskBlocked("No bill with a recorded vote in the local database."); await seedDistrictAnswers({ billId: sample.bill, state: sample.state }); }
+        if (task.reader === "none") {
+          // A task that drives its own browser (for example a script it starts). It reports its own taps and seconds.
+          const t = { base: server.base, shotsDir, task, tools: { standins, sample }, fail: m => { throw new Error(m); }, blocked: (m, status = "blocked") => { throw new TaskBlocked(m, status); } };
+          try { apply(result, await task.run(t)); } catch (e) { if (e?.result) apply(result, e.result); throw e; }
+          continue;
+        }
         reader = await prepareReader(task.reader, { browser, base: server.base, task, standins });
         const t = new TaskRun({ page: reader.page, context: reader.context, base: server.base, shotsDir, task, tools: { standins, sample, invite: reader.invite } });
         // Check each page the reader lands on, without the check counting against the clock.
         const landed = t.landed.bind(t); let paused = 0;
         t.landed = async step => { await landed(step); const a = Date.now(); await audit(t.page, `task ${task.id}`); paused += Date.now() - a; };
         const seconds = t.seconds.bind(t); t.seconds = () => Math.max(0, Math.round((seconds() - paused / 1000) * 10) / 10);
-        try { result.note = (await task.run(t)) ?? ""; }
+        let returned;
+        try { returned = await task.run(t); }
         finally { Object.assign(result, { taps: t.taps, swipes: t.swipes, seconds: t.startedAt ? t.seconds() : null, steps: t.steps, sideways: t.sideways, smallTargets: t.smallTargets }); result.screenshot = await t.shot(); }
+        apply(result, returned);
       } catch (e) {
         if (e instanceof TaskBlocked) { result.status = e.status; result.note = e.message; }
         else result.error = String(e?.message ?? e).split("\n")[0].slice(0, 400);
-      } finally { await reader?.context.close().catch(() => {}); }
-      result.result = judge(result);
-      report.tasks.push(result);
-      say(`${result.result.toUpperCase().padEnd(10)} ${String(task.id).padStart(4)}  ${task.name}  (${result.taps} taps${result.swipes ? ` + ${result.swipes} swipe` : ""}, ${result.seconds ?? "–"} s)${result.error ? `  ${result.error}` : ""}`);
+      } finally {
+        await reader?.context.close().catch(() => {});
+        result.result = judge(result);
+        report.tasks.push(result);
+        say(`${result.result.toUpperCase().padEnd(10)} ${String(task.id).padStart(4)}  ${task.name}  (${result.taps} taps${result.swipes ? ` + ${result.swipes} swipe` : ""}, ${result.seconds ?? "–"} s)${result.error ? `  ${result.error}` : ""}`);
+      }
     }
 
     if (wantAxe || !flag("no-speed")) {

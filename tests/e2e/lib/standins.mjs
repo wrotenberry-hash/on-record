@@ -27,6 +27,8 @@ export async function startStandins() {
     if (/^\/v2\/Services\/[^/]+\/VerificationCheck$/.test(p)) return json(200, { status: new URLSearchParams(body).get("Code") === STANDIN_SMS_CODE ? "approved" : "pending" });
     if (p === "/geocoder/geographies/onelineaddress" || p === "/geocoder/geographies/address") {
       const { state, district } = STANDIN_DISTRICT;
+      // One known address (the Texas Capitol); anything else is "no match", like a mistyped street.
+      if (!/congress ave/i.test(url.searchParams.get("address") ?? url.searchParams.get("street") ?? "")) return json(200, { result: { addressMatches: [] } });
       return json(200, { result: { addressMatches: [{ matchedAddress: "1100 CONGRESS AVE, AUSTIN, TX, 78701", coordinates: { x: -97.74, y: 30.27 },
         addressComponents: { state, zip: "78701" },
         geographies: { "119th Congressional Districts": [{ CD119: district, STATE: "48", GEOID: `48${district}`, BASENAME: district, NAME: `Congressional District ${district}` }],
