@@ -14,7 +14,9 @@ export const PUBLIC_MIN_PROMPT = null as string | null;
  * Federal summaries run again from generator b5 (16 Nov): what they write stays hidden from readers (PUBLIC_MIN_PROMPT
  * is null) until the owner has reviewed S.J.Res. 197. ANALYSIS_PAUSED=1 stops the runs entirely.
  */
-export function analysisPaused(): boolean { return process.env.ANALYSIS_PAUSED?.trim() === "1"; }
+// Owner instruction, 17 Nov: the summary structure is changing ("how it works today", "what would change"). No summary is
+// written until the owner has approved the redone gold examples. Set ANALYSIS_PAUSED=0 (or change this default) to resume.
+export function analysisPaused(): boolean { return process.env.ANALYSIS_PAUSED?.trim() !== "0"; }
 /** Texas summaries still use the old template, so they stay paused unless TEXAS_SUMMARIES_PAUSED=0. */
 export function texasSummariesPaused(): boolean { return process.env.TEXAS_SUMMARIES_PAUSED?.trim() !== "0"; }
 
