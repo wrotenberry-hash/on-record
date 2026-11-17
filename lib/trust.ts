@@ -110,7 +110,7 @@ export const SOURCES: Source[] = [
 
   { id: "census", group: "lookup", name: "U.S. Census Bureau geocoder", publisher: "U.S. Census Bureau", government: true,
     url: "https://geocoding.geo.census.gov/geocoder/", hosts: ["geocoding.geo.census.gov"],
-    reads: "Turns a street address into a U.S. House district and the two state legislative districts. A ZIP code alone is matched to a state by its first three digits, inside the site, without asking anyone.",
+    reads: "Turns a street address into a U.S. House district and the two state legislative districts. A ZIP code alone is matched to its state and House district from a Census table kept inside the site, without asking anyone.",
     refreshed: "Each time a reader looks up an address." },
 ];
 
@@ -250,7 +250,9 @@ export type Cookie = {
 export const COOKIES: Cookie[] = [
   { name: "or_trial", kind: "cookie", who: "everyone", purpose: "Lets you in as an invited trial reader.", holds: "The code from your invite link.", lasts: "60 days" },
   { name: "or_reader", kind: "cookie", who: "everyone", purpose: "Keeps you signed in after you tap the link in your email.", holds: "A signed token naming your account.", lasts: "90 days" },
-  { name: "or_loc", kind: "cookie", who: "everyone", purpose: "Remembers which legislators are yours.", holds: "Your state and district codes, such as TX and TX-37. Not your ZIP code and not your address.", lasts: "400 days" },
+  { name: "or_loc", kind: "cookie", who: "everyone", purpose: "Remembers which legislators are yours.", holds: "Your state and district codes, such as TX and TX-37. Not your address.", lasts: "400 days" },
+  { name: "or_zip", kind: "cookie", who: "everyone", purpose: "Keeps the ZIP code you typed so you do not have to type it again.", holds: "Your ZIP code. It is kept in your browser; the site does not save it in its database.", lasts: "400 days" },
+  { name: "or_first", kind: "cookie", who: "everyone", purpose: "Lets the site count, in total, how long first-time readers take to give their first answer.", holds: "The time of your first visit. Only a total by time band is recorded, never your own time.", lasts: "1 year" },
   { name: "or_issues", kind: "cookie", who: "everyone", purpose: "Remembers the issues you picked.", holds: "Up to three issue names.", lasts: "400 days" },
   { name: "or_lv", kind: "cookie", who: "everyone", purpose: "Lets the site show what is new since you last visited.", holds: "The time of your last visit and the one before. Times only, never pages.", lasts: "400 days" },
   { name: "or_dev", kind: "cookie", who: "everyone", purpose: "Limits how often one device can ask for sign-in links, answer, or send reports.", holds: "A random number for this browser. The site stores only a scrambled form of it.", lasts: "400 days" },
@@ -299,7 +301,7 @@ export const PROCESSORS: Processor[] = [
 export type Stored = { what: string; detail: string; when: "everyone" | "account" | "optional" | "verification" };
 
 export const STORED: Stored[] = [
-  { when: "everyone", what: "Your place", detail: "Your state and district codes, kept in a cookie and, for an invited reader, in the database so they follow you to another device. The site does not keep your ZIP code or your street address from a legislator lookup." },
+  { when: "everyone", what: "Your place", detail: "Your state and district codes, kept in a cookie and, for an invited reader, in the database so they follow you to another device. The site does not keep your street address from a legislator lookup, and it does not save your ZIP code in its database: the ZIP stays in a cookie in your browser." },
   { when: "everyone", what: "Your issues and follows", detail: "Up to three issues you picked, and the members and bills you follow." },
   { when: "everyone", what: "Your answers", detail: "Support, Oppose or Unsure on a bill; each change you make to an answer, with the time; and the reason you may add, up to 280 characters. Shown only to you." },
   { when: "everyone", what: "Visit times", detail: "The time of your last visit and the one before, to show what is new. For an invite link: the first and last day it was used and on how many days. Never which pages you opened." },

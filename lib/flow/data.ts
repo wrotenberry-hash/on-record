@@ -1,0 +1,226 @@
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { getDb } from "@/db";
+import { analysisBillSummaries, analysisSummaryDetails, billCategories, officialBills, officialFloorSchedule, officialMemberVotes, officialRollCalls,
+  opinionUserVotes, readerUnsure, txBills, txEvents, txMemberVotes, txVotes } from "@/db/schema";
+import { readerVisible } from "@/lib/analysis/publish-gate";
+import { federalLegislators, type Legislator } from "@/lib/federal/legislators";
+import { tallyUnderReview } from "@/lib/federal/depth";
+import { weekOf } from "@/lib/federal/depth-parse";
+import { stanceQuestion } from "@/lib/federal/stance-question";
+import { txLegislatorsFor } from "@/lib/texas/queries";
+import { currentTxSession, TX_SESSIONS } from "@/lib/texas/parse";
+import type { Location } from "@/lib/location";
+import { zipPlace } from "@/lib/flow/zip";
+import { floorBillStub, orderByIssues } from "@/lib/flow/rules";
+import { meaningfulVote, NO_RECENT_VOTE, plainBillName, RECENT_VOTE_MS, txMeaningfulVote, txNoVoteLine, txVoteLine, voteLine, type BillName } from "@/lib/flow/votes";
+
+/**
+ * Reads for the first-60-seconds flow (owner, 17 Nov 2026): the reader's legislators with one plain line each, the
+ * coming floor votes, and the bills the reader has answered. Official data, plus the Analysis headline only where a
+ * summary is visible to readers (lib/analysis/publish-gate.ts); otherwise official facts only.
+ */
+
+const LABELS: Record<string, string> = { hr: "H.R.", s: "S.", hres: "H.Res.", sres: "S.Res.", hjres: "H.J.Res.", sjres: "S.J.Res.", hconres: "H.Con.Res.", sconres: "S.Con.Res." };
+const billLabel = (billType: string, number: number) => `${LABELS[billType] ?? billType.toUpperCase()} ${number}`;
+const PARTY: Record<string, string> = { Democrat: "D", Democratic: "D", Republican: "R", Independent: "I", Libertarian: "L" };
+const letter = (party: string) => PARTY[party] ?? party.slice(0, 1).toUpperCase();
+
+/** The newest reader-visible summary for each bill: its headline and its own question. Empty while the gate is shut. */
+export async function visibleSummaries(billIds: readonly string[]) {
+  const out = new Map<string, { headline: string; question: string | null }>(), ids = [...new Set(billIds)];
+  if (!ids.length) return out;
+  const db = getDb();
+  const rows = await db.select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, headline: analysisBillSummaries.headline, promptVersion: analysisBillSummaries.promptVersion })
+    .from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, ids), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt));
+  if (!rows.length) return out;
+  const details = await db.select({ summaryId: analysisSummaryDetails.summaryId, question: analysisSummaryDetails.question, promptVersion: analysisSummaryDetails.promptVersion })
+    .from(analysisSummaryDetails).where(inArray(analysisSummaryDetails.summaryId, rows.map(r => r.id)));
+  for (const r of rows) if (!out.has(r.billId)) out.set(r.billId, { headline: r.headline, question: details.find(d => d.summaryId === r.id && d.promptVersion === r.promptVersion)?.question ?? null });
+  return out;
+}
+
+/* ------------------------------------------------------------ your legislators --- */
+
+export type CardVote = { line: string; label: BillName["label"]; when: number | string; billHref: string; billLabel: string; billId: string | null };
+export type LegislatorCard = { key: string; slot: "U.S. senator" | "U.S. representative" | "State senator" | "State representative"; name: string; seat: string; href: string | null;
+  vote: CardVote | null; none: string | null };
+export type DistrictChoice = { id: string; label: string };
+/** `zipSplit`: the choices are the ZIP's own districts (it crosses a line); false when the ZIP is not in the Census table and the whole state is offered. */
+export type YourLegislators = { state: string; cards: LegislatorCard[]; houseChoices: DistrictChoice[]; zipSplit: boolean; needsAddress: boolean; texas: boolean; stateNote: string | null };
+
+type FedVote = { rollCallId: string; votedAt: number; question: string; title: string | null; result: string | null; yea: number; nay: number; chamber: string;
+  billId: string; billTitle: string; billType: string; number: number; position: string };
+type Meaningful = FedVote & { kind: NonNullable<ReturnType<typeof meaningfulVote>> };
+
+/** A member's meaningful votes in the last 12 months, newest first (lib/flow/votes.ts decides what counts). */
+async function meaningfulVotesOf(politicianId: string, now: number): Promise<Meaningful[]> {
+  const rows = await getDb().select({ rollCallId: officialRollCalls.id, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question, title: officialRollCalls.title,
+    result: officialRollCalls.result, yea: officialRollCalls.yea, nay: officialRollCalls.nay, chamber: officialRollCalls.chamber, billId: officialBills.id, billTitle: officialBills.title,
+    billType: officialBills.billType, number: officialBills.number, position: officialMemberVotes.position })
+    .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).innerJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
+    .where(and(eq(officialMemberVotes.politicianId, politicianId), gte(officialRollCalls.votedAt, now - RECENT_VOTE_MS))).orderBy(desc(officialRollCalls.votedAt)).limit(150);
+  return rows.flatMap(v => { const kind = meaningfulVote({ question: v.question, result: v.result, title: v.title, billTitle: v.billTitle, hasBill: true }); return kind ? [{ ...v, kind }] : []; });
+}
+
+function fedSeat(m: Legislator) {
+  return m.chamber === "senate" ? `U.S. Senator · ${letter(m.party)}-${m.state}` : `U.S. Representative · ${letter(m.party)}-${m.state}${m.district ? `-${m.district}` : " (at large)"}`;
+}
+
+/**
+ * The House districts to choose between: the ZIP's own districts when the Census table lists them (a few ZIPs cross a
+ * state line, so these can be in two states), else every district in the state. A district with no sitting member is
+ * still offered, marked vacant.
+ */
+export async function houseChoicesFor(state: string, zip: string | null, all: Legislator[]): Promise<DistrictChoice[]> {
+  const idOf = (m: Legislator) => `${m.state}-${m.district ? String(m.district).padStart(2, "0") : "AL"}`;
+  const place = zip ? await zipPlace(zip).catch(() => null) : null;
+  if (!place?.choices.length || !place.choices.some(d => d.startsWith(`${state}-`))) return all.map(m => ({ id: idOf(m), label: `District ${m.district || "at large"} · ${m.fullName} (${letter(m.party)})` }));
+  const states = [...new Set(place.choices.map(d => d.split("-")[0]))];
+  const members = [...all, ...(await Promise.all(states.filter(s => s !== state).map(s => federalLegislators(s, null).then(f => f.houseChoices).catch(() => [] as Legislator[])))).flat()];
+  return place.choices.map(id => { const m = members.find(x => idOf(x) === id), n = id.split("-")[1];
+    return { id, label: `${states.length > 1 ? id : `District ${n === "AL" ? "at large" : Number(n)}`} · ${m ? `${m.fullName} (${letter(m.party)})` : "seat vacant"}` }; });
+}
+
+/**
+ * Up to five cards in a fixed order: U.S. senator, U.S. senator, U.S. representative, state senator, state
+ * representative. Each has the member's most recent meaningful vote in one plain line, or says there is none.
+ */
+export async function yourLegislators(loc: Location, zip: string | null, now = Date.now()): Promise<YourLegislators> {
+  const db = getDb(), today = new Date(now).toISOString().slice(0, 10);
+  const fed = await federalLegislators(loc.state, loc.congressional);
+  const members = [...fed.senators, ...(fed.representative ? [fed.representative] : [])];
+  const votes = await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).then(v => v[0] ?? null).catch(() => null)));
+  const chosen = votes.filter((v): v is Meaningful => !!v);
+  const [summaries, review] = await Promise.all([visibleSummaries(chosen.map(v => v.billId)).catch(() => new Map<string, { headline: string; question: string | null }>()),
+    tallyUnderReview(chosen.map(v => v.rollCallId)).catch(() => new Set<string>())]);
+  const cards: LegislatorCard[] = members.map((m, i) => {
+    const v = votes[i];
+    const name = v ? plainBillName({ title: v.billTitle, billType: v.billType, headline: summaries.get(v.billId)?.headline, label: billLabel(v.billType, v.number) }) : null;
+    return { key: m.id, slot: m.chamber === "senate" ? "U.S. senator" : "U.S. representative", name: m.fullName, seat: fedSeat(m), href: `/politicians/${m.id}`,
+      vote: v && name ? { line: voteLine({ position: v.position, kind: v.kind, name: name.text, result: v.result, yea: v.yea, nay: v.nay, question: v.question, chamber: v.chamber, billType: v.billType,
+        tallyUnderReview: review.has(v.rollCallId) }), label: name.label, when: v.votedAt, billHref: `/bills/${v.billId}`, billLabel: billLabel(v.billType, v.number), billId: v.billId } : null,
+      none: v ? null : NO_RECENT_VOTE };
+  });
+  if (loc.congressional && !fed.representative) cards.push({ key: `vacant-${loc.congressional}`, slot: "U.S. representative", name: `U.S. House, ${loc.congressional}`, seat: "U.S. Representative", href: null, vote: null,
+    none: "No current member is on file for this district. The seat may be vacant." });
+  const texas = loc.state === "TX";
+  if (texas && (loc.stateUpper || loc.stateLower)) {
+    const tx = await txLegislatorsFor(loc.stateUpper, loc.stateLower).catch(() => ({ senator: null, representative: null }));
+    const since = new Date(now - RECENT_VOTE_MS).toISOString().slice(0, 10), none = txNoVoteLine(today, TX_SESSIONS);
+    const slots = [{ p: tx.senator, slot: "State senator" as const, district: loc.stateUpper, chamber: "Senate" }, { p: tx.representative, slot: "State representative" as const, district: loc.stateLower, chamber: "House" }];
+    for (const s of slots) {
+      const n = s.district?.split("-").pop() ?? "";
+      if (!s.p) { if (s.district) cards.push({ key: `tx-${s.slot}`, slot: s.slot, name: `Texas ${s.chamber} District ${n}`, seat: `Texas State ${s.slot === "State senator" ? "Senator" : "Representative"}`, href: null, vote: null,
+        none: "This district’s member is not on file yet." }); continue; }
+      const rows = await db.select({ motion: txVotes.motion, date: txVotes.date, result: txVotes.result, counts: txVotes.counts, tallyOk: txVotes.tallyOk, option: txMemberVotes.option,
+        billId: txBills.id, identifier: txBills.identifier, title: txBills.title })
+        .from(txMemberVotes).innerJoin(txVotes, eq(txVotes.id, txMemberVotes.voteId)).innerJoin(txBills, eq(txBills.id, txVotes.billId))
+        .where(and(eq(txMemberVotes.personId, s.p.id), gte(txVotes.date, since))).orderBy(desc(txVotes.date)).limit(80).catch(() => []);
+      const hit = rows.map(r => ({ r, kind: txMeaningfulVote(r.motion) })).find(x => x.kind);
+      const counts = (hit?.r.counts ?? null) as Record<string, number> | null;
+      const name = hit ? plainBillName({ title: hit.r.title, billType: "hb", label: hit.r.identifier }) : null;
+      cards.push({ key: s.p.id, slot: s.slot, name: s.p.name, seat: `Texas State ${s.slot === "State senator" ? "Senator" : "Representative"} · ${letter(s.p.party)} · District ${s.p.district}`,
+        href: `/texas/members/${encodeURIComponent(s.p.id)}`,
+        vote: hit && name ? { line: txVoteLine({ option: hit.r.option, kind: hit.kind!, name: name.text, result: hit.r.result, yes: counts?.yes, no: counts?.no, tallyOk: hit.r.tallyOk === 1 }), label: name.label,
+          when: hit.r.date, billHref: `/texas/bills/${hit.r.billId}`, billLabel: hit.r.identifier, billId: null } : null,
+        none: hit ? null : none });
+    }
+  }
+  const houseChoices = fed.representative || loc.congressional ? [] : await houseChoicesFor(loc.state, zip, fed.houseChoices);
+  return { state: loc.state, cards, texas, needsAddress: texas && !loc.stateUpper && !loc.stateLower, houseChoices, zipSplit: houseChoices.length > 0 && houseChoices.length < fed.houseChoices.length,
+    stateNote: texas ? null : "State legislators are covered for Texas only for now." };
+}
+
+/* ------------------------------------------------------------------ coming up --- */
+
+/** `answerable` is false for a scheduled bill whose bill record has not been loaded yet: it is listed, without buttons. */
+export type FlowBill = { billId: string; billLabel: string; name: BillName; where: string; when: string; issues: string[]; onIssue: boolean; question: string; answer: "support" | "oppose" | "unsure" | null; answerable: boolean };
+export type TexasEvent = { id: string; name: string; when: string; bills: string[] };
+export type ComingUp = { scheduled: FlowBill[]; scheduledTotal: number; recent: FlowBill[]; texas: TexasEvent[] };
+
+async function answersOf(userId: string | null, billIds: string[]) {
+  const out = new Map<string, "support" | "oppose" | "unsure">();
+  if (!userId || !billIds.length) return out;
+  const db = getDb();
+  const [stances, unsure] = await Promise.all([
+    db.select({ billId: opinionUserVotes.billId, stance: opinionUserVotes.stance }).from(opinionUserVotes).where(and(eq(opinionUserVotes.userId, userId), inArray(opinionUserVotes.billId, billIds))),
+    db.select({ billId: readerUnsure.billId }).from(readerUnsure).where(and(eq(readerUnsure.userId, userId), inArray(readerUnsure.billId, billIds)))]);
+  for (const u of unsure) out.set(u.billId, "unsure");
+  for (const s of stances) out.set(s.billId, s.stance);
+  return out;
+}
+
+async function issuesOf(billIds: string[]) {
+  const out = new Map<string, string[]>();
+  if (!billIds.length) return out;
+  for (const c of await getDb().select({ billId: billCategories.billId, slug: billCategories.categorySlug }).from(billCategories).where(inArray(billCategories.billId, billIds))) out.set(c.billId, [...(out.get(c.billId) ?? []), c.slug]);
+  return out;
+}
+
+const weekLabel = (w: string) => `week of ${new Date(Date.UTC(Number(w.slice(0, 4)), Number(w.slice(4, 6)) - 1, Number(w.slice(6, 8)), 12)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`;
+const dayLabel = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+
+/**
+ * "Here's what's coming up that affects you": bills on this week's (or a later) House and Senate floor schedule, the
+ * reader's issues first. When nothing is scheduled, the three most recent meaningful votes of the reader's own
+ * legislators stand in ("Decided recently"). Texas hearings are listed while the Legislature is in session.
+ */
+export async function comingUp(input: { userId: string | null; issues: readonly string[]; loc: Location | null; limit?: number; now?: number }): Promise<ComingUp> {
+  const db = getDb(), now = input.now ?? Date.now(), limit = input.limit ?? 5, today = new Date(now).toISOString().slice(0, 10);
+  const floor = await db.select({ chamber: officialFloorSchedule.chamber, weekOf: officialFloorSchedule.weekOf, label: officialFloorSchedule.label, description: officialFloorSchedule.description,
+    floorBillId: officialFloorSchedule.billId, billId: officialBills.id, title: officialBills.title, billType: officialBills.billType, number: officialBills.number })
+    .from(officialFloorSchedule).leftJoin(officialBills, eq(officialBills.id, officialFloorSchedule.billId)).where(gte(officialFloorSchedule.weekOf, weekOf(now)))
+    .orderBy(asc(officialFloorSchedule.weekOf), asc(officialFloorSchedule.chamber), sql`cast(substr(${officialFloorSchedule.billId}, instr(substr(${officialFloorSchedule.billId}, 5), '-') + 5) as integer)`, asc(officialFloorSchedule.label)).limit(120);
+  type Row = { billId: string; title: string; billType: string; number: number; where: string; when: string; answerable: boolean };
+  const rowsOf = floor.flatMap((f): Row[] => {
+    const where = f.chamber === "senate" ? "Senate" : "House", when = weekLabel(f.weekOf);
+    if (f.billId && f.billType && f.number !== null && f.title !== null) return [{ billId: f.billId, title: f.title, billType: f.billType, number: f.number, where, when, answerable: true }];
+    const stub = floorBillStub({ billId: f.floorBillId, chamber: f.chamber, label: f.label, description: f.description }); // on the schedule, bill record not loaded yet
+    return stub ? [{ billId: stub.id, title: stub.title, billType: stub.billType, number: stub.number, where, when, answerable: false }] : [];
+  });
+  // The schedule gives a week, not a day: within a week and chamber, bills are listed by number.
+  const unique = rowsOf.filter((f, i, a) => a.findIndex(x => x.billId === f.billId) === i);
+  const build = async (rows: Row[]): Promise<FlowBill[]> => {
+    const ids = rows.filter(r => r.answerable).map(r => r.billId);
+    const [issues, summaries, answers] = await Promise.all([issuesOf(ids), visibleSummaries(ids).catch(() => new Map<string, { headline: string; question: string | null }>()), answersOf(input.userId, ids)]);
+    return orderByIssues(rows.map(r => { const s = summaries.get(r.billId);
+      return { billId: r.billId, billLabel: billLabel(r.billType, r.number), name: plainBillName({ title: r.title, billType: r.billType, headline: s?.headline, label: billLabel(r.billType, r.number) }),
+        where: r.where, when: r.when, issues: issues.get(r.billId) ?? [], question: stanceQuestion({ question: s?.question, headline: s?.headline }).question, answer: answers.get(r.billId) ?? null, answerable: r.answerable }; }), input.issues);
+  };
+  // Bills a reader can answer come before those still waiting for their record, inside each group (own issues, the rest).
+  const scheduled = (await build(unique)).sort((a, b) => Number(b.onIssue) - Number(a.onIssue) || Number(b.answerable) - Number(a.answerable));
+  let recent: FlowBill[] = [];
+  if (!scheduled.length && input.loc) {
+    const fed = await federalLegislators(input.loc.state, input.loc.congressional).catch(() => null);
+    const members = fed ? [...fed.senators, ...(fed.representative ? [fed.representative] : [])] : [];
+    const all = (await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).catch(() => [])))).flat().sort((a, b) => b.votedAt - a.votedAt);
+    const three = all.filter((v, i, a) => a.findIndex(x => x.billId === v.billId) === i).slice(0, 3);
+    recent = await build(three.map(v => ({ billId: v.billId, title: v.billTitle, billType: v.billType, number: v.number, where: v.chamber === "senate" ? "Senate" : "House", when: `voted ${dayLabel(v.votedAt)}`, answerable: true })));
+    recent.sort((a, b) => three.findIndex(v => v.billId === a.billId) - three.findIndex(v => v.billId === b.billId)); // newest first; these are few
+  }
+  const texas = input.loc?.state === "TX" && currentTxSession(today).inSession
+    ? (await db.select().from(txEvents).where(gte(txEvents.start, today)).orderBy(asc(txEvents.start)).limit(3).catch(() => [])).map(e => ({ id: e.id, name: e.name,
+      when: new Date(e.start).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" }), bills: ((e.bills as string[] | null) ?? []).slice(0, 5) }))
+    : [];
+  return { scheduled: scheduled.slice(0, limit), scheduledTotal: scheduled.length, recent, texas };
+}
+
+/* ---------------------------------------------------------- district comparison --- */
+
+export type AnsweredBill = { billId: string; billLabel: string; name: BillName; answer: "support" | "oppose" | "unsure"; at: number };
+
+/** The bills this reader has answered, newest answer first. Read only for that reader. */
+export async function answeredBills(userId: string | null, limit = 5): Promise<AnsweredBill[]> {
+  if (!userId) return [];
+  const db = getDb();
+  const [stances, unsure] = await Promise.all([
+    db.select({ billId: opinionUserVotes.billId, answer: opinionUserVotes.stance, at: opinionUserVotes.updatedAt }).from(opinionUserVotes).where(eq(opinionUserVotes.userId, userId)).orderBy(desc(opinionUserVotes.updatedAt)).limit(limit),
+    db.select({ billId: readerUnsure.billId, answer: sql<"unsure">`'unsure'`, at: readerUnsure.updatedAt }).from(readerUnsure).where(eq(readerUnsure.userId, userId)).orderBy(desc(readerUnsure.updatedAt)).limit(limit)]);
+  const top = [...stances, ...unsure].sort((a, b) => b.at - a.at).slice(0, limit);
+  if (!top.length) return [];
+  const ids = top.map(t => t.billId);
+  const [bills, summaries] = await Promise.all([db.select({ id: officialBills.id, title: officialBills.title, billType: officialBills.billType, number: officialBills.number }).from(officialBills).where(inArray(officialBills.id, ids)),
+    visibleSummaries(ids).catch(() => new Map<string, { headline: string; question: string | null }>())]);
+  return top.flatMap(t => { const b = bills.find(x => x.id === t.billId); if (!b) return [];
+    return [{ billId: b.id, billLabel: billLabel(b.billType, b.number), name: plainBillName({ title: b.title, billType: b.billType, headline: summaries.get(b.id)?.headline, label: billLabel(b.billType, b.number) }), answer: t.answer, at: t.at }]; });
+}
