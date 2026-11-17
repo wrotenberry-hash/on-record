@@ -4,8 +4,11 @@ import assert from "node:assert/strict";
 import { GROUPS, readiness, readinessTotals } from "../lib/readiness.ts";
 import { EVIDENCE } from "../lib/readiness-evidence.ts";
 
+test("the evidence record loads and has every part", () => { assert.ok(EVIDENCE.brand && EVIDENCE.flow && EVIDENCE.quality && EVIDENCE.trust && EVIDENCE.influence); });
+
 const run = { ranOn: "17 Nov 2026" };
-const nothing = { now: 0, brand: EVIDENCE.brand, flow: EVIDENCE.flow,
+const nothing = { now: 0, brand: { literalsLeft: null, testedWithOtherName: null },
+  flow: { e2e: null, fiveLegislatorsForTexasAddress: null, comingUpWithAnswers: null, districtMessageShown: null, accountNotNeeded: null },
   influence: { federalMembers: 539, federalWithPhoneOrForm: 0, texasMembers: 178, texasWithPhone: 0, contactOnBillAndMemberPages: null, hearingsStored: 0, hearingsStepLive: false, townHallsLine: false, voicePage: null },
   content: { bills90d: 120, passing90d: 1, held90d: 4, primersReviewed: 5, primersWaiting: 6, txSenators: 31, txRepresentatives: 147, txCommittees: 20, txCalendarDates: 0, txReadyForSession: null, txNotReadyWhy: "" },
   trust: { methodology: null, pledge: null, correctionsLog: true, about: null, founderText: false, contactEmail: false, privacyDraft: null, termsDraft: null, legalReviewed: false },
