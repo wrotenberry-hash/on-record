@@ -1,0 +1,40 @@
+HAND-MADE SAMPLE. This is NOT a House Research Organization document. hro.house.texas.gov refused connections from
+the build machine on 17 Nov 2026, so this file copies only the STRUCTURE of an HRO bill analysis (its header, its
+fixed headings in their usual order, a running page header). Every sentence under a heading was invented for the test.
+
+HOUSE RESEARCH ORGANIZATION bill analysis                5/20/2025                SB 4 (2nd reading)
+                                                                                  Bettencourt, et al. (Meyer)
+
+SUBJECT:      Sample subject line: raising a school property tax break for homeowners
+
+COMMITTEE:    Ways and Means — favorable, without amendment
+
+VOTE:         11 ayes — sample names
+              0 nays
+              2 absent — sample names
+
+SENATE VOTE:  On final passage (February 13) — 30-0
+
+WITNESSES:    For — sample witness; Against — None; On — sample witness
+
+BACKGROUND:   Sample background. Tax Code sec. 11.13(b) entitles an adult to an exemption from taxation by a school
+              district of $100,000 of the appraised value of the adult's residence homestead.
+
+DIGEST:       Sample digest. SB 4 would raise the school district homestead exemption from $100,000 to $140,000 and
+              would entitle school districts to additional state aid for the revenue they would lose.
+
+SB 4
+House Research Organization
+page 2
+
+SUPPORTERS    Sample supporters' reason. SB 4 would lower school property taxes for homeowners at a time when rising
+SAY:          home values have pushed tax bills up, and the state would cover what school districts lose.
+
+CRITICS       Sample critics' reason. SB 4 would give nothing to renters and businesses, and it would commit the state
+SAY:          to a large cost every year that could crowd out other spending when revenue falls.
+
+OTHER         Sample second reason. Tax relief would be better delivered by lowering school tax rates, which helps every
+CRITICS SAY:  kind of property owner.
+
+NOTES:        Sample note. According to the Legislative Budget Board, the bill would have a negative impact of about
+              $2.7 billion to general revenue related funds through fiscal 2027.

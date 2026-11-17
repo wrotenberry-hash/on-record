@@ -1,0 +1,43 @@
+{
+  "note": "A summary written by hand on 17 Nov 2026 from the real documents saved beside this file (89th Legislature, S.B. 4, enrolled). It is a draft for the owner to judge the format (docs/TEXAS_GOLD_DRAFT.md); it is not in the generator prompt. The case against is empty because the House Research Organization analysis could not be read from the build machine.",
+  "summary": {
+    "headline": "Raises the part of a home's value that school taxes skip from $100,000 to $140,000.",
+    "plainEnglish": "Texas homeowners pay school property taxes on their home's value minus a set amount. This bill raises that amount from $100,000 to $140,000 for a home the owner lives in, and the state pays school districts for the money they lose. It takes effect only if voters approve a matching change to the Texas Constitution; the Governor signed it on June 16, 2025.",
+    "howItWorksToday": [
+      { "text": "School districts in Texas tax homes based on their value. A home the owner lives in gets a set amount taken off its value before the school tax is figured.", "section": "Sec. 1.01" },
+      { "text": "The amount was $15,000 until 2015, when voters approved $25,000. Voters approved $40,000 in May 2022 and later $100,000, the amount today.", "section": "ANALYSIS" },
+      { "text": "Under current law, part of what school districts lose to this tax break is covered by the state.", "section": "FISCAL" },
+      { "text": "The Texas Constitution sets this amount, so an increase also needs voters to approve a change to the constitution.", "section": "Sec. 3.02" }
+    ],
+    "changes": [
+      { "label": "The part of a home's value that school taxes do not count", "before": "", "today": "School districts do not tax the first $100,000 of the value of a home its owner lives in.", "ifPassed": "School districts would not tax the first $140,000, starting with the 2025 tax year.", "source": "Sec. 1.01" },
+      { "label": "Money for school districts that collect less", "before": "", "today": "The state gives school districts extra money to make up for the 2023 increase in this tax break.", "ifPassed": "Beginning with the 2025-2026 school year, the state must also make up what districts lose from this increase.", "source": "Sec. 1.03" },
+      { "label": "When the change starts", "before": "", "today": "The $100,000 amount stays in place unless voters approve a change to the Texas Constitution.", "ifPassed": "The $140,000 amount takes effect on the day the voters' approval takes effect. If voters say no, it never takes effect.", "source": "Sec. 3.02" },
+      { "label": "What the state would pay", "before": "", "today": "The state pays nothing for this increase, because it is not in effect.", "ifPassed": "The state would pay about $1,324.2 million in the 2026 budget year and $1,418.4 million in 2027, the Legislative Budget Board estimates.", "source": "FISCAL" }
+    ],
+    "whyNow": "The Senate approved the final version 31 to 0 on May 29, 2025, after the House approved it 143 to 0. The Governor signed it on June 16, 2025; the larger tax break still depends on voters.",
+    "background": "",
+    "backgroundSources": [],
+    "question": "Do you support raising the school tax break on a home from $100,000 to $140,000?",
+    "whatItDoes": [
+      { "text": "Raises the amount of a home's value that school districts may not tax from $100,000 to $140,000, for a home the owner lives in.", "section": "Sec. 1.01" },
+      { "text": "Requires the state to give school districts extra money, beginning with the 2025-2026 school year, to make up for the taxes they no longer collect.", "section": "Sec. 1.03" },
+      { "text": "Takes effect only if voters approve a matching change to the Texas Constitution; otherwise the increase has no effect.", "section": "Sec. 3.02" }
+    ],
+    "whoItAffects": [
+      { "text": "Adults in Texas who own the home they live in: $40,000 more of the home's value would be free from school district taxes.", "section": "Sec. 1.01" },
+      { "text": "School districts, which would collect less in local property tax and receive state money in its place.", "section": "Sec. 1.03" }
+    ],
+    "whatChangesForYou": "A couple who own and live in a house in Texas would have $140,000 of its value left out of their school tax bill, up from $100,000. The bill's author estimates this saves a homeowner $363.44 at the statewide average school tax rate.",
+    "caseFor": [
+      { "argument": "The increase would save a homeowner an estimated $363.44 in school taxes at the statewide average rate, and the state would make up any funding school districts lose.", "attribution": "the author's statement of intent in the Senate Research Center bill analysis", "source": "ANALYSIS" }
+    ],
+    "caseAgainst": [],
+    "unknowns": [
+      "The sources gathered do not show whether voters approved the change to the Texas Constitution.",
+      "How much the state would owe districts for lost debt payments. The Legislative Budget Board says it cannot be determined."
+    ],
+    "confidence": "medium",
+    "confidenceReason": "The bill text, the analysis and the cost estimate are complete, but the tax change depends on a vote of the people that these sources do not report."
+  }
+}

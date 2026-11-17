@@ -1,0 +1,419 @@
+{
+ "note": "Texas Legislature Online, Actions.aspx?LegSess=89R&Bill=SB4, fetched 2026-11-17, oldest first. The wording is TLO's own.",
+ "actions": [
+  {
+   "chamber": "upper",
+   "description": "Received by the Secretary of the Senate",
+   "comment": "",
+   "date": "2025-02-06"
+  },
+  {
+   "chamber": "upper",
+   "description": "Filed",
+   "comment": "",
+   "date": "2025-02-06"
+  },
+  {
+   "chamber": "upper",
+   "description": "Read first time",
+   "comment": "",
+   "date": "2025-02-07"
+  },
+  {
+   "chamber": "upper",
+   "description": "Referred to Local Government",
+   "comment": "",
+   "date": "2025-02-07"
+  },
+  {
+   "chamber": "upper",
+   "description": "Scheduled for public hearing on . . .",
+   "comment": "",
+   "date": "2025-02-11"
+  },
+  {
+   "chamber": "upper",
+   "description": "Considered in public hearing",
+   "comment": "",
+   "date": "2025-02-11"
+  },
+  {
+   "chamber": "upper",
+   "description": "Testimony taken in committee",
+   "comment": "",
+   "date": "2025-02-11"
+  },
+  {
+   "chamber": "upper",
+   "description": "Vote taken in committee",
+   "comment": "",
+   "date": "2025-02-11"
+  },
+  {
+   "chamber": "upper",
+   "description": "Reported favorably w/o amendments",
+   "comment": "",
+   "date": "2025-02-11"
+  },
+  {
+   "chamber": "upper",
+   "description": "Committee report printed and distributed",
+   "comment": "",
+   "date": "2025-02-11"
+  },
+  {
+   "chamber": "upper",
+   "description": "Placed on intent calendar",
+   "comment": "",
+   "date": "2025-02-12"
+  },
+  {
+   "chamber": "upper",
+   "description": "Co-author authorized",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Rules suspended-Regular order of business",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Read 2nd time",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Amendment(s) offered",
+   "comment": "FA1 Bettencourt",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Amended",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Vote recorded in Journal",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Amendment(s) offered",
+   "comment": "FA2 Bettencourt",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Amended",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Vote recorded in Journal",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Passed to engrossment as amended",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Vote recorded in Journal",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Three day rule suspended",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Record vote",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Read 3rd time",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Passed",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Record vote",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Reason for vote recorded in Journal",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "upper",
+   "description": "Reported engrossed",
+   "comment": "",
+   "date": "2025-02-13"
+  },
+  {
+   "chamber": "lower",
+   "description": "Received from the Senate",
+   "comment": "",
+   "date": "2025-02-18"
+  },
+  {
+   "chamber": "lower",
+   "description": "Read first time",
+   "comment": "",
+   "date": "2025-03-25"
+  },
+  {
+   "chamber": "lower",
+   "description": "Referred to Ways & Means",
+   "comment": "",
+   "date": "2025-03-25"
+  },
+  {
+   "chamber": "lower",
+   "description": "Scheduled for public hearing on . . .",
+   "comment": "",
+   "date": "2025-05-05"
+  },
+  {
+   "chamber": "lower",
+   "description": "Considered in public hearing",
+   "comment": "",
+   "date": "2025-05-05"
+  },
+  {
+   "chamber": "lower",
+   "description": "Testimony taken/registration(s) recorded in committee",
+   "comment": "",
+   "date": "2025-05-05"
+  },
+  {
+   "chamber": "lower",
+   "description": "Left pending in committee",
+   "comment": "",
+   "date": "2025-05-05"
+  },
+  {
+   "chamber": "lower",
+   "description": "Considered in formal meeting",
+   "comment": "",
+   "date": "2025-05-05"
+  },
+  {
+   "chamber": "lower",
+   "description": "Reported favorably w/o amendment(s)",
+   "comment": "",
+   "date": "2025-05-05"
+  },
+  {
+   "chamber": "lower",
+   "description": "Comte report filed with Committee Coordinator",
+   "comment": "",
+   "date": "2025-05-09"
+  },
+  {
+   "chamber": "lower",
+   "description": "Committee report distributed",
+   "comment": "",
+   "date": "2025-05-09"
+  },
+  {
+   "chamber": "lower",
+   "description": "Committee report sent to Calendars",
+   "comment": "",
+   "date": "2025-05-10"
+  },
+  {
+   "chamber": "lower",
+   "description": "Considered in Calendars",
+   "comment": "",
+   "date": "2025-05-16"
+  },
+  {
+   "chamber": "lower",
+   "description": "Placed on Major State Calendar",
+   "comment": "",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Read 2nd time",
+   "comment": "",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Amended",
+   "comment": "1-Meyer",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Record vote",
+   "comment": "RV#3054",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Amendment tabled",
+   "comment": "2-Olcott and Hopper",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Record vote",
+   "comment": "RV#3055",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Statement(s) of vote recorded in Journal",
+   "comment": "",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Passed to 3rd reading as amended",
+   "comment": "",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Record vote",
+   "comment": "RV#3056",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Rules suspended",
+   "comment": "",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Additional sponsor(s) authorized",
+   "comment": "",
+   "date": "2025-05-20"
+  },
+  {
+   "chamber": "lower",
+   "description": "Read 3rd time",
+   "comment": "",
+   "date": "2025-05-21"
+  },
+  {
+   "chamber": "lower",
+   "description": "Passed",
+   "comment": "",
+   "date": "2025-05-21"
+  },
+  {
+   "chamber": "lower",
+   "description": "Record vote",
+   "comment": "RV#3116",
+   "date": "2025-05-21"
+  },
+  {
+   "chamber": "lower",
+   "description": "Statement(s) of vote recorded in Journal",
+   "comment": "",
+   "date": "2025-05-21"
+  },
+  {
+   "chamber": "upper",
+   "description": "House passage as amended reported",
+   "comment": "",
+   "date": "2025-05-21"
+  },
+  {
+   "chamber": "upper",
+   "description": "House amendment(s) laid before the Senate",
+   "comment": "",
+   "date": "2025-05-29"
+  },
+  {
+   "chamber": "upper",
+   "description": "Read",
+   "comment": "",
+   "date": "2025-05-29"
+  },
+  {
+   "chamber": "upper",
+   "description": "Senate concurs in House amendment(s)",
+   "comment": "",
+   "date": "2025-05-29"
+  },
+  {
+   "chamber": "upper",
+   "description": "Record vote",
+   "comment": "",
+   "date": "2025-05-29"
+  },
+  {
+   "chamber": "lower",
+   "description": "Senate concurs in House amendment(s)-reported",
+   "comment": "",
+   "date": "2025-05-29"
+  },
+  {
+   "chamber": "upper",
+   "description": "Reported enrolled",
+   "comment": "",
+   "date": "2025-05-30"
+  },
+  {
+   "chamber": "upper",
+   "description": "Signed in the Senate",
+   "comment": "",
+   "date": "2025-05-31"
+  },
+  {
+   "chamber": "lower",
+   "description": "Signed in the House",
+   "comment": "",
+   "date": "2025-06-01"
+  },
+  {
+   "chamber": "executive",
+   "description": "Sent to the Governor",
+   "comment": "",
+   "date": "2025-06-01"
+  },
+  {
+   "chamber": "executive",
+   "description": "Signed by the Governor",
+   "comment": "",
+   "date": "2025-06-16"
+  },
+  {
+   "chamber": "executive",
+   "description": "See remarks for effective date",
+   "comment": "",
+   "date": "2025-06-16"
+  }
+ ]
+}
