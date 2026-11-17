@@ -7,12 +7,16 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-17T04:10:00Z";
-export const PLAN_NOTE = "You said to try the stronger writing model, so the trial is live: the five test summaries are rewritten by the stronger model, while the test reader and its checker stay on the low-cost one. It is slower, so one press of Run the update now rewrites one or two summaries, S.J.Res. 197 first; the button now allows four runs an hour, ten minutes apart. After each run Claude reads the result against the sources and records the pass rate and the real cost per summary here. Before this, two real runs on the low-cost model passed nothing in eight rewrites. Readers still see no summaries and the limit stays at 5.";
+export const PLAN_UPDATED = "2026-11-17T13:30:00Z";
+export const PLAN_NOTE = "The test-ready build is under way and most of it is live for you to try: one form on the home page (ZIP, optional street address) gives your legislators with their latest vote in one line, upcoming votes with Support / Oppose / Not sure, and how your district compares; every bill and member page has Contact your legislators; Your voice lists your answers beside their votes; What's coming has committee hearings; the Texas page has the 2027 key dates; the trust pages (How this works, pledge, About, privacy and terms drafts) are up; an invite link opens on a welcome screen. The checklist below shows each of your seven points as Pass, Not yet or Needs you. Still to do on my side: the phone-width test suite and monitoring (being finished), and summaries for every bill voted on in the last 90 days. The 13:00 scheduled run was cut off by the host's five-minute limit before it reached summaries; that is fixed, and summaries now run on their own. Readers still see no summaries and the limit stays at 5 until the pass rate is known.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Press Run the update now (stronger-model trial)", needs: "you",
-    why: "Each press rewrites one or two of the five test summaries with the stronger model, S.J.Res. 197 first. Three or four presses, ten minutes apart, cover all five; the 13:00 UTC run also counts. Expected cost: 12 to 40 cents a summary, under $2 in all. Claude reviews each run and reports the pass rate and cost. Keeping the stronger model after the trial, showing summaries to readers and lifting the limit of 5 stay your call." },
+  { title: "Press Run the update now once", needs: "you",
+    why: "Today's 13:00 run was cut off before it reached summaries, so the recalibrated reader test has not run yet. One press rewrites the five test summaries (they now continue on their own until done) and loads contact details and committee hearings. Claude then reports the pass rate and cost, and the real number of bills voted on in the last 90 days." },
+  { title: "Read and approve the eleven explainers", needs: "you",
+    why: "Your bar asks for explainers on the 10 most common subjects. Five are approved; eleven more are written and wait for you at https://claude.ai/artifact/2Bth5erLijecAFDsfGr8gE. Reply \"approve explainers\" or say what to change." },
+  { title: "Try the first 60 seconds on your phone", needs: "you",
+    why: "Open the home page signed in as editor at /start, type your ZIP, add your street address, tap Support or Oppose on an upcoming bill, then open a bill and use Contact your legislators. A script did it in 11 seconds; a person is the real test." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",
