@@ -799,3 +799,29 @@ export const analysisSummaryStructure = sqliteTable("analysis_summary_structure"
   promptVersion: text("prompt_version").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+// ── Test-ready build (17 Nov 2026, migration 0033). New tables only. ──
+// How to reach a legislator through official channels: the office phone, the official contact form and the office
+// address, from the same official files the member lists come from. One row per member; `kind` says which list.
+export const legislatorContacts = sqliteTable("legislator_contacts", {
+  id: text("id").primaryKey(), // "federal:<bioguide id>" or "texas:<tx_people id>"
+  kind: text("kind", { enum: ["federal", "texas"] }).notNull(), memberId: text("member_id").notNull(),
+  phone: text("phone"), contactFormUrl: text("contact_form_url"), officeAddress: text("office_address"),
+  districtPhone: text("district_phone"), districtAddress: text("district_address"), email: text("email"), websiteUrl: text("website_url"),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("legislator_contacts_member_idx").on(t.kind, t.memberId)]);
+
+// Committee hearings and markups in Congress, from the Congress.gov committee-meeting records.
+export const officialCommitteeMeetings = sqliteTable("official_committee_meetings", {
+  id: text("id").primaryKey(), // "<congress>-<chamber>-<eventId>"
+  congress: integer("congress").notNull(), chamber: text("chamber", { enum: ["house", "senate", "joint"] }).notNull(),
+  committeeCode: text("committee_code"), committeeName: text("committee_name"), title: text("title").notNull(),
+  meetingType: text("meeting_type"), status: text("status"), startsAt: text("starts_at").notNull(), location: text("location"),
+  billIds: text("bill_ids", { mode: "json" }).$type<string[]>(), url: text("url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [index("official_committee_meetings_start_idx").on(t.startsAt), index("official_committee_meetings_committee_idx").on(t.committeeCode)]);
+
+// Errors on the site itself, counted per day, route and message. No reader, no address, no page contents.
+export const errorEvents = sqliteTable("error_events", {
+  day: text("day").notNull(), source: text("source", { enum: ["server", "client"] }).notNull(), route: text("route").notNull(), message: text("message").notNull(),
+  n: integer("n").notNull().default(0), firstAt: integer("first_at").notNull(), lastAt: integer("last_at").notNull(),
+}, t => [primaryKey({ columns: [t.day, t.source, t.route, t.message] })]);
