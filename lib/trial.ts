@@ -66,8 +66,10 @@ export async function currentInvite(): Promise<{ id: string; number: number; act
     if (invite.lastActiveDay !== day) {
       activeDays += 1;
       const now = Date.now();
+      // One page can ask who the reader is several times at the same moment (the page and its title): the day is
+      // counted only by the first of them, so "active days" (and the feedback question on day three) cannot run ahead.
       await getDb().update(betaInvites).set({ lastActiveDay: day, lastSeenAt: now, firstSeenAt: invite.firstSeenAt ?? now, activeDays: sql`${betaInvites.activeDays} + 1` })
-        .where(eq(betaInvites.id, invite.id));
+        .where(sql`${betaInvites.id} = ${invite.id} and (${betaInvites.lastActiveDay} is null or ${betaInvites.lastActiveDay} <> ${day})`);
     }
     return { id: invite.id, number: invite.number, activeDays };
   } catch { return null; }
