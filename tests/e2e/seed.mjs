@@ -151,6 +151,10 @@ export async function cleanup() {
   await retry(() => run("delete from model_calls where purpose = 'e2e'"));
   for (const t of ["analysis_summary_details", "analysis_summary_structure"]) if (tables.includes(t)) await retry(() => run(`delete from ${t} where summary_id like 'e2e-%'`));
   if (tables.includes("analysis_bill_summaries")) await retry(() => run("delete from analysis_bill_summaries where id like 'e2e-%'"));
+  // Texas test bills from texas.task.mjs (ids starting "e2e-"), in case a run was cut short.
+  if (tables.includes("tx_member_votes")) await retry(() => run("delete from tx_member_votes where vote_id like 'e2e-%'"));
+  for (const t of ["tx_votes", "tx_bill_actions", "tx_bill_sponsors", "tx_bill_versions"]) if (tables.includes(t)) await retry(() => run(`delete from ${t} where ${t === "tx_votes" ? "id like 'e2e-%' or bill_id" : "bill_id"} like 'e2e-%'`));
+  if (tables.includes("tx_bills")) await retry(() => run("delete from tx_bills where id like 'e2e-%'"));
   for (const b of seededBills) await recomputeTotals(b);
   return { invites: invites.length, readers: users.length };
 }

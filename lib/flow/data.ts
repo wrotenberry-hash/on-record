@@ -12,7 +12,7 @@ import { currentTxSession, TX_SESSIONS } from "@/lib/texas/parse";
 import type { Location } from "@/lib/location";
 import { zipPlace } from "@/lib/flow/zip";
 import { floorBillStub, orderByIssues } from "@/lib/flow/rules";
-import { meaningfulVote, NO_RECENT_VOTE, plainBillName, RECENT_VOTE_MS, txMeaningfulVote, txNoVoteLine, txVoteLine, voteLine, type BillName } from "@/lib/flow/votes";
+import { meaningfulVote, NO_RECENT_VOTE, plainBillName, RECENT_VOTE_MS, txMeaningfulVote, TX_NO_MEMBER_ON_FILE, txNoRecordedVoteLine, txVoteLine, voteLine, type BillName } from "@/lib/flow/votes";
 
 /**
  * Reads for the first-60-seconds flow (owner, 17 Nov 2026): the reader's legislators with one plain line each, the
@@ -106,12 +106,12 @@ export async function yourLegislators(loc: Location, zip: string | null, now = D
   const texas = loc.state === "TX";
   if (texas && (loc.stateUpper || loc.stateLower)) {
     const tx = await txLegislatorsFor(loc.stateUpper, loc.stateLower).catch(() => ({ senator: null, representative: null }));
-    const since = new Date(now - RECENT_VOTE_MS).toISOString().slice(0, 10), none = txNoVoteLine(today, TX_SESSIONS);
+    const since = new Date(now - RECENT_VOTE_MS).toISOString().slice(0, 10), none = txNoRecordedVoteLine(today, TX_SESSIONS);
     const slots = [{ p: tx.senator, slot: "State senator" as const, district: loc.stateUpper, chamber: "Senate" }, { p: tx.representative, slot: "State representative" as const, district: loc.stateLower, chamber: "House" }];
     for (const s of slots) {
       const n = s.district?.split("-").pop() ?? "";
       if (!s.p) { if (s.district) cards.push({ key: `tx-${s.slot}`, slot: s.slot, name: `Texas ${s.chamber} District ${n}`, seat: `Texas State ${s.slot === "State senator" ? "Senator" : "Representative"}`, href: null, vote: null,
-        none: "This district’s member is not on file yet." }); continue; }
+        none: TX_NO_MEMBER_ON_FILE }); continue; }
       const rows = await db.select({ motion: txVotes.motion, date: txVotes.date, result: txVotes.result, counts: txVotes.counts, tallyOk: txVotes.tallyOk, option: txMemberVotes.option,
         billId: txBills.id, identifier: txBills.identifier, title: txBills.title })
         .from(txMemberVotes).innerJoin(txVotes, eq(txVotes.id, txMemberVotes.voteId)).innerJoin(txBills, eq(txBills.id, txVotes.billId))

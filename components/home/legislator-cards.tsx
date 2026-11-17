@@ -44,8 +44,8 @@ export async function LegislatorCards({ loc, next = "/start" }: { loc: Location;
         <p className="flow-note">Add your street address to pick it for you.</p></li>}
       {state.map(c => <Card key={c.key} c={c} />)}
       {data.needsAddress && <>
-        <li className="leg-card flow-card flow-placeholder"><b className="flow-name">Your Texas state senator</b><p className="flow-line flow-none">Add your street address to find your state senator.</p></li>
-        <li className="leg-card flow-card flow-placeholder"><b className="flow-name">Your Texas state representative</b><p className="flow-line flow-none">Add your street address to find your state representative.</p></li></>}
+        <li className="leg-card flow-card flow-placeholder"><b className="flow-name">Your Texas state senator</b><p className="flow-line flow-none">A street address is needed to find your state senator: one ZIP code can cover more than one Texas Senate district. Add it below.</p></li>
+        <li className="leg-card flow-card flow-placeholder"><b className="flow-name">Your Texas state representative</b><p className="flow-line flow-none">A street address is needed to find your state representative: one ZIP code can cover more than one Texas House district. Add it below.</p></li></>}
       {askAddress && <li className="leg-card flow-card"><PlaceForm next={next} zip={zip ?? ""} compact submit={data.needsAddress ? "Find my state legislators" : "Find my district"}
         hint="Sent once to the U.S. Census Bureau to find your districts. We do not keep it." /></li>}
     </ul>

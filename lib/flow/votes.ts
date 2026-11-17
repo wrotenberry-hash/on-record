@@ -192,6 +192,17 @@ export function longDate(iso: string): string {
   return month && y && d ? `${d} ${month} ${y}` : iso;
 }
 
+/** A Texas card with no record vote on a bill: only record votes list a member's own vote (lib/texas/vote-record.ts). */
+export const TX_NO_RECORDED_VOTE = "No recorded vote on file yet.";
+/** The same, with when the Legislature next meets when it is not in session. */
+export function txNoRecordedVoteLine(today: string, sessions: ReadonlyArray<{ start: string; end: string | null }>): string {
+  const inSession = sessions.some(s => s.start <= today && (!s.end || today <= s.end));
+  const next = inSession ? null : sessions.filter(s => s.start > today).sort((a, b) => a.start.localeCompare(b.start))[0];
+  return next ? `${TX_NO_RECORDED_VOTE} The Texas Legislature next meets on ${longDate(next.start)}.` : TX_NO_RECORDED_VOTE;
+}
+/** The card for a Texas seat the official member list has no one for. Not called vacant: the list may simply be behind. */
+export const TX_NO_MEMBER_ON_FILE = "The official list has no member for this seat right now.";
+
 /**
  * What a Texas member's card says when they have no vote on a bill in the last 12 months. The date of the next
  * session comes from the session list (lib/texas/parse.ts), never from a literal.
