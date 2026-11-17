@@ -1,12 +1,15 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ingestRuns, txSessionStats, txBillActions, txBills, txBillSponsors, txBillVersions, txCommitteeMembers, txCommittees, txEvents, txMemberVotes, txPeople, txVotes } from "@/db/schema";
 import { chunked, getCursor, setCursor } from "@/lib/federal/ingest";
-import { currentTxSession, LEGISCAN_BASE, legiscanStage, OPENSTATES_BASE, parseLegiscanMasterList, parseOpenStatesBills, parseOpenStatesCommittees, parseOpenStatesEvents,
+import { LEGISCAN_BASE, legiscanStage, OPENSTATES_BASE, parseLegiscanMasterList, parseOpenStatesBills, parseOpenStatesCommitteePage, parseOpenStatesEvents,
   parseOpenStatesPeople, tloBillUrl, txBillId, txStage, txTallyMismatch, TX_SESSIONS, type TxBill } from "@/lib/texas/parse";
 import { BRAND } from "@/lib/brand";
 import { parseOpenStatesContacts } from "@/lib/contact-parse";
 import { upsertContacts } from "@/lib/contacts";
+import { tloSessionCode, txCalendar, txSessionState, txToday } from "@/lib/texas/calendar";
+import { advanceBillCursor, billUpdatedAts, committeeRequestCap, matchLegiscanSession, nextCommitteeStep, parseOpenStatesSessions, peoplePageKinds, peopleRefreshMs, planSessions,
+  readBillCursor, readCommitteeWalk, seatLine, startCommitteeWalk, txReadiness, txSeatCoverage, type LegiscanSession, type SourceSession } from "@/lib/texas/coverage";
 
 /**
  * Round H: Texas Legislature ingestion. Open States v3 (OPENSTATES_API_KEY) is
@@ -17,7 +20,7 @@ import { upsertContacts } from "@/lib/contacts";
  */
 type Db = ReturnType<typeof getDb>;
 const UA = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
-const WEEK = 7 * 86400e3;
+const DAY = 86400e3, WEEK = 7 * DAY;
 const base = () => process.env.OPENSTATES_BASE?.trim() || OPENSTATES_BASE;
 const lsBase = () => process.env.LEGISCAN_BASE?.trim() || LEGISCAN_BASE;
 
@@ -38,7 +41,7 @@ async function storeBill(db: Db, b: TxBill, now: number) {
   const s = TX_SESSIONS.find(x => x.id === b.session);
   const id = txBillId(b.session, b.identifier), stage = txStage(b.actions);
   const row = { id, openstatesId: b.id, session: b.session, identifier: b.identifier, title: b.title || b.identifier, chamber: b.chamber, classification: b.classification, subjects: b.subjects, stage,
-    firstActionDate: b.firstActionDate, latestActionDate: b.latestActionDate, latestActionDescription: b.latestActionDescription, tloUrl: tloBillUrl(s?.tlo ?? `${b.session}R`, b.identifier),
+    firstActionDate: b.firstActionDate, latestActionDate: b.latestActionDate, latestActionDescription: b.latestActionDescription, tloUrl: tloBillUrl(s?.tlo ?? tloSessionCode(b.session), b.identifier),
     openstatesUrl: b.openstatesUrl, feed: "openstates" as const, sourceUrl: `${OPENSTATES_BASE}/bills/${encodeURIComponent(b.id)}`, retrievedAt: now };
   await db.insert(txBills).values(row).onConflictDoUpdate({ target: txBills.id, set: { ...row } });
   await db.delete(txBillActions).where(eq(txBillActions.billId, id));
@@ -58,15 +61,36 @@ async function storeBill(db: Db, b: TxBill, now: number) {
   return { stage, votes: b.votes.length, mismatches };
 }
 
-/** Open States: people weekly, committees weekly, upcoming events each run, then bills updated since the cursor (newest first). */
+/** The source's own list of Texas sessions, kept in a cursor (read once a day). Null until it has been read. */
+async function sourceSessions(db: Db): Promise<{ at: number; sessions: SourceSession[] } | null> {
+  try { const v = JSON.parse(await getCursor(db, "tx:source-sessions") ?? "null") as { at?: number; sessions?: SourceSession[] } | null;
+    return v && typeof v.at === "number" && Array.isArray(v.sessions) && v.sessions.length ? { at: v.at, sessions: v.sessions } : null; } catch { return null; }
+}
+
+/**
+ * Open States: the source's session list daily; people weekly (daily around the start of a regular session);
+ * committees weekly, a few pages a run; upcoming events each run; then bills, oldest update first from a saved
+ * watermark, so each run carries on where the last one stopped.
+ */
 async function viaOpenStates(db: Db, deadline: number, budget: { left: number }) {
   const c = texasConfig(), h = { "X-API-KEY": c.osKey }, now = Date.now(), out: Record<string, unknown> = {};
-  const call = async (path: string) => { if (budget.left <= 0 || Date.now() > deadline - 8000) return null; budget.left--; return getJson(`${base()}${path}`, h); };
+  let limited = false;
+  const call = async (path: string) => { if (limited || budget.left <= 0 || Date.now() > deadline - 8000) return null; budget.left--; const r = await getJson(`${base()}${path}`, h); if (r.status === 429) { limited = true; out.rateLimited = true; } return r; };
+  const today = txToday(now);
+  // Sessions: which ones the source lists, so a session it does not have yet (or one the site does not know) is reported, not missed.
+  let listed = await sourceSessions(db);
+  if (now - (listed?.at ?? 0) > DAY) {
+    const r = await call(`/jurisdictions/tx?include=legislative_sessions`);
+    const found = r?.body ? parseOpenStatesSessions(r.body) : [];
+    if (found.length) { listed = { at: now, sessions: found }; await setCursor(db, "tx:source-sessions", JSON.stringify(listed)); }
+    out.sourceSessions = found.length;
+  }
   // Test-ready build: the same request also asks for each member's offices and links (include=offices, include=links),
   // which feed legislator_contacts. "tx:contacts" is unset until one full read with offices has finished, so the first
-  // run after this change reads people again instead of waiting out the week.
-  if (Date.now() - Number(await getCursor(db, "tx:people") ?? 0) > WEEK || !(await getCursor(db, "tx:contacts"))) {
+  // run after this change reads people again instead of waiting out the usual interval.
+  if (Date.now() - Number(await getCursor(db, "tx:people") ?? 0) > peopleRefreshMs(today) || !(await getCursor(db, "tx:contacts"))) {
     let page = 1, max = 1, people = 0, contacts = 0, failed = false;
+    const kinds = { listed: 0, legislators: 0, other: 0, noDistrict: 0, total: null as number | null };
     do { let r = await call(`/people?jurisdiction=tx&include=offices&include=links&per_page=50&page=${page}`);
       // If Open States refuses the extra fields (a 400 or 422), the member list must still update: ask again without them.
       if (r && !r.body && (r.status === 400 || r.status === 422)) { out.contactsNote = `Open States answered ${r.status} to include=offices; members read without contact details`; r = await call(`/people?jurisdiction=tx&per_page=50&page=${page}`); }
@@ -74,70 +98,111 @@ async function viaOpenStates(db: Db, deadline: number, budget: { left: number })
       const p = parseOpenStatesPeople(r.body); max = p.maxPage;
       // Contact rows never stop the people update: a fault here is counted and reported, not thrown.
       try { contacts += await upsertContacts(db, "texas", parseOpenStatesContacts(r.body), `${OPENSTATES_BASE}/people?jurisdiction=tx&include=offices&include=links`, now); } catch { out.contactsFailed = true; }
-      if (page === 1) await db.update(txPeople).set({ isCurrent: 0 });
       if (p.people.length) await db.insert(txPeople).values(p.people.map(x => ({ ...x, isCurrent: 1, sourceUrl: `${OPENSTATES_BASE}/people?jurisdiction=tx`, retrievedAt: now })))
         .onConflictDoUpdate({ target: txPeople.id, set: { name: sql`excluded.name`, party: sql`excluded.party`, chamber: sql`excluded.chamber`, district: sql`excluded.district`, title: sql`excluded.title`, isCurrent: 1, retrievedAt: now } });
       people += p.people.length; page++;
+      const k = peoplePageKinds(r.body); kinds.listed += k.listed; kinds.legislators += k.legislators; kinds.other += k.other; kinds.noDistrict += k.noDistrict; kinds.total = k.total ?? kinds.total;
     } while (page <= max);
-    if (!failed) { await setCursor(db, "tx:people", String(now)); await setCursor(db, "tx:contacts", String(now)); }
-    out.people = people; out.contacts = contacts;
+    // Only when every page was read (and it looks like a real list) are members missing from it marked as no longer serving.
+    const complete = !failed && people >= 100;
+    if (complete) await db.update(txPeople).set({ isCurrent: 0 }).where(and(eq(txPeople.isCurrent, 1), lt(txPeople.retrievedAt, now)));
+    if (complete) { await setCursor(db, "tx:people", String(now)); if (!out.contactsNote && !out.contactsFailed) await setCursor(db, "tx:contacts", String(now)); }
+    await setCursor(db, "tx:people:stats", JSON.stringify({ at: now, complete, pagesRead: page - 1, pages: max, ...kinds, stored: people }));
+    out.people = people; out.contacts = contacts; out.peopleComplete = complete;
   }
-  if (Date.now() - Number(await getCursor(db, "tx:committees") ?? 0) > WEEK) {
-    const r = await call(`/committees?jurisdiction=tx&classification=committee&include=memberships&per_page=20`);
-    const list = r?.body ? parseOpenStatesCommittees(r.body) : [];
-    for (const cm of list) {
-      await db.insert(txCommittees).values({ id: cm.id, name: cm.name, chamber: cm.chamber, retrievedAt: now }).onConflictDoUpdate({ target: txCommittees.id, set: { name: cm.name, chamber: cm.chamber, retrievedAt: now } });
-      await db.delete(txCommitteeMembers).where(eq(txCommitteeMembers.committeeId, cm.id));
-      if (cm.members.length) await db.insert(txCommitteeMembers).values(cm.members.map(m => ({ committeeId: cm.id, name: m.name || "Unknown", personId: m.personId, role: m.role }))).onConflictDoNothing();
+  // Committees: every page of each chamber (Senate, House, joint), at most a few requests a run; the place is saved between runs.
+  let walk = readCommitteeWalk(await getCursor(db, "tx:committees:walk"));
+  if (!walk && Date.now() - Number(await getCursor(db, "tx:committees") ?? 0) > WEEK) walk = startCommitteeWalk(now);
+  if (walk) {
+    let left = committeeRequestCap(budget.left), stored = 0, finished = false;
+    while (walk && left-- > 0) {
+      const r = await call(`/committees?jurisdiction=tx&classification=committee&chamber=${walk.chamber}&include=memberships&per_page=20&page=${walk.page}`);
+      if (!r) break;
+      const pastEnd = !r.body && r.status === 404 && walk.page > 1;
+      if (!r.body && !pastEnd) { out.committeesRefused = r.status; break; }
+      const pg = parseOpenStatesCommitteePage(r.body, walk.chamber);
+      for (const cm of pg.committees) {
+        await db.insert(txCommittees).values({ id: cm.id, name: cm.name, chamber: cm.chamber, retrievedAt: now }).onConflictDoUpdate({ target: txCommittees.id, set: { name: cm.name, chamber: cm.chamber, retrievedAt: now } });
+        await db.delete(txCommitteeMembers).where(eq(txCommitteeMembers.committeeId, cm.id));
+        if (cm.members.length) await chunked(cm.members, 50, part => db.insert(txCommitteeMembers).values(part.map(m => ({ committeeId: cm.id, name: m.name, personId: m.personId, role: m.role }))).onConflictDoNothing());
+      }
+      stored += pg.committees.length;
+      const next = nextCommitteeStep(walk, { count: pg.committees.length, maxPage: pg.maxPage, pastEnd });
+      if (next === "done") {
+        // The whole list was read: committees that were not in it are gone from the source, so they go from here too.
+        const startedAt = walk.startedAt, total = walk.stored + pg.committees.length;
+        if (total > 0) {
+          await db.delete(txCommittees).where(lt(txCommittees.retrievedAt, startedAt));
+          const keep = (await db.select({ id: txCommittees.id }).from(txCommittees)).map(x => x.id);
+          if (keep.length) await db.delete(txCommitteeMembers).where(notInArray(txCommitteeMembers.committeeId, keep));
+        }
+        await setCursor(db, "tx:committees", String(now)); await setCursor(db, "tx:committees:walk", "");
+        walk = null; finished = true; out.committeesTotal = total;
+      } else { walk = next; await setCursor(db, "tx:committees:walk", JSON.stringify(walk)); }
     }
-    if (r?.body) await setCursor(db, "tx:committees", String(now));
-    out.committees = list.length;
+    out.committees = stored; out.committeesDone = finished;
   }
-  const today = new Date(now).toISOString().slice(0, 10);
   const ev = await call(`/events?jurisdiction=tx&after=${today}&per_page=20`);
   const events = ev?.body ? parseOpenStatesEvents(ev.body) : [];
   if (events.length) await db.insert(txEvents).values(events.map(e => ({ ...e, retrievedAt: now }))).onConflictDoUpdate({ target: txEvents.id, set: { name: sql`excluded.name`, start: sql`excluded.start`, location: sql`excluded.location`, bills: sql`excluded.bills`, retrievedAt: now } });
   out.events = events.length;
-  // Bills: the current or upcoming session first (prefiling for the 90th opened in November 2026), then the session before it.
-  const { session } = currentTxSession(today);
-  const sessions = [...new Set([TX_SESSIONS.find(s => s.start > today)?.id, session.id].filter(Boolean) as string[])];
+  // Bills: the session readers care about first (the one in progress, else the upcoming one: prefiling for the 90th opened on 9 Nov 2026), then the one before it.
+  const plan = planSessions(today, listed?.sessions ?? null), runIso = new Date(now).toISOString();
   let bills = 0, votes = 0, mismatches = 0, refused = 0;
-  for (const s of sessions) {
-    const key = `tx:bills:${s}`, since = await getCursor(db, key);
-    let page = 1, newest: string | null = null, done = false;
-    while (!done) {
-      const r = await call(`/bills?jurisdiction=tx&session=${s}&sort=updated_desc&include=actions&include=votes&include=sponsorships&include=versions&per_page=20&page=${page}${since ? `&updated_since=${encodeURIComponent(since)}` : ""}`);
+  const backlog: Record<string, number> = {}, notAtSource: string[] = [];
+  for (const s of plan) {
+    if (!s.sourceId) { notAtSource.push(s.id); continue; }
+    const key = `tx:bills:${s.id}`;
+    let cur = readBillCursor(await getCursor(db, key), await getCursor(db, `${key}:page`));
+    for (;;) {
+      const r = await call(`/bills?jurisdiction=tx&session=${encodeURIComponent(s.sourceId)}&sort=updated_asc&include=actions&include=votes&include=sponsorships&include=versions&per_page=20&page=${cur.page}${cur.since ? `&updated_since=${encodeURIComponent(cur.since)}` : ""}`);
       if (!r) break;
-      if (!r.body) { refused++; break; }
-      const parsed = parseOpenStatesBills(r.body);
-      for (const b of parsed.bills) { const x = await storeBill(db, b, now); bills++; votes += x.votes; mismatches += x.mismatches; }
-      newest ??= new Date(now).toISOString().slice(0, 19);
-      if (page >= parsed.maxPage || !parsed.bills.length) done = true; else page++;
+      if (!r.body) {
+        // A page past the end means the list changed under the saved page: start that second again from page 1.
+        if (r.status === 404 && cur.page > 1) { cur = { since: cur.since, page: 1 }; await setCursor(db, `${key}:page`, "1"); }
+        if (r.status !== 429) refused++;
+        break;
+      }
+      const parsed = parseOpenStatesBills(r.body), seen = billUpdatedAts(r.body);
+      for (const b of parsed.bills) { const x = await storeBill(db, { ...b, session: s.id }, now); bills++; votes += x.votes; mismatches += x.mismatches; }
+      const step = advanceBillCursor(cur, { count: seen.count, updated: seen.updated, maxPage: parsed.maxPage }, runIso);
+      cur = step.cursor; backlog[s.id] = step.remainingPages;
+      if (cur.since) await setCursor(db, key, cur.since);
+      await setCursor(db, `${key}:page`, String(cur.page));
+      await setCursor(db, `${key}:backlog`, JSON.stringify({ at: now, pages: step.remainingPages, caughtUp: step.caughtUp }));
+      if (step.caughtUp) break;
     }
-    if (done && newest) await setCursor(db, key, newest);
   }
-  return { ...out, sessions, bills, votes, mismatches, refused };
+  return { ...out, sessions: plan.map(s => s.id), notAtSource, unknownSessions: plan.filter(s => !s.known).map(s => s.id), backlog, bills, votes, mismatches, refused };
 }
 
-/** LegiScan: bill numbers, titles and status for the current session (no votes), when Open States is unavailable. */
+/**
+ * LegiScan: bill numbers, titles and status (no votes) for the session readers care about now, when Open States is
+ * unavailable, refuses, does not list that session yet, or is still far behind on it. One request for the session
+ * list and one for the whole bill list. A session LegiScan does not list is reported, never filed under another one.
+ */
 async function viaLegiscan(db: Db) {
-  const c = texasConfig(), now = Date.now();
+  const c = texasConfig(), now = Date.now(), focus = txSessionState(txToday(now)).focus;
   const sl = await getJson(`${lsBase()}/?key=${encodeURIComponent(c.lsKey)}&op=getSessionList&state=TX`, {});
-  const sessions = ((sl.body as { sessions?: Array<{ session_id?: number; year_start?: number; special?: number; session_name?: string }> } | null)?.sessions ?? []).sort((a, b) => (b.year_start ?? 0) - (a.year_start ?? 0));
-  const target = sessions[0];
-  if (!target?.session_id) return { ok: false, error: `LegiScan session list ${sl.status}` };
+  const sessions = (sl.body as { sessions?: LegiscanSession[] } | null)?.sessions;
+  if (!Array.isArray(sessions)) return { ok: false, error: `LegiScan session list ${sl.status}` };
+  const target = matchLegiscanSession(sessions, focus), session = focus;
+  if (!target?.session_id) return { ok: false, error: `LegiScan does not list the ${focus.name} yet`, session: focus.id };
   const ml = await getJson(`${lsBase()}/?key=${encodeURIComponent(c.lsKey)}&op=getMasterList&id=${target.session_id}`, {});
   const list = parseLegiscanMasterList(ml.body);
-  const session = TX_SESSIONS.find(s => s.start.slice(0, 4) === String(target.year_start) && s.regular === !target.special) ?? TX_SESSIONS[0];
-  for (const b of list) {
-    const id = txBillId(session.id, b.number);
-    const existing = await db.select({ feed: txBills.feed }).from(txBills).where(eq(txBills.id, id)).get();
-    if (existing?.feed === "openstates") continue; // Open States rows carry votes; LegiScan only fills gaps
-    const row = { id, session: session.id, identifier: b.number, title: b.title || b.number, stage: legiscanStage(b.status), latestActionDate: b.lastActionDate, latestActionDescription: b.lastAction,
-      tloUrl: tloBillUrl(session.tlo, b.number), feed: "legiscan" as const, sourceUrl: b.url ?? `${LEGISCAN_BASE}`, retrievedAt: now };
-    await db.insert(txBills).values(row).onConflictDoUpdate({ target: txBills.id, set: row });
-  }
-  return { ok: true, legiscanBills: list.length, session: session.id };
+  // One read of what is already stored, then batches: a regular session has thousands of bills.
+  const have = new Map((await db.select({ id: txBills.id, feed: txBills.feed, date: txBills.latestActionDate, stage: txBills.stage }).from(txBills).where(eq(txBills.session, session.id))).map(r => [r.id, r]));
+  const rows = list.flatMap(b => {
+    const id = txBillId(session.id, b.number), e = have.get(id), stage = legiscanStage(b.status);
+    if (e?.feed === "openstates") return []; // Open States rows carry votes; LegiScan only fills gaps
+    if (e && e.date === b.lastActionDate && e.stage === stage) return []; // nothing new
+    return [{ id, session: session.id, identifier: b.number, title: b.title || b.number, stage, latestActionDate: b.lastActionDate, latestActionDescription: b.lastAction,
+      tloUrl: tloBillUrl(session.tlo, b.number), feed: "legiscan" as const, sourceUrl: b.url ?? `${LEGISCAN_BASE}`, retrievedAt: now }];
+  });
+  await chunked(rows, 100, part => db.insert(txBills).values(part).onConflictDoUpdate({ target: txBills.id, set: { title: sql`excluded.title`, stage: sql`excluded.stage`,
+    latestActionDate: sql`excluded.latest_action_date`, latestActionDescription: sql`excluded.latest_action_description`, sourceUrl: sql`excluded.source_url`, retrievedAt: now },
+    setWhere: eq(txBills.feed, "legiscan") }));
+  return { ok: true, legiscanBills: list.length, written: rows.length, session: session.id };
 }
 
 /** Round I: Texas session statistics by stage from LegiScan master lists (one request per session), weekly. */
@@ -145,11 +210,10 @@ async function legiscanHistory(db: Db) {
   const c = texasConfig(), now = Date.now();
   if (!c.legiscan || now - Number(await getCursor(db, "tx:history") ?? 0) < WEEK) return { skipped: true };
   const sl = await getJson(`${lsBase()}/?key=${encodeURIComponent(c.lsKey)}&op=getSessionList&state=TX`, {});
-  const sessions = (sl.body as { sessions?: Array<{ session_id?: number; year_start?: number; special?: number; session_name?: string; session_title?: string }> } | null)?.sessions ?? [];
+  const sessions = (sl.body as { sessions?: LegiscanSession[] } | null)?.sessions ?? [];
   let stored = 0;
-  for (const s of TX_SESSIONS.filter(x => x.start <= new Date(now).toISOString().slice(0, 10))) {
-    const year = s.start.slice(0, 4), ord = s.id.length === 3 ? Number(s.id.slice(2)) : 0;
-    const match = sessions.find(x => String(x.year_start) === year && (s.regular ? !x.special : !!x.special && new RegExp(`\\b${ord}(st|nd|rd|th)\\b|called session ${ord}`, "i").test(`${x.session_name ?? ""} ${x.session_title ?? ""}`)));
+  for (const s of TX_SESSIONS.filter(x => x.start <= txToday(now))) {
+    const match = matchLegiscanSession(sessions, s);
     if (!match?.session_id) continue;
     const ml = await getJson(`${lsBase()}/?key=${encodeURIComponent(c.lsKey)}&op=getMasterList&id=${match.session_id}`, {});
     const list = parseLegiscanMasterList(ml.body);
@@ -172,27 +236,53 @@ export async function runTexasIngest({ budgetMs = 60_000 }: { budgetMs?: number 
   let detail: Record<string, unknown> = {}, ok = true, error: string | null = null;
   try {
     if (c.openStates) detail = await viaOpenStates(db, deadline, { left: c.maxRequests });
-    if (c.legiscan && (!c.openStates || (detail.refused as number) > 0)) detail.legiscan = await viaLegiscan(db);
+    // LegiScan fills the gap when Open States is off, refused a request, does not list the session yet, or is far behind on it.
+    const focus = txSessionState(txToday(started)).focus.id;
+    const gap = !c.openStates || (detail.refused as number) > 0 || ((detail.notAtSource as string[] | undefined) ?? []).includes(focus) || (((detail.backlog as Record<string, number> | undefined) ?? {})[focus] ?? 0) > 0;
+    if (c.legiscan && gap) detail.legiscan = await viaLegiscan(db);
     if (c.legiscan) detail.history = await legiscanHistory(db);
   } catch (e) { ok = false; error = (e instanceof Error ? e.message : String(e)).slice(0, 300); }
   await db.update(ingestRuns).set({ status: ok ? "COMPLETE" : "FAILED", finishedAt: Date.now(), detail, error }).where(eq(ingestRuns.id, id));
   return { ok, ...(error ? { error } : {}), ...detail };
 }
 
-/** Counts only, for the health probe. */
-export async function texasCounts() {
-  const db = getDb(), c = texasConfig();
+/** Counts only, for the health probe: members by chamber against the seats, committees by chamber, bills by session, and whether bill coverage is ready for the session. */
+export async function texasCounts(now = Date.now()) {
+  const db = getDb(), c = texasConfig(), today = txToday(now), st = txSessionState(today), json = <T,>(v: string | null): T | null => { try { return v ? JSON.parse(v) as T : null; } catch { return null; } };
   const count = async (q: Promise<{ n: number } | undefined>) => Number((await q)?.n ?? 0);
-  const [people, bills, votes, badVotes, events, last, bySession] = await Promise.all([
-    count(db.select({ n: sql<number>`count(*)` }).from(txPeople).where(eq(txPeople.isCurrent, 1)).get()),
+  const [seatRows, bills, votes, badVotes, events, last, bySession, cmte, cmteMembers, newestAction, newestBill, listed, peopleStats, cmteAt, cmteWalk] = await Promise.all([
+    db.select({ chamber: txPeople.chamber, district: txPeople.district }).from(txPeople).where(eq(txPeople.isCurrent, 1)),
     count(db.select({ n: sql<number>`count(*)` }).from(txBills).get()),
     count(db.select({ n: sql<number>`count(*)` }).from(txVotes).get()),
     count(db.select({ n: sql<number>`count(*)` }).from(txVotes).where(eq(txVotes.tallyOk, 0)).get()),
-    count(db.select({ n: sql<number>`count(*)` }).from(txEvents).where(sql`${txEvents.start} >= ${new Date().toISOString().slice(0, 10)}`).get()),
+    count(db.select({ n: sql<number>`count(*)` }).from(txEvents).where(sql`${txEvents.start} >= ${today}`).get()),
     db.select().from(ingestRuns).where(eq(ingestRuns.job, "texas")).orderBy(desc(ingestRuns.startedAt)).limit(1).get(),
-    db.select({ session: txBills.session, n: sql<number>`count(*)` }).from(txBills).groupBy(txBills.session),
+    db.select({ session: txBills.session, n: sql<number>`count(*)`, newest: sql<string | null>`max(${txBills.latestActionDate})` }).from(txBills).groupBy(txBills.session),
+    db.select({ chamber: txCommittees.chamber, n: sql<number>`count(*)` }).from(txCommittees).groupBy(txCommittees.chamber),
+    db.select({ members: sql<number>`count(*)`, committees: sql<number>`count(distinct ${txCommitteeMembers.committeeId})` }).from(txCommitteeMembers).get(),
+    db.select({ d: sql<string | null>`max(${txBillActions.date})` }).from(txBillActions).get(),
+    db.select({ d: sql<string | null>`max(${txBills.latestActionDate})` }).from(txBills).get(),
+    sourceSessions(db), getCursor(db, "tx:people:stats"), getCursor(db, "tx:committees"), getCursor(db, "tx:committees:walk"),
   ]);
-  return { openStatesConfigured: c.openStates, legiscanConfigured: c.legiscan, people, bills, billsBySession: Object.fromEntries(bySession.map(s => [s.session, Number(s.n)])), votes, tallyMismatches: badVotes, upcomingEvents: events,
-    lastRun: last ? { status: last.status, startedAt: new Date(last.startedAt).toISOString(), error: last.error?.slice(0, 160) ?? null } : null };
+  const seats = txSeatCoverage(seatRows), billsBySession = Object.fromEntries(bySession.map(s => [s.session, Number(s.n)]));
+  const newestBillAction = [newestAction?.d, newestBill?.d].filter((d): d is string => !!d).sort().pop() ?? null;
+  const plan = planSessions(today, listed?.sessions ?? null), backlogPages: Record<string, number> = {};
+  for (const p of plan) { const b = json<{ pages?: number }>(await getCursor(db, `tx:bills:${p.id}:backlog`)); if (b && typeof b.pages === "number") backlogPages[p.id] = b.pages; }
+  const lastRun = last ? { status: last.status, startedAt: new Date(last.startedAt).toISOString(), error: last.error?.slice(0, 160) ?? null } : null;
+  const ready = txReadiness({ today, openStates: c.openStates, legiscan: c.legiscan, billsBySession, newestActionDate: bySession.find(s => s.session === st.focus.id)?.newest ?? null,
+    sourceSessions: listed?.sessions ?? null, backlogPages, lastRun, nowMs: now });
+  const byChamber = (ch: string | null) => Number(cmte.find(x => x.chamber === ch)?.n ?? 0), cal = txCalendar(today);
+  return { openStatesConfigured: c.openStates, legiscanConfigured: c.legiscan,
+    people: seatRows.length,
+    members: { senators: seats.senators, representatives: seats.representatives, seatsExpected: seats.expected, seatsNotInSource: seats.notInSource, missingDistricts: seats.notInSource <= 20 ? seats.missing : "more than 20 (the list has not fully loaded)",
+      seatsFilled: seats.filled, doubled: seats.doubled, unexpected: seats.unexpected, line: seatLine(seats), lastList: json<Record<string, unknown>>(peopleStats) },
+    committees: { total: cmte.reduce((n, x) => n + Number(x.n), 0), senate: byChamber("upper"), house: byChamber("lower"), joint: byChamber("legislature"), chamberUnknown: byChamber(null),
+      memberships: Number(cmteMembers?.members ?? 0), committeesWithMembers: Number(cmteMembers?.committees ?? 0),
+      lastFullRead: Number(cmteAt) > 0 ? new Date(Number(cmteAt)).toISOString() : null, readInProgress: readCommitteeWalk(cmteWalk) },
+    bills, billsBySession, newestBillAction, votes, tallyMismatches: badVotes, upcomingEvents: events,
+    session: { today, current: st.current.id, inSession: st.inSession, upcoming: st.upcoming?.id ?? null, focus: st.focus.id, daysUntilUpcoming: st.daysUntilUpcoming },
+    sourceSessions: listed ? { readAt: new Date(listed.at).toISOString(), identifiers: listed.sessions.map(s => s.identifier), loading: plan.map(p => ({ id: p.id, atSource: p.sourceId, known: p.known })) } : null,
+    billBacklogPages: backlogPages, readyForSession: ready.readyForSession, readyFor: ready.sessionName, notReadyReasons: ready.reasons, notes: ready.notes,
+    calendar: { session: cal.session?.id ?? null, dates: cal.rows.length, next: cal.next ? { date: cal.next.date, label: cal.next.label, daysAway: cal.next.daysAway } : null },
+    lastRun };
 }
-

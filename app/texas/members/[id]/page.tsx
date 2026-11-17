@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge, shortDate } from "@/components/federal/badges";
 import { viewerAccess } from "@/lib/viewer";
-import { txPerson } from "@/lib/texas/queries";
+import { txPerson, txPersonCommittees } from "@/lib/texas/queries";
 import { TX_STAGE_LABEL, txVoteKind, type TxStage } from "@/lib/texas/parse";
 import { ContactForTxMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
@@ -15,6 +15,7 @@ export default async function TexasMemberPage({ params }: { params: Promise<{ id
   const data = await txPerson(decodeURIComponent((await params).id));
   if (!data) notFound();
   const { person, votes, sponsored } = data;
+  const committees = await txPersonCommittees(person.id).catch(() => []);
   const line = (option: string, motion: string) => { const k = txVoteKind(motion), yes = option === "yes", no = option === "no";
     if (!yes && !no) return option === "absent" || option === "not voting" ? "Did not vote" : `Voted ${option}`;
     return k === "procedural" ? `Voted ${yes ? "yes" : "no"} on a procedural step (not a vote on the bill itself)` : k === "amendment" ? `Voted ${yes ? "yes" : "no"} on the amendment` : `Voted ${yes ? "yes" : "no"}`; };
@@ -32,6 +33,9 @@ export default async function TexasMemberPage({ params }: { params: Promise<{ id
         <span className="vote-position">{line(v.option, v.motion)}</span><small>{v.motion}{v.tallyOk ? ` · ${v.result}` : " · tally under review"}</small></div></li>)}</ul>
         : <p className="meta">No recorded votes on file yet.</p>}
       {sponsored.length > 0 && <><h2>Authored and sponsored <OfficialBadge /></h2><ul className="result-list">{sponsored.map(b => <li key={b.id}><Link href={`/texas/bills/${b.id}`}><span className="bill-tag">{b.identifier}</span> {b.title}</Link><span className="meta">{b.primary ? "Primary author · " : ""}{TX_STAGE_LABEL[b.stage as TxStage] ?? b.stage}</span></li>)}</ul></>}
+      <h2>Committees <OfficialBadge /></h2>
+      {committees.length ? <ul className="result-list">{committees.map(cm => <li key={cm.id}><b>{cm.name}</b><span className="meta">{cm.chamber === "upper" ? "Texas Senate" : cm.chamber === "lower" ? "Texas House" : cm.chamber === "legislature" ? "Joint committee" : "Committee"}{cm.role && cm.role.toLowerCase() !== "member" ? ` · ${cm.role}` : ""}</span></li>)}</ul>
+        : <p className="meta">No committee seats on file for this member.</p>}
       <p className="source-line">From Open States{person.url ? <> (<a href={person.url} target="_blank" rel="noopener noreferrer">profile</a>)</> : null}, retrieved {shortDate(person.retrievedAt)}.</p>
     </section>
   </PublicShell>;
