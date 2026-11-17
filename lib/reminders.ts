@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { officialBills, officialFloorSchedule, readerAccounts, reminders, txEvents } from "@/db/schema";
 import { weekOf } from "@/lib/federal/depth-parse";
 import { sendTo } from "@/lib/mailer";
+import { txKeyDates } from "@/lib/texas/calendar";
 
 /**
  * Round H "What's coming": federal floor schedules and Texas hearings, with a
@@ -23,7 +24,10 @@ export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
   return [...floor.map(f => ({ key: `floor:${f.chamber}:${f.weekOf}:${f.label}`, when: `Week of ${new Date(monday(f.weekOf)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`, whenMs: monday(f.weekOf),
       title: `${f.label}: ${f.title ?? f.description ?? ""}`.trim(), detail: `${f.chamber === "senate" ? "Senate" : "House"} floor schedule`, href: f.billId ? `/bills/${f.billId}` : "/coming", where: "Congress" as const })),
     ...events.map(e => ({ key: `tx:${e.id}`, when: new Date(e.start).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }) + " CT",
-      whenMs: Date.parse(e.start), title: e.name, detail: `Texas hearing${e.location ? ` · ${e.location}` : ""}${(e.bills as string[] | null)?.length ? ` · ${(e.bills as string[]).slice(0, 5).join(", ")}` : ""}`, href: "/texas", where: "Texas" as const }))]
+      whenMs: Date.parse(e.start), title: e.name, detail: `Texas hearing${e.location ? ` · ${e.location}` : ""}${(e.bills as string[] | null)?.length ? ` · ${(e.bills as string[]).slice(0, 5).join(", ")}` : ""}`, href: "/texas", where: "Texas" as const })),
+    // The next two key dates of the Texas session (lib/texas/calendar.ts), each from an official record or rule.
+    ...txKeyDates(now).map(d => ({ key: d.key, when: new Date(d.whenMs).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "America/Chicago" }),
+      whenMs: d.whenMs, title: d.title, detail: d.detail, href: d.href, where: "Texas" as const }))]
     .sort((a, b) => a.whenMs - b.whenMs);
 }
 

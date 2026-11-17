@@ -3,7 +3,8 @@ import { getDb } from "@/db";
 import { txBillActions, txBills, txBillSponsors, txCommitteeMembers, txCommittees, txMemberVotes, txPeople, txSessionStats, txVotes } from "@/db/schema";
 import { funnel, funnelTakeaway, isPartyLine, type FunnelStage } from "@/lib/federal/dashboard-rules";
 import { withPartyMajority } from "@/lib/federal/member-stats-rules";
-import { currentTxSession, TX_SESSIONS, txVoteKind, type TxStage } from "@/lib/texas/parse";
+import { isCommitteeChair, TX_SESSIONS, txVoteKind, type TxStage } from "@/lib/texas/parse";
+import { txSessionState, txToday } from "@/lib/texas/calendar";
 import { ISSUE_WORDS } from "@/lib/search-rank";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 
@@ -22,8 +23,7 @@ export const TX_OFFICERS = [
 const partyCode = (p: string | null) => { const x = (p ?? "").toLowerCase(); return x.startsWith("dem") ? "D" : x.startsWith("rep") ? "R" : "Other"; };
 
 export async function texasDashboard(now = Date.now()) {
-  const db = getDb(), today = new Date(now).toISOString().slice(0, 10), { session, inSession } = currentTxSession(today);
-  const upcoming = TX_SESSIONS.filter(s => s.start > today).sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
+  const db = getDb(), today = txToday(now), { current: session, inSession, upcoming, focus: focusSession } = txSessionState(today);
   const sessionsShown = [...new Set([upcoming?.id, session.id, ...TX_SESSIONS.filter(s => s.start <= today).map(s => s.id)].filter(Boolean) as string[])].slice(0, 6);
   const stageRows = await db.select({ session: txBills.session, chamber: txBills.chamber, stage: txBills.stage, n: sql<number>`count(*)` }).from(txBills).groupBy(txBills.session, txBills.chamber, txBills.stage);
   const stats = await db.select().from(txSessionStats);
@@ -35,7 +35,7 @@ export async function texasDashboard(now = Date.now()) {
     return { id, name: s.name, regular: s.regular, house: funnel(exp(rows.filter(r => r.chamber === "lower"))), senate: funnel(exp(rows.filter(r => r.chamber === "upper"))), all,
       takeaway: funnelTakeaway(s.name, all), source: fromStats ? st!.source : rows.length ? "Open States" : null, committeeKnown: !fromStats };
   });
-  const focus = upcoming && !inSession ? upcoming.id : session.id;
+  const focus = focusSession.id;
   const votes = await db.select({ id: txVotes.id, motion: txVotes.motion }).from(txVotes).innerJoin(txBills, eq(txBills.id, txVotes.billId)).where(eq(txBills.session, focus));
   const mv = votes.length ? await db.select({ voteId: txMemberVotes.voteId, personId: txMemberVotes.personId, option: txMemberVotes.option, party: txPeople.party, name: txPeople.name, chamber: txPeople.chamber })
     .from(txMemberVotes).leftJoin(txPeople, eq(txPeople.id, txMemberVotes.personId)).where(inArray(txMemberVotes.voteId, votes.map(v => v.id))) : [];
@@ -54,7 +54,8 @@ export async function texasDashboard(now = Date.now()) {
   const top = (k: "against" | "missed") => [...per].map(([id, v]) => ({ id, ...v, value: v[k] })).filter(x => x.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name)).slice(0, 10);
   const seats = await db.select({ chamber: txPeople.chamber, party: txPeople.party, n: sql<number>`count(*)` }).from(txPeople).where(eq(txPeople.isCurrent, 1)).groupBy(txPeople.chamber, txPeople.party);
   const chairs = await db.select({ committee: txCommittees.name, chamber: txCommittees.chamber, name: txCommitteeMembers.name, personId: txCommitteeMembers.personId, role: txCommitteeMembers.role })
-    .from(txCommitteeMembers).innerJoin(txCommittees, eq(txCommittees.id, txCommitteeMembers.committeeId)).where(sql`lower(${txCommitteeMembers.role}) like '%chair%'`);
+    .from(txCommitteeMembers).innerJoin(txCommittees, eq(txCommittees.id, txCommitteeMembers.committeeId)).where(sql`lower(${txCommitteeMembers.role}) like '%chair%'`).orderBy(txCommittees.chamber, txCommittees.name)
+    .then(rows => rows.filter(r => isCommitteeChair(r.role))); // chairs only: "Vice Chair" is not listed here
   const advanced = await db.select({ personId: txBillSponsors.personId, name: txBillSponsors.name, n: sql<number>`count(*)` }).from(txBillSponsors).innerJoin(txBills, eq(txBills.id, txBillSponsors.billId))
     .where(and(eq(txBills.session, focus), eq(txBillSponsors.primary, 1), inArray(txBills.stage, ["passed_first", "passed_both", "governor", "law", "vetoed"]))).groupBy(txBillSponsors.name).orderBy(desc(sql`count(*)`)).limit(10);
   // Where bills stall: "Referred to X" actions, and whether a committee report followed.
