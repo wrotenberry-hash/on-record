@@ -92,7 +92,7 @@ export async function TrialGlance() {
 
 /** Editor → Metrics: the site's own errors in the last 24 hours, and the hours in which the health probe answered. */
 export async function SiteHealth() {
-  const [e, up] = await Promise.all([errorsReport().catch(() => null), uptimeNow(Date.now(), 7).catch(() => null)]);
+  const [e, up] = await Promise.all([errorsReport().catch(() => null), uptimeNow(undefined, 7).catch(() => null)]);
   return <>
     <section className="fed-section" id="errors">
       <h2>Site errors, last 24 hours</h2>

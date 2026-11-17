@@ -11,7 +11,6 @@ import { STANDIN_SMS_CODE } from "./lib/standins.mjs";
 
 const SECONDS = 30;
 const menu = label => `nav.mobile-nav a:text-is("${label}")`;
-const ISSUES = ["health-care", "defense-veterans", "elections-government"];
 const CARD = "section.personal .flow-cards .flow-card:not(.flow-placeholder)";
 const MY_SENATOR = `${CARD} a.flow-name`;
 const CARD_BILL = `${CARD} a[href^="/bills/"]`;

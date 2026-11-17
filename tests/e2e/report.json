@@ -1,0 +1,411 @@
+{
+  "startedAt": "2026-11-17T13:25:01.244Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "cpuSlowdown": 4,
+  "shotsDir": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try",
+  "server": {
+    "mode": "external",
+    "base": "http://localhost:3106"
+  },
+  "tasks": [
+    {
+      "id": "1",
+      "name": "Find my legislators",
+      "target": {
+        "taps": 2,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 2.8,
+      "note": "3 legislators shown after the ZIP, from the welcome screen (typing the ZIP is not a tap)",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /trial/inv_d0nf1kybpr.6f7cd0efa459fe8c522c04623ba79016",
+          "url": "/welcome",
+          "at": 0.1
+        },
+        {
+          "step": "tap “Start: find my legislators”",
+          "url": "/",
+          "at": 2.1
+        },
+        {
+          "step": "type into .place-form input[name=zip]",
+          "at": 2.2
+        },
+        {
+          "step": "tap “Show my legislators”",
+          "url": "/start",
+          "at": 2.7
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/01.png",
+      "result": "pass"
+    },
+    {
+      "id": "2",
+      "name": "How my senator voted on the latest bill",
+      "target": {
+        "taps": 2,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 0,
+      "swipes": 0,
+      "seconds": 0.4,
+      "note": "on the home page, no taps",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/02.png",
+      "result": "pass"
+    },
+    {
+      "id": "3",
+      "name": "Understand what a bill does",
+      "target": {
+        "taps": 2,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 1,
+      "swipes": 0,
+      "seconds": 1.4,
+      "note": "The bill page has no plain-language summary a reader may see. Readers get summaries only once the owner opens the gate (PUBLIC_MIN_PROMPT in lib/analysis/publish-gate.ts is null), so this cannot pass yet.",
+      "error": null,
+      "status": "blocked",
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        },
+        {
+          "step": "tap “the bill my senator last voted on”",
+          "url": "/bills/119-hr-9340",
+          "at": 1.4
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/03.png",
+      "result": "blocked"
+    },
+    {
+      "id": "4",
+      "name": "Follow an issue",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 8.2,
+      "note": "followed from the picker on the home page; kept after a reload",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        },
+        {
+          "step": "tap “Pick up to 3 issues”",
+          "url": "/",
+          "at": 3.2
+        },
+        {
+          "step": "tap “Taxes”",
+          "url": "/",
+          "at": 5.9
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/04.png",
+      "result": "pass"
+    },
+    {
+      "id": "5",
+      "name": "Compare two members",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 2.4,
+      "note": "John Cornyn and Ted Cruz",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        },
+        {
+          "step": "tap “my senator”",
+          "url": "/politicians/C001056",
+          "at": 1.7
+        },
+        {
+          "step": "tap “Compare with the other senator”",
+          "url": "/compare?a=C001056&b=C001098",
+          "at": 2.4
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [
+        {
+          "label": "Compare with the other senator",
+          "height": 16,
+          "width": 146
+        }
+      ],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/05.png",
+      "result": "pass"
+    },
+    {
+      "id": "13",
+      "name": "Say whether I support a bill",
+      "target": {
+        "taps": 3,
+        "seconds": 30
+      },
+      "file": "tasks.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 12.7,
+      "note": "through the bill page (no scheduled bill on the home page could be answered there: their records are not loaded in the local copy); answer saved and kept",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        },
+        {
+          "step": "tap “the bill my senator last voted on”",
+          "url": "/bills/119-hr-9340",
+          "at": 6.9
+        },
+        {
+          "step": "tap “Support”",
+          "url": "/bills/119-hr-9340",
+          "at": 10.3
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/13.png",
+      "result": "pass"
+    },
+    {
+      "id": "contact",
+      "name": "Contact my legislator about a bill",
+      "target": {
+        "taps": 2,
+        "seconds": 30
+      },
+      "file": "contact.mjs",
+      "taps": 1,
+      "swipes": 0,
+      "seconds": 3.4,
+      "note": "No official phone numbers or contact forms are loaded in this local database (legislator_contacts is empty; they arrive with the scheduled official-records update), so the phone and form links cannot be checked here. The message and the copy button were present.",
+      "error": null,
+      "status": "blocked",
+      "steps": [
+        {
+          "step": "open /bills/119-hr-2347",
+          "url": "/bills/119-hr-2347",
+          "at": 0.1
+        },
+        {
+          "step": "tap “John Cornyn: Call or write”",
+          "url": "/bills/119-hr-2347",
+          "at": 3.4
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/contact.png",
+      "result": "blocked"
+    },
+    {
+      "id": "flow",
+      "name": "The 60-second flow: ZIP only",
+      "target": {
+        "taps": 3,
+        "seconds": 60
+      },
+      "file": "flow.task.mjs",
+      "taps": 0,
+      "swipes": 0,
+      "seconds": null,
+      "note": "",
+      "error": "tests/e2e/flow.mjs --only zip did not finish (exit 1). }  Node.js v22.22.0",
+      "status": null,
+      "steps": [],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": null,
+      "result": "fail"
+    },
+    {
+      "id": "fb-2",
+      "name": "Feedback prompt: not asked on the second day",
+      "target": {
+        "taps": null,
+        "seconds": 30
+      },
+      "file": "quality.task.mjs",
+      "taps": 0,
+      "swipes": 0,
+      "seconds": 19.3,
+      "note": "second day: not asked; the day was counted once",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/fb-2.png",
+      "result": "pass"
+    },
+    {
+      "id": "fb-3",
+      "name": "Feedback prompt: asked on the third day, answer stored",
+      "target": {
+        "taps": 1,
+        "seconds": 30
+      },
+      "file": "quality.task.mjs",
+      "taps": 1,
+      "swipes": 0,
+      "seconds": 5.7,
+      "note": "asked once on day 3, answer stored (audience “trial”, no invite or page kept), not asked again",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        },
+        {
+          "step": "type into #fb-answer",
+          "at": 0.6
+        },
+        {
+          "step": "tap “Send”",
+          "url": "/",
+          "at": 3.5
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/fb-3.png",
+      "result": "pass"
+    },
+    {
+      "id": "fb-no",
+      "name": "Feedback prompt: “Not now” ends it",
+      "target": {
+        "taps": 1,
+        "seconds": 30
+      },
+      "file": "quality.task.mjs",
+      "taps": 1,
+      "swipes": 0,
+      "seconds": 5.5,
+      "note": "dismissed, nothing stored, not asked again",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /",
+          "url": "/",
+          "at": 0.1
+        },
+        {
+          "step": "tap “Not now”",
+          "url": "/",
+          "at": 3.3
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/fb-no.png",
+      "result": "pass"
+    },
+    {
+      "id": "wrong",
+      "name": "Something wrong? Tell us (from any page)",
+      "target": {
+        "taps": 2,
+        "seconds": 30
+      },
+      "file": "quality.task.mjs",
+      "taps": 2,
+      "swipes": 0,
+      "seconds": 8.5,
+      "note": "report filed with the page it was about; also works with JavaScript off",
+      "error": null,
+      "status": null,
+      "steps": [
+        {
+          "step": "open /bills/119-hr-2347",
+          "url": "/bills/119-hr-2347",
+          "at": 0.1
+        },
+        {
+          "step": "tap “Something wrong? Tell us”",
+          "url": "/bills/119-hr-2347",
+          "at": 3.5
+        },
+        {
+          "step": "type into textarea[name=\"details\"]",
+          "at": 3.8
+        },
+        {
+          "step": "tap “Send report”",
+          "url": "/report?page=%2Fbills%2F119-hr-2347&reported=ok",
+          "at": 4.9
+        }
+      ],
+      "sideways": [],
+      "smallTargets": [],
+      "screenshot": "/tmp/claude-0/-home-user-gravel/cfa1644a-f850-5783-9b0f-e12139451812/scratchpad/e2e/try/wrong.png",
+      "result": "pass"
+    }
+  ],
+  "axe": null,
+  "speed": null
+}

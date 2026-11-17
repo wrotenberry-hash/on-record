@@ -5,7 +5,7 @@
  */
 import { query } from "./seed.mjs";
 
-export default {
+const contactTask = {
   id: "contact", name: "Contact my legislator about a bill", target: { taps: 2, seconds: 30 }, reader: "onboarded",
   async run(t) {
     const bill = t.tools.sample.bill;
@@ -33,3 +33,5 @@ export default {
     return `${who}: phone link, ${await row.locator('a[target="_blank"][href^="http"]').first().innerText().then(x => x.replace(/\s+/g, " ").trim().slice(0, 40)).catch(() => "form link")}, editable message, copied`;
   },
 };
+
+export default contactTask;
