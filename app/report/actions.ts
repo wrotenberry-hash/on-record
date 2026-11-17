@@ -12,5 +12,7 @@ export async function sendProblemReport(formData: FormData) {
   if (!access.allowed) redirect("/");
   await ensureDeviceCookie();
   const r = await reportProblem({ subjectKind: String(formData.get("subjectKind") ?? ""), subjectRef: String(formData.get("subjectRef") ?? ""), page: back, reason: String(formData.get("reason") ?? ""), details: formData.get("details") });
+  // Sent from the report page (the footer link on every page): confirm there, with a way back to the page.
+  if (formData.get("returnTo") === "/report") redirect(`/report?page=${encodeURIComponent(back)}&reported=${r}`);
   redirect(`${back}${back.includes("?") ? "&" : "?"}reported=${r}#report`);
 }

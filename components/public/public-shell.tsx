@@ -8,6 +8,7 @@ import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 import { VisitMarker } from "@/components/visit/visit-marker";
 import { SwRegister } from "@/components/push/sw-register";
 import { NavProgress } from "@/components/ui/nav-progress";
+import { SomethingWrong } from "@/components/public/something-wrong";
 
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
@@ -71,6 +72,7 @@ export async function PublicShell({ current, children, access, page }: { current
         <p>On Record is being evaluated privately. This page will appear once the editorial team enables public reading.</p></div>
         <div className="notice"><b>Nothing on this site is a finding.</b> Numerical ratings and aggregate scores are disabled.</div></>}
       {enabled && <footer className="public-foot"><nav>{pages.map(p => <Link key={p.href} href={p.href}>{p.label}</Link>)}</nav><small>Talk is cheap. The record isn&apos;t. On Record shows what officials said and did; it does not grade them.</small></footer>}
+      {enabled && <SomethingWrong page={page ?? current} />}
     </main>
   </>;
 }

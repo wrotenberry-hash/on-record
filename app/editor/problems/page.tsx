@@ -14,7 +14,7 @@ export default async function ProblemsPage() {
     <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/corrections">Corrections</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · REPORTED PROBLEMS</div><h1>Reported problems ({open.length} open)</h1>
-      <p className="meta">From &ldquo;Report a problem&rdquo; on every card. Readers&apos; notes are seen only here. When you mark one fixed, the page and what you changed appear in the corrections log (not the reader&apos;s note).</p>
+      <p className="meta">From &ldquo;Report a problem&rdquo; on every card and &ldquo;Something wrong? Tell us&rdquo; at the foot of every page. Readers&apos; notes are seen only here. When you mark one fixed, the page and what you changed appear in the corrections log (not the reader&apos;s note).</p>
       {open.length ? open.map(r => <div key={r.id} className="post-row">
         <div className="eyebrow">{shortDate(r.createdAt)} · {r.subjectKind.toUpperCase()}</div>
         <p><b>{PROBLEM_REASONS[r.reason as ProblemReason]}</b> on <Link href={r.page}>{r.page}</Link></p>
