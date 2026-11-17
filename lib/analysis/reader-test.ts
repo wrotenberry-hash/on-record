@@ -90,7 +90,7 @@ export async function runReaderTest(key: string, model: string, summaryId: strin
   const judge = await ask<JudgeResult & { page: PageVerdicts }>(key, m, "reader_check", `${JUDGE_INSTRUCTIONS}\n${PAGE_JUDGE_ADDITION}`, judgeInput, judgeSchema, summaryId, timeoutMs);
   // Only verdicts for arguments that exist count.
   judge.value.arguments = (judge.value.arguments ?? []).filter(a => args.some(x => x.side === a.side && x.index === a.index));
-  const note = readerTestResult(reader.value, judge.value);
+  const note = readerTestResult(reader.value, judge.value, readerNote(draft));
   const whole = page ? pageTestResult(page.value, judge.value.page) : { passed: true, reasons: [] as string[] };
   return { passed: note.passed && whole.passed, reasons: [...note.reasons, ...whole.reasons], reader: { ...reader.value, ...(page ? { page: page.value } : {}) }, judge: judge.value, model: m,
     costUsd: Math.round((reader.cost.usd + judge.cost.usd + (page?.cost.usd ?? 0)) * 1_000_000) / 1_000_000,

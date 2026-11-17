@@ -24,7 +24,7 @@ import { goldExamplesBlock } from "@/lib/analysis/gold";
  * model; the official title, status, cost estimate, votes and sources come
  * from government records and are shown as Official.
  */
-export const PROMPT_VERSION = "b10-2026-11-17";
+export const PROMPT_VERSION = "b11-2026-11-17";
 const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 const MAX_OUTPUT_TOKENS = 6000;
 

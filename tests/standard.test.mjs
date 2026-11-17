@@ -104,3 +104,24 @@ test("\"Social Security\" and \"national security\" are not investing jargon; \"
   assert.equal(unexplainedJargon(["", "Members may not buy securities."]).length, 1);
   assert.equal(unexplainedJargon(["", "A member who owns a security must sell it."]).length, 1);
 });
+
+// ── 17 Nov, first runs with the stronger writer: 1 of 5 passed the reader test; most failures were the test's own. ──
+test("reader test: a correct answer that adds \"the note does not say more\" is an answer", async () => {
+  const { couldNotAnswer, readerTestResult } = await import("../lib/analysis/standard.ts");
+  const ok = { verdict: "correct", why: "matches" };
+  assert.equal(couldNotAnswer("If it passed, some people buying their own insurance would keep the older, lower yearly cost limit. The note does not say anything more.", ok, 5), false);
+  assert.equal(couldNotAnswer("It doesn't say.", ok, 5), true);
+  assert.equal(couldNotAnswer("The note doesn't say what would change, so I'm not sure.", { verdict: "vague", why: "" }, 5), true);
+  const reader = { whatItDoes: "It blocks a new rule for health plans people buy on their own.", whoIsAffected: "People who buy their own insurance, and the companies that sell it.",
+    dailyLifeChange: "Some buyers would keep the older, lower yearly limit of $12,000 instead of $15,600. The note does not say more.", wordsNotUnderstood: ["HealthCare.gov", "combat-injured", "pooled"] };
+  const judge = { whatItDoes: ok, whoIsAffected: ok, dailyLifeChange: ok, arguments: [] };
+  assert.equal(readerTestResult(reader, judge, "Blocks new 2027 rules for health plans people buy on HealthCare.gov.").passed, true);
+});
+
+test("reader test: real jargon the note does not explain still fails; explained jargon does not", async () => {
+  const { countedFlags } = await import("../lib/analysis/standard.ts");
+  const note = "Teachers often save through workplace 403(b) plans, which are retirement accounts for many public schools. Today those plans cannot offer the pooled bank funds used in 401(k) plans.";
+  assert.deepEqual(countedFlags(["pooled", "403(b)", "401(k)"], note, true), ["401(k)"]);
+  assert.deepEqual(countedFlags(["deductible", "bronze plans"], "Some bronze plans can raise the deductible.", true), ["bronze plans"], "on the jargon list; \"deductible\" alone is a note when every answer was right");
+  assert.deepEqual(countedFlags(["pooled"], note, false), ["pooled"], "when an answer was wrong or vague, every flag counts");
+});

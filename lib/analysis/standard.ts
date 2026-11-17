@@ -224,18 +224,59 @@ export function isCommonKnowledge(flag: string): boolean {
   return t.length > 0 && t.length <= 3 && t.every(w => COMMON_KNOWLEDGE.has(w) || COMMON_KNOWLEDGE.has(w.replace(/s$/, "")));
 }
 
-export function readerTestResult(reader: ReaderAnswers, judge: JudgeResult): { passed: boolean; reasons: string[] } {
+/** "It doesn't say." as the whole answer: the reader could not answer from the text. */
+const NO_ANSWER = /^\W*(?:it|that|the (?:note|page|text))\s+(?:doesn'?t|does not|didn'?t|did not)\s+say\b/i;
+/**
+ * 17 Nov, first runs with the stronger writer: a reader who answered correctly and then added "the note does not say
+ * anything more" was counted as unable to answer, and so was one who correctly repeated that "the records do not say
+ * what fee would apply instead". An answer fails as "could not answer" only when it is empty, a few words, opens with
+ * "It doesn't say", or hedges and the check against the sources did not find it correct.
+ */
+export function couldNotAnswer(answer: string, verdict: Verdict, minWords: number): boolean {
+  const a = answer.trim();
+  const n = a.split(/\s+/).length;
+  // A short hedge ("Not sure, something about health care.") fails whatever the second check says; a full answer with a hedge in it passes when it was found correct.
+  return !a || n < minWords || NO_ANSWER.test(a) || (VAGUE_ANSWER.test(a) && (n < 14 || verdict.verdict !== "correct"));
+}
+
+/** A flag that names real jargon: a term on the jargon list, an abbreviation, or a code such as "403(b)". */
+export function looksLikeJargon(flag: string): boolean {
+  return JARGON.some(t => t.re.test(flag)) || /\b[A-Z]{2,}\b/.test(flag) || /\d/.test(flag);
+}
+
+/** Does the note explain the flagged term where it first stands (in parentheses, or ", which is …", allowing the noun it describes: "403(b) plans, which are …")? */
+export function explainedInNote(flag: string, note: string): boolean {
+  // "401(k)" and "403(b)" carry their own brackets; they are not an explanation of the word before them.
+  note = note.replace(/\d\([a-z]\)/gi, m => `${m[0]}_${m[2]}_`); flag = flag.replace(/\d\([a-z]\)/gi, m => `${m[0]}_${m[2]}_`);
+  const at = note.toLowerCase().indexOf(flag.toLowerCase().trim());
+  if (at < 0) return false;
+  const end = at + flag.trim().length, next = /^\s+[\w'’-]+/.exec(note.slice(end))?.[0].length ?? 0;
+  return explainedAt(note, at, flag.trim().length) || (next > 0 && explainedAt(note, at, flag.trim().length + next));
+}
+
+/**
+ * Which reader flags count as failures. The reader model is told to be honest, not polite, and lists words it plainly
+ * understood ("combat-injured", "HealthCare.gov", "pooled") beside real jargon. A flag counts when it is real jargon the
+ * note does not explain, or when the reader also got an answer wrong or vague (so the word may be why). The name of a
+ * website is not jargon. Everything else is kept in the record as a note, not a failure.
+ */
+export function countedFlags(flags: readonly string[], note: string, allCorrect: boolean): string[] {
+  return [...new Set(flags.map(w => w.trim()).filter(w => w && !/^(?:none|n\/a|nothing|no words?)\.?$/i.test(w) && !isCommonKnowledge(w)))]
+    .filter(w => !/\.(?:gov|com|org)$/i.test(w) && !explainedInNote(w, note) && (looksLikeJargon(w) || !allCorrect));
+}
+
+export function readerTestResult(reader: ReaderAnswers, judge: JudgeResult, note = ""): { passed: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const q: Array<[string, string, Verdict]> = [["What does this bill do?", reader.whatItDoes, judge.whatItDoes], ["Who is affected and how?", reader.whoIsAffected, judge.whoIsAffected],
     ["What would change in daily life?", reader.dailyLifeChange, judge.dailyLifeChange]];
   for (const [question, answer, v] of q) {
     const a = answer.trim();
-    if (!a || VAGUE_ANSWER.test(a) || a.split(/\s+/).length < 5) reasons.push(`A reader given only the headline and plain-English part could not answer "${question}" (they said: "${a.slice(0, 160)}"). Say it concretely.`);
+    if (couldNotAnswer(a, v, 5)) reasons.push(`A reader given only the headline and plain-English part could not answer "${question}" (they said: "${a.slice(0, 160)}"). Say it concretely.`);
     else if (v.verdict === "wrong") reasons.push(`A reader got "${question}" wrong. They said: "${a.slice(0, 160)}". The sources say otherwise: ${v.why.slice(0, 220)}`);
     else if (v.verdict === "vague") reasons.push(`A reader's answer to "${question}" was too vague to be useful ("${a.slice(0, 160)}"): ${v.why.slice(0, 220)}`);
   }
   // A model asked to be honest will list "Congress" and "stock". Those are everyday knowledge, not jargon, and are not failures.
-  const words = [...new Set(reader.wordsNotUnderstood.map(w => w.trim()).filter(w => w && !/^(?:none|n\/a|nothing|no words?)\.?$/i.test(w) && !isCommonKnowledge(w)))];
+  const words = countedFlags(reader.wordsNotUnderstood, note, q.every(([, , v]) => v.verdict === "correct"));
   if (words.length) reasons.push(`A reader did not understand: ${words.slice(0, 8).map(w => `"${w}"`).join(", ")}. Replace each with everyday words or explain it in parentheses.`);
   for (const a of judge.arguments) if (!a.supported) reasons.push(`The case ${a.side} argument ${a.index + 1} is not supported by the source it cites: ${a.why.slice(0, 220)} Use a reason that person or body actually gave, or leave the side empty.`);
   return { passed: reasons.length === 0, reasons };
@@ -297,7 +338,7 @@ export function pageTestResult(reader: PageAnswers, judge: PageVerdicts): { pass
     ["Who is affected?", reader.whoIsAffected, judge.whoIsAffected]];
   for (const [question, answer, v] of q) {
     const a = answer.trim();
-    if (!a || VAGUE_ANSWER.test(a) || a.split(/\s+/).length < 6) reasons.push(`A reader given the page (through "Who it affects") could not answer "${question}" (they said: "${a.slice(0, 160)}"). Explain it from zero, concretely.`);
+    if (couldNotAnswer(a, v, 6)) reasons.push(`A reader given the page (through "Who it affects") could not answer "${question}" (they said: "${a.slice(0, 160)}"). Explain it from zero, concretely.`);
     else if (v.verdict === "wrong") reasons.push(`A reader of the page got "${question}" wrong. They said: "${a.slice(0, 160)}". The sources say otherwise: ${v.why.slice(0, 220)}`);
     else if (v.verdict === "vague") reasons.push(`A reader of the page answered "${question}" too vaguely ("${a.slice(0, 160)}"): ${v.why.slice(0, 220)}`);
   }
