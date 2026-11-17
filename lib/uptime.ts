@@ -2,7 +2,7 @@
  * Uptime as the app can see it. Pure; tested in tests/trial-analytics.test.mjs.
  * Every answer of the public health probe adds one to a daily counter for the
  * hour it came in ("health_probe", "h00" … "h23" UTC). An outside checker asks
- * every 15 minutes (.github/workflows/uptime.yml), so an hour with no answer
+ * every 30 minutes (.github/workflows/uptime.yml), so an hour with no answer
  * is an hour the site did not answer or was not asked. Nothing is stored about
  * who asked.
  */

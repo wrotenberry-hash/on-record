@@ -109,7 +109,7 @@ export async function SiteHealth() {
       {up && up.some(d => d.checks) ? <table className="chart history" tabIndex={0}><thead><tr><th scope="col">Day (UTC)</th><th scope="col">Hours with an answer</th><th scope="col">Checks answered</th><th scope="col">Hours with none</th></tr></thead>
         <tbody>{up.map(d => <tr key={d.day}><th scope="row">{d.day}</th><td>{d.hoursAnswered} of {d.hoursSoFar}</td><td>{d.checks}</td><td>{d.missedHours.length ? (d.missedHours.length > 6 ? `${d.missedHours.length} hours` : d.missedHours.join(", ")) : "none"}</td></tr>)}</tbody></table>
         : <p className="empty-note">No health checks counted yet.</p>}
-      <p className="meta">Counts each time the public health probe answered. An outside check (GitHub, every 15 minutes) asks it and sends you GitHub&apos;s failure notice if it does not answer twice in a row; until that check is running, hours with nobody asking show as hours with none.</p>
+      <p className="meta">Counts each time the public health probe answered. An outside check (GitHub, every 30 minutes) asks it and sends you GitHub&apos;s failure notice if it does not answer twice in a row; until that check is running, hours with nobody asking show as hours with none.</p>
     </section>
   </>;
 }

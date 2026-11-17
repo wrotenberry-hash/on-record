@@ -99,7 +99,7 @@ export function readiness(i: ReadinessInput): Check[] {
   add("quality.speed", 6, "Pages usable in under 2 seconds", s ? { state: s.slowestMs < 2000 ? "pass" : "fail", detail: `Slowest page: ${s.slowestPage}, ${(s.slowestMs / 1000).toFixed(1)} s on a slowed-down phone. Checked ${s.ranOn}.${s.note ? ` ${s.note}` : ""}` } : { state: "fail", detail: "Not measured yet." });
   add("quality.errors", 6, "Error alerts only for real breakage", !i.quality.errorMonitoring ? { state: "fail", detail: "Not recording errors yet." }
     : i.quality.breakageNow ? { state: "fail", detail: "Recording errors, and something is broken right now. See What's next." } : { state: "pass", detail: "Errors are counted; you are told only when the same fault repeats or a key step fails. Nothing is broken now." });
-  add("quality.uptime", 6, "Uptime check", ran(i.quality.uptimeCheck, "An outside check opens the site every 15 minutes and tells you if it is down.", "Not set up yet."));
+  add("quality.uptime", 6, "Uptime check", ran(i.quality.uptimeCheck, "An outside check opens the site every 30 minutes and tells you if it is down.", "Not set up yet."));
   add("quality.feedback", 6, "Feedback prompt and \"Something wrong?\" on every page", i.quality.feedbackPrompt && i.quality.somethingWrongLink
     ? { state: "pass", detail: `One question after a reader's third visit; a report link at the foot of every page feeds the corrections queue. Checked ${i.quality.somethingWrongLink.ranOn}.` }
     : { state: "fail", detail: "The report link is not on every page yet." });

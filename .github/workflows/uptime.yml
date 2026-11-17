@@ -1,5 +1,5 @@
 # Uptime check. The host's own scheduled jobs run only twice a day, so this
-# outside caller asks the public health probe every 15 minutes. It needs no
+# outside caller asks the public health probe every 30 minutes. It needs no
 # secret: the probe is public and returns counts and status words only.
 # A failed run sends GitHub's normal "workflow run failed" notice to the
 # repository owner. Scheduled workflows run only from the default branch, and
@@ -8,7 +8,9 @@ name: Uptime
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Every 30 minutes: GitHub bills each run as at least one minute, and a private repository's free allowance is
+    # 2,000 minutes a month. Every 15 minutes would use about 2,900; every 30 uses about 1,440.
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions: {}
