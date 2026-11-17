@@ -1,0 +1,47 @@
+# Uptime check. The host's own scheduled jobs run only twice a day, so this
+# outside caller asks the public health probe every 15 minutes. It needs no
+# secret: the probe is public and returns counts and status words only.
+# A failed run sends GitHub's normal "workflow run failed" notice to the
+# repository owner. Scheduled workflows run only from the default branch, and
+# GitHub may start them late (often 5 to 20 minutes) when it is busy.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Health probe answers
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PROBE_URL: https://on-record-wrotenberry.vercel.app/api/automation/health
+    steps:
+      - name: Ask the health probe (one retry after 30 seconds)
+        shell: bash
+        run: |
+          set -u
+          check() {
+            local body code
+            body="$(mktemp)"
+            # Fails when the whole answer takes longer than 10 seconds.
+            code="$(curl --silent --show-error --location --max-time 10 --output "$body" --write-out '%{http_code}' "$PROBE_URL")" || { echo "No answer within 10 seconds (or the connection failed)."; return 1; }
+            if [ "$code" != "200" ]; then echo "The probe answered HTTP $code, not 200."; return 1; fi
+            if ! jq -e '.status == "reachable"' "$body" > /dev/null 2>&1; then echo 'The answer is not JSON with "status":"reachable".'; return 1; fi
+            echo "Reachable. Database: $(jq -r '.database // "unknown"' "$body"). Site errors flagged: $(jq -r '.errors.breakage // "not reported"' "$body")."
+            return 0
+          }
+          if check; then exit 0; fi
+          echo "First try failed; trying once more in 30 seconds."
+          sleep 30
+          if check; then echo "Recovered on the second try."; exit 0; fi
+          echo "::error title=On Record is not answering::The public health probe failed twice, 30 seconds apart. Check https://on-record-wrotenberry.vercel.app and the Vercel deployment."
+          exit 1

@@ -1,4 +1,4 @@
-import { and, gte, inArray, sql } from "drizzle-orm";
+import { and, gte, inArray, ne, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { eventCounts } from "@/db/schema";
@@ -25,7 +25,8 @@ export async function countEvent(name: string, dimension = "", opts: { skipBotCh
 export async function eventTotals(days = 7, names?: readonly string[]) {
   const since = utcDay(Date.now() - (days - 1) * 24 * 3600 * 1000);
   // With `names`, every row for those events is returned (no top-80 cut, which dropped small counts such as shares).
-  const where = names?.length ? and(gte(eventCounts.day, since), inArray(eventCounts.name, [...names])) : gte(eventCounts.day, since);
+  // The hourly uptime counter (lib/uptime.ts) has its own report; without a name list it would crowd out the reader events.
+  const where = names?.length ? and(gte(eventCounts.day, since), inArray(eventCounts.name, [...names])) : and(gte(eventCounts.day, since), ne(eventCounts.name, "health_probe"));
   const rows = await getDb().select({ name: eventCounts.name, dim: eventCounts.dim, n: sql<number>`sum(${eventCounts.n})` })
     .from(eventCounts).where(where).groupBy(eventCounts.name, eventCounts.dim).orderBy(sql`sum(${eventCounts.n}) desc`).limit(names?.length ? 2000 : 80);
   return rows.map(r => ({ name: r.name, dim: r.dim, n: Number(r.n) }));
