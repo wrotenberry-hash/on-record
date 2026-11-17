@@ -80,9 +80,11 @@ const sideways = page => page.evaluate(() => document.documentElement.scrollWidt
 const smallTargets = page => page.evaluate(() => [...document.querySelectorAll(".place-form input:not([type=hidden]), .place-form button, .flow-stance button, .flow-choices button, .flow-issues summary, .flow-card a, .flow-bills a, .flow-finish a")]
   .filter(e => e.getClientRects().length).map(e => ({ text: (e.textContent || e.getAttribute("name") || "").trim().slice(0, 30), h: Math.round(e.getBoundingClientRect().height) })).filter(x => x.h < 44));
 
-/** Opens the invite link (which lands on the home page) and returns the wall-clock time of the landing page's first paint. */
+/** Opens the invite link (which lands on the welcome screen, then the home page) and returns the wall-clock time of the landing page's first paint. */
 async function arrive(page, number) {
   await page.goto(await freshInvite(number), { waitUntil: "load" });
+  // A first visit opens the welcome screen; its main button leads to the home page's one form.
+  if (new URL(page.url()).pathname === "/welcome") await page.goto(`${BASE}/`, { waitUntil: "load" });
   await page.locator(".place-form input[name=zip]").first().waitFor();
   const paint = await page.evaluate(() => new Promise(done => {
     const read = () => { const e = performance.getEntriesByName("first-contentful-paint")[0]; if (e) done(performance.timeOrigin + e.startTime); else setTimeout(read, 20); }; read(); }));

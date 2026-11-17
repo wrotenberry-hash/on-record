@@ -61,7 +61,7 @@
 .official-line{display:flex;gap:8px;align-items:baseline;font-size:15px;color:#2c3b39;margin:6px 0 2px;line-height:1.45}.official-line .ctype{flex:none}
 .bill-headline{font-size:30px;line-height:1.2}.bill-headline .ctype{font-size:10px;margin-left:4px}
 .held-note{background:#f6ead9;border:1px solid #e3c9a2;color:#5a3d16;padding:10px 14px;font-size:14px;line-height:1.45;margin:10px 0}
-.analysis-list{padding-left:1.2em;line-height:1.55;font-size:16px}.analysis-list li{margin:4px 0}.cite{font:600 12px Arial,sans-serif;color:#45366e;background:#f3f0fa;border:1px solid #ddd6ee;border-radius:3px;padding:1px 5px;white-space:nowrap}.attrib{color:#5d6b69;font-size:14px}
+.analysis-list{padding-left:1.2em;line-height:1.55;font-size:16px}.analysis-list li{margin:4px 0;overflow-wrap:anywhere}.cite{font:600 12px Arial,sans-serif;color:#45366e;background:#f3f0fa;border:1px solid #ddd6ee;border-radius:3px;padding:1px 5px;white-space:nowrap}.attrib{color:#5d6b69;font-size:14px}
 .case-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.case-grid h3,.fed-page .subhead{font:700 13px Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#39514b;margin:10px 0 2px}
 .analysis-admin{max-width:900px;margin:0 auto;padding:24px 16px 50px}.review-list{list-style:none;padding:0}.review-item{background:#fff;border:1px solid #d9ded9;padding:14px;margin:10px 0}.review-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.review-actions input{flex:1 1 180px;border:1px solid #c8d6ce;border-radius:3px;padding:9px 10px;font:15px Arial,sans-serif}.review-actions button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:9px 16px;font:600 15px Arial,sans-serif;cursor:pointer}.review-actions button.secondary{background:#fff;color:#163b3c}
 .analysis-admin .table-wrap{overflow-x:auto}.analysis-admin table{border-collapse:collapse;font-size:13px;width:100%}.analysis-admin th,.analysis-admin td{text-align:left;padding:6px 8px;border-top:1px solid #e3e8e4;vertical-align:top}.analysis-admin th{border-top:0;color:#5d6b69;font-size:11px;letter-spacing:.06em;text-transform:uppercase}.analysis-admin td small{color:#5d6b69}
@@ -103,7 +103,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .feedback-prompt small{color:#6b665c}
 .feedback-actions button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px;cursor:pointer}.feedback-actions button.secondary{background:#fff;color:#163b3c}
 .verify-steps h3{font-size:17px;margin:14px 0 6px}.verify-form{display:grid;gap:8px;max-width:520px;margin:10px 0 16px}
-.verify-form input:not([type=checkbox]){font:16px Arial,sans-serif;padding:10px;border:1px solid #c8d6ce;border-radius:3px;min-height:44px;width:100%;box-sizing:border-box}
+.verify-form input:not([type=checkbox]):not([type=radio]){font:16px Arial,sans-serif;padding:10px;border:1px solid #c8d6ce;border-radius:3px;min-height:44px;width:100%;box-sizing:border-box}
 .verify-form button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px;justify-self:start;cursor:pointer}
 .consent{display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.4}.consent input{margin-top:3px;width:20px;height:20px;flex:none}
 .verify-row{display:grid;grid-template-columns:2fr 1fr 1.2fr;gap:8px}.verify-row span{display:grid;gap:4px}
@@ -119,7 +119,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 .tl-step.done .tl-dot{background:#163b3c;border-color:#163b3c}.tl-step.now .tl-dot{box-shadow:0 0 0 4px #b7d6ca}.tl-step.todo .tl-label{color:#5d6b69}
 .tl-label{font-weight:700}.tl-date{font-size:13px;color:#4b6157;white-space:nowrap}.tl-text{grid-column:2/4;font-size:13px;color:#4b6157;line-height:1.4}
 /* Floor votes as steps (owner, 16 Nov): same marker for every party; a failed vote is an open square, a passed one a filled square. */
-.tl-floor .tl-label{grid-column:2/4;font-weight:600}.tl-floor .tl-dot{border-radius:2px;transform:scale(.8)}.tl-step.done.tl-floor-failed .tl-dot{background:#fff;border-color:#163b3c;border-width:2px}.tl-floor .tl-text a{white-space:nowrap}
+.tl-floor .tl-label{grid-column:2/4;font-weight:600}.tl-floor .tl-dot{border-radius:2px;transform:scale(.8)}.tl-step.done.tl-floor-failed .tl-dot{background:#fff;border-color:#163b3c;border-width:2px}.tl-floor .tl-text a{white-space:nowrap}.tl-text a{text-decoration:underline;text-underline-offset:2px;display:inline-block;padding:4px 0}
 .official-title{margin:2px 0 10px;font-size:14px;color:#4b6157}.official-title summary{cursor:pointer;min-height:24px;padding:2px 0}.official-title p{margin:6px 0 0;overflow-wrap:anywhere}
 .tl-vetoed.done .tl-dot{background:#7a2e22;border-color:#7a2e22}.tl-source{padding-left:30px;font-size:13px}
 .party-split{display:grid;gap:4px;margin:6px 0}.ps-row{display:grid;grid-template-columns:62px 1fr;column-gap:8px;align-items:center;font-size:13px}
@@ -251,3 +251,6 @@ h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middl
 .coming-townhalls p { margin: 4px 0; }
 /* "Something wrong? Tell us": under the footer of every reader page (components/public/something-wrong.tsx). */
 .something-wrong{margin:-14px 0 30px;font-size:14px}.something-wrong a{display:inline-flex;align-items:center;min-height:44px;color:#163b3c;text-decoration:underline;text-underline-offset:3px}
+
+/* Test-ready build, 17 Nov: links a reader taps inside a line of small text get a tap area of at least 24 px (WCAG 2.2 target size). */
+.meta a.tap{display:inline-block;padding:6px 0;min-height:24px}
