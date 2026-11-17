@@ -14,7 +14,7 @@ type Evidence = Pick<ReadinessInput, "brand"> & { flow: ReadinessInput["flow"] }
 };
 
 export const EVIDENCE: Evidence = {
-  brand: { literalsLeft: null, testedWithOtherName: null },
+  brand: { literalsLeft: 0, testedWithOtherName: { ranOn: "17 Nov 2026", note: "Tried as \"Constituent\": top bar, titles, cards, emails and the manifest all followed; tests/brand.test.mjs fails if a typed-out name comes back." } },
   flow: { e2e: null, fiveLegislatorsForTexasAddress: null, comingUpWithAnswers: null, districtMessageShown: null, accountNotNeeded: null },
   influence: { contactOnBillAndMemberPages: null, hearingsStepLive: false, townHallsLine: false, voicePage: null },
   trust: { methodology: null, pledge: null, about: null, privacyDraft: null, termsDraft: null, legalReviewed: false, founderText: false },
