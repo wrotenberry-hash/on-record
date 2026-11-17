@@ -13,7 +13,7 @@ type Evidence = Pick<ReadinessInput, "brand"> & { flow: ReadinessInput["flow"] }
 };
 
 export const EVIDENCE: Evidence = {
-  brand: { literalsLeft: 0, testedWithOtherName: { ranOn: "17 Nov 2026", note: "Tried as \"Constituent\": top bar, titles, cards, emails and the manifest all followed; tests/brand.test.mjs fails if a typed-out name comes back." } },
+  brand: { literalsLeft: 0, testedWithOtherName: { ranOn: "17 Nov 2026", note: "The product was renamed on 17 Nov by changing the one setting: top bar, titles, cards, emails and the manifest all followed; tests/brand.test.mjs fails if a typed-out name comes back." } },
   flow: { e2e: { ranOn: "17 Nov 2026", secondsToLegislators: 10, secondsToFirstAnswer: 11, taps: 3, note: "Slowest of three runs (ZIP in one district, ZIP across four, a Texas street address), on a local server." },
     fiveLegislatorsForTexasAddress: true, comingUpWithAnswers: true, districtMessageShown: true, accountNotNeeded: true },
   influence: { contactOnBillAndMemberPages: { ranOn: "17 Nov 2026", note: "Seen at phone width on bill pages (whole bill and a single vote), member pages and Texas pages; taps send only the kind of page." }, hearingsStepLive: false, townHallsLine: true, voicePage: { ranOn: "17 Nov 2026", note: "Seen at phone width with seven answers, with none, and with no place saved." } },

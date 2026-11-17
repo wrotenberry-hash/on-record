@@ -159,7 +159,7 @@ test("the checkpoint email carries every summary in full, badged, with the check
     unknowns: ["The cost."], confidence: "medium", confidenceReason: "Parts depend on other laws.", status: "visible", queue: "sample", checkPassed: true, attempts: 1,
     failures: [], warnings: ["reading grade 9.4 is above the target of 8"], readingGrade: 9.4, totalWords: 210, costUsd: 0.0123, truncated: false };
   const mail = formatSummariesEmail([row], "https://example.test");
-  assert.equal(mail.subject, "[On Record] 1 bill summaries are ready to read");
+  assert.equal(mail.subject, "[Constituent] 1 bill summaries are ready to read");
   for (const needle of ["H.R. 2102: Veterans' Transportation Act", "[Analysis] Headline: Would let veterans ride for free.", "Pays for rides. (Sec. 2)",
     "(veterans' groups)", "(budget analysts)", "Checker: passed after 1 attempt · reading grade 9.4 · 210 words · $0.0123", "In your queue (sample)",
     "Warnings: reading grade 9.4", "https://example.test/bills/119-hr-2102", "approve or reject the 1 waiting"]) assert.ok(mail.text.includes(needle), needle);

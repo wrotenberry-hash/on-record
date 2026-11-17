@@ -289,9 +289,9 @@ test("the trust pages stay behind the same gate as every reader page, and take t
     assert.ok(t.includes("const access = await viewerAccess();"), `${p} asks who is reading`);
     assert.match(t, /if \(!access\.allowed\) return <PublicShell current="\/[a-z]+" access=\{access\}>\{null\}<\/PublicShell>;/, `${p} shows nothing when closed`);
     assert.ok(t.includes("brandTitle("), `${p} takes its title from the brand`);
-    assert.doesNotMatch(t, /On Record/, `${p} does not type the product name`);
+    assert.doesNotMatch(t, /On Record|Constituent\b/, `${p} does not type the product name`);
   }
-  for (const p of ["lib/trust.ts", "components/trust/parts.tsx"]) assert.doesNotMatch(read(p), /On Record/, `${p} does not type the product name`);
+  for (const p of ["lib/trust.ts", "components/trust/parts.tsx"]) assert.doesNotMatch(read(p), /On Record|Constituent\b/, `${p} does not type the product name`);
 });
 
 test("the footer links the trust pages", () => {

@@ -96,8 +96,26 @@ links to the editor and the health probe.
 2. After deploy, `GET /api/automation/health` shows `monitoring.resendConfigured`
    and `monitoring.keyExpires`.
 3. Tap "Send test alert" in the editor: an email arrives with subject
-   `[On Record] test alert`; the health probe's `monitoring.lastAlert` shows
+   `[Constituent] test alert`; the health probe's `monitoring.lastAlert` shows
    kind `TEST`.
 4. A scheduled run's JSON (visible in Vercel runtime logs only on failure) and
    the editor's alert state confirm evaluation ran; healthy state yields
    `wouldAlert: []`.
+
+## Finding the site's emails in Gmail (updated 17 Nov 2026, after the rename to Constituent)
+
+Emails the site sends to the owner start their subject with `[Constituent]` (before 17 Nov 2026: `[On Record]`), and
+the sender shows as **Constituent**. Automatic owner emails are switched off (owner decision, 16 Nov), so today this
+covers "Send test alert" and anything switched back on later.
+
+Gmail filter, once:
+
+1. In Gmail's search box paste: `subject:("[Constituent]" OR "[On Record]")` and press Enter.
+2. Click the filter icon at the right of the search box, then **Create filter**.
+3. Tick **Apply the label** and choose or create `Constituent`; tick **Never send it to Spam**; optionally **Also apply
+   filter to matching conversations** so older `[On Record]` mail gets the label too. **Create filter**.
+
+If an old filter for `[On Record]` exists, edit it to the search above instead of making a second one (Settings → See
+all settings → Filters and Blocked Addresses → edit). Reader emails (sign-in link, weekly briefing, bill alerts,
+reminders) are a different kind: they carry the name in the sender ("Constituent") and, for the sign-in link and the
+briefing, in the subject, but not the bracketed prefix.

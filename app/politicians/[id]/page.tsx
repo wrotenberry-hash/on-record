@@ -114,7 +114,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <p className="lead">{positionLine(latestBill.position, voteKind(latestBill.question, latestBill.billTitle ?? latestBill.title))}</p>
         <p><Link href={`/bills/${latestBill.billId}`}>{latestBill.documentLabel ? `${latestBill.documentLabel}: ` : ""}{latestBill.billTitle ?? latestBill.title ?? latestBill.question}</Link></p>
         <p className="meta">{shortDate(latestBill.votedAt)} · {latestBill.question}{latestBill.result ? ` · ${latestBill.result}` : ""} · <a className="src-link" href={latestBill.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a> · <Link className="src-link" href={`/share/card?t=vote&member=${p.id}&roll=${latestBill.rollCallId}`}>Share</Link></p></div>}
-      {stats && stats.rollCalls > 0 && <div className="fed-section"><h2>On the record <OfficialBadge /></h2>
+      {stats && stats.rollCalls > 0 && <div className="fed-section"><h2 id="record">{BRAND.hasSeparateRecordName ? BRAND.recordSection : "On the record"} <OfficialBadge /></h2>
         <div className="stat-grid">
           <div className="stat"><b>{stats.missedRate ?? 0}%</b>missed votes ({stats.missed} of {stats.rollCalls})</div>
           {stats.withPartyRate !== null && <div className="stat"><b>{stats.withPartyRate}%</b>voted with most of their own party ({stats.withParty} of {stats.partyCounted})</div>}

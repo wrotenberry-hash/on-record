@@ -36,8 +36,8 @@ function loadWith(name) {
   return JSON.parse(execFileSync(process.execPath, ["--input-type=module", "-e", script], { cwd: ROOT, env, encoding: "utf8" }));
 }
 
-test("with nothing set, the product is On Record and looks exactly as before", () => {
-  const d = loadWith(undefined);
+test("set to On Record, the product looks exactly as it did before the rename", () => {
+  const d = loadWith("On Record");
   assert.equal(d.BRAND.name, "On Record");
   assert.deepEqual(d.BRAND.wordmark, { lead: "ON", tail: "RECORD" });
   assert.equal(d.BRAND.nameUpper, "ON RECORD");
@@ -61,13 +61,15 @@ test("with nothing set, the product is On Record and looks exactly as before", (
   assert.match(d.card.note, /Not a rating by On Record\.$/);
 });
 
-test("an empty or blank setting falls back to On Record", () => {
-  assert.equal(loadWith("").BRAND.name, "On Record");
-  assert.equal(loadWith("   ").BRAND.name, "On Record");
+test("with nothing set, or an empty or blank setting, the product is Constituent (owner, 17 Nov 2026)", () => {
+  assert.equal(loadWith(undefined).BRAND.name, "Constituent");
+  assert.equal(loadWith("").BRAND.name, "Constituent");
+  assert.equal(loadWith("   ").BRAND.name, "Constituent");
 });
 
-test("NEXT_PUBLIC_BRAND_NAME=Constituent renames the product; On Record becomes the voting-record section; the tagline stays", () => {
-  const d = loadWith("Constituent");
+test("the product is Constituent with nothing set; On Record is the voting-record section; the tagline stays", () => {
+  const d = loadWith(undefined);
+  assert.deepEqual(loadWith("Constituent"), d, "setting the name explicitly gives the same result");
   assert.equal(d.BRAND.name, "Constituent");
   assert.deepEqual(d.BRAND.wordmark, { lead: "", tail: "CONSTITUENT" }, "a one-word name is drawn whole");
   assert.equal(d.BRAND.nameUpper, "CONSTITUENT");
@@ -112,7 +114,8 @@ test("a name of several words keeps the two-part wordmark, and odd characters ne
 const SCAN_DIRS = ["app", "components", "lib", "public"];
 const CODE = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const BINARY = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".webm", ".pdf", ".db"]);
-const NAME = /On Record|ON RECORD|OnRecord/g;
+/** The section name and the product name. The product name is matched as a capitalised whole word, so "constituents" in ordinary text is not a hit. */
+const NAME = /On Record|ON RECORD|OnRecord|\bConstituent\b|\bCONSTITUENT\b/g;
 /** The old split wordmark, `ON <span>RECORD</span>`: every top bar now uses components/brand/wordmark.tsx. */
 const SPLIT_WORDMARK = /\bON\s*<span[^>]*>\s*RECORD\b/g;
 
@@ -120,17 +123,11 @@ const SPLIT_WORDMARK = /\bON\s*<span[^>]*>\s*RECORD\b/g;
 const CONFIG_FILE = "lib/brand.ts";
 
 /**
- * Literals that stay, one line each, with the reason. An entry matches a line of that file that contains `has`.
- * lib/whats-next-plan.ts is off limits to the brand change (the lead rewrites it at every check-in, and the brief for
- * this build says not to edit it). All four lines are steps for the owner that give the name of an account or widget
- * he creates on someone else's site; that outside name is whatever he typed there and does not follow the config.
+ * Literals that stay, one line each, with the reason: `{ file, has, why }`; an entry matches a line of that file that
+ * contains `has`. Empty since the rename of 17 Nov 2026: the owner's steps in lib/whats-next-plan.ts that name an
+ * outside account or widget now take the name from the setting too.
  */
-const ALLOW = [
-  { file: "lib/whats-next-plan.ts", has: "Turnstile → Add widget → name “On Record”", why: "the name the owner gives the Cloudflare Turnstile widget (an outside account)" },
-  { file: "lib/whats-next-plan.ts", has: "Create new → name “On Record”, SMS only", why: "the name the owner gives the Twilio Verify service (an outside account)" },
-  { file: "lib/whats-next-plan.ts", has: 'title: "Bluesky account for On Record"', why: "the title of the owner's step for the Bluesky account (an outside account)" },
-  { file: "lib/whats-next-plan.ts", has: "bsky.app → create the On Record account.", why: "the Bluesky account the owner creates (an outside account)" },
-];
+const ALLOW = [];
 
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -180,6 +177,8 @@ test("the comment filter itself: names in strings, templates and JSX are found; 
     'const url = "https://on-record-wrotenberry.vercel.app"; // lower-case address: not the name',
   ].join("\n");
   assert.deepEqual(literalNames("sample.tsx", sample).map(h => h.line).sort((x, y) => x - y), [3, 4, 5, 6]);
+  assert.deepEqual(literalNames("sample.tsx", 'const a = "Constituent";\nconst b = "what constituents say";\nconst c = "Constituents write in";').map(h => h.line), [1],
+    "the product name is a hit; the ordinary word for the people a member represents is not");
   assert.deepEqual(literalNames("sample.css", "/* On Record */\n.a{}").map(h => h.line), [1], "files that are not code are checked whole");
 });
 

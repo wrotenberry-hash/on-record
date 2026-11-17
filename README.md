@@ -1,4 +1,7 @@
-# On Record
+# Constituent
+
+> Renamed from "On Record" on 17 Nov 2026 (docs/DECISIONS.md O-137). "On Record" is now the name of the voting-record
+> section. The repository, the Vercel project and the site address keep the name `on-record` until there is a domain.
 
 A private review build of a checking instrument for political representations:
 original communication → exact representation → normalized proposition →

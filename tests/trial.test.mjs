@@ -52,12 +52,12 @@ test("titles and descriptions stay within search limits", () => {
   assert.equal(clamp("short", 10), "short");
   assert.ok(clamp("a very long sentence that goes on", 12).length <= 12);
   const m = memberMeta({ fullName: "John Cornyn", chamber: "senate", party: "Republican", state: "TX", district: null });
-  assert.equal(m.title, "John Cornyn: votes · On Record");
+  assert.equal(m.title, "John Cornyn: votes · Constituent");
   assert.match(m.description, /U\.S\. Senator from TX/);
   const long = billMeta({ label: "H.R. 2102", title: "Major Richard Star Act to provide for concurrent receipt of veterans' disability compensation and retired pay" }, "Would let more disabled military retirees collect both payments.");
   assert.ok(long.title.length <= TITLE_MAX, long.title);
   assert.ok(long.description.length <= DESCRIPTION_MAX);
-  assert.ok(pageTitle("x".repeat(100)).endsWith(" · On Record"));
+  assert.ok(pageTitle("x".repeat(100)).endsWith(" · Constituent"));
   assert.match(issueMeta("Health care").title, /^Health care: bills in Congress/);
   assert.match(memberMeta({ fullName: "A B", chamber: "house", party: "Democrat", state: "WY", district: 0 }).description, /WY at large/);
 });
@@ -176,7 +176,7 @@ test("share cards carry the vote, its kind, date, a labelled summary, the source
   const ag = agreementCard({ name: "A", seat: "B" }, "Health care", 2, 1, [{ ...base, headline: null }, { ...base, headline: null }, { ...base, headline: null }, { ...base, headline: null }]);
   assert.equal(ag.lines.length, 3, "at most three bills on a card");
   assert.match(ag.subtitle, /agreed on 2 of 3 bills/);
-  assert.match(ag.note, /Not a rating by On Record/);
+  assert.match(ag.note, /Not a rating by Constituent/);
   assert.deepEqual(CARD_FORMATS.story, { width: 1080, height: 1920 });
   assert.deepEqual(CARD_FORMATS.feed, { width: 1080, height: 1350 });
   assert.deepEqual(CARD_FORMATS.link, { width: 1200, height: 630 });

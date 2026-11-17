@@ -75,7 +75,7 @@ test("a continuing problem is repeated every three days, not daily", () => {
 test("several alerts from one run go in one email", () => {
   const two = [{ kind: "CONSECUTIVE_FAILURES", subject: "two scheduled runs in a row failed", detail: "A." }, { kind: "NO_CAPTURE_72H", subject: "no successful capture in 72 hours", detail: "B." }];
   const mail = formatAlertEmail(two, { spend: "ok" }, "https://x.test", now);
-  assert.equal(mail.subject, "[On Record] two scheduled runs in a row failed (+1 more)");
+  assert.equal(mail.subject, "[Constituent] two scheduled runs in a row failed (+1 more)");
   assert.match(mail.text, /A\./); assert.match(mail.text, /B\./); assert.match(mail.text, /NO SUCCESSFUL CAPTURE IN 72 HOURS/);
 });
 
@@ -115,7 +115,7 @@ test("the afternoon run nudges once, only when nothing was reviewed since the mo
 test("the rhythm email carries a one-tap link to the case", () => {
   const out = decideRhythm(rhythm(), morning);
   const mail = formatRhythmEmail(out.email, "case-1", "https://x.test");
-  assert.equal(mail.subject, "[On Record] Today's case: Gov. A. Example");
+  assert.equal(mail.subject, "[Constituent] Today's case: Gov. A. Example");
   assert.match(mail.text, /https:\/\/x\.test\/editor\?case=case-1/);
   assert.doesNotMatch(mail.text, /Current checks/);
   assert.doesNotMatch(mail.text, /Not today/);
@@ -129,7 +129,7 @@ test("limit parsing and email formatting", () => {
   assert.equal(parseMonthlyLimit("20"), 20);
   assert.equal(parseMonthlyLimit("-3"), 40);
   const mail = formatAlertEmail({ kind: "TEST", subject: "test alert", detail: "Hello." }, { spend: "ok" }, "https://x.test", now);
-  assert.equal(mail.subject, "[On Record] test alert");
+  assert.equal(mail.subject, "[Constituent] test alert");
   assert.match(mail.text, /Hello\./);
   assert.match(mail.text, /- spend: ok/);
   assert.match(mail.text, /https:\/\/x\.test\/editor/);
@@ -161,7 +161,7 @@ test("month-to-date spend is priced from the call ledger against a $40 default l
   assert.equal(out.checks.openaiCredit, undefined, "the estimated-balance check is gone");
   const over = evaluate({ ...healthy(), spend: spend(30.01), monthlyLimitUsd: 40 }, now);
   assert.deepEqual(over.alerts.map(a => a.kind), ["SPEND_75_PERCENT"]);
-  assert.match(over.alerts[0].detail, /priced from On Record's ledger of every model call/);
+  assert.match(over.alerts[0].detail, /priced from Constituent's ledger of every model call/);
   assert.ok(!ALERT_KINDS.includes("LOW_BALANCE"));
   assert.equal(parseMonthlyLimit(undefined), 40);
 });
