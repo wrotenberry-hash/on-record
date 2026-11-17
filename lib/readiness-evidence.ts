@@ -9,17 +9,15 @@ type Evidence = Pick<ReadinessInput, "brand"> & { flow: ReadinessInput["flow"] }
   influence: Pick<ReadinessInput["influence"], "contactOnBillAndMemberPages" | "hearingsStepLive" | "townHallsLine" | "voicePage">;
   trust: Pick<ReadinessInput["trust"], "methodology" | "pledge" | "about" | "privacyDraft" | "termsDraft" | "legalReviewed" | "founderText">;
   quality: Pick<ReadinessInput["quality"], "e2e" | "axe" | "speed" | "errorMonitoring" | "uptimeCheck" | "feedbackPrompt" | "somethingWrongLink" | "analytics">;
-  texas: { calendarDates: number; readyForSession: boolean | null; notReadyWhy: string };
   welcomeScreen: boolean;
 };
 
 export const EVIDENCE: Evidence = {
   brand: { literalsLeft: 0, testedWithOtherName: { ranOn: "17 Nov 2026", note: "Tried as \"Constituent\": top bar, titles, cards, emails and the manifest all followed; tests/brand.test.mjs fails if a typed-out name comes back." } },
   flow: { e2e: null, fiveLegislatorsForTexasAddress: null, comingUpWithAnswers: null, districtMessageShown: null, accountNotNeeded: null },
-  influence: { contactOnBillAndMemberPages: { ranOn: "17 Nov 2026", note: "Seen at phone width on bill pages (whole bill and a single vote), member pages and Texas pages; taps send only the kind of page." }, hearingsStepLive: false, townHallsLine: false, voicePage: null },
+  influence: { contactOnBillAndMemberPages: { ranOn: "17 Nov 2026", note: "Seen at phone width on bill pages (whole bill and a single vote), member pages and Texas pages; taps send only the kind of page." }, hearingsStepLive: false, townHallsLine: true, voicePage: { ranOn: "17 Nov 2026", note: "Seen at phone width with seven answers, with none, and with no place saved." } },
   trust: { methodology: { ranOn: "17 Nov 2026", note: "18 sources listed from the code; tests fail if the page and the code drift apart." }, pledge: { ranOn: "17 Nov 2026", note: "The funding line waits for you." },
     about: { ranOn: "17 Nov 2026" }, privacyDraft: { ranOn: "17 Nov 2026", note: "16 points marked for the lawyer." }, termsDraft: { ranOn: "17 Nov 2026", note: "10 points marked for the lawyer." }, legalReviewed: false, founderText: false },
   quality: { e2e: null, axe: null, speed: null, errorMonitoring: false, uptimeCheck: null, feedbackPrompt: true, somethingWrongLink: null, analytics: null },
-  texas: { calendarDates: 0, readyForSession: null, notReadyWhy: "" },
   welcomeScreen: true,
 };
