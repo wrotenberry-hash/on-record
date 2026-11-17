@@ -1,52 +1,44 @@
 import Link from "next/link";
-import { IssueCap } from "@/components/start/issue-cap";
+import "@/components/home/flow.css";
 import { PublicShell } from "@/components/public/public-shell";
+import { Landing } from "@/components/home/landing";
+import { LegislatorCards } from "@/components/home/legislator-cards";
+import { ComingUp } from "@/components/home/coming-up";
+import { DistrictCompare } from "@/components/home/district-compare";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { currentLocation } from "@/lib/location";
-import { federalLegislators } from "@/lib/federal/legislators";
-import { pickedIssues } from "@/lib/reader-issues";
-import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
+import { isActionRerender, rememberedZip } from "@/lib/flow/zip";
 import { countEvent } from "@/lib/events";
-import { finishStart, startZip } from "./actions";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Get started · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Your legislators"), robots: { index: false, follow: false } };
 
-/** Onboarding in under a minute: ZIP → your legislators → three issues → done. No account needed. */
-export default async function StartPage({ searchParams }: { searchParams: Promise<{ step?: string; e?: string }> }) {
+/**
+ * The first 60 seconds (owner, 17 Nov 2026), on one page: your legislators with each one's most recent meaningful vote
+ * in a plain line, then "Here's what's coming up that affects you" with one-tap answers, then "See how your district
+ * compares". A newcomer (no place saved) gets the landing form first; `?change=1` brings the form back.
+ * No email sign-in is needed here: a trial reader's invite (or the editor's sign-in) is enough.
+ */
+export default async function StartPage({ searchParams }: { searchParams: Promise<{ change?: string }> }) {
   const access = await viewerAccess();
   if (!access.allowed) return <PublicShell current="/start" access={access} page="/start">{null}</PublicShell>;
-  const { step, e } = await searchParams;
   const userId = await currentAppUserId();
-  const loc = await currentLocation(userId);
-  const two = step === "2" && loc;
-  if (!two) await countEvent("onboarding_start", access.audience);
-  const fed = two ? await federalLegislators(loc.state, loc.congressional).catch(() => null) : null;
-  const issues = two ? await pickedIssues(userId) : [];
-  const canFollow = !!access.invite || !!access.editor;
+  const loc = await currentLocation(userId).catch(() => null);
+  const synced = !!access.invite || !!access.editor;
+  if (!loc || (await searchParams).change === "1") {
+    if (!loc && !(await isActionRerender())) { await countEvent("onboarding_start", access.audience); await countEvent("flow_landing", access.audience); }
+    return <PublicShell current="/start" access={access} page="/start"><Landing next="/start" zip={(await rememberedZip()) ?? ""} keptWith={access.editor ? "editor" : access.invite ? "invite" : null} /></PublicShell>;
+  }
   return <PublicShell current="/start" access={access} page="/start">
-    <section className="fed-page start">
-      <div className="eyebrow">GET STARTED · STEP {two ? "2" : "1"} OF 2</div>
-      {!two ? <>
-        <h1>Where do you vote?</h1>
-        <p>Your ZIP code finds your two senators and your representative. We keep only the state and district, never an address.</p>
-        {e === "zip" && <p className="gate gate-closed" role="status">Enter a 5-digit US ZIP code.</p>}
-        <form action={startZip} className="start-form"><label htmlFor="zip" className="visually-hidden">ZIP code</label>
-          <input id="zip" name="zip" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}" maxLength={5} required placeholder="ZIP code" autoFocus />
-          <button>Next</button></form>
-        <p className="meta"><Link href="/">Skip for now</Link></p>
-      </> : <>
-        <h1>Your legislators</h1>
-        <form action={finishStart} className="start-form start-two">
-          <ul className="leg-list">{fed?.senators.map(s => <li key={s.id} className="leg-card"><Link href={`/politicians/${s.id}`}><b>{s.fullName}</b></Link><span>{s.role}</span><span className="meta">{s.party}</span></li>)}
-            {fed?.representative && <li className="leg-card"><Link href={`/politicians/${fed.representative.id}`}><b>{fed.representative.fullName}</b></Link><span>{fed.representative.role}</span><span className="meta">{fed.representative.party}</span></li>}</ul>
-          {fed && !fed.representative && fed.houseChoices.length > 0 && <label className="start-label">Your House district (a ZIP can cross districts)
-            <select name="district" className="leg-select" defaultValue=""><option value="">Not sure (pick later)</option>{fed.houseChoices.map(h => <option key={h.id} value={`${h.state}-${h.district ? String(h.district).padStart(2, "0") : "AL"}`}>District {h.district ?? "at large"}: {h.fullName}</option>)}</select></label>}
-          {canFollow && <label className="consent"><input type="checkbox" name="follow" value="yes" defaultChecked /> <span>Follow them, so their votes show up first</span></label>}
-          <IssueCap options={ISSUE_CATEGORIES.map(c => ({ slug: c.slug, name: c.name }))} initial={issues} />
-          <button>Done</button></form>
-        <p className="meta">Your choices stay on this device{canFollow ? " and with your trial invite" : ""}; nobody else sees them. <Link href="/start">Change ZIP</Link></p>
-      </>}
+    <section className="fed-page flow">
+      <h1>Your legislators</h1>
+      <p className="meta">Each one’s most recent vote on a bill, from the official record. <Link href="/start?change=1">Change ZIP or address</Link></p>
+      <LegislatorCards loc={loc} next="/start" />
+      <ComingUp userId={userId} loc={loc} canAnswer={synced} />
+      <DistrictCompare userId={userId} loc={loc} />
+      <p className="flow-finish">Want alerts when they vote? <Link href="/account#alerts">Follow your legislators</Link><br />
+        <Link href="/voice">See your voice</Link> · <Link href="/">Go to your home page</Link></p>
     </section>
   </PublicShell>;
 }
