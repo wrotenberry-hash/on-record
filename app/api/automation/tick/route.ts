@@ -48,7 +48,8 @@ async function runTick(request: Request) {
   if (!intakeAllowed(now, process.env.STATEMENT_INTAKE_HOURS_UTC)) {
     // Evening run: bill summaries first (keeping 100 s back), then the federal and Texas updates in the time left;
     // both also run in full at 13:00. Model work never waits behind the growing ingest.
-    const analysis = await analysisStep(now, 100_000);
+    // 17 Nov: the stronger writing model is slower, so summaries keep 70 s back instead of 100 s (the federal update is incremental and also runs in full at 13:00).
+    const analysis = await analysisStep(now, 70_000);
     const federal = await federalStep(Math.max(30_000, 300_000 - (Date.now() - now) - 60_000));
     const summariesEmail = await sendSummariesReadyIfDue();
     // Monday's 19:00 run sends the weekly "how your members voted" email (no new cron).

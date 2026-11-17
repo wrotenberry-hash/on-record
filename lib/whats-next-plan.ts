@@ -7,14 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-17T03:50:00Z";
-export const PLAN_NOTE = "Two real runs so far (8:06 PM and 8:45 PM CT): eight rewrites, none passed the written checks, so the average-reader test has still not run on the live site. About 3 cents a summary. Part of that was the checks being wrong (false alarms, now removed) and the writer undoing good parts when it fixed bad ones (now prevented). The larger part is the writing model itself: the low-cost model garbles dense rule text. In S.J.Res. 197 it could not say what the old rule was and mixed up two different insurer fees. The checks were right to hold those. Claude recommends trying the stronger model on these five summaries only (under $2) and comparing. Readers still see no summaries and the limit stays at 5.";
+export const PLAN_UPDATED = "2026-11-17T04:10:00Z";
+export const PLAN_NOTE = "You said to try the stronger writing model, so the trial is live: the five test summaries are rewritten by the stronger model, while the test reader and its checker stay on the low-cost one. It is slower, so one press of Run the update now rewrites one or two summaries, S.J.Res. 197 first; the button now allows four runs an hour, ten minutes apart. After each run Claude reads the result against the sources and records the pass rate and the real cost per summary here. Before this, two real runs on the low-cost model passed nothing in eight rewrites. Readers still see no summaries and the limit stays at 5.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Try the stronger writing model on the five test summaries", needs: "your go-ahead",
-    why: "The low-cost model writes each summary for about 3 cents but has not produced one that passes in eight tries, and it misreads dense rule text. The stronger model costs roughly 12 to 40 cents a summary. A trial on these five costs under $2 and shows whether it reaches the standard you approved. At the $25 monthly cap it would allow about 60 to 200 summaries a month instead of several hundred." },
-  { title: "Or: run once more on the low-cost model with the latest fixes", needs: "you",
-    why: "The version now live removes five more false alarms and stops a rewrite from undoing parts that were right. It may pass the simpler bills (H.R. 9612, H.R. 2102). It will not fix the misreading of S.J.Res. 197. Free to try: press Run the update now." },
+  { title: "Press Run the update now (stronger-model trial)", needs: "you",
+    why: "Each press rewrites one or two of the five test summaries with the stronger model, S.J.Res. 197 first. Three or four presses, ten minutes apart, cover all five; the 13:00 UTC run also counts. Expected cost: 12 to 40 cents a summary, under $2 in all. Claude reviews each run and reports the pass rate and cost. Keeping the stronger model after the trial, showing summaries to readers and lifting the limit of 5 stay your call." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",

@@ -105,7 +105,7 @@ export const LIMITS = {
   address_account_day: { max: 5, windowMs: 86400e3 },
   // Round G: per-reader limits on making cards, logging shares and reporting problems.
   card_device_hour: { max: 120, windowMs: 3600e3 }, card_ip_hour: { max: 600, windowMs: 3600e3 },
-  share_device_hour: { max: 60, windowMs: 3600e3 }, manual_run_hour: { max: 2, windowMs: 3600e3 }, manual_run_gap: { max: 1, windowMs: 600e3 }, report_device_day: { max: 10, windowMs: 86400e3 }, report_ip_day: { max: 40, windowMs: 86400e3 },
+  share_device_hour: { max: 60, windowMs: 3600e3 }, manual_run_hour: { max: 4, windowMs: 3600e3 }, manual_run_gap: { max: 1, windowMs: 600e3 }, report_device_day: { max: 10, windowMs: 86400e3 }, report_ip_day: { max: 40, windowMs: 86400e3 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

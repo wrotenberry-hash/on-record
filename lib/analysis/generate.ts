@@ -24,7 +24,7 @@ import { goldExamplesBlock } from "@/lib/analysis/gold";
  * model; the official title, status, cost estimate, votes and sources come
  * from government records and are shown as Official.
  */
-export const PROMPT_VERSION = "b9-2026-11-17";
+export const PROMPT_VERSION = "b10-2026-11-17";
 const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
 const MAX_OUTPUT_TOKENS = 6000;
 
@@ -35,6 +35,10 @@ export function analysisLimits() {
   // ANALYSIS_MAX_SUMMARIES stays 5 until the first five pass the strict review (Round 1), then rises.
   return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 5),
     model: process.env.OPENAI_SUMMARY_MODEL?.trim() || process.env.OPENAI_EXTRACT_MODEL?.trim() || "gpt-5.4-mini",
+    // Owner decision, 17 Nov ("Try the stronger model"): after two real runs in which the low-cost model passed nothing and misread
+    // the rule behind S.J.Res. 197, the WRITER is the stronger model, as a trial on the five test summaries (the cap stays 5).
+    // The test reader and its checker stay on the low-cost model above. Set OPENAI_WRITER_MODEL to change it without a deploy.
+    writerModel: process.env.OPENAI_WRITER_MODEL?.trim() || "gpt-5.5",
     reasoning: process.env.ANALYSIS_REASONING_EFFORT?.trim() || "low" };
 }
 
@@ -126,7 +130,7 @@ async function candidates(limit = 60): Promise<Candidate[]> {
 
 /** Summaries the current generator has not written (an older PROMPT_VERSION), oldest first, at most ANALYSIS_REGEN_PER_RUN. */
 /** Time one summary can need: up to three drafts, each followed by the reader test (measured 17 Nov: three drafts take about 25 s; the tests add about 15 s each). */
-const FULL_CYCLE_MS = 60_000;
+const FULL_CYCLE_MS = 75_000;
 /** The owner's test case is rewritten first. */
 const PRIORITY_BILLS = (process.env.ANALYSIS_PRIORITY_BILLS ?? "119-sjres-197").split(",").map(x => x.trim()).filter(Boolean);
 
@@ -216,7 +220,8 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   }
   const input = inputFor(c, status, version, parsed.text, parsed.sections, truncated, gathered);
   const table = priceTable(process.env.OPENAI_PRICES_JSON);
-  const worst = maxCallCost(limits.model, input.length + INSTRUCTIONS.length, MAX_OUTPUT_TOKENS, table);
+  let writer = limits.writerModel;
+  const worst = maxCallCost(writer, input.length + INSTRUCTIONS.length, MAX_OUTPUT_TOKENS, table);
   const summaryId = existing?.id ?? crypto.randomUUID();
   const label = billLabel(c.billType, c.number);
   const attempts: Array<{ draft: SummaryDraft; check: CheckResult; reader?: ReaderTest }> = [];
@@ -232,9 +237,13 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
     const prior = attempts.at(-1);
     const thisInput = prior ? `${input}\n\nYour previous draft failed these checks. Fix every one, keep what was right, and stay neutral:\n- ${prior.check.failures.join("\n- ")}\n\nPrevious draft:\n${JSON.stringify(prior.draft)}` : input;
     let result;
-    try { result = await draftOnce(key, limits.model, limits.reasoning, summaryId, thisInput, Math.min(110_000, remaining - 15_000), fullInstructions); }
+    const t0 = Date.now();
+    try { result = await draftOnce(key, writer, limits.reasoning, summaryId, thisInput, Math.min(110_000, remaining - 15_000), fullInstructions); }
     catch (error) {
-      console.log(`SUMMARY_ATTEMPT ${label} | attempt ${attempt} | ERROR | ${(error instanceof Error ? error.message : "error").slice(0, 200)}`);
+      const message = (error instanceof Error ? error.message : "error").slice(0, 200);
+      console.log(`SUMMARY_ATTEMPT ${label} | attempt ${attempt} | ERROR | ${writer} | ${message}`);
+      // The key may not have the stronger model: fall back to the low-cost one once rather than write nothing.
+      if (writer !== limits.model && /returned (?:400|403|404)(?!\d)/.test(message)) { writer = limits.model; attempt--; continue; }
       if (!attempts.length) throw error; break; // keep the earlier draft; it is held for an editor
     }
     inTok += result.cost.inputTokens; outTok += result.cost.outputTokens; cost += result.cost.usd;
@@ -245,7 +254,8 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
     result.draft = repaired.draft;
     if (kept.kept.length) repaired.notes.unshift(`kept from the draft before: ${kept.kept.join(", ")}`);
     const check = checkSummary(result.draft, parsed.sections, { truncated, subject: c.title, fullText: parsed.text, sources: gathered.context });
-    console.log(`SUMMARY_ATTEMPT ${label} | attempt ${attempt} | written rules ${check.passed ? "PASS" : "FAIL"} | repairs ${repaired.notes.length} | ${JSON.stringify({ failures: check.failures, repairs: repaired.notes.slice(0, 12) }).slice(0, 1300)}`);
+    const took = `${writer}, ${result.cost.usd.toFixed(4)} USD, ${Math.round((Date.now() - t0) / 1000)} s`;
+    console.log(`SUMMARY_ATTEMPT ${label} | attempt ${attempt} | written rules ${check.passed ? "PASS" : "FAIL"} | ${took} | repairs ${repaired.notes.length} | ${JSON.stringify({ failures: check.failures, repairs: repaired.notes.slice(0, 12) }).slice(0, 1300)}`);
     let reader: ReaderTest | undefined;
     if (check.passed && deadline - Date.now() > 30_000) {
       // The average-reader test runs only on a draft that already passes the written rules.
@@ -276,7 +286,7 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   const content = { textVersion: version.code || version.packageId, textVersionLabel: version.label,
     textDate: version.date || null, textUrl: version.htmlUrl, textChars: parsed.chars, truncated: truncated ? 1 : 0, headline: d.headline, whatItDoes: d.whatItDoes,
     whoItAffects: d.whoItAffects, whatChangesForYou: d.whatChangesForYou, caseFor: d.caseFor, caseAgainst: d.caseAgainst, unknowns: d.unknowns, confidence: d.confidence,
-    confidenceReason: d.confidenceReason, checkPassed: final.check.passed ? 1 : 0, attempts: attempts.length, status: route.status, model: limits.model,
+    confidenceReason: d.confidenceReason, checkPassed: final.check.passed ? 1 : 0, attempts: attempts.length, status: route.status, model: writer,
     promptVersion: PROMPT_VERSION, inputTokens: inTok, outputTokens: outTok, costUsd: Math.round((cost + readerCost) * 1_000_000) / 1_000_000, sources }; // drafts plus the reader test
   let firstAttempt = 1;
   if (existing) {

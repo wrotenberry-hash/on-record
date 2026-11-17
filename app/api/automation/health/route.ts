@@ -165,7 +165,7 @@ async function openaiSpend() {
 
 /** Bill summaries: counts, cost and the caps in force. No bill text, no summary text. */
 async function analysis() {
-  try { const { maxSummaries, spendCapUsd, model } = analysisLimits(); return { ...(await analysisCounts()), limits: { maxSummaries, spendCapUsd, model } }; }
+  try { const { maxSummaries, spendCapUsd, model, writerModel } = analysisLimits(); return { ...(await analysisCounts()), limits: { maxSummaries, spendCapUsd, model, writerModel } }; }
   catch { return "unavailable" as const; }
 }
 

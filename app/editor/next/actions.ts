@@ -6,7 +6,7 @@ import { withinLimit } from "@/lib/verify/store";
 
 /**
  * Owner request 16 Nov 2026: start the scheduled update now instead of waiting for 13:00 or 19:00 UTC.
- * Editor sign-in only, at most once per 10 minutes and twice an hour, never within 10 minutes of a scheduled run. The secret stays on
+ * Editor sign-in only, at most once per 10 minutes and four times an hour (raised from two on 17 Nov for the writing-model trial), never within 10 minutes of a scheduled run. The secret stays on
  * the server: this calls the app's own update with the cron secret and does not wait for it to finish
  * (it runs for up to 5 minutes in its own function).
  */
