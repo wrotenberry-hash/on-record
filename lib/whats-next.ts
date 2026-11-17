@@ -13,7 +13,7 @@ const when = (v: unknown) => (v ? new Date(v as string | number).toLocaleString(
 export const ALERT_PLAIN: Record<string, string> = { CONSECUTIVE_FAILURES: "Two scheduled runs in a row failed", NO_CAPTURE_72H: "No statement captured in 72 hours", SPEND_75_PERCENT: "OpenAI spend passed 75% of the monthly limit",
   KEY_EXPIRING: "The OpenAI key is about to expire", INGEST_FAILING: "The official-records update is failing", BILLING_REFUSED: "OpenAI refused a call (billing or limit)", SUMMARIES_READY: "New bill summaries are ready to review",
   SUMMARIES_REVISED: "Bill summaries were rewritten after a fix", TRIAL_OPEN: "The trial can open", SUMMARY_SPEND_75: "Bill-summary spend passed 75% of its cap", TALLY_MISMATCH: "A roll-call tally does not match the official totals",
-  PARITY_DRIFT: "Summaries drift between parties", DAILY_CASE: "A case was picked for review", DAILY_NUDGE: "The picked case is still open", TEST: "Test alert" };
+  PARITY_DRIFT: "Summaries drift between parties", SITE_ERRORS: "The site showed errors to readers", DAILY_CASE: "A case was picked for review", DAILY_NUDGE: "The picked case is still open", TEST: "Test alert" };
 
 export function standing(p: Probe): string[] {
   const a = p.analysis ?? {}, s = p.openaiSpend ?? {}, t = p.trial ?? {}, f = p.federal ?? {}, lines: string[] = [];
@@ -32,6 +32,8 @@ export function flags(p: Probe, now = Date.now()): Flag[] {
   const out: Flag[] = [], a = p.analysis ?? {}, days = p.monitoring?.keyDaysLeft;
   const refused = (p.recentAlerts ?? []).some((x: Probe) => x.kind === "BILLING_REFUSED" && now - Date.parse(x.sentAt) < 36 * 3600e3) || (a.lastRun?.status === "FAILED" && /billing|limit|credit|quota/i.test(a.lastRun?.error ?? "") && now - Date.parse(a.lastRun.startedAt) < 36 * 3600e3);
   if (refused) out.push({ level: "blocker", text: "OpenAI refused the last AI call (billing or usage limit). AI work is paused; everything else keeps running. Check the API project's billing and limits at platform.openai.com." });
+  // Errors on the site itself: flagged only when it is real breakage (lib/error-rules.ts), never for a stray error.
+  if (p.errors?.breakage === true) out.push({ level: "blocker", text: `The site is failing for readers. ${String((p.errors.reasons ?? [])[0] ?? "See the error list.").slice(0, 220)}${(p.errors.reasons ?? []).length > 1 ? ` (and ${p.errors.reasons.length - 1} more)` : ""}`, href: "/editor/metrics#errors" });
   if (typeof days === "number" && days <= 3) out.push({ level: "blocker", text: `The OpenAI key expires in ${days} day${days === 1 ? "" : "s"}. Replace it (steps below) or summaries stop.` });
   else if (typeof days === "number" && days <= 14) out.push({ level: "soon", text: `The OpenAI key expires in ${days} days (${p.monitoring.keyExpires}).` });
   const lim = Number(p.openaiSpend?.monthlyLimitUsd ?? 0), spent = Number(p.openaiSpend?.monthToDateUsd ?? 0);

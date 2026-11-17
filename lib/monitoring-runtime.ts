@@ -83,7 +83,8 @@ export async function evaluateNow(now = Date.now()): Promise<Evaluation & { conf
   const tallyMismatches = await getDb().get<{ n: number }>(sql`select ((select count(*) from official_tally_checks where ok = 0) + (select count(*) from tx_votes where tally_ok = 0)) as n`)
     .then(r => Number(r?.n ?? 0)).catch(() => getDb().select({ n: sql<number>`count(*)` }).from(officialTallyChecks).where(eq(officialTallyChecks.ok, 0)).get().then(r => Number(r?.n ?? 0)).catch(() => null));
   const parityFindings = await import("@/lib/analysis/quality").then(m => m.parityReport()).then(r => r.findings).catch(() => null);
-  return { ...evaluate({ runs, spend, summarySpend, tallyMismatches, parityFindings, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest,
+  const siteBreakage = await import("@/lib/error-events").then(m => m.siteBreakage(now)).catch(() => undefined);
+  return { ...evaluate({ runs, spend, summarySpend, tallyMismatches, parityFindings, siteBreakage, monthlyLimitUsd: configured.monthlyLimitUsd, keyExpires: configured.keyExpires, lastSent, ingestRuns: ingest,
     billingRefusal: refusal, lastSuccessfulCallAt: lastOk, intakePaused: intakePaused?.paused ? intakePaused : null }, now), configured };
 }
 

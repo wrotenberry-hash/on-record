@@ -5,7 +5,7 @@
  * has not been sent in the last 24 hours. A healthy system produces no alerts
  * and therefore no email.
  */
-export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED", "SUMMARY_SPEND_75", "TALLY_MISMATCH", "PARITY_DRIFT"] as const;
+export const ALERT_KINDS = ["CONSECUTIVE_FAILURES", "NO_CAPTURE_72H", "SPEND_75_PERCENT", "KEY_EXPIRING", "TEST", "DAILY_CASE", "DAILY_NUDGE", "INGEST_FAILING", "BILLING_REFUSED", "SUMMARIES_READY", "TRIAL_OPEN", "SUMMARIES_REVISED", "SUMMARY_SPEND_75", "TALLY_MISMATCH", "PARITY_DRIFT", "SITE_ERRORS"] as const;
 export type AlertKind = typeof ALERT_KINDS[number];
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -63,6 +63,8 @@ export type MonitoringInput = { parityFindings?: string[] | null;
   lastSuccessfulCallAt?: number | null;
   /** Statement intake paused because the review backlog is too long (optional). Capture alerts are off while paused. */
   intakePaused?: { waiting: number; threshold: number } | null;
+  /** Real breakage on the site itself (lib/error-rules.ts `breakage`): the reasons, or null when there is none. */
+  siteBreakage?: readonly string[] | null;
 };
 
 export type Alert = { kind: AlertKind; subject: string; detail: string };
@@ -131,6 +133,10 @@ export function evaluate(input: MonitoringInput, now = Date.now()): Evaluation {
   // (3d) Round F: summaries treat parties differently (length, tone words or for/against balance).
   if (input.parityFindings?.length) found.push({ kind: "PARITY_DRIFT", subject: "Bill summaries drift between parties",
     detail: `The parity check over visible summaries (grouped by the sponsor's party) found: ${input.parityFindings.join(" ")} Open Editor → Quality for the numbers; fix the generator, not individual summaries.` });
+  // (3e) The site itself is failing for readers. Only real breakage (lib/error-rules.ts), never a stray error.
+  checks.siteErrors = input.siteBreakage === undefined ? "not checked" : input.siteBreakage?.length ? `breakage: ${input.siteBreakage.length} reason${input.siteBreakage.length === 1 ? "" : "s"}` : "no breakage in the last 24 h";
+  if (input.siteBreakage?.length) found.push({ kind: "SITE_ERRORS", subject: "the site is showing errors to readers",
+    detail: `The site's own error log shows real breakage in the last 24 hours: ${input.siteBreakage.join(" | ")} Open Editor → Metrics for the list, or the health probe under "errors". One-off errors do not raise this.` });
   // (3b) Bill-summary spend above 75% of its monthly cap.
   if (input.summarySpend && input.summarySpend.capUsd > 0) {
     checks.summarySpend = `$${input.summarySpend.monthToDateUsd.toFixed(2)} of $${input.summarySpend.capUsd.toFixed(2)}`;
