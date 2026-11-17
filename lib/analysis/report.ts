@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { alertEvents, analysisBillSummaries, analysisChecks, analysisReviewQueue, analysisSummaryDetails, analysisSummaryVersions, officialBills } from "@/db/schema";
+import { alertEvents, analysisBillSummaries, analysisChecks, analysisReviewQueue, analysisSummaryDetails, analysisSummaryStructure, analysisSummaryVersions, officialBills } from "@/db/schema";
 import { billLabel } from "@/components/federal/badges";
 import { recordSent, sendEmail, SITE_URL } from "@/lib/monitoring-runtime";
 import { CHECKPOINT_SUMMARIES, formatSummariesEmail, summariesEmailDue, type SummaryForEmail } from "@/lib/analysis/report-format";
@@ -119,7 +119,10 @@ export async function logReviewPackets(billIds: string[], budgetMs = 30_000): Pr
       const { excerpts, textUrl, ...summary } = r; void excerpts;
       const details = (await getDb().select({ d: analysisSummaryDetails }).from(analysisSummaryDetails)
         .innerJoin(analysisBillSummaries, eq(analysisBillSummaries.id, analysisSummaryDetails.summaryId)).where(eq(analysisBillSummaries.billId, r.billId)).get())?.d;
-      const out = packetLines(r.label, "SUMMARY", JSON.stringify({ ...summary, details: details ?? null, promptVersion: PROMPT_VERSION }));
+      // 17 Nov: the "how it works today → what would change → why now" part was missing from the packet, so it could not be reviewed from the log.
+      const structure = (await getDb().select({ x: analysisSummaryStructure }).from(analysisSummaryStructure)
+        .innerJoin(analysisBillSummaries, eq(analysisBillSummaries.id, analysisSummaryStructure.summaryId)).where(eq(analysisBillSummaries.billId, r.billId)).get())?.x;
+      const out = packetLines(r.label, "SUMMARY", JSON.stringify({ ...summary, details: details ?? null, structure: structure ?? null, promptVersion: PROMPT_VERSION }));
       try {
         if (!textUrl) throw new Error("no bill text address");
         const res = await fetch(textUrl, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(15_000), cache: "no-store" });

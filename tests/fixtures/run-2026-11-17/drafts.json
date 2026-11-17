@@ -1,0 +1,407 @@
+{
+ "119-hr-2102": {
+  "label": "H.R. 2102",
+  "failures": [
+   "What would change row 3 is vague: it has no number, date or clear rule (may / may not, must / need not). Say what the rule is today and what it would be, with the number or date from the sources.",
+   "\"direct spending\" is used without explaining it. Replace it with plain words (spending that happens automatically under existing law) or explain it in parentheses the first time.",
+   "What changes for you needs one concrete example of a real kind of person, e.g. \"A family in Ohio buying a 2027 marketplace plan would \u2026\"."
+  ],
+  "attempts": 3,
+  "draft": {
+   "headline": "Lets some combat-injured military retirees keep both payments in full.",
+   "whatItDoes": [
+    {
+     "text": "Removes the retirement-pay reduction for medical retirees with combat-related disabilities and fewer than 20 years of years of service that count toward retirement.",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "Renames section 1414 to describe full payment of both benefits at the same time.",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "Starts the change with payments for the first month after it becomes law.",
+     "section": "Sec. 2"
+    }
+   ],
+   "whoItAffects": [
+    {
+     "text": "About 58,000 medical retirees with combat-related disabilities and fewer than 20 years, according to the House record. Their monthly retirement pay would no longer be reduced.",
+     "section": "FLOOR"
+    },
+    {
+     "text": "Those retirees would average about $1,450 more each month, based on the average $2,275 cut and $825 payment in the House record.",
+     "section": "FLOOR"
+    },
+    {
+     "text": "The federal budget. The Congressional Budget Office says direct spending would rise by $13 billion from 2027 through 2036.",
+     "section": "FLOOR"
+    }
+   ],
+   "whatChangesForYou": "A soldier medically retired after a combat injury and 12 years of service could keep full retirement pay and still receive disability compensation. The House record says the average gain would be about $1,450 a month.",
+   "caseFor": [
+    {
+     "argument": "Rep. Houlahan says combat-injured servicemembers medically retired before 20 years deserve full military pay and disability compensation, and more than 50,000 veterans would benefit.",
+     "attribution": "Rep. Houlahan (floor statement, November 12, 2026)",
+     "source": "FLOOR"
+    },
+    {
+     "argument": "Rep. Elfreth says the average gain would be $1,450 a month, which can help pay bills and let a spouse cut back work to care for a wounded veteran.",
+     "attribution": "Rep. Elfreth (floor statement, November 12, 2026)",
+     "source": "FLOOR"
+    }
+   ],
+   "caseAgainst": [
+    {
+     "argument": "Rep. Rogers of Alabama says the bill should be paid for, and he prefers a separate veterans bill that he says is a fiscally responsible way to fix the problem.",
+     "attribution": "Rep. Rogers of Alabama (floor statement, November 12, 2026)",
+     "source": "FLOOR"
+    },
+    {
+     "argument": "Rep. Bost says the Congressional Budget Office estimated about $20 billion in total spending and argues the bill is not paid for.",
+     "attribution": "Rep. Bost (floor statement, November 12, 2026)",
+     "source": "FLOOR"
+    }
+   ],
+   "unknowns": [
+    "The Senate's next step is not shown in the sources.",
+    "The bill text does not say how Congress would pay the added cost.",
+    "The sources do not say which veterans would still be excluded beyond the fewer-than-20-years limit."
+   ],
+   "confidence": "high",
+   "confidenceReason": "The bill text, the House debate, and the Congressional Budget Office estimate give the rule change, the affected group, the timing, and the cost.",
+   "plainEnglish": "This bill would stop a cut that now reduces retirement pay for some combat-injured military retirees who were medically retired before 20 years of service. About 58,000 people had an average $2,275 monthly cut and got about $825 back through a separate monthly payment. The House passed it 392\u201318 on November 12, 2026, and sent it to the Senate.",
+   "question": "Do you support letting combat-injured military retirees keep both payments in full?"
+  },
+  "sourceIds": [
+   "CRS",
+   "STATUS",
+   "FLOOR",
+   "CBO",
+   "USC 10 \u00a71413a",
+   "PRIMER"
+  ]
+ },
+ "119-hr-1013": {
+  "label": "H.R. 1013",
+  "failures": [
+   "Who it affects point 1 cites \"CRS; REPORT; FLOOR\", which is not a section of this text or one of the sources.",
+   "Loaded words: giveaway.",
+   "What would change row 4 is vague: it has no number, date or clear rule (may / may not, must / need not). Say what the rule is today and what it would be, with the number or date from the sources.",
+   "What would change has no number or date in any row. Use the figures in the sources.",
+   "\"Exchange\" is used without explaining it. Replace it with plain words (the government marketplace where people buy health plans (HealthCare.gov in most states)) or explain it in parentheses the first time.",
+   "\"collective investment trusts\" is used without explaining it. Replace it with plain words (a pooled investment fund run by a bank) or explain it in parentheses the first time.",
+   "\"separate accounts\" is used without explaining it. Replace it with plain words (an insurance company's investment account kept apart from its own money) or explain it in parentheses the first time.",
+   "\"Securities\" is used without explaining it. Replace it with plain words (stocks, bonds and similar investments) or explain it in parentheses the first time."
+  ],
+  "attempts": 3,
+  "draft": {
+   "headline": "Lets charity and school retirement plans use pooled funds.",
+   "whatItDoes": [
+    {
+     "text": "Adds qualifying 403(b) plans to the federal law exceptions for collective investment trusts and insurance company separate accounts.",
+     "section": "Sec. 2(a), Sec. 2(b), Sec. 2(c)"
+    },
+    {
+     "text": "Sets conditions for some 403(b) plans, including employer or fiduciary review for government plans before investments are offered.",
+     "section": "Sec. 2(a), Sec. 2(b), Sec. 2(c)"
+    },
+    {
+     "text": "Makes matching wording changes across three federal securities laws.",
+     "section": "Sec. 2(a), Sec. 2(b), Sec. 2(c), Sec. 2(d)"
+    }
+   ],
+   "whoItAffects": [
+    {
+     "text": "Teachers, nurses, charity workers, church workers, and other nonprofit employees saving in 403(b) plans.",
+     "section": "CRS; REPORT; FLOOR"
+    },
+    {
+     "text": "Employers and fiduciaries choosing the investment options in those plans.",
+     "section": "Sec. 2(a), Sec. 2(b), Sec. 2(c)"
+    },
+    {
+     "text": "Banks and insurance companies that offer these pooled investments.",
+     "section": "REPORT"
+    }
+   ],
+   "whatChangesForYou": "A public school teacher saving in a 403(b) plan could get access to lower-cost pooled funds now used in 401(k) plans. Supporters say that could leave more money in the account over a career.",
+   "caseFor": [
+    {
+     "argument": "Rep. Lucas says nonprofit and public-school workers should have the same retirement tools as private-sector workers, and lower fees can leave thousands more in retirement savings.",
+     "attribution": "Rep. Lucas (floor statement, November 11, 2026)",
+     "source": "FLOOR"
+    },
+    {
+     "argument": "The House Committee on Financial Services majority says the bill creates investment parity and corrects an uneven playing field for 403(b) workers.",
+     "attribution": "the House Committee on Financial Services (majority, H. Rept. 119-390)",
+     "source": "REPORT"
+    }
+   ],
+   "caseAgainst": [
+    {
+     "argument": "The House Committee on Financial Services minority says the bill would let unregistered sellers offer unregistered pooled funds and insurance products to 403(b) savers, including teachers with over $1 trillion in assets.",
+     "attribution": "the House Committee on Financial Services minority (minority views, H. Rept. 119-390)",
+     "source": "REPORT"
+    },
+    {
+     "argument": "Rep. Lynch says teachers, nurses, and public servants would pay for a giveaway to banks and Wall Street firms, through weaker safeguards for their retirement savings.",
+     "attribution": "Rep. Lynch (floor statement, November 11, 2026)",
+     "source": "FLOOR"
+    }
+   ],
+   "unknowns": [
+    "The sources do not give a dollar cost for the bill.",
+    "The sources do not say how many workers would switch plans if it passed.",
+    "The Senate has referred the bill to committee, but the sources do not say what that committee will do next."
+   ],
+   "confidence": "high",
+   "confidenceReason": "The bill text is short and clear, and the report and floor debate explain the main effects and reasons on both sides.",
+   "plainEnglish": "This bill would let some 403(b) retirement plans for public schools, charities, and churches invest in a pooled fund run by a bank and in an insurance company account kept apart from the company\u2019s own money. Supporters say that could lower fees for teachers, nurses, and nonprofit workers; opponents say it would weaken protections. The House passed it 295-128 on November 11, 2026, and the Senate sent it to committee on November 12.",
+   "question": "Do you support letting charity and school retirement plans use the same pooled funds?"
+  },
+  "sourceIds": [
+   "CRS",
+   "STATUS",
+   "REPORT",
+   "FLOOR",
+   "USC 15 \u00a777e"
+  ]
+ },
+ "119-hr-9612": {
+  "label": "H.R. 9612",
+  "failures": [
+   "What changes for you needs one concrete example of a real kind of person, e.g. \"A family in Ohio buying a 2027 marketplace plan would \u2026\"."
+  ],
+  "attempts": 3,
+  "draft": {
+   "headline": "Lets uranium enrichment plants start construction before licensing",
+   "whatItDoes": [
+    {
+     "text": "Lets construction of a uranium enrichment plant begin before the Nuclear Regulatory Commission issues the license.",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "Keeps the commission's power to deny a license if the applicant does not meet regulatory requirements.",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "Says the bill does not change environmental review, hearing rights, or inspections.",
+     "section": "Sec. 2"
+    }
+   ],
+   "whoItAffects": [
+    {
+     "text": "Companies planning uranium enrichment plants. They could start building earlier, but at their own risk.",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "The Nuclear Regulatory Commission. It must issue or revise rules within 180 days after enactment.",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "People near planned plants. The bill says environmental review, hearing rights, and inspections stay in place.",
+     "section": "Sec. 2"
+    }
+   ],
+   "whatChangesForYou": "A company planning a uranium enrichment plant could start building before getting the license. A nearby resident would still have the same environmental review, hearing, and inspection process.",
+   "caseFor": [
+    {
+     "argument": "Rep. Fry says the bill removes unnecessary procedural barriers, gives companies a clearer path, and helps reduce delays, encourage private investment, and speed domestic fuel infrastructure.",
+     "attribution": "Rep. Fry (floor statement, November 9, 2026)",
+     "source": "FLOOR2"
+    },
+    {
+     "argument": "The committee says the bill would align enrichment licensing with other fuel cycle facilities and make licensing timeframes more efficient.",
+     "attribution": "the House Committee on Energy and Commerce (majority, H. Rept. 119-875)",
+     "source": "REPORT"
+    }
+   ],
+   "caseAgainst": [],
+   "unknowns": [
+    "How much faster licensing would become is not stated.",
+    "How many projects would use the new construction rule is not stated.",
+    "The Senate has only received the bill so far; no Senate vote is listed."
+   ],
+   "confidence": "medium",
+   "confidenceReason": "The bill text is clear, but the record does not quantify the practical effect on projects or timing.",
+   "plainEnglish": "Today, a uranium enrichment plant must get a federal license before construction starts. This bill would let construction begin first, while keeping the Nuclear Regulatory Commission's power to deny the license and keeping environmental review, hearing rights, and inspections in place. The House passed it 394-3 on November 9, 2026, and the Senate received it on November 10.",
+   "question": "Do you support letting uranium enrichment plants start construction before licensing?"
+  },
+  "sourceIds": [
+   "CRS",
+   "STATUS",
+   "REPORT",
+   "FLOOR",
+   "FLOOR2",
+   "USC 42 \u00a72243"
+  ]
+ },
+ "119-hr-7008": {
+  "label": "H.R. 7008",
+  "failures": [
+   "Why now is 3 sentences; use one or two.",
+   "\"notary\" is used without explaining it. Replace it with plain words (an official witness to a signature) or explain it in parentheses the first time.",
+   "\"provisional ballot\" is used without explaining it. Replace it with plain words (a ballot set aside until officials confirm the voter is eligible) or explain it in parentheses the first time.",
+   "Abbreviations never spelled out: \"REPORT\", \"STATUS\", \"CBO\". Write the full name first, or use plain words."
+  ],
+  "attempts": 3,
+  "draft": {
+   "headline": "Bans stock purchases by members of Congress and requires photo ID to vote",
+   "whatItDoes": [
+    {
+     "text": "Bars members of Congress, spouses, and dependent children from buying covered investments, with listed exceptions for some funds, trusts, small businesses, and automatic dividend reinvestment. [Sec. 2]",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "Requires 7 to 14 days of public notice before a covered sale, then posts that notice online. [Sec. 2]",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "Requires photo ID for in-person federal voting, and adds extra steps for mail ballots. [Sec. 3]",
+     "section": "Sec. 3"
+    }
+   ],
+   "whoItAffects": [
+    {
+     "text": "Members of Congress and their spouses and dependent children who own stocks or similar investments. [Sec. 2]",
+     "section": "Sec. 2"
+    },
+    {
+     "text": "People voting in federal elections, including in-person voters and mail voters. [Sec. 3]",
+     "section": "Sec. 3"
+    },
+    {
+     "text": "State and local election offices, which would have to follow the new federal ID rules 90 days after enactment. [Sec. 3]",
+     "section": "Sec. 3"
+    }
+   ],
+   "whatChangesForYou": "A voter who mails a ballot would need a photo ID copy, or a Social Security number plus an affidavit, or a notary public's witness to the signature. A member of Congress who wants to buy company stock would be barred from doing so.",
+   "caseFor": [
+    {
+     "argument": "The House Committee on House Administration majority says members receive public and non-public information, so stronger limits are needed to stop trades that create an appearance of impropriety.",
+     "attribution": "the House Committee on House Administration (majority, H. Rept. 119-479)",
+     "source": "REPORT"
+    },
+    {
+     "argument": "The House Committee on House Administration majority says the earlier law did not go far enough, so this bill adds a ban and a public notice rule.",
+     "attribution": "the House Committee on House Administration (majority, H. Rept. 119-479)",
+     "source": "REPORT"
+    }
+   ],
+   "caseAgainst": [
+    {
+     "argument": "The House Committee on House Administration minority says the bill is not a real ban, because members can keep current shares and still buy some other investments.",
+     "attribution": "the House Committee on House Administration minority (minority views, H. Rept. 119-479)",
+     "source": "REPORT"
+    },
+    {
+     "argument": "The House Committee on House Administration minority says the bill still lets spouses and dependent children trade in some situations, so it would not stop the conduct critics want to end.",
+     "attribution": "the House Committee on House Administration minority (minority views, H. Rept. 119-479)",
+     "source": "REPORT"
+    }
+   ],
+   "unknowns": [
+    "The CBO cost estimate is listed, but the dollar amounts were not provided.",
+    "The record does not show how many voters lack one of the listed photo IDs.",
+    "The Senate did not start debate, so later changes are not shown in the status record."
+   ],
+   "confidence": "high",
+   "confidenceReason": "The bill text and committee report clearly state both sets of changes, and thestatus record gives the latest Senate action and vote.",
+   "plainEnglish": "Today, members of Congress may buy stocks, and states set their own photo ID rules for federal elections. This bill would bar those purchases, require 7 to 14 days of public notice before some sales, and require photo ID or extra steps for in-person and mailed ballots. The Senate voted 53-47 on September 30, 2026, against taking it up.",
+   "question": "Do you support banning stock purchases by members of Congress and requiring photo ID to vote?"
+  },
+  "sourceIds": [
+   "CRS",
+   "STATUS",
+   "REPORT",
+   "CBO",
+   "USC 15 \u00a7632",
+   "USC 52 \u00a721111"
+  ]
+ },
+ "119-sjres-197": {
+  "label": "S.J.Res. 197",
+  "failures": [
+   "What it does point 1 cites \"Bill text\", which is not a section of this text or one of the sources.",
+   "\"user fees\" is used without explaining it. Replace it with plain words (a charge insurers pay to sell plans on the government site) or explain it in parentheses the first time.",
+   "The headline uses \"Basic Health Program\"; a headline has no room to explain it, so use plain words (state-run low-cost coverage for people who earn a little too much for Medicaid).",
+   "\"issuers\" is used without explaining it. Replace it with plain words (insurance company) or explain it in parentheses the first time.",
+   "\"bronze plan\" is used without explaining it. Replace it with plain words (the marketplace plan level with the lowest monthly payments and highest out-of-pocket costs) or explain it in parentheses the first time.",
+   "\"premiums\" is used without explaining it. Replace it with plain words (the monthly price of a plan) or explain it in parentheses the first time.",
+   "\"enrollment\" is used without explaining it. Replace it with plain words (signed up; people in the plans) or explain it in parentheses the first time.",
+   "\"joint resolution\" is used without explaining it. Replace it with plain words (a measure that becomes law like a bill) or explain it in parentheses the first time."
+  ],
+  "attempts": 1,
+  "draft": {
+   "headline": "Blocks new 2027 rules for HealthCare.gov plans and Basic Health Program payments.",
+   "whatItDoes": [
+    {
+     "text": "Cancels the rule for 2027 HealthCare.gov plans and Basic Health Program payments.",
+     "section": "Bill text"
+    },
+    {
+     "text": "Would erase the rule's changes to cost limits, user fees, enrollment checks, and plan standards.",
+     "section": "RULE"
+    },
+    {
+     "text": "Leaves the records silent on what standards would apply instead.",
+     "section": "RULE"
+    }
+   ],
+   "whoItAffects": [
+    {
+     "text": "People buying their own plans on HealthCare.gov or a state site. The agency expects 1.2 million to 2 million fewer enrollees under the rule.",
+     "section": "RULE"
+    },
+    {
+     "text": "States that run a Basic Health Program. Federal payments would stop for some noncitizens starting January 1, 2027.",
+     "section": "RULE"
+    },
+    {
+     "text": "Insurance companies offering these plans. The rule lowers 2027 user fees and changes payment calculations.",
+     "section": "RULE"
+    }
+   ],
+   "whatChangesForYou": "A person buying a 2027 HealthCare.gov plan could face different cost limits and plan choices under the rule. If this resolution passed, those 2027 changes would be wiped out, and the old rules would stay in place unless another rule replaced them.",
+   "caseFor": [
+    {
+     "argument": "Sen. Baldwin says the rule would terminate coverage for up to 2 million Americans and raise costs for millions more.",
+     "attribution": "Sen. Baldwin (floor statement, September 29, 2026)",
+     "source": "FLOOR"
+    },
+    {
+     "argument": "She says the rule would promote very high-deductible plans and leave people with fewer doctors who take their insurance.",
+     "attribution": "Sen. Baldwin (floor statement, September 29, 2026)",
+     "source": "FLOOR"
+    }
+   ],
+   "caseAgainst": [
+    {
+     "argument": "The agency says the rule improves implementation of the Affordable Care Act while keeping coverage more affordable and reducing administrative burden.",
+     "attribution": "the Centers for Medicare & Medicaid Services, which issued the rule",
+     "source": "RULE"
+    },
+    {
+     "argument": "The agency says the rule helps lower premiums in 2027 by 1.2 percent to 2.4 percent compared with baseline estimates.",
+     "attribution": "the Centers for Medicare & Medicaid Services, which issued the rule",
+     "source": "RULE"
+    }
+   ],
+   "unknowns": [
+    "The resolution text does not say what rules would apply if it passed.",
+    "The bill has no cost estimate in the record.",
+    "The Senate record shows a failed start to debate, but no later vote on final passage."
+   ],
+   "confidence": "medium",
+   "confidenceReason": "The rule and its effects are described clearly, but the resolution would simply cancel it and does not spell out replacement rules.",
+   "plainEnglish": "This joint resolution would cancel a federal rule already in effect for 2027 HealthCare.gov plans and Basic Health Program payments. The rule changes costs, plan choices, and enrollment checks for people buying their own coverage, and the agency says it could push 1.2 million to 2 million people out of coverage. Senators voted 48\u201351 on September 29, 2026, against starting debate on it.",
+   "question": "Do you support cancelling the 2027 HealthCare.gov and Basic Health Program rule?"
+  },
+  "sourceIds": [
+   "STATUS",
+   "RULE",
+   "FLOOR",
+   "PRIMER"
+  ]
+ }
+}

@@ -109,7 +109,9 @@ export const LIMITS = { headlineWords: 20, pointWords: 35, changesWords: 45, arg
   unknownWords: 30, totalWords: 360, totalWordsB5: 900, plainWords: 80, backgroundWords: 90, questionWords: 18, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
 
 export function words(text: string): string[] { return text.trim().split(/\s+/).filter(Boolean); }
-const wc = (t: string) => words(t).length;
+// 17 Nov: an explanation in parentheses ("user fees (a charge insurers pay …)") is required by the standard, so it does not
+// count against a part's own word limit. The whole-summary limit and the reading grade still count every word.
+const wc = (t: string) => words(t.replace(/\([^()]*\)/g, " ")).length;
 
 function syllables(word: string): number {
   const w = word.toLowerCase().replace(/[^a-z]/g, "");
@@ -171,6 +173,22 @@ export function bannedWordsIn(text: string): string[] {
 }
 
 /** Every sentence the model wrote, for the word, opinion and reading-level checks. */
+export type ReadingField = { kind: "headline" | "label" | "text"; get(): string; set(v: string): void };
+/**
+ * Every piece of text a reader sees, in reading order, each with a way to rewrite it. The jargon and abbreviation
+ * checks read them in this order (the first use of a term must carry its explanation), and the repair step
+ * (lib/analysis/repair.ts) writes its fixes back through the same list, so the two can never disagree.
+ */
+export function readingFields(d: SummaryDraft): ReadingField[] {
+  const f = <T,>(o: T, k: keyof T, kind: ReadingField["kind"] = "text"): ReadingField => ({ kind, get: () => String(o[k] ?? ""), set: v => { (o as Record<string, unknown>)[k as string] = v; } });
+  const at = (list: string[], i: number): ReadingField => ({ kind: "text", get: () => list[i] ?? "", set: v => { list[i] = v; } });
+  return [f(d, "headline", "headline"), f(d, "plainEnglish"),
+    ...(d.changes ?? []).flatMap(r => [f(r, "label", "label"), f(r, "before"), f(r, "today"), f(r, "ifPassed")]),
+    ...(d.howItWorksToday ?? []).map(p => f(p, "text")), f(d, "whyNow"), f(d, "background"),
+    ...d.whatItDoes.map(p => f(p, "text")), ...d.whoItAffects.map(p => f(p, "text")), f(d, "whatChangesForYou"),
+    ...d.caseFor.map(a => f(a, "argument")), ...d.caseAgainst.map(a => f(a, "argument")), ...d.unknowns.map((_, i) => at(d.unknowns, i))];
+}
+
 export function proseOf(d: SummaryDraft): string[] {
   const end = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
   return [end(d.headline), ...(d.plainEnglish ? [d.plainEnglish.trim()] : []), ...(d.howItWorksToday ?? []).map(p => end(p.text)),
@@ -271,13 +289,13 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
 
   const prose = proseOf(d), all = [...prose, ...d.caseFor.map(a => a.attribution), ...d.caseAgainst.map(a => a.attribution)].join(" ");
   const banned = bannedWordsIn(all);
-  if (banned.length) fail(`Loaded words: ${banned.join(", ")}.`);
+  if (banned.length) fail(`Loaded words: ${banned.join(", ")}. Even in a reason credited to a member, restate it in neutral words: say what the member says would happen, without the label.`);
   for (const [re, label] of OPINION_PATTERNS) if (re.test(all)) fail(`Contains ${label}.`);
 
   // The bill's own text is a source too: a fact in "What would change" may come straight from it.
   if (sources) checkB5(d, { ...sources, docs: [...sources.docs, { id: "BILL", text: opts.fullText ?? sectionsIn.map(x => `${x.heading} ${x.text ?? ""}`).join(" ") }] }, fail, warn);
 
-  const totalWords = prose.reduce((n, s) => n + wc(s), 0);
+  const totalWords = prose.reduce((n, s) => n + words(s).length, 0);
   if (totalWords > (sources ? LIMITS.totalWordsB5 : LIMITS.totalWords)) fail(`The summary is ${totalWords} words; the limit is ${sources ? LIMITS.totalWordsB5 : LIMITS.totalWords} (about two phone screens).`);
   const grade = plainGrade(prose.join(" "), opts.subject); // official names and the bill's own title words count as one short word each
   if (grade > LIMITS.gradeFail) {
@@ -401,12 +419,15 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
     }
   }
 
+  // Owner review, 17 Nov: before reading the rows the reader must already know what the old rule was and what the new rule is.
+  if (src.structure && src.cancelsRule && !plainStatesAChange(plain, rows))
+    fail("In plain English does not say what the old rule was and what the new rule is. Give at least one change with both figures (before the rule, and now), taken from a What would change row, as in the example: \"no plan could leave one person owing over $12,000 a year …; now some plans can go up to $15,600\".");
+
   // Owner review, 17 Nov: "raises the most some buyers can owe" says nothing. From what, to what?
   if (src.structure) for (const x of unquantifiedChanges([plain, ...today.map(p => p.text), ...rows.flatMap(r => [r.before ?? "", r.today, r.ifPassed])].join(" ")))
     fail(`"${x}…" says something goes up or down without the number. Say from what to what, with the figures in the sources.`);
 
-  const reading = [d.headline, plain, ...rows.flatMap(r => [r.label ?? "", r.before ?? "", r.today, r.ifPassed]), ...today.map(p => p.text), why, bg, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou,
-    ...d.caseFor.map(a => a.argument), ...d.caseAgainst.map(a => a.argument), ...d.unknowns];
+  const reading = readingFields(d).map(f => f.get().trim());
   for (const t of unexplainedJargon(reading)) fail(t.part === 0
     ? `The headline uses "${t.term}"; a headline has no room to explain it, so use plain words (${t.plain}).`
     : `"${t.term}" is used without explaining it. Replace it with plain words (${t.plain}) or explain it in parentheses the first time.`);
@@ -428,6 +449,16 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
   else if (!HAS_EXAMPLE.test(d.whatChangesForYou)) fail("What changes for you needs one concrete example of a real kind of person, e.g. \"A family in Ohio buying a 2027 marketplace plan would …\".");
   if (!d.caseAgainst.length) warn("No public statement of reasons against it was found in the official record; the page says so.");
   if (!d.caseFor.length) warn("No public statement of reasons for it was found in the official record; the page says so.");
+}
+
+const FIGURES = /\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:million|billion|trillion))?|\d[\d,]*(?:\.\d+)?\s?(?:percent|%)|\b\d[\d,]*(?:\.\d+)?\s(?:years?|months?|days?|hours?|weeks?)\b/gi;
+const figuresIn = (t: string) => (t.match(FIGURES) ?? []).map(x => x.replace(/\s+/g, " ").replace(/,/g, "").toLowerCase());
+/** Does the plain-English part state one change with its figure before the rule and its figure now? Rows without figures on both sides are not asked for. */
+export function plainStatesAChange(plain: string, rows: ReadonlyArray<{ before?: string; today: string }>): boolean {
+  const said = new Set(figuresIn(plain));
+  const numeric = rows.filter(r => figuresIn(r.before ?? "").length && figuresIn(r.today).length);
+  if (!numeric.length) return true;
+  return numeric.some(r => figuresIn(r.before ?? "").some(x => said.has(x)) && figuresIn(r.today).some(x => said.has(x) && !figuresIn(r.before ?? "").includes(x)));
 }
 
 // ───────────── Claim checks (formerly claims.ts; kept in this file so the tests load it without a bundler) ─────────────
@@ -533,7 +564,9 @@ export function titleShare(text: string, title: string): number {
 }
 
 export const CIRCULAR_CHANGE = /\bonly\s+(?:matter|matters|apply|applies|affect|affects)\b[^.]*\bif\b|\bif you are affected\b|\bwould notice no direct change\b|\bif (?:the|this) (?:rule|bill|law|resolution) (?:applies|affects) (?:to )?you\b|\bdepends on whether you are affected\b/i;
-export const HAS_EXAMPLE = /\bfor (?:example|instance)\b|(?:^|[.!?]\s+)(?:A|An)\s+(?:[a-z0-9-]+\s+){0,5}(?:who|whose|in|with|buying|earning|working|living|receiving|running|filing|paying|retiring|serving|shopping|enrolled|getting|using|covered)\b/;
+// 17 Nov, first real run: "A company planning a uranium enrichment plant could start building …" and "A soldier medically
+// retired after a combat injury and 12 years of service could keep …" were refused. A kind of person, then what happens to them.
+export const HAS_EXAMPLE = /\bfor (?:example|instance)\b|(?:^|[.!?]\s+)(?:A|An|One|Someone)\s+(?:[a-z0-9-]+\s+){0,5}(?:who|whose|in|with|buying|earning|working|living|receiving|running|filing|paying|retiring|serving|shopping|enrolled|getting|using|covered)\b|(?:^|[.!?]\s+)(?:A|An|One|Someone)\s+(?:[\w'’$,()%.-]+\s+){1,16}?(?:would|could|will|can|may|must|might)\b/;
 
 export function sentences(text: string): string[] { return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean); }
 

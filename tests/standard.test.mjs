@@ -97,3 +97,10 @@ test("the voting question follows the new headline form", () => {
   assert.equal(questionFromHeadline("Bans members of Congress from buying stocks and requires photo ID to vote."), "Do you support banning members of Congress from buying stocks and requiring photo ID to vote?");
   assert.ok(Object.keys(HEADLINE_VERBS).length >= 40);
 });
+
+test("\"Social Security\" and \"national security\" are not investing jargon; \"securities\" is", async () => {
+  const { unexplainedJargon } = await import("../lib/analysis/standard.ts");
+  assert.deepEqual(unexplainedJargon(["", "Social Security pays monthly income. The bill cites national security."]), []);
+  assert.equal(unexplainedJargon(["", "Members may not buy securities."]).length, 1);
+  assert.equal(unexplainedJargon(["", "A member who owns a security must sell it."]).length, 1);
+});

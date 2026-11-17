@@ -7,12 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-17T05:00:00Z";
-export const PLAN_NOTE = "You approved the three gold summaries and the first five explainers. They are now in use: every new summary opens with the old rule, the new rule and what the bill would do, then the background, with tap-open explainers. Summary writing has resumed. The next run rewrites the five summaries in this shape and runs both reader tests on the live site for the first time; Claude then checks each against its sources and reports the pass rate and the cost per summary. Readers still see no summaries and the limit stays at 5 until you give the go-ahead.";
+export const PLAN_UPDATED = "2026-11-17T02:55:00Z";
+export const PLAN_NOTE = "Your 8:06 PM run rewrote all five summaries, but none is good enough to show: every one was held by the written checks, so the average-reader test never ran (0 of 5 passed; about 3 cents each). Three causes, all fixed in the version now live: two checks raised false alarms (one summary failed only on a false alarm); the writer left jargon unexplained even after two retries, so the site now adds the reviewed plain-words explanation itself; and S.J.Res. 197 went last and got one try before time ran out, so it now goes first and a summary starts only when its full cycle fits. Press Run the update now once more: it rewrites S.J.Res. 197 and two or three others; the rest follow on the next run. Readers still see no summaries and the limit stays at 5.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Run the update, then decide on showing summaries and lifting the limit", needs: "your go-ahead",
-    why: "The next run (13:00 UTC, or sooner with Run the update now) rewrites the five summaries in the approved shape and runs both reader tests for real. Claude reports the pass rate and cost per summary. If they pass, the next step is your call: show summaries to trial readers and lift the 5-summary limit." },
+  { title: "Press Run the update now once more", needs: "you",
+    why: "The first real run held all five summaries (0 of 5 passed the written checks; the reader test never ran). The fixes are live. One press rewrites S.J.Res. 197 first and two or three others; Claude then reads each against its sources and reports the pass rate and the cost per summary. Showing summaries to readers and lifting the limit of 5 stay your call after that." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",

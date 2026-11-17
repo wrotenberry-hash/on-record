@@ -76,6 +76,48 @@ export const PRIMERS: Primer[] = [
     sources: [{ label: "38 U.S.C. 5304 and 5305 (the dollar-for-dollar rule)", url: USC(38, "5304") }, { label: "10 U.S.C. 1414 (retirees who get both)", url: USC(10, "1414") },
       { label: "10 U.S.C. 1413a (the combat-injury payment)", url: USC(10, "1413a") }],
     lawAsOf: "2026-11-17", reviewed: true, match: { text: /section 1413a|section 1414 of (?:such )?title|concurrent receipt/i } },
+
+  // Written 17 Nov 2026 from the agencies' own pages; they wait for the owner's approval (reviewed: false), so no page or prompt uses them yet.
+  { id: "medicare", kind: "topic", title: "Medicare",
+    bullets: [
+      "Medicare is federal health insurance for people 65 and older, and for some younger people with disabilities or certain conditions. It covered about 69 million people in 2025.",
+      "It comes in parts. Part A helps pay for hospital stays. Part B helps pay for doctor visits and other care outside a hospital. Part D helps pay for prescription drugs.",
+      "People choose how to get it. One way is run by the government and works with any doctor or hospital that takes Medicare. The other is a private plan that Medicare approves, called Medicare Advantage, which bundles the parts. About half of the people in Medicare use a private plan.",
+      "Workers and employers each pay a tax of 1.45 percent of wages toward hospital coverage, so most people pay no monthly price for Part A. Part B costs most people $202.90 a month in 2026. Most of the rest of the cost of Parts B and D comes from general federal funds.",
+      "The officials who oversee Medicare's finances project that its hospital fund will run out of savings in 2033. The taxes still coming in would then cover 89 percent of the hospital benefits owed."],
+    sources: [{ label: "Medicare.gov: the parts of Medicare", url: "https://www.medicare.gov/basics/get-started-with-medicare/medicare-basics/parts-of-medicare" },
+      { label: "Medicare.gov: how Medicare is funded", url: "https://www.medicare.gov/about-us/how-is-medicare-funded" },
+      { label: "Medicare.gov: what Medicare costs in 2026", url: "https://www.medicare.gov/basics/costs/medicare-costs" },
+      { label: "2026 Medicare Trustees Report (people covered, taxes, the 2033 projection)", url: "https://www.cms.gov/oact/tr/2026" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { text: /title XVIII of the Social Security Act|\bMedicare (?:program|beneficiar(?:y|ies)|Advantage|part [ABCD]\b|trust fund)|part [ABD] of (?:the )?Medicare/i } },
+
+  { id: "medicaid", kind: "topic", title: "Medicaid",
+    bullets: [
+      "Medicaid gives free or low-cost health coverage to people with low incomes, including children, pregnant women, older adults and people with disabilities. It covered about 66 million people in July 2026.",
+      "Each state runs its own Medicaid program under federal rules, so who qualifies and what is covered differ from state to state. A federal agency, the Centers for Medicare & Medicaid Services, oversees the states.",
+      "The federal government and the states split the cost. For most care, the federal share is at least 50 percent and at most 83 percent of what a state spends. States where people earn less on average get a larger share.",
+      "Every state must cover certain groups, such as low-income families and pregnant women. Since 2014 states may also cover adults based on low income alone, and most do. Starting January 1, 2027, certain adults must complete at least 80 hours a month of work or other approved activities to get and keep coverage.",
+      "Medicaid is not the same as Medicare, the federal insurance for people 65 and older. About 12 million people have both. Medicaid pays for some things Medicare normally does not, like nursing home care."],
+    sources: [{ label: "Medicaid.gov: the program", url: "https://www.medicaid.gov/medicaid" },
+      { label: "Medicaid.gov: who is eligible", url: "https://www.medicaid.gov/medicaid/eligibility-policy" },
+      { label: "Medicaid.gov: how it is paid for", url: "https://www.medicaid.gov/medicaid/financial-management" },
+      { label: "Medicaid.gov: people covered, July 2026", url: "https://www.medicaid.gov/medicaid/program-information/medicaid-and-chip-enrollment-data/report-highlights" },
+      { label: "Federal Register: the federal share for each state (the 50 and 83 percent limits)", url: "https://www.govinfo.gov/content/pkg/FR-2025-11-28/html/2025-21332.htm" },
+      { label: "Medicare.gov: Medicaid and the 2027 work rule", url: "https://www.medicare.gov/basics/costs/help/medicaid" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { text: /title XIX of the Social Security Act|\bMedicaid (?:program|beneficiar(?:y|ies)|eligib\w+|expansion|coverage)|State plan under title XIX/i } },
+
+  { id: "social-security", kind: "topic", title: "Social Security",
+    bullets: [
+      "Social Security pays monthly income to retired workers, to workers who become disabled, and to the families of workers who have died. About 70 million people got payments in December 2025.",
+      "Workers pay for it through a tax on wages: 6.2 percent from the worker and 6.2 percent from the employer. In 2026 the tax applies to the first $184,500 a person earns in the year. About 185 million workers paid it in 2025.",
+      "The size of a person's monthly payment depends on what they earned while working. Retirement payments can start at 62, at a reduced amount. For people born in 1960 or later, the age for the full amount is 67.",
+      "A federal agency, the Social Security Administration, runs it. The tax money goes into two funds that pay the benefits. In 2025 the program paid out $160 billion more than it took in and covered the gap from savings.",
+      "The officials who oversee the funds project that the combined savings will run out in 2034. The taxes still coming in would then cover 83 percent of the benefits owed."],
+    sources: [{ label: "2026 Social Security Trustees Report (people paid, taxes, the 2034 projection)", url: "https://www.govinfo.gov/content/pkg/CDOC-119hdoc163/pdf/CDOC-119hdoc163.pdf" },
+      { label: "Federal Register: Social Security amounts for 2026", url: "https://www.govinfo.gov/content/pkg/FR-2025-11-03/html/2025-19763.htm" },
+      { label: "26 U.S.C. 3101 (the tax on wages)", url: USC(26, "3101") },
+      { label: "HealthCare.gov glossary: Social Security", url: "https://www.healthcare.gov/glossary/social-security/" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { text: /title II of the Social Security Act|old-age, survivors, and disability insurance|Social Security (?:benefits?|retirement|trust funds?|Administration)|Federal Old-Age and Survivors Insurance Trust Fund/i } },
 ];
 
 export type PrimerContext = { title: string; text: string; actions: string };

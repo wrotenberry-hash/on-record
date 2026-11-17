@@ -24,7 +24,7 @@ export const JARGON: JargonTerm[] = [
   j("cost-sharing", "cost[- ]sharing", "what you pay yourself: deductibles and copays"),
   j("Basic Health Program", "basic health programs?", "state-run low-cost coverage for people who earn a little too much for Medicaid"),
   j("qualified health plan", "qualified health plans?", "a plan approved for sale on the government marketplace"),
-  j("Exchange", "(?:federally[- ]facilitated |state[- ]based )?exchanges?", "the government marketplace where people buy health plans (HealthCare.gov in most states)"),
+  j("Exchange", "(?<!securities (?:and )?)(?<!stock )(?:federally[- ]facilitated |state[- ]based )?exchanges?(?! act\\b| commission\\b)", "the government marketplace where people buy health plans (HealthCare.gov in most states)"),
   j("issuer", "issuers?", "insurance company"),
   j("essential health benefits", "essential health benefits?", "the services every plan must cover"),
   j("catastrophic plan", "catastrophic (?:plans?|coverage)", "a plan with low monthly payments and a very high deductible"),
@@ -88,7 +88,7 @@ export const JARGON: JargonTerm[] = [
   j("separate account", "separate accounts?", "an insurance company's investment account kept apart from its own money"),
   j("covered investment", "covered investments?", "the kinds of investments the bill restricts"),
   j("blind trust", "(?:qualified )?blind trusts?", "investments managed by someone else without the owner knowing what is held"),
-  j("securities", "securit(?:y|ies)(?! number)", "stocks, bonds and similar investments"),
+  j("securities", "securities(?! (?:and )?exchange\\b| act\\b)|(?:a|an?y|each) security", "stocks, bonds and similar investments"),
 ];
 
 const SENTENCE_END = /[.!?](?:\s|$)/;

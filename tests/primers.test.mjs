@@ -16,7 +16,7 @@ for (const p of PRIMERS) test(`primer "${p.title}" meets the same written rules 
   assert.deepEqual(unexplainedAcronyms(p.bullets), [], "no bare abbreviations");
   assert.deepEqual(fillerIn(p.bullets.join(" ")), []);
   assert.ok(plainGrade(p.bullets.join(" ")) <= 10, `reading grade ${plainGrade(p.bullets.join(" "))}`);
-  assert.ok(p.sources.length >= 1 && p.sources.every(s => /^https:\/\/(www\.govinfo\.gov|www\.senate\.gov|www\.healthcare\.gov)\//.test(s.url)), "official sources only");
+  assert.ok(p.sources.length >= 1 && p.sources.every(s => /^https:\/\/(www\.govinfo\.gov|www\.senate\.gov|www\.healthcare\.gov|www\.medicare\.gov|www\.medicaid\.gov|www\.cms\.gov|www\.cbo\.gov|www\.cbp\.gov|www\.ssa\.gov)\//.test(s.url)), "official sources only");
   assert.match(p.lawAsOf, /^\d{4}-\d{2}-\d{2}$/);
 });
 
