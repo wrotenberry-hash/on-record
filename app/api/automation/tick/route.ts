@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, like } from "drizzle-orm";
+import { and, desc, eq, isNull, like, lt } from "drizzle-orm";
 import { getDb } from "@/db";
 import { automationRuns, machineResearchDrafts, representations } from "@/db/schema";
 import { runDiscovery } from "@/app/api/editor/discover/route";
@@ -42,6 +42,9 @@ async function runTick(request: Request) {
   const now = Date.now(), slot = new Date(now).toISOString().slice(0, 13), day = slot.slice(0, 10);
   origin = new URL(request.url).origin;
   const db = getDb();
+  // A run the host cut off at its 300 s limit never records its end. Close it out so it reads as cut off, not as still running.
+  await db.update(automationRuns).set({ status: "FAILED", finishedAt: now, error: "Cut off by the host's 5-minute limit before it finished." })
+    .where(and(eq(automationRuns.status, "RUNNING"), lt(automationRuns.startedAt, now - 330_000))).catch(() => undefined);
   // Owner decision 2026-11-16: waiting cases older than 14 days are archived (never deleted) on every
   // run, before the backlog check, so the pause lifts on its own. The editor can restore any of them.
   const archived = await archiveOldCases(now).catch(() => null);
