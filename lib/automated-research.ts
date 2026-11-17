@@ -12,7 +12,7 @@ type OutputText = { type: string; text?: string; annotations?: Array<{ type: str
 type ResponseItem = { type: string; action?: { type?: string; query?: string; queries?: string[]; sources?: Array<{ url?: string; title?: string }> }; content?: OutputText[] };
 export type ModelResponse = { id: string; status: string; output: ResponseItem[]; error?: { message: string };
   usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } } };
-export type CallMeta = { purpose: "capture" | "research" | "assessment" | "analysis" | "classify"; refId?: string | null };
+export type CallMeta = { purpose: "capture" | "research" | "assessment" | "analysis" | "classify" | "reader_test"; refId?: string | null };
 const OPENAI_API_BASE = process.env.OPENAI_API_BASE?.trim() || "https://api.openai.com/v1";
 
 /** Every call's tokens and cost go to the model_calls ledger. Loaded lazily so this module stays importable by the unit tests; a ledger fault never fails the call. */

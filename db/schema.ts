@@ -774,3 +774,16 @@ export const analysisSummaryDetails = sqliteTable("analysis_summary_details", {
   promptVersion: text("prompt_version").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+// ── Average-reader test (owner instruction, 17 Nov 2026; migration 0031). New table only. One row per test: what a
+// reader given only the headline and the plain-English part answered, how those answers compare with the sources,
+// pass or fail with the reasons, and what the two model calls cost.
+export const analysisReaderTests = sqliteTable("analysis_reader_tests", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => analysisBillSummaries.id).notNull(),
+  attempt: integer("attempt").notNull(), passed: integer("passed").notNull(),
+  headline: text("headline").notNull(), plainEnglish: text("plain_english").notNull(),
+  reader: text("reader", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  judge: text("judge", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  reasons: text("reasons", { mode: "json" }).$type<string[]>().notNull(),
+  costUsd: real("cost_usd").notNull(), model: text("model").notNull(), promptVersion: text("prompt_version").notNull(), at: integer("at").notNull(),
+}, t => [index("analysis_reader_tests_summary_idx").on(t.summaryId, t.at), index("analysis_reader_tests_at_idx").on(t.at)]);

@@ -187,3 +187,12 @@ table.history:focus-visible,.share-slides:focus-visible{outline:2px solid #163b3
 .whats-next a{text-decoration:underline}
 h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middle}
 .run-now{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #d9ded9;border-radius:6px;padding:12px}.run-now button{background:#163b3c;color:#fff;border:1px solid #163b3c;border-radius:3px;padding:10px 18px;font:600 15px Arial,sans-serif;min-height:44px}.run-now .meta{flex:1 1 200px}
+/* Bill page layers (17 Nov): headline, plain English, then "Explain more". */
+.plain-english p { font-size: 1.12rem; line-height: 1.55; }
+.explain-more { border-top: 1px solid var(--line, #d9ded9); border-bottom: 1px solid var(--line, #d9ded9); margin: 1.25rem 0; }
+.explain-more > summary { cursor: pointer; padding: .9rem 0; font-weight: 700; font-size: 1.05rem; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; list-style: none; }
+.explain-more > summary::-webkit-details-marker { display: none; }
+.explain-more > summary::before { content: "+"; display: inline-block; width: 1.2rem; font-weight: 700; }
+.explain-more[open] > summary::before { content: "–"; }
+.explain-more > summary .meta { font-weight: 400; }
+.explain-more > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }

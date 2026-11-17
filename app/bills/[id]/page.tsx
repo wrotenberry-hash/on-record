@@ -96,7 +96,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
     const doc = docs.find(d => d.id.toUpperCase() === section.trim().toUpperCase());
     return doc ? <a className="cite" href={doc.url} target="_blank" rel="noopener noreferrer" title={doc.label}>{shortSource(doc)}</a> : <span className="cite">{section}</span>;
   };
-  const sideNote = "No one in the official record we use makes this case yet (no committee minority views, agency position or other stated reason).";
+  const sideNote = "No public statement of reasons found."; // owner wording, 17 Nov: never an invented reason
   // Owner, 16 Nov: ask with the plain headline, official title one tap away. Readers only ever get a reader-visible
   // summary here (summaryForBill gates it); a held one is used only for the signed-in editor's preview.
   const ask = stanceQuestion({ question: s && (!held || access.preview) ? analysis?.details?.question ?? null : null, headline: s && (!held || access.preview) ? s.headline : null });
@@ -115,7 +115,6 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       {categories.length > 0 && <ul className="chip-row">{categories.map(c => <li key={c.slug}><Link href={`/issues/${c.slug}`}>{c.name}{c.method === "ai" ? " · sorted by AI" : ""}</Link></li>)}</ul>}
 
       {s && analysis?.details?.plainEnglish && <div className="fed-section plain-english"><h2>In plain English <AnalysisBadge /></h2><p>{analysis.details.plainEnglish}</p></div>}
-      {s && analysis?.details?.background && <div className="fed-section"><h2>Background <AnalysisBadge /></h2><p>{analysis.details.background} {analysis.details.backgroundSources.map(id => <span key={id}>{cite(id)} </span>)}</p></div>}
 
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
 
@@ -128,19 +127,15 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         {bill.introducedAt && <p className="meta">Introduced {shortDate(bill.introducedAt)}</p>}
       </div>
 
-      {s && <>
+      {/* Owner, 17 Nov: layers. Headline, then plain English, then "Explain more", then sources. A reader who stops
+          after the plain-English part should still understand the bill; an older summary with no plain-English part opens the details. */}
+      {s && <details className="explain-more" open={!analysis?.details?.plainEnglish}>
+        <summary>Explain more <span className="meta">background, details, the case for and against</span></summary>
+        {analysis?.details?.background && <div className="fed-section"><h2>Background <AnalysisBadge /></h2><p>{analysis.details.background} {analysis.details.backgroundSources.map(id => <span key={id}>{cite(id)} </span>)}</p></div>}
         <div className="fed-section"><h2>What it does <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.whatItDoes.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
         <div className="fed-section"><h2>Who it affects <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.whoItAffects.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
-      </>}
-
-      <div className="fed-section"><h2>Cost <OfficialBadge /></h2>
-        {cbo.length ? <ul className="analysis-list">{cbo.map(e => <li key={e.url}><a href={e.url} target="_blank" rel="noopener noreferrer">Congressional Budget Office estimate</a>, {shortDate(e.pubDate)}{e.description ? `: ${e.description}` : ""}</li>)}</ul>
-          : <p className="meta">{s ? "No Congressional Budget Office cost estimate has been published for this bill." : "Cost estimates are read when the summary is written."}</p>}
-      </div>
-
-      {s && <>
         <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
         <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2>
           <div className="case-grid">
@@ -150,7 +145,13 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           <p className="meta">{analysis?.details ? "Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not On Record's view." : "Both sides are written to the same length and standard. They describe arguments people make; they are not On Record's view."}</p></div>
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
-      </>}
+      </details>}
+
+      <div className="fed-section"><h2>Cost <OfficialBadge /></h2>
+        {cbo.length ? <ul className="analysis-list">{cbo.map(e => <li key={e.url}><a href={e.url} target="_blank" rel="noopener noreferrer">Congressional Budget Office estimate</a>, {shortDate(e.pubDate)}{e.description ? `: ${e.description}` : ""}</li>)}</ul>
+          : <p className="meta">{s ? "No Congressional Budget Office cost estimate has been published for this bill." : "Cost estimates are read when the summary is written."}</p>}
+      </div>
+
 
       {changes && <div className="fed-section"><h2>What changed between versions {changes.bullets ? <AnalysisBadge /> : <OfficialBadge />}</h2>
         <p className="meta">From the {changes.fromType.toLowerCase()} text to the {changes.toType.toLowerCase()} text.</p>

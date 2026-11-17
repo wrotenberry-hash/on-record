@@ -91,22 +91,7 @@ test("S.J.Res. 197 regression: the b4 summary fails the b5 checks for every prob
   assert.match(f, /attributed to "the resolution's sponsor", who is not in the record/);
 });
 
-test("S.J.Res. 197: a summary built from the rule's own summary passes", () => {
-  const good = { ...b4,
-    headline: "Would block the 2027 Affordable Care Act marketplace rule that sets insurer fees and plan standards.",
-    plainEnglish: "This resolution would cancel the 2027 Affordable Care Act marketplace rule. That rule sets fees that insurers pay to sell plans on federal exchanges and changes plan standards. The Senate voted not to take it up, so the rule stays in place for now.",
-    background: "The rule sets 2027 user fee rates for insurers on Federally-facilitated Exchanges, allows catastrophic plans with terms of up to 10 years, and changes who counts in Basic Health Program payments to states.",
-    backgroundSources: ["RULE"], question: "Do you support blocking the 2027 Affordable Care Act marketplace rule?",
-    whatItDoes: [{ text: "Congress would disapprove the 2027 marketplace payment rule, and the rule would have no force or effect.", section: "Full text" }],
-    whoItAffects: [{ text: "Issuers offering qualified health plans through Federally-facilitated Exchanges, which pay the 2027 user fees the rule sets.", section: "RULE" },
-      { text: "States with a Basic Health Program, whose federal payments the rule changes.", section: "RULE" }],
-    whatChangesForYou: "A person buying a catastrophic plan on a federal exchange could lose the rule's option of plan terms of up to 10 years. Insurer user fees for 2027 would fall back to earlier rules.",
-    caseFor: [{ argument: "Blocking it would stop the rule's 2027 user fees, agent standards and plan changes from applying to marketplace insurers and enrollees.", attribution: "Sen. Tammy Baldwin, the sponsor", source: "RULE" }],
-    caseAgainst: [{ argument: "The agency says the rule improves how the Affordable Care Act works, including user fee rates, catastrophic plan options and payment parameters.", attribution: "the Centers for Medicare & Medicaid Services, which issued the rule", source: "RULE" }],
-    unknowns: ["No CBO estimate is listed, so the budget effect of blocking the rule is not shown."], confidence: "medium", confidenceReason: "The rule's own summary is clear, but its full effects depend on its long text." };
-  const r = checkSummary(good, [], { fullText: TEXT, sources: context });
-  assert.deepEqual(r.failures, []);
-});
+// The passing S.J.Res. 197 summary is now the gold example checked in tests/gold.test.mjs.
 
 test("a resolution with no numbered sections is now checked against its full text", () => {
   const r = checkSummary({ ...b4, whatItDoes: [{ text: "Raises the minimum wage for restaurant workers in every state.", section: "Full text" }] }, [], { fullText: TEXT, sources: context });

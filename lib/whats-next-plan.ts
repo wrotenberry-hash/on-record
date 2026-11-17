@@ -7,12 +7,12 @@ export type Recommendation = { title: string; why: string; needs: "your go-ahead
 export type OwnerStep = { key: string; title: string; minutes: number; why: string; steps: string[]; doneWhen: string };
 export type RoundStatus = { round: string; what: string; state: "live" | "live, waiting on data" | "live behind a switch" | "in progress" };
 
-export const PLAN_UPDATED = "2026-11-16T23:55:00Z";
-export const PLAN_NOTE = "Your review found the summaries restated titles and S.J.Res. 197's headline was wrong (it named Medicare and Medicaid; the rule is the 2027 ACA marketplace payment rule). Readers now see no summaries. The generator was rebuilt (b5): it reads the CRS summary, CBO, committee reports, the Federal Register rule and the U.S. Code sections a bill changes; every named thing must appear in a source; new parts In plain English and Background; arguments credited only to who makes them in the record. The bill timeline now shows failed floor votes (Senate 48-51 not to take it up, Sep 29). Next: one run rewrites the five; Claude reviews them against every source; you review S.J.Res. 197 before anything is shown or the cap is raised.";
+export const PLAN_UPDATED = "2026-11-17T02:30:00Z";
+export const PLAN_NOTE = "You asked for a new writing standard and an average-reader test. Both are built (generator b6): headlines of 15 words or fewer that start with a clear verb, a plain-English part that says what changes in daily life, a jargon list, reasons taken from floor debates and the rule itself, and a test where a separate reader sees only the headline and plain-English part and must answer three questions correctly. Three gold examples (S.J.Res. 197, H.R. 2102, H.R. 7008) are written and waiting for your approval. Readers see no summaries and the limit stays at 5 until you approve. The next run rewrites the five under the new rules and gives the first real pass rate and cost.";
 
 export const RECOMMENDED: Recommendation[] = [
-  { title: "Review S.J.Res. 197 in the rebuilt format", needs: "you",
-    why: "Nothing is shown to readers until you approve it. After one run rewrites the five summaries in the new format, Claude checks each against every official source, then sends you S.J.Res. 197. Only after your OK are summaries shown and the 5-summary cap raised." },
+  { title: "Approve the three gold summaries", needs: "you",
+    why: "They are the examples the generator will learn from: S.J.Res. 197, H.R. 2102 and H.R. 7008, each shown next to the current version. Claude sent you the page. Reply approve, or say what to change. Nothing is shown to readers and the 5-summary limit stays until you do." },
   { title: "Replace the OpenAI key with one that does not expire", needs: "you",
     why: "The current key stops working on 23 Nov. When it does, summaries and statement research stop. 5 minutes (steps below)." },
   { title: "Hand out 5 trial invites, after the rewritten summaries pass", needs: "your go-ahead",

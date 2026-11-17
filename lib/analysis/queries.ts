@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { readerVisible } from "@/lib/analysis/publish-gate";
-import { analysisBillSummaries, analysisChecks, analysisSummaryDetails, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
+import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisSummaryDetails, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
 
 /**
  * The summary shown on a bill page. Readers see only a visible summary; the
@@ -78,11 +78,38 @@ export async function analysisCounts() {
     .from(analysisBillSummaries).leftJoin(analysisReviewQueue, eq(analysisReviewQueue.summaryId, analysisBillSummaries.id))
     .orderBy(analysisBillSummaries.sequence).limit(50);
   const count = (s: string) => Number(byStatus.find(r => r.status === s)?.n ?? 0);
+  // Numbers only on the probe: the reasons quote reader answers, so they stay on the editor's Summary quality page.
+  const readerTest = await readerTestStats().then(({ recentFailReasons, ...numbers }) => { void recentFailReasons; return numbers; }).catch(() => null);
   const detail = (last?.detail ?? {}) as { stoppedBy?: string | null; made?: unknown[] };
   return { summaries: byStatus.reduce((n, r) => n + Number(r.n), 0), written: byStatus.reduce((n, r) => n + Number(r.n), 0), editorApproved: Number(approved?.n ?? 0), visible: count("visible"), held: count("held"), rejected: count("rejected"),
     openReviews: Number(open?.n ?? 0), summaryCostUsd: Math.round(byStatus.reduce((n, r) => n + Number(r.usd), 0) * 10000) / 10000,
     analysisCallsUsd: Math.round(Number(spend?.usd ?? 0) * 10000) / 10000, analysisCalls: Number(spend?.calls ?? 0),
     each: each.map(e => ({ ...e, checkPassed: e.checkPassed === 1, costUsd: Math.round(e.costUsd * 10000) / 10000 })),
+    readerTest,
     lastRun: last ? { status: last.status, startedAt: new Date(last.startedAt).toISOString(), made: Array.isArray(detail.made) ? detail.made.length : 0, stoppedBy: detail.stoppedBy ?? null,
       error: last.error ? last.error.replace(/https?:\/\/\S+/g, "[url]").slice(0, 160) : null } : null };
+}
+
+/**
+ * The average-reader test in numbers (owner instruction, 17 Nov): how many tests ran, the share that passed first
+ * time, the share of summaries that passed in the end, and what the test adds to each summary's cost.
+ */
+export async function readerTestStats() {
+  const db = getDb();
+  const rows = await db.select({ summaryId: analysisReaderTests.summaryId, attempt: analysisReaderTests.attempt, passed: analysisReaderTests.passed, costUsd: analysisReaderTests.costUsd,
+    reasons: analysisReaderTests.reasons, promptVersion: analysisReaderTests.promptVersion, at: analysisReaderTests.at }).from(analysisReaderTests).orderBy(desc(analysisReaderTests.at)).limit(500);
+  if (!rows.length) return { tests: 0, summariesTested: 0, passedFirstTry: 0, passedInTheEnd: 0, firstTryPassRate: null, finalPassRate: null, costUsd: 0, addedCostPerSummaryUsd: null, recentFailReasons: [] as string[] };
+  const bySummary = new Map<string, typeof rows>();
+  for (const r of rows) bySummary.set(r.summaryId, [...(bySummary.get(r.summaryId) ?? []), r]);
+  let first = 0, final = 0;
+  for (const list of bySummary.values()) {
+    const latestVersion = list[0].promptVersion, cur = list.filter(r => r.promptVersion === latestVersion).sort((a, b) => a.at - b.at);
+    if (cur[0]?.passed === 1) first++;
+    if (cur.at(-1)?.passed === 1) final++;
+  }
+  const cost = rows.reduce((n, r) => n + r.costUsd, 0), n = bySummary.size;
+  return { tests: rows.length, summariesTested: n, passedFirstTry: first, passedInTheEnd: final, firstTryPassRate: Math.round((first / n) * 100) / 100, finalPassRate: Math.round((final / n) * 100) / 100,
+    costUsd: Math.round(cost * 10000) / 10000, addedCostPerSummaryUsd: Math.round((cost / n) * 10000) / 10000,
+    // Reasons only (no summary text): what readers got wrong or did not understand, most recent first.
+    recentFailReasons: rows.filter(r => r.passed !== 1).flatMap(r => r.reasons).slice(0, 6).map(x => x.slice(0, 200)) };
 }

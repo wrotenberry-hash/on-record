@@ -33,7 +33,11 @@ export function gerund(verb: string): string {
 /** A question from a "Would …" headline, or null when the headline does not have that shape. */
 export function questionFromHeadline(headline: string | null | undefined): string | null {
   const h = String(headline ?? "").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
-  const m = h.match(/^Would\s+(.+)$/);
+  // 17 Nov writing standard: headlines now start with a present-tense verb ("Blocks new 2027 rules …"). Older ones start "Would …".
+  const present = h.match(/^([A-Z][a-z]+)(?:s|es)\s+(.+)$/);
+  const base = present ? (present[1].toLowerCase() + (/(?:ss|sh|ch|x)$/.test(present[1]) ? "" : "")) : null;
+  const stem = present ? [base!, `${base}e`, base!.replace(/i$/, "y")].find(v => COMMON.has(v) || DOUBLE.has(v)) : null;
+  const m = stem ? [h, `${stem} ${present![2]}`] : h.match(/^Would\s+(.+)$/);
   if (!m) return null;
   const words = m[1].split(" ");
   while (words.length && SKIP.has(words[0].toLowerCase())) words.shift();
@@ -42,7 +46,9 @@ export function questionFromHeadline(headline: string | null | undefined): strin
   // A second verb after "and" / "or" / a comma takes the same form.
   for (let i = 1; i < words.length - 1; i++) {
     const join = words[i].toLowerCase(), next = words[i + 1];
-    if ((join === "and" || join === "or") && COMMON.has(next) && /^[a-z]+$/.test(next)) words[i + 1] = gerund(next);
+    if (!(join === "and" || join === "or") || !/^[a-z]+$/.test(next)) continue;
+    const second = [next, next.replace(/s$/, ""), next.replace(/es$/, "")].find(v => COMMON.has(v) || DOUBLE.has(v)); // "and requires" in a present-tense headline
+    if (second) words[i + 1] = gerund(second);
   }
   const q = `Do you support ${words.join(" ")}?`;
   return q.length <= 200 ? q : null;

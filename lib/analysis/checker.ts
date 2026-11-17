@@ -4,12 +4,15 @@
  * in tests/analysis.test.mjs. A summary that fails is regenerated once with the
  * failures as feedback; a second failure holds it for an editor.
  */
+// The ".ts" ending lets the node test runner load this without a bundler (tsconfig: allowImportingTsExtensions).
+import { EVERYDAY_NAMES, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, unexplainedAcronyms, unexplainedJargon } from "./standard.ts";
+
 export type Section = { num: string; heading: string; text?: string };
 
 /** Normalise a citation such as "Sec. 2", "Section 2(a)" or "§ 3" to its section number, or null. */
 export function citedSection(cite: string): string | null {
   const id = cite.trim().toUpperCase();
-  if (/^(FULL|RULE|REPORT|CRS|CBO|BILL|USC \d+ §[0-9A-Z-]+)$/.test(id)) return id;
+  if (/^(FULL|RULE|REPORT|CRS|CBO|BILL|STATUS|FLOOR\d?|USC \d+ §[0-9A-Z-]+)$/.test(id)) return id;
   if (/^full text$/i.test(cite.trim())) return "FULL";
   const m = cite.match(/(?:sec(?:tion)?s?\.?|§)\s*(\d+[A-Za-z]?)/i);
   return m ? m[1].toUpperCase() : null;
@@ -97,7 +100,7 @@ const OPINION_PATTERNS: Array<[RegExp, string]> = [
 const VAGUE_ATTRIBUTION = /^(some|many|others|people|critics|supporters|opponents|proponents|experts|observers|some people|many people|it is argued)$/i;
 
 export const LIMITS = { headlineWords: 20, pointWords: 35, changesWords: 45, argumentWords: 40, argumentMinWords: 8,
-  unknownWords: 30, totalWords: 360, totalWordsB5: 470, plainWords: 75, backgroundWords: 90, questionWords: 18, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
+  unknownWords: 30, totalWords: 360, totalWordsB5: 520, plainWords: 80, backgroundWords: 90, questionWords: 18, maxPoints: 3, maxUnknowns: 3, gradeFail: 12, gradeWarn: 9 } as const;
 
 export function words(text: string): string[] { return text.trim().split(/\s+/).filter(Boolean); }
 const wc = (t: string) => words(t).length;
@@ -173,7 +176,9 @@ export function proseOf(d: SummaryDraft): string[] {
  * name is not read as a program), the actors the record supplies for each side, and whether background is required.
  */
 export type SourceContext = { title: string; docs: ReadonlyArray<{ id: string; text: string }>; agencies: readonly string[];
-  allowedFor: readonly string[]; allowedAgainst: readonly string[]; needsBackground: boolean };
+  allowedFor: readonly string[]; allowedAgainst: readonly string[]; needsBackground: boolean;
+  /** What each named member said on the floor: a reason credited to a speaker must come from that speaker's own words. */
+  speakers?: ReadonlyArray<{ name: string; text: string }> };
 
 export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], opts: { truncated?: boolean; subject?: string; fullText?: string; sources?: SourceContext; b5Shape?: boolean } = {}): CheckResult {
   const failures: string[] = [], warnings: string[] = [];
@@ -185,15 +190,19 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
   const cite = (c: string) => /full text/i.test(c) && !sectionsIn.length ? "FULL" : c;
 
   // Headline: a "Would ..." sentence of at most 20 words.
-  if (!/^Would\b/.test(d.headline.trim())) fail("Headline must start with \"Would\".");
-  if (wc(d.headline) > LIMITS.headlineWords) fail(`Headline is ${wc(d.headline)} words; the limit is ${LIMITS.headlineWords}.`);
+  const modern = !!(opts.sources || opts.b5Shape); // the 17 Nov writing standard: a clear verb first, at most 15 words
+  if (modern) for (const m of headlineProblems(d.headline)) fail(m);
+  else {
+    if (!/^Would\b/.test(d.headline.trim())) fail("Headline must start with \"Would\".");
+    if (wc(d.headline) > LIMITS.headlineWords) fail(`Headline is ${wc(d.headline)} words; the limit is ${LIMITS.headlineWords}.`);
+  }
 
   const points = (label: string, list: Point[]) => {
     if (list.length < 1 || list.length > LIMITS.maxPoints) fail(`${label} needs 1 to ${LIMITS.maxPoints} points; it has ${list.length}.`);
     list.forEach((p, i) => {
       if (wc(p.text) > LIMITS.pointWords) fail(`${label} point ${i + 1} is ${wc(p.text)} words; the limit is ${LIMITS.pointWords}.`);
       if (!p.section.trim()) fail(`${label} point ${i + 1} cites no section.`);
-      else if (opts.b5Shape && !sources && /^(RULE|REPORT|CRS|CBO|USC )/i.test(p.section.trim())) { /* a source citation; sources are not re-fetched on re-review */ }
+      else if (opts.b5Shape && !sources && /^(RULE|REPORT|CRS|CBO|FLOOR|STATUS|USC )/i.test(p.section.trim())) { /* a source citation; sources are not re-fetched on re-review */ }
       else if (!citeExists(cite(p.section), sections)) fail(`${label} point ${i + 1} cites "${p.section}", which is not a section of this text or one of the sources.`);
       else if (citeSupports(p.text, cite(p.section), sections) === false) fail(`${label} point ${i + 1} shares no key words with ${p.section}; cite the section or source that says it.`);
       else { const share = citeOverlap(p.text, cite(p.section), sections); if (share !== null && share < 0.34) warn(`${label} point ${i + 1} uses mostly words that are not in ${p.section}; check it adds no group or effect the section does not state.`); }
@@ -214,7 +223,7 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
     if (!allowedActors && opts.b5Shape) { if (list.length > 2) fail(`${label} needs at most 2 arguments; it has ${list.length}.`); }
     else if (!allowedActors) { if (list.length !== 2) fail(`${label} needs exactly 2 arguments; it has ${list.length}.`); }
     else if (!allowedActors.length) { if (list.length) fail(`${label}: the official record names no one who makes this case, so leave it empty; the page says so.`); }
-    else if (list.length < 1 || list.length > 2) fail(`${label} needs 1 or 2 arguments; it has ${list.length}.`);
+    else if (list.length > 2) fail(`${label} needs at most 2 arguments; it has ${list.length}.`);
     list.forEach((a, i) => {
       const n = wc(a.argument);
       if (n > LIMITS.argumentWords) fail(`${label} argument ${i + 1} is ${n} words; the limit is ${LIMITS.argumentWords}.`);
@@ -229,6 +238,11 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
         if (!src) fail(`${label} argument ${i + 1} names no source; cite the official source it comes from.`);
         else if (!citeExists(src, sections)) fail(`${label} argument ${i + 1} cites "${src}", which is not one of the sources provided.`);
         else if (citeSupports(a.argument, src, sections) === false) fail(`${label} argument ${i + 1} shares no key words with ${src}; base it on what that source says.`);
+        const speaker = (sources.speakers ?? []).find(sp => new RegExp(`\\b${sp.name.split(" of ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(who));
+        if (speaker && /^FLOOR/i.test(src)) {
+          const said = contentWords(speaker.text), arg = [...contentWords(a.argument)];
+          if (arg.length && arg.filter(w => said.has(w)).length / arg.length < 0.34) fail(`${label} argument ${i + 1} is credited to ${speaker.name}, but most of its words are not in what ${speaker.name} said on the floor. Use a reason they actually gave.`);
+        }
       }
     });
   };
@@ -236,7 +250,10 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
   side("Case against", d.caseAgainst, sources?.allowedAgainst);
   const forWords = d.caseFor.reduce((n, a) => n + wc(a.argument), 0), againstWords = d.caseAgainst.reduce((n, a) => n + wc(a.argument), 0);
   const gap = Math.abs(forWords - againstWords), allowed = Math.max(8, Math.round(0.25 * Math.max(forWords, againstWords)));
-  if (gap > allowed && (!(sources || opts.b5Shape) || (d.caseFor.length && d.caseAgainst.length))) fail(`The case for is ${forWords} words and the case against is ${againstWords}; they must be within ${allowed} words of each other.`);
+  // With reasons taken from the record, one side may have two and the other one: then compare the length of each argument, not the totals.
+  const perFor = d.caseFor.length ? forWords / d.caseFor.length : 0, perAgainst = d.caseAgainst.length ? againstWords / d.caseAgainst.length : 0;
+  if (modern) { if (d.caseFor.length && d.caseAgainst.length && Math.abs(perFor - perAgainst) > Math.max(8, 0.3 * Math.max(perFor, perAgainst))) fail(`The case for averages ${Math.round(perFor)} words an argument and the case against ${Math.round(perAgainst)}; give both sides the same care and similar length.`); }
+  else if (gap > allowed) fail(`The case for is ${forWords} words and the case against is ${againstWords}; they must be within ${allowed} words of each other.`);
 
   if (d.unknowns.length < 1 || d.unknowns.length > LIMITS.maxUnknowns) fail(`What we don't know needs 1 to ${LIMITS.maxUnknowns} points; it has ${d.unknowns.length}.`);
   d.unknowns.forEach((u, i) => { if (wc(u) > LIMITS.unknownWords) fail(`What we don't know point ${i + 1} is ${wc(u)} words; the limit is ${LIMITS.unknownWords}.`); });
@@ -315,7 +332,7 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
   if (!plain) fail("In plain English is empty.");
   else {
     const n = sentences(plain).length;
-    if (n < 2 || n > 3) fail(`In plain English needs 2 or 3 sentences; it has ${n}.`);
+    if (n < 2 || n > 3) fail(`In plain English needs 2 or 3 sentences (what it does, who feels it, why it is being fought over now); it has ${n}.`);
     if (wc(plain) > LIMITS.plainWords) fail(`In plain English is ${wc(plain)} words; the limit is ${LIMITS.plainWords}.`);
     if (titleShare(plain, src.title) > 0.6) fail("In plain English mostly restates the official title; explain what it does, to whom, and why it matters now.");
     claims("In plain English", plain);
@@ -339,9 +356,30 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
     claims("The voting question", q);
   }
 
+  // ── The 17 Nov writing standard (lib/analysis/standard.ts) ──
+  const reading = [d.headline, plain, bg, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou,
+    ...d.caseFor.map(a => a.argument), ...d.caseAgainst.map(a => a.argument), ...d.unknowns];
+  for (const t of unexplainedJargon(reading)) fail(t.part === 0
+    ? `The headline uses "${t.term}"; a headline has no room to explain it, so use plain words (${t.plain}).`
+    : `"${t.term}" is used without explaining it. Replace it with plain words (${t.plain}) or explain it in parentheses the first time.`);
+  const ac = unexplainedAcronyms(reading.slice(1));
+  if (ac.length) fail(`Abbreviation${ac.length > 1 ? "s" : ""} never spelled out: ${ac.map(a => `"${a}"`).join(", ")}. Write the full name first, or use plain words.`);
+  const filler = fillerIn([d.headline, plain, ...d.whatItDoes.map(p => p.text), ...d.whoItAffects.map(p => p.text), d.whatChangesForYou].join(" . "));
+  if (filler.length) fail(`Filler instead of facts: ${filler.join("; ")}. Say exactly what changes, with the numbers, dates and people the sources give.`);
+  const specifics = [d.headline, plain, ...d.whatItDoes.map(p => p.text)].join(" ");
+  if (!HAS_SPECIFIC.test(specifics)) {
+    if (d.confidence !== "low") fail("No concrete fact (a number, dollar amount, date or count of people) in the headline, plain English or what it does. Use the specifics in the sources; if the sources truly do not say what changes, say that plainly in what we don't know and set confidence to low.");
+    else warn("The sources give no concrete figures; the summary says so and is low-confidence.");
+  }
+  const did = d.whatItDoes.map(p => p.text);
+  [["Case for", d.caseFor], ["Case against", d.caseAgainst]].forEach(([label, list]) => (list as Argument[]).forEach((a, i) => {
+    if (mechanicsShare(a.argument, did) >= 0.8) fail(`${label} argument ${i + 1} only repeats what the bill does. Give the reason and the stakes: ${label === "Case for" ? "why would someone want this?" : "what would be lost or harmed?"}`);
+  }));
+
   if (CIRCULAR_CHANGE.test(d.whatChangesForYou)) fail("What changes for you is circular (\"only matters if you are affected\"); give one concrete example of a real person and what would change for them.");
   else if (!HAS_EXAMPLE.test(d.whatChangesForYou)) fail("What changes for you needs one concrete example of a real kind of person, e.g. \"A family in Ohio buying a 2027 marketplace plan would …\".");
-  if (!d.caseAgainst.length && src.allowedAgainst.length === 0) warn("No one in the official record argues against it; the page says so.");
+  if (!d.caseAgainst.length) warn("No public statement of reasons against it was found in the official record; the page says so.");
+  if (!d.caseFor.length) warn("No public statement of reasons for it was found in the official record; the page says so.");
 }
 
 // ───────────── Claim checks (formerly claims.ts; kept in this file so the tests load it without a bundler) ─────────────
@@ -428,6 +466,8 @@ export function unsupportedClaims(claim: string, sources: readonly string[], age
   const inits = initialsIn(corpusRaw);
   return claimTerms(maskAgencies(claim, agencies)).filter(t => {
     if (t === "AGENCYNAME") return false;
+    // The name people know is accurate when the source uses the official one ("HealthCare.gov" for a Federally-facilitated Exchange).
+    if (EVERYDAY_NAMES.some(n => n.everyday.test(t) && n.official.test(corpusRaw))) return false;
     if (/^[A-Z]{2,6}$/.test(t)) return !(new RegExp(`\\b${esc(t)}\\b`).test(corpusRaw) || inits.has(t));
     const l = t.toLowerCase();
     if (/^[\d$]/.test(t)) return !corpus.includes(l.replace(/^\$/, "")) ;

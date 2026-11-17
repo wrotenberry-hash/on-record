@@ -130,7 +130,7 @@ export async function logReviewPackets(billIds: string[], budgetMs = 30_000): Pr
           const n = citedSection(cite), sec = n ? parsed.sections.find(x => x.num.toUpperCase() === n) : null;
           // 16 Nov: "Full text" (a resolution with no numbered sections) was logged as NOT FOUND; log the whole text. Source ids are logged as SOURCE lines when written.
           const body = sec?.text ?? (n === "FULL" ? parsed.text : null);
-          if (body || !/^(RULE|REPORT|CRS|CBO|USC )/.test(n ?? "")) out.push(...packetLines(r.label, `CITED ${cite}`, body ? `[${body.length} chars] ${body.slice(0, 16000)}` : "NOT FOUND IN THE BILL TEXT"));
+          if (body || !/^(RULE|REPORT|CRS|CBO|FLOOR|STATUS|USC )/.test(n ?? "")) out.push(...packetLines(r.label, `CITED ${cite}`, body ? `[${body.length} chars] ${body.slice(0, 16000)}` : "NOT FOUND IN THE BILL TEXT"));
         }
       } catch (e) { out.push(...packetLines(r.label, "TEXT_ERROR", (e instanceof Error ? e.message : "fetch failed").slice(0, 200))); }
       for (const l of out) console.log(l);
