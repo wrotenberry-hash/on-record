@@ -1,4 +1,5 @@
 import { visibleBlocks, type Card, type CardFormat } from "@/lib/card-content";
+import { BRAND } from "@/lib/brand";
 
 /**
  * The card drawn as an image (next/og). Plain flex layout, On Record's colours,
@@ -28,7 +29,7 @@ export function CardImage({ card, format }: { card: Card; format: CardFormat }) 
     </div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "3px solid #163b3c", paddingTop: px(24), marginTop: px(24) }}>
       <span style={{ fontSize: px(40), fontWeight: 700 }}>{card.footer}</span>
-      <span style={{ fontSize: px(26), fontWeight: 700, letterSpacing: 2, color: "#163b3c" }}>ON RECORD</span>
+      <span style={{ fontSize: px(26), fontWeight: 700, letterSpacing: 2, color: "#163b3c" }}>{BRAND.nameUpper}</span>
     </div>
   </div>;
 }
@@ -46,6 +47,6 @@ export function SlideImage({ slide }: { slide: Slide }) {
     </div>
     <div style={{ display: "flex", fontSize: 22, color: "#4f6b68", marginTop: 20 }}>{`${slide.date} · Source: ${slide.source}`}</div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "3px solid #163b3c", paddingTop: 22, marginTop: 20 }}>
-      <span style={{ fontSize: 40, fontWeight: 700 }}>Talk is cheap.</span><span style={{ fontSize: 26, fontWeight: 700, letterSpacing: 2, color: "#163b3c" }}>ON RECORD</span></div>
+      <span style={{ fontSize: 40, fontWeight: 700 }}>{BRAND.taglineShort}</span><span style={{ fontSize: 26, fontWeight: 700, letterSpacing: 2, color: "#163b3c" }}>{BRAND.nameUpper}</span></div>
   </div>;
 }

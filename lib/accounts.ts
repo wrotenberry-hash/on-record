@@ -6,6 +6,7 @@ import { signAction, verifyAction } from "@/lib/session-token";
 import { sendTo } from "@/lib/mailer";
 import { linkChallenges } from "@/db/schema";
 import { verificationConfig } from "@/lib/verify/config";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Reader sign-in by email magic link (owner decision 2026-11-13; built in Round 3).
@@ -56,7 +57,7 @@ export async function requestMagicLink(rawEmail: string, viewer: { appUserId: st
   if (challenge) await getDb().insert(linkChallenges).values({ nonce, ...challenge });
   const token = await signAction(key(), "magic-link", nonce, now + LINK_TTL_MS);
   const link = `${SITE_URL}/account/verify?t=${encodeURIComponent(token)}`;
-  const sent = await sendTo(email, "Your On Record sign-in link", [`Tap to sign in to On Record on this device:`, "", link, "",
+  const sent = await sendTo(email, `Your ${BRAND.name} sign-in link`, [`Tap to sign in to ${BRAND.name} on this device:`, "", link, "",
     "The link works once, for 30 minutes. If you did not ask for it, ignore this email; nothing changes.", "",
     "Signing in keeps your follows and your own Support/Oppose answers on every device. They are never shown to anyone else."].join("\n"));
   if (sent.ok) return { ok: true as const, message: `Sent. Check ${email} and tap the link within 30 minutes.` };

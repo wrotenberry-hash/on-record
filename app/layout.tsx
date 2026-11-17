@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
+import { BRAND } from "@/lib/brand";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 
@@ -9,9 +10,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const publicRead = publicReadEnabled(process.env[PUBLIC_READ_FLAG]);
   return {
     metadataBase: new URL(SITE_URL),
-    title: "On Record: the congressional record, in plain words",
+    title: `${BRAND.name}: the congressional record, in plain words`,
     description: "How every member of Congress voted, what each bill would do, and political claims checked against the evidence. No scores, no grades.",
-    openGraph: { type: "website", siteName: "On Record", title: "On Record", description: "Talk is cheap. The record isn't. Official votes, plain-language bills, and claims checked by a person. No scores." },
+    openGraph: { type: "website", siteName: BRAND.name, title: BRAND.name, description: `${BRAND.tagline} Official votes, plain-language bills, and claims checked by a person. No scores.` },
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     ...(publicRead ? {} : { robots: { index: false, follow: false } }),
   };

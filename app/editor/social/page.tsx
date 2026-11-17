@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireEditorUser } from "@/lib/auth";
 import { postQueueList, QUEUE_ONLY, socialConfig } from "@/lib/social";
 import { decideQueuedPost, draftToday } from "./actions";
+import { BRAND } from "@/lib/brand";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +13,9 @@ export default async function SocialQueuePage() {
   const cfg = socialConfig(), rows = await postQueueList(30).catch(() => []);
   const label = (s: string) => ({ draft: "Waiting for you", approved: "Approved (not posted)", posted: "Posted", rejected: "Rejected", failed: "Post failed" }[s] ?? s);
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/metrics">Sharing</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/metrics">Sharing</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
-      <div className="eyebrow">EDITOR · ON RECORD&apos;S OWN ACCOUNTS</div><h1>Post queue</h1>
+      <div className="eyebrow">EDITOR · {BRAND.nameUpper}&apos;S OWN ACCOUNTS</div><h1>Post queue</h1>
       <p className="meta">Drafted each day from the record: a bill stopped by a procedural vote (when there is one), a 5-slide bill explainer, and a dashboard card. Approve with one tap. Cards with only Official blocks may post on their own once an account is connected. No paid promotion, no replies, no engagement tricks.</p>
       <table className="chart history" tabIndex={0}><tbody>
         <tr><th scope="row">Posting</th><td>{cfg.canPost ? "On" : `Off. ${cfg.blocked}`}</td></tr>

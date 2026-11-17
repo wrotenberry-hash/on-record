@@ -6,9 +6,10 @@ import { movingThisWeek } from "@/lib/federal/bill-depth";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { STAGE_LABEL, type StageKey } from "@/lib/federal/depth-parse";
 import { Glossed } from "@/components/ui/glossed";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Moving this week · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Moving this week"), robots: { index: false, follow: false } };
 
 /** Bills with an official action in the last 7 days or on a floor schedule this week, filterable by the 14 issues. */
 export default async function MovingPage({ searchParams }: { searchParams: Promise<{ issue?: string }> }) {

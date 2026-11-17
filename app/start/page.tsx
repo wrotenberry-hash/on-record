@@ -8,9 +8,10 @@ import { pickedIssues } from "@/lib/reader-issues";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { countEvent } from "@/lib/events";
 import { finishStart, startZip } from "./actions";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Get started · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Get started"), robots: { index: false, follow: false } };
 
 /** Onboarding in under a minute: ZIP → your legislators → three issues → done. No account needed. */
 export default async function StartPage({ searchParams }: { searchParams: Promise<{ step?: string; e?: string }> }) {

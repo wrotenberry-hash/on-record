@@ -3,9 +3,10 @@ import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess } from "@/lib/viewer";
 import { search } from "@/lib/search";
 import { countEvent } from "@/lib/events";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Search · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Search"), robots: { index: false, follow: false } };
 
 /** Search bills, members and issues in plain English, with typo tolerance. */
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {

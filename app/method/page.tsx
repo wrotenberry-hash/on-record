@@ -1,16 +1,17 @@
 import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess } from "@/lib/viewer";
+import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "How a claim is checked · On Record", description: "The six steps from a politician's own words to the evidence a reviewer found for and against them." };
+export const metadata = { title: brandTitle("How a claim is checked"), description: "The six steps from a politician's own words to the evidence a reviewer found for and against them." };
 
 export default async function MethodPage() {
   return <PublicShell current="/method" access={await viewerAccess()}>
     <article className="prose">
       <div className="eyebrow">HOW A CLAIM IS CHECKED</div>
       <h1>Six steps, every one of them visible on the record.</h1>
-      <p className="lede">A record on On Record is not a verdict. It is a chain you can follow from a person&apos;s own words to the evidence a human reviewer found for and against them, with the open question stated plainly.</p>
+      <p className="lede">A record on {BRAND.name} is not a verdict. It is a chain you can follow from a person&apos;s own words to the evidence a human reviewer found for and against them, with the open question stated plainly.</p>
 
       <h2>1. The original is captured</h2>
       <p>We start from the communication itself: an official statement, a speech, an interview, a post. The page is captured as published, with its address, its publication time and the time we captured it. If the original is later edited or removed, that is recorded as a new observation. We do not guess at motive.</p>

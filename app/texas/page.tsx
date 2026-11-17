@@ -9,9 +9,10 @@ import { TX_OFFICERS } from "@/lib/texas/dashboard";
 import { getDb } from "@/db";
 import { txPeople } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Texas Legislature · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Texas Legislature"), robots: { index: false, follow: false } };
 
 /** What is happening in the Texas Legislature this week. Official, from Open States; Texas Legislature Online is the source of record. */
 export default async function TexasPage() {

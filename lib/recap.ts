@@ -6,6 +6,7 @@ import { federalLegislators } from "@/lib/federal/legislators";
 import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { voteLine, type Card } from "@/lib/card-content";
 import { billLabel } from "@/components/federal/badges";
+import { BRAND } from "@/lib/brand";
 
 /** Round D weekly recap: the reader's legislators' votes in the last 7 days, as a list and a shareable card. Record data only. */
 export async function recapFor(userId: string | null, now = Date.now()) {
@@ -28,6 +29,6 @@ export async function recapFor(userId: string | null, now = Date.now()) {
     lines: pick.map(r => { const kind = voteKind(r.question, r.billTitle ?? r.title);
       return voteLine({ billLabel: r.billType ? billLabel(r.billType, r.number!) : r.question, billTitle: r.billTitle ?? r.title ?? r.question, headline: null,
         voteText: `${r.name}: ${positionLine(r.position, kind)}`, kind, kindLabel: KIND_LABEL[kind], votedAt: r.votedAt, sourceUrl: r.sourceUrl }); }),
-    note: rows.length > pick.length ? `${rows.length} recorded votes this week; ${pick.length} shown.` : null, footer: "Talk is cheap." };
+    note: rows.length > pick.length ? `${rows.length} recorded votes this week; ${pick.length} shown.` : null, footer: BRAND.taglineShort };
   return { rows, names, card };
 }

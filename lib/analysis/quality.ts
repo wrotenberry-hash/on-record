@@ -5,6 +5,7 @@ import { checkSummary, proseOf, type SummaryDraft } from "@/lib/analysis/checker
 import { MAX_TEXT_CHARS, parseBillTextHtml } from "@/lib/analysis/billtext";
 import { parityDrift, parityStats, patternOf, sampleFraction } from "@/lib/analysis/parity-rules";
 import { billLabel } from "@/components/federal/badges";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round F quality checks.
@@ -38,7 +39,7 @@ export async function runRereview(now = Date.now(), budgetMs = 60_000, maxPerRun
     if (!s) continue;
     let failures: string[] = [], error: string | null = null;
     try {
-      const res = await fetch(s.textUrl, { signal: AbortSignal.timeout(30_000), headers: { "user-agent": "OnRecord/1.0 (quality re-review)" } });
+      const res = await fetch(s.textUrl, { signal: AbortSignal.timeout(30_000), headers: { "user-agent": `${BRAND.userAgentName}/1.0 (quality re-review)` } });
       if (!res.ok) throw new Error(`bill text ${res.status}`);
       const parsed = parseBillTextHtml(await res.text());
       const subject = (await db.select({ title: officialBills.title }).from(officialBills).where(eq(officialBills.id, s.billId)).get())?.title ?? "";

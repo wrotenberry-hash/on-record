@@ -8,6 +8,7 @@ import { billStatusUrl, parseSponsorship } from "@/lib/analysis/billtext";
 import { congressBillApi, congressForYear, congressGovPage, congressRecentBillsApi, houseRollUrl, LAWMAKING_TYPES, LEGISLATORS_URL,
   parseCongressBill, parseCongressBillList, parseCongressSubjects, parseHouseRoll, parseLegislators, parseSenateMenu, parseSenateVote,
   senateMenuUrl, senateVoteUrl, sessionForYear, type BillRef, type ParsedRollCall } from "@/lib/federal/parse";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Federal official-record ingestion (docs/TALK_IS_CHEAP_PLAN.md). Uses no
@@ -16,7 +17,7 @@ import { congressBillApi, congressForYear, congressGovPage, congressRecentBillsA
  * cursor next time. Official rows are stored with their source URL and
  * retrieval time and are not reviewed: they are copies of public records.
  */
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const PER_RUN_CAP = 40;
 // senate.gov answers 403 to rapid requests (seen 2026-11-13 after 17 in a row; 2 s apart was fine). The House Clerk gets a lighter pause.
 const SENATE_PAUSE_MS = 1_500, SENATE_BLOCK_WAIT_MS = 10_000, HOUSE_PAUSE_MS = 250;

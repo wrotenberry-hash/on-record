@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /**
  * Round 4 feedback prompt (pure; tested in tests/trial.test.mjs). One question,
  * shown to an invite-only trial reader once their invite has been used on three
@@ -6,7 +7,7 @@
  */
 export const FEEDBACK_COOKIE = "or_fb";
 export const FEEDBACK_AFTER_VISITS = 3;
-export const FEEDBACK_QUESTION = "What one thing would make On Record more useful to you?";
+export const FEEDBACK_QUESTION = `What one thing would make ${BRAND.name} more useful to you?`;
 export const FEEDBACK_MAX = 600;
 
 export function shouldAskFeedback(activeDays: number | null | undefined, cookieValue: string | null | undefined) {

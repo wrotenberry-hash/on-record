@@ -8,6 +8,7 @@ import { captionWith, shortLinkFor, SITE } from "@/lib/share";
 import { voteKind } from "@/lib/federal/vote-kinds";
 import { isQuietKill } from "@/lib/said-did-rules";
 import { blueskyText } from "@/lib/share-rules";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round G: On Record's own accounts. Each day the scheduled run drafts up to three
@@ -111,7 +112,7 @@ async function postBluesky(caption: string, link: string, imageUrl: string) {
   const { text, facets } = blueskyText(caption, link);
   const rec = await fetch(`${base}/xrpc/com.atproto.repo.createRecord`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessJwt}` }, signal: AbortSignal.timeout(15_000),
     body: JSON.stringify({ repo: did, collection: "app.bsky.feed.post", record: { $type: "app.bsky.feed.post", text, facets, langs: ["en"], createdAt: new Date().toISOString(),
-      embed: { $type: "app.bsky.embed.images", images: [{ alt: "A card from On Record: an official record with its source.", image: blob }] } } }) });
+      embed: { $type: "app.bsky.embed.images", images: [{ alt: `A card from ${BRAND.name}: an official record with its source.`, image: blob }] } } }) });
   if (!rec.ok) throw new Error(`post ${rec.status}`);
   return ((await rec.json()) as { uri: string }).uri;
 }

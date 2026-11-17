@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { brandTitle } from "@/lib/brand";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Invite · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Invite"), robots: { index: false, follow: false } };
 
 const MESSAGES: Record<string, { title: string; body: string }> = {
   not_open: { title: "The trial opens soon.", body: "Your invite link is genuine. The trial has not opened yet; try the same link again later. Nothing else to do." },
@@ -14,7 +16,7 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
   const { state } = await searchParams;
   const m = MESSAGES[state ?? ""] ?? MESSAGES.invalid;
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><small>INVITE-ONLY TRIAL</small></nav></header>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><small>INVITE-ONLY TRIAL</small></nav></header>
     <main><div className="intro"><div className="eyebrow">INVITE</div><h1>{m.title}</h1><p>{m.body}</p></div></main>
   </>;
 }

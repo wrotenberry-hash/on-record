@@ -21,9 +21,24 @@ export const BRAND = {
   taglineShort: "Talk is cheap.",
   /** The two halves of the wordmark as drawn in the top bar: the last word is set apart ("ON" + "RECORD"). */
   wordmark: (() => { const w = name.toUpperCase().split(/\s+/); return w.length > 1 ? { lead: w.slice(0, -1).join(" "), tail: w[w.length - 1] } : { lead: "", tail: w[0] }; })(),
-  /** For outgoing requests to official sources ("OnRecord/0.2 (+https://…)"). */
-  userAgentName: name.replace(/\s+/g, ""),
+  /** The name in capitals, for eyebrows and the footer of share cards ("ON RECORD"). */
+  nameUpper: name.toUpperCase(),
+  /** For outgoing requests to official sources ("OnRecord/0.2 (+https://…)"). Letters and digits only, so it is always a valid header. */
+  userAgentName: name.replace(/[^A-Za-z0-9]+/g, "") || "OnRecord",
+  /**
+   * The home-screen and notification icons. The original icons have "ON REC." drawn on them, so they are used only
+   * while the product is called "On Record"; under another name the plain mark (no words) is used instead.
+   */
+  icons: name === "On Record" ? { small: "/icon-192.png", large: "/icon-512.png" } : { small: "/icon-mark-192.png", large: "/icon-mark-512.png" },
+  /** For the names of files a reader saves ("on-record-recap.png"). */
+  fileSlug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "record",
 } as const;
 
 /** "<page> · <product name>". */
 export const brandTitle = (page: string) => `${page} · ${BRAND.name}`;
+
+/**
+ * The label of the place that holds members' voting records (the "Politicians" menu entry). It keeps its usual label
+ * while the product is called "On Record"; under another product name it becomes the voting-record section's own name.
+ */
+export const recordSectionLabel = (usual: string) => (BRAND.hasSeparateRecordName ? BRAND.recordSection : usual);

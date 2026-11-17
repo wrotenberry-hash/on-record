@@ -2,9 +2,10 @@ import Link from "next/link";
 import { PublicShell } from "@/components/public/public-shell";
 import { viewerAccess } from "@/lib/viewer";
 import { categoriesWithCounts, listMappings } from "@/lib/federal/queries";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Issues · On Record", description: "Bills in Congress grouped by what they are about, sorted by fixed published rules." };
+export const metadata = { title: brandTitle("Issues"), description: "Bills in Congress grouped by what they are about, sorted by fixed published rules." };
 
 export default async function IssuesPage() {
   const access = await viewerAccess();

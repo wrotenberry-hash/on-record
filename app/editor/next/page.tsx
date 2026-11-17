@@ -5,9 +5,11 @@ import { ALERT_PLAIN, flags, ownerStepDone, standing } from "@/lib/whats-next";
 import { OWNER_STEPS, PLAN_NOTE, PLAN_UPDATED, RECOMMENDED, ROUNDS } from "@/lib/whats-next-plan";
 import { ownerEmailsEnabled } from "@/lib/monitoring-runtime";
 import { runUpdateNow } from "./actions";
+import { brandTitle } from "@/lib/brand";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "What's next · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("What's next"), robots: { index: false, follow: false } };
 const fmt = (v: string | number) => new Date(v).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" });
 
 /**
@@ -25,7 +27,7 @@ export default async function WhatsNextPage({ searchParams }: { searchParams: Pr
   const steps = OWNER_STEPS.map(s => ({ ...s, done: probe ? ownerStepDone(s, probe) : null }));
   const open = steps.filter(s => s.done !== true), minutes = open.filter(s => s.key !== "threads").reduce((a, s) => a + s.minutes, 0);
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/analysis">Bill summaries</Link><Link href="/editor/trial">Trial invites</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/analysis">Bill summaries</Link><Link href="/editor/trial">Trial invites</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin whats-next">
       <div className="eyebrow">EDITOR · WHAT&apos;S NEXT</div><h1>Where things stand, and what&apos;s next</h1>
       <p className="meta">Live numbers as of {fmt(now)} CT. Recommendations written by Claude, {fmt(PLAN_UPDATED)} CT. {ownerEmailsEnabled() ? "Automatic emails are on." : "Automatic emails are off: this page replaces them."}</p>

@@ -5,9 +5,10 @@ import { VoteRow } from "@/components/federal/vote-row";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedPoliticians, lastFederalRun, recentVotes } from "@/lib/federal/queries";
 import { UpdateNow } from "./update-now";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Following · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Following"), robots: { index: false, follow: false } };
 
 export default async function FollowingPage() {
   const access = await viewerAccess();

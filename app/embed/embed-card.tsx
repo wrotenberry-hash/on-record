@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PUBLIC_READ_FLAG, publicReadEnabled } from "@/lib/public-access";
 import { resolveShare } from "@/lib/share-resolve";
 import { SITE } from "@/lib/share";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round G embeddable vote and bill cards, for other sites to show in an iframe.
@@ -20,6 +21,6 @@ export async function EmbedCard({ type, params }: { type: "vote" | "bill"; param
       <span><span className={`ctype ctype-${l.describe.label === "Readers" ? "opinion" : l.describe.label.toLowerCase()}`}>{l.describe.label}</span> {l.describe.text}</span>
       <small>{l.date} · Source: {l.source}</small></div>)}
     {c.note && <p className="meta">{c.note}</p>}
-    <p className="embed-foot"><b>Talk is cheap.</b> <a href={href} target="_blank" rel="noopener">ON RECORD — see the full record</a></p>
+    <p className="embed-foot"><b>{BRAND.taglineShort}</b> <a href={href} target="_blank" rel="noopener">{BRAND.nameUpper} — see the full record</a></p>
   </main>;
 }

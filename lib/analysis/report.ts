@@ -7,8 +7,9 @@ import { CHECKPOINT_SUMMARIES, formatSummariesEmail, summariesEmailDue, type Sum
 import { parseBillTextHtml } from "@/lib/analysis/billtext";
 import { citedSection } from "@/lib/analysis/checker";
 import { PROMPT_VERSION } from "@/lib/analysis/generate";
+import { BRAND } from "@/lib/brand";
 
-const USER_AGENT = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 
 /** The opening words of each cited section, from the same govinfo text the summary was written from. Best-effort. */
 async function excerptsFor(textUrl: string, cites: string[]): Promise<Record<string, string>> {

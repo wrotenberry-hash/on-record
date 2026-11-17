@@ -7,6 +7,7 @@ import { decideIssueSuggestion, decideSummary } from "./actions";
 import { queuedSuggestions, suggestionCounts } from "@/lib/analysis/classify";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { GenerateNow } from "./generate-now";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function AnalysisReviewPage() {
     : counts && counts.analysisCallsUsd >= limits.spendCapUsd ? `Spend cap reached: $${counts.analysisCallsUsd.toFixed(2)} of $${limits.spendCapUsd} (ANALYSIS_SPEND_CAP_USD).` : null;
 
   return <>
-    <header className="topbar"><Link className="brand" href="/">ON <span>RECORD</span><i/></Link>
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link>
       <nav><Link href="/editor">Cases</Link><Link href="/editor/trial">Trial invites</Link><Link href="/politicians">Politicians</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
     <main className="fed-page analysis-admin">
       <p className="crumbs"><Link href="/editor">← Cases</Link></p>

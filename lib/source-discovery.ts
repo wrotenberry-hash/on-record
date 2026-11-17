@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.ts";
 /** Original communications: an index supplies leads, never evidence or authenticated quotations. */
 export const sourceCatalog = [
   { id: "house-republican", name: "Speaker of the House", lane: "Republican", medium: "written", era: "current", index: "https://www.speaker.gov/category/press-releases/", host: "www.speaker.gov", path: /^\/20\d\d\/\d\d\// },
@@ -24,7 +25,7 @@ export const historicLeads = [
 export type Source = typeof sourceCatalog[number];
 // Same value as lib/automated-research.ts. Kept local so this module has no
 // relative imports, which lets Node's test runner load it without a bundler.
-const SOURCE_USER_AGENT = "Mozilla/5.0 (compatible; OnRecordBot/0.2; +https://on-record-wrotenberry.vercel.app/records) source-preservation for editorial review";
+const SOURCE_USER_AGENT = `Mozilla/5.0 (compatible; ${BRAND.userAgentName}Bot/0.2; +https://on-record-wrotenberry.vercel.app/records) source-preservation for editorial review`;
 
 export function originalLinks(html: string, index: string, host: string, path: RegExp) {
   const links = new Set<string>();

@@ -6,9 +6,10 @@ import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
 import { findLegislators, forgetLocation, pickDistrict } from "./actions";
 import { txLegislatorsFor } from "@/lib/texas/queries";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Your legislators · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Your legislators"), robots: { index: false, follow: false } };
 const ERR: Record<string, string> = { bad_zip: "Enter a 5-digit US ZIP code.", no_match: "The Census Bureau could not place that address. Check the street number and ZIP.", unreachable: "The Census address service did not answer. Try again, or use your ZIP." };
 
 /** Your two U.S. senators and your U.S. representative (Texas state legislators join with Round H). */

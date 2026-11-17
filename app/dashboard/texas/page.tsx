@@ -5,9 +5,10 @@ import { viewerAccess } from "@/lib/viewer";
 import { texasDashboard } from "@/lib/texas/dashboard";
 import { ROLE_NOTE } from "@/lib/federal/dashboard-rules";
 import { FunnelChart, RowBars, SeatBar } from "@/components/charts/charts";
+import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Texas dashboard · On Record", robots: { index: false, follow: false } };
+export const metadata = { title: brandTitle("Texas dashboard"), robots: { index: false, follow: false } };
 
 export default async function TexasDashboardPage() {
   const access = await viewerAccess();

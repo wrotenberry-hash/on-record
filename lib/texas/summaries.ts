@@ -8,6 +8,7 @@ import { checkSummary, routeSummary } from "@/lib/analysis/checker";
 import { maxCallCost, priceTable } from "@/lib/model-cost";
 import { spendSince } from "@/lib/model-calls";
 import { TX_SESSIONS } from "@/lib/texas/parse";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round H: Texas bill summaries in the same template as federal ones (same
@@ -15,7 +16,7 @@ import { TX_SESSIONS } from "@/lib/texas/parse";
  * comes from Texas Legislature Online. A summary that fails the checker or has
  * low confidence is held for the editor; 1 in 5 is held for the audit sample.
  */
-const UA = "OnRecord/0.2 (+https://on-record-wrotenberry.vercel.app)";
+const UA = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 
 export async function runTexasSummaries({ budgetMs = 120_000, max = 3 }: { budgetMs?: number; max?: number } = {}) {
   const key = process.env.OPENAI_API_KEY?.trim();

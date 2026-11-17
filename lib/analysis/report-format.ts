@@ -1,3 +1,4 @@
+import { BRAND } from "../brand.ts";
 /** Pure formatting for the Phase B checkpoint email. No database, no network: tested in tests/analysis.test.mjs. */
 /**
  * The Phase B checkpoint email (docs/TALK_IS_CHEAP_PLAN.md, "5 real bills with
@@ -42,8 +43,8 @@ export function formatSummariesEmail(rows: readonly SummaryForEmail[], siteUrl: 
     ...(r.previousCostUsd ? [`   Earlier version cost $${r.previousCostUsd.toFixed(4)}`] : []),
   ].join("\n"));
   const lines = [
-    opts.revised ? `On Record rewrote ${rows.length} bill summar${rows.length === 1 ? "y" : "ies"} with an improved generator (${opts.promptVersion ?? "new version"}). The earlier versions are kept for comparison.`
-      : `On Record wrote the first ${rows.length} bill summaries. Every line marked [Analysis] was written by the model from the bill's own text; the official title, status, cost estimate and votes on the page are copied from government records.`,
+    opts.revised ? `${BRAND.name} rewrote ${rows.length} bill summar${rows.length === 1 ? "y" : "ies"} with an improved generator (${opts.promptVersion ?? "new version"}). The earlier versions are kept for comparison.`
+      : `${BRAND.name} wrote the first ${rows.length} bill summaries. Every line marked [Analysis] was written by the model from the bill's own text; the official title, status, cost estimate and votes on the page are copied from government records.`,
     "",
     `What to test on your phone: sign in, open Editor > Bill summaries, read each one, and approve or reject the ${queued} waiting in your queue. Each cited section's opening words are shown under its point so it can be checked against the bill.`,
     "",
@@ -52,7 +53,7 @@ export function formatSummariesEmail(rows: readonly SummaryForEmail[], siteUrl: 
     `Editor: ${siteUrl}/editor/analysis`,
     opts.revised ? "Sent once per generator version, after summaries were rewritten." : "Sent once, by the scheduled run, when the first summaries were complete.",
   ];
-  return { subject: opts.revised ? `[On Record] ${rows.length} bill summaries rewritten for review` : `[On Record] ${rows.length} bill summaries are ready to read`, text: lines.join("\n") };
+  return { subject: opts.revised ? `[${BRAND.name}] ${rows.length} bill summaries rewritten for review` : `[${BRAND.name}] ${rows.length} bill summaries are ready to read`, text: lines.join("\n") };
 }
 
 /** Pure. Send when the checkpoint count exists and the email has never gone out. */

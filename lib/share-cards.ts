@@ -14,6 +14,7 @@ import { isQuietKill, saidAboutBill, saidVsDid } from "@/lib/said-did-rules";
 import type { Slide } from "@/components/cards/card-image";
 import { congressDashboard } from "@/lib/federal/dashboard";
 import { FUNNEL_LABEL, FUNNEL_ORDER } from "@/lib/federal/dashboard-rules";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Round G card builders. Every card is built only from record data and approved
@@ -42,7 +43,7 @@ export async function quietKillCard(rollId: string): Promise<Card | null> {
   if (!r?.billId || voteKind(r.question, r.billTitle ?? r.title) !== "procedural") return null;
   if (!isQuietKill("procedural", r.question, r.result)) return null;
   return { eyebrow: "STOPPED BY A PROCEDURAL VOTE", title: r.billType ? `${billLabel(r.billType, r.number!)}` : "A bill", subtitle: (r.billTitle ?? r.title ?? "").slice(0, 110),
-    lines: [voteLine(cardVote(r, `${r.question}: ${r.result} ${r.yea}–${r.nay}`))], note: "A procedural vote decides whether or how the chamber moves to a final vote. It is not a vote on the bill itself.", footer: "Talk is cheap." };
+    lines: [voteLine(cardVote(r, `${r.question}: ${r.result} ${r.yea}–${r.nay}`))], note: "A procedural vote decides whether or how the chamber moves to a final vote. It is not a vote on the bill itself.", footer: BRAND.taglineShort };
 }
 
 /** Breaking ranks: a member voted against most of their own party on a roll call. */
@@ -58,7 +59,7 @@ export async function breakingRanksCard(memberId: string, rollId: string): Promi
   if (withPartyMajority(mine.position, own) !== false) return null;
   const kind = voteKind(r.question, r.billTitle ?? r.title);
   return { eyebrow: "BREAKING RANKS", title: m.fullName, subtitle: memberLine(m),
-    lines: [voteLine(cardVote(r, positionLine(mine.position, kind)))], note: `Most ${PARTY[code]} voted ${mine.position === "Yea" ? "no" : "yes"} (${PARTY[code]}: ${own.Yea ?? 0} yes, ${own.Nay ?? 0} no).`, footer: "Talk is cheap." };
+    lines: [voteLine(cardVote(r, positionLine(mine.position, kind)))], note: `Most ${PARTY[code]} voted ${mine.position === "Yea" ? "no" : "yes"} (${PARTY[code]}: ${own.Yea ?? 0} yes, ${own.Nay ?? 0} no).`, footer: BRAND.taglineShort };
 }
 
 /** My district vs my legislator: the member's recorded vote beside district-matched totals (n >= 25 only). */
@@ -77,8 +78,8 @@ export async function districtVsLegislatorCard(memberId: string, billId: string)
   if (!r || !pick) return null;
   const line = voteLine(cardVote(r, `${m.fullName}: ${positionLine(pick.position, voteKind(r.question, r.billTitle ?? r.title))}`));
   return { eyebrow: `MY DISTRICT VS MY LEGISLATOR · ${scope}`, title: r.billType ? billLabel(r.billType, r.number!) : "This bill", subtitle: (r.billTitle ?? "").slice(0, 110),
-    lines: [line, { ...line, vote: totalsLine(`District-matched readers in ${scope}`, t), describe: { label: "Readers", text: "Verified readers who matched an address to this district. Not a scientific poll." }, kindLabel: "Readers", source: "On Record, aggregate counts only" }],
-    note: null, footer: "Talk is cheap." };
+    lines: [line, { ...line, vote: totalsLine(`District-matched readers in ${scope}`, t), describe: { label: "Readers", text: "Verified readers who matched an address to this district. Not a scientific poll." }, kindLabel: "Readers", source: `${BRAND.name}, aggregate counts only` }],
+    note: null, footer: BRAND.taglineShort };
 }
 
 /** Said vs. Did: a published, human-reviewed statement that names a bill and states a position, beside the speaker's passage vote. */
@@ -116,7 +117,7 @@ export async function saidVsDidCard(publicationId: string): Promise<Card | null>
   if (!r) return null;
   const said = p.said.length > 220 ? `${p.said.slice(0, 218)}…` : p.said;
   return { eyebrow: p.result === "match" ? "SAID AND DID: A MATCH" : "SAID VS. DID: A CONTRADICTION", title: p.speaker, subtitle: `Said: “${said}”`,
-    lines: [voteLine(cardVote(r, `Did: ${positionLine(p.position, "passage")}`))], note: `Rule: a statement that names the bill and says the speaker supports or opposes it, compared with their vote on passing it. Same rule for every party.${p.url ? ` Statement: ${p.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}` : ""}`, footer: "Talk is cheap." };
+    lines: [voteLine(cardVote(r, `Did: ${positionLine(p.position, "passage")}`))], note: `Rule: a statement that names the bill and says the speaker supports or opposes it, compared with their vote on passing it. Same rule for every party.${p.url ? ` Statement: ${p.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}` : ""}`, footer: BRAND.taglineShort };
 }
 
 /** The 5-slide explainer for a bill with a visible (approved or unflagged) summary. */
@@ -150,20 +151,20 @@ export async function dashboardCard(kind: "funnel" | "control" | "players"): Pro
     const f = d.funnels[0].all;
     return { eyebrow: `${d.current}TH CONGRESS · THE BILL FUNNEL`, title: `${f.reach.law} of ${f.reach.filed.toLocaleString("en-US")} became law`, subtitle: d.funnels[0].takeaway.replace(/^[^:]+: /, ""),
       lines: FUNNEL_ORDER.slice(1).map(s => ({ what: FUNNEL_LABEL[s], describe: { label: "Official" as const, text: `${f.pct[s]}% of bills filed` }, vote: f.reach[s].toLocaleString("en-US"), kindLabel: "Bills", date: today, source: src })).slice(0, 3),
-      note: "Stage read from each bill's latest official action.", footer: "Talk is cheap." };
+      note: "Stage read from each bill's latest official action.", footer: BRAND.taglineShort };
   }
   if (kind === "players") {
     if (!d.leaders.length) return null;
     const by = (c: string) => d.leaders.filter(l => l.chamber === c).slice(0, 4).map(l => `${l.title}: ${l.name}`).join(" · ");
     return { eyebrow: `${d.current}TH CONGRESS · KEY PLAYERS`, title: "Who runs Congress", subtitle: `Leadership roles as of ${today}`,
       lines: (["house", "senate"] as const).filter(c => by(c)).map(c => ({ what: c === "house" ? "House" : "Senate", describe: { label: "Official" as const, text: by(c) }, vote: c === "house" ? "House leadership" : "Senate leadership", kindLabel: "Roles", date: today, source: "congress-legislators" })),
-      note: "Roles as listed in the congress-legislators data. A role is not a measure of influence.", footer: "Talk is cheap." };
+      note: "Roles as listed in the congress-legislators data. A role is not a measure of influence.", footer: BRAND.taglineShort };
   }
   const seats = (c: string) => d.seats.filter(s => s.chamber === c).map(s => `${s.party} ${s.n}`).join(" · ");
   return { eyebrow: `${d.current}TH CONGRESS · WHO CONTROLS IT`, title: "Control of Congress", subtitle: `Data as of ${today}`,
     lines: [{ what: "House", describe: { label: "Official", text: "435 voting seats; delegates are not counted" }, vote: seats("house"), kindLabel: "House seats", date: today, source: "congress-legislators" },
       { what: "Senate", describe: { label: "Official", text: "100 seats" }, vote: seats("senate"), kindLabel: "Senate seats", date: today, source: "congress-legislators" }],
-    note: d.leaders.slice(0, 3).map(l => `${l.title}: ${l.name}`).join(" · ") || null, footer: "Talk is cheap." };
+    note: d.leaders.slice(0, 3).map(l => `${l.title}: ${l.name}`).join(" · ") || null, footer: BRAND.taglineShort };
 }
 
 /** Link-preview card for a bill page: official title, the Analysis headline when one is visible, and the latest official action. */
@@ -174,7 +175,7 @@ export async function billCard(billId: string): Promise<Card | null> {
   const label = billLabel(bill.billType, bill.number), when = bill.latestActionAt ? date(bill.latestActionAt) : date(Date.now());
   return { eyebrow: `${bill.congress}TH CONGRESS · ${label}`, title: bill.title.length > 110 ? `${bill.title.slice(0, 108)}…` : bill.title, subtitle: "",
     lines: [{ what: "Where it stands", describe: s ? { label: "Analysis", text: s.headline } : { label: "Official", text: bill.title.slice(0, 140) }, vote: (bill.latestActionText ?? "No action recorded yet.").slice(0, 120), kindLabel: "Latest action", date: when, source: "congress.gov" }],
-    note: null, footer: "Talk is cheap." };
+    note: null, footer: BRAND.taglineShort };
 }
 
 /** Link-preview card for a member page: their two most recent recorded votes. */
@@ -185,7 +186,7 @@ export async function memberCard(memberId: string): Promise<Card | null> {
     .where(eq(officialMemberVotes.politicianId, memberId)).orderBy(desc(officialRollCalls.votedAt)).limit(2);
   const lines = [];
   for (const x of v) { const r = await roll(x.id); if (r) lines.push(voteLine(cardVote(r, positionLine(x.position, voteKind(r.question, r.billTitle ?? r.title))))); }
-  return { eyebrow: "HOW THEY VOTED", title: m.fullName, subtitle: memberLine(m), lines, note: lines.length ? null : "No recorded votes yet.", footer: "Talk is cheap." };
+  return { eyebrow: "HOW THEY VOTED", title: m.fullName, subtitle: memberLine(m), lines, note: lines.length ? null : "No recorded votes yet.", footer: BRAND.taglineShort };
 }
 
 /** A member's recent recorded votes against most of their own party (yes/no votes only). Same rule for every member. */
