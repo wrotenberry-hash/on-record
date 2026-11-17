@@ -205,6 +205,11 @@ export async function GET() {
       return { last7Days: await shareFunnel(7), postQueue: await postQueueCounts(), posting: c.canPost ? "on" : "off", connected: { bluesky: c.bluesky, threads: c.threads }, problems: await problemCounts() };
     })().catch(() => "unavailable" as const),
     verification: await verificationCounts().catch(() => "unavailable" as const),
+    // Quality bar: the site's own errors (last 24 h; breakage is true only for real breakage, lib/error-rules.ts), the trial
+    // numbers (aggregate counts, lib/trial-analytics.ts) and the hours in which this probe answered (lib/uptime.ts).
+    errors: await import("@/lib/error-events").then(m => m.errorsReport()).catch(() => "unavailable" as const),
+    trialAnalytics: await import("@/lib/trial-analytics-data").then(m => m.trialAnalyticsNow()).catch(() => "unavailable" as const),
+    uptime: await import("@/lib/uptime-data").then(async m => { await m.noteProbeAnswered(); return m.uptimeNow(Date.now(), 7); }).catch(() => "unavailable" as const),
     texas: await texasCounts().catch(() => "unavailable" as const),
     retention: await retentionCounts().catch(() => "unavailable" as const),
     trial: await trialCounts().catch(() => "unavailable" as const),

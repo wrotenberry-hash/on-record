@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteHealth, TrialGlance } from "@/components/editor/trial-glance";
 import { requireEditorUser } from "@/lib/auth";
 import { retentionCounts } from "@/lib/retention";
 import { trialCounts } from "@/lib/trial";
@@ -16,6 +17,8 @@ export default async function MetricsPage() {
     <main className="fed-page analysis-admin">
       <div className="eyebrow">EDITOR · RETENTION AND SHARING</div><h1>Are readers coming back?</h1>
       <p className="meta">Counts only. No reader, page or bill is identified.</p>
+      <TrialGlance />
+      <h2>Retention and sharing in detail</h2>
       {r && <table className="chart history" tabIndex={0}><tbody>
         {row("Readers active this week", r.weeklyActiveReaders)}{row("…who had visited before (returning)", r.weeklyReturningReaders)}
         {t && row("Trial invites used this week / on 2+ days", `${t.activeLast7Days} / ${t.usedOnTwoOrMoreDays}`)}
@@ -29,5 +32,6 @@ export default async function MetricsPage() {
         {f && row("Visit → finished onboarding", `${f.signups}${f.signupPct !== null ? ` (${f.signupPct}% of visits)` : ""}`)}
         {f && row("Short links made / all-time visits / sign-ups", `${f.links.total} / ${f.links.visitsAllTime} / ${f.links.signupsAllTime}`)}
       </tbody></table>}
+      <SiteHealth />
     </main></>;
 }
