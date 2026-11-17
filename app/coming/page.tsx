@@ -8,7 +8,6 @@ import { readerMembers } from "@/lib/coming";
 import { comingView, EMPTY_SCOPE, mineOnly } from "@/lib/coming-rules";
 import { brandTitle } from "@/lib/brand";
 import { toggleReminder } from "./actions";
-import { brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: brandTitle("What's coming"), robots: { index: false, follow: false } };
