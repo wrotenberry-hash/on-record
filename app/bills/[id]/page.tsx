@@ -28,6 +28,7 @@ import { accountForAppUser, currentAccount } from "@/lib/accounts";
 import { Turnstile } from "@/components/verify/turnstile";
 import { countedNote } from "@/lib/verify/flow";
 import { BRAND, brandTitle } from "@/lib/brand";
+import { ContactForBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
 
@@ -228,6 +229,10 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         {vprofile?.districtId && vtier >= 2 && <span>{totalsLine(`In ${vprofile.districtId}`, totals?.scope(vprofile.districtId))}</span>}
         <p className="meta">Real people verified an email and a mobile number; district-matched readers also matched an address to a district. Visitors&apos; answers are never counted, new accounts count after 24 hours, and answers under review for unusual activity are left out. Totals show from 25 answers. <Link href="/transparency">Transparency</Link></p></div>}
 
+      {/* BEGIN contact-your-legislator (test-ready build): the reader's own legislators, official phone and form, an editable message. */}
+      <ContactForBill bill={bill} votes={votes} />
+      {/* END contact-your-legislator */}
+
       <div className="fed-section"><h2>How your politicians voted <OfficialBadge /></h2>
         {mine.length ? <ul className="vote-list">{mine.map(m => <li key={`${m.rollCallId}-${m.id}`} className="vote-row"><div className="vote-main">
           <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link>{yours.has(m.id) && <span className="your-tag"> · your legislator</span>}</b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
@@ -237,7 +242,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         <h3 className="subhead">All recorded votes</h3>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} id={`vote-${v.id}`} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.votedAt)} · {v.chamber === "senate" ? "Senate" : "House"} · <span className={`vote-kind vote-kind-${voteKind(v.question, v.title ?? bill.title)}`}>{KIND_LABEL[voteKind(v.question, v.title ?? bill.title)]}</span></span>
-          <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} /><YesNo question={v.question} title={v.title ?? bill.title} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a></small></div></li>)}</ul>
+          <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} /><YesNo question={v.question} title={v.title ?? bill.title} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>{/* contact-your-legislator: */} · <Link className="src-link" href={`/bills/${bill.id}?vote=${v.id}#contact`}>Contact about this vote</Link></small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
       </div>

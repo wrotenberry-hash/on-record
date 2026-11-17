@@ -5,6 +5,8 @@ import { chunked, getCursor, setCursor } from "@/lib/federal/ingest";
 import { currentTxSession, LEGISCAN_BASE, legiscanStage, OPENSTATES_BASE, parseLegiscanMasterList, parseOpenStatesBills, parseOpenStatesCommittees, parseOpenStatesEvents,
   parseOpenStatesPeople, tloBillUrl, txBillId, txStage, txTallyMismatch, TX_SESSIONS, type TxBill } from "@/lib/texas/parse";
 import { BRAND } from "@/lib/brand";
+import { parseOpenStatesContacts } from "@/lib/contact-parse";
+import { upsertContacts } from "@/lib/contacts";
 
 /**
  * Round H: Texas Legislature ingestion. Open States v3 (OPENSTATES_API_KEY) is
@@ -60,17 +62,25 @@ async function storeBill(db: Db, b: TxBill, now: number) {
 async function viaOpenStates(db: Db, deadline: number, budget: { left: number }) {
   const c = texasConfig(), h = { "X-API-KEY": c.osKey }, now = Date.now(), out: Record<string, unknown> = {};
   const call = async (path: string) => { if (budget.left <= 0 || Date.now() > deadline - 8000) return null; budget.left--; return getJson(`${base()}${path}`, h); };
-  if (Date.now() - Number(await getCursor(db, "tx:people") ?? 0) > WEEK) {
-    let page = 1, max = 1, people = 0, failed = false;
-    do { const r = await call(`/people?jurisdiction=tx&per_page=50&page=${page}`); if (!r?.body) { failed = true; break; }
+  // Test-ready build: the same request also asks for each member's offices and links (include=offices, include=links),
+  // which feed legislator_contacts. "tx:contacts" is unset until one full read with offices has finished, so the first
+  // run after this change reads people again instead of waiting out the week.
+  if (Date.now() - Number(await getCursor(db, "tx:people") ?? 0) > WEEK || !(await getCursor(db, "tx:contacts"))) {
+    let page = 1, max = 1, people = 0, contacts = 0, failed = false;
+    do { let r = await call(`/people?jurisdiction=tx&include=offices&include=links&per_page=50&page=${page}`);
+      // If Open States refuses the extra fields (a 400 or 422), the member list must still update: ask again without them.
+      if (r && !r.body && (r.status === 400 || r.status === 422)) { out.contactsNote = `Open States answered ${r.status} to include=offices; members read without contact details`; r = await call(`/people?jurisdiction=tx&per_page=50&page=${page}`); }
+      if (!r?.body) { failed = true; break; }
       const p = parseOpenStatesPeople(r.body); max = p.maxPage;
+      // Contact rows never stop the people update: a fault here is counted and reported, not thrown.
+      try { contacts += await upsertContacts(db, "texas", parseOpenStatesContacts(r.body), `${OPENSTATES_BASE}/people?jurisdiction=tx&include=offices&include=links`, now); } catch { out.contactsFailed = true; }
       if (page === 1) await db.update(txPeople).set({ isCurrent: 0 });
       if (p.people.length) await db.insert(txPeople).values(p.people.map(x => ({ ...x, isCurrent: 1, sourceUrl: `${OPENSTATES_BASE}/people?jurisdiction=tx`, retrievedAt: now })))
         .onConflictDoUpdate({ target: txPeople.id, set: { name: sql`excluded.name`, party: sql`excluded.party`, chamber: sql`excluded.chamber`, district: sql`excluded.district`, title: sql`excluded.title`, isCurrent: 1, retrievedAt: now } });
       people += p.people.length; page++;
     } while (page <= max);
-    if (!failed) await setCursor(db, "tx:people", String(now));
-    out.people = people;
+    if (!failed) { await setCursor(db, "tx:people", String(now)); await setCursor(db, "tx:contacts", String(now)); }
+    out.people = people; out.contacts = contacts;
   }
   if (Date.now() - Number(await getCursor(db, "tx:committees") ?? 0) > WEEK) {
     const r = await call(`/committees?jurisdiction=tx&classification=committee&include=memberships&per_page=20`);

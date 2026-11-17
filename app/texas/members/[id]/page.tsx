@@ -5,6 +5,7 @@ import { OfficialBadge, shortDate } from "@/components/federal/badges";
 import { viewerAccess } from "@/lib/viewer";
 import { txPerson } from "@/lib/texas/queries";
 import { TX_STAGE_LABEL, txVoteKind, type TxStage } from "@/lib/texas/parse";
+import { ContactForTxMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,9 @@ export default async function TexasMemberPage({ params }: { params: Promise<{ id
       <p className="crumbs"><Link href="/texas">← Texas Legislature</Link></p>
       <div className="eyebrow">TEXAS {person.chamber === "upper" ? "SENATE" : "HOUSE"} · DISTRICT {person.district} · {person.party.toUpperCase()}</div>
       <h1>{person.name}</h1>
+      {/* BEGIN contact-your-legislator (test-ready build): official phone, email and an editable message for this member. */}
+      <ContactForTxMember person={person} />
+      {/* END contact-your-legislator */}
       <h2>Latest votes <OfficialBadge /></h2>
       {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.voteId} className="vote-row"><div className="vote-main">
         <span className="vote-date">{shortDate(v.date)}</span><b><Link href={`/texas/bills/${v.billId}`}>{v.identifier}: {v.title}</Link></b>

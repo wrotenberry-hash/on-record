@@ -9,6 +9,7 @@ import { TX_SESSIONS, TX_STAGE_LABEL, txVoteKind, type TxStage } from "@/lib/tex
 import { txSummaryFor } from "@/lib/texas/summaries";
 import { AnalysisBadge } from "@/components/federal/badges";
 import { BRAND } from "@/lib/brand";
+import { ContactForTxBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
 const STEPS: TxStage[] = ["filed", "committee", "passed_first", "passed_both", "governor", "law"];
@@ -51,6 +52,9 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2><ul className="analysis-list">{((s.unknowns as string[]) ?? []).map((u, i) => <li key={i}>{u}</li>)}</ul>
           <p className="meta">Written by {s.model} from the {s.textLabel.toLowerCase()} text on Texas Legislature Online, checked by {BRAND.name}&apos;s rule checker ({s.checkPassed ? "passed" : "did not pass"}{s.readingGrade ? `, reading grade ${s.readingGrade}` : ""}). Confidence: {s.confidence}.</p></div>
       </>}
+      {/* BEGIN contact-your-legislator (test-ready build): the reader's Texas legislators, official phone, email and an editable message. */}
+      <ContactForTxBill bill={bill} votes={votes} />
+      {/* END contact-your-legislator */}
       <div className="fed-section"><h2>Recorded votes <OfficialBadge /></h2>
         {votes.length ? <ul className="vote-list">{votes.map(v => <li key={v.id} className="vote-row"><div className="vote-main">
           <span className="vote-date">{shortDate(v.date)} · {v.chamber === "upper" ? "Senate" : v.chamber === "lower" ? "House" : ""} · <span className={`vote-kind vote-kind-${txVoteKind(v.motion)}`}>{KIND[txVoteKind(v.motion)]}</span></span>

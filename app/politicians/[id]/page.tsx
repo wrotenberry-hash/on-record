@@ -20,6 +20,7 @@ import { getDb } from "@/db";
 import { officialPoliticians, sentimentTotals } from "@/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { BRAND, brandTitle } from "@/lib/brand";
+import { ContactForMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,10 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           <p className="meta">{p.isCurrent ? `Term ends ${shortDate(p.termEnd)}` : "No longer serving"}{p.officialUrl && <> · <a href={p.officialUrl} target="_blank" rel="noopener noreferrer">Official site</a></>}</p></div>
         <FollowButton politicianId={p.id} following={followed.has(p.id)} canFollow={!!access.editor || !!access.invite} />
       </div>
+
+      {/* BEGIN contact-your-legislator (test-ready build): official phone, contact form and an editable message for this member. */}
+      <ContactForMember member={p} />
+      {/* END contact-your-legislator */}
 
       {agreement && <div className="fed-section your-view"><h2>You and {p.fullName} <OpinionBadge /></h2>
         {agreement.rows.length ? <><ul className="analysis-list">{agreement.rows.map(r => <li key={r.issueSlug}><b>{issueName(r.issueSlug)}:</b> {agreementLine(r)} <Link className="src-link" href={`/share/agreement/${p.id}/${r.issueSlug}`}>Share</Link></li>)}</ul>
