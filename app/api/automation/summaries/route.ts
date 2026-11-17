@@ -20,6 +20,9 @@ export async function POST(request: Request) {
   const url = new URL(request.url), link = Math.max(1, Math.min(99, Number(url.searchParams.get("chain")) || 1));
   const run = await runAnalysisBatch({ budgetMs: 240_000, trigger: `chain ${link}` }).catch(error => ({ status: "FAILED" as const, stoppedBy: "error", made: [], error: (error instanceof Error ? error.message : "failed").slice(0, 200) }));
   const made = "made" in run ? run.made.length : 0, more = run.status !== "FAILED" && run.stoppedBy === "time budget" && link < SUMMARY_CHAIN_MAX;
+  // 17 Nov: the 19:00 run's two chain-written summaries could not be reviewed, because only the scheduled update wrote
+  // what it made to the log. The same packets (the summary beside the bill sections it cites) are written here.
+  if ("made" in run && run.made.length) await import("@/lib/analysis/report").then(m => m.logReviewPackets(run.made.map(x => x.billId), 25_000)).catch(() => null);
   console.log(`SUMMARY_CHAIN link ${link} | ${run.status} | made ${made} | stopped by ${run.stoppedBy ?? "nothing left"} | ${more ? "continues" : "ends"}`);
   if (more) await fireSummaryChain(url.origin, link + 1);
   return Response.json({ status: run.status, link, made, stoppedBy: run.stoppedBy ?? null, continues: more });
