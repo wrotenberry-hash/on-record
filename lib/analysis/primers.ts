@@ -157,6 +157,66 @@ export const PRIMERS: Primer[] = [
       { label: "Budget of the U.S. Government, 2027: customs duties and fees by year", url: "https://www.govinfo.gov/content/pkg/BUDGET-2027-TAB/xls/BUDGET-2027-TAB-3-5.xlsx" },
       { label: "Government Accountability Office: what a tariff is", url: "https://www.govinfo.gov/content/pkg/GAOREPORTS-NSIAD-00-210/html/GAOREPORTS-NSIAD-00-210.htm" }],
     lawAsOf: "2026-11-17", reviewed: false, match: { title: /\btariffs?\b/i, text: /Harmonized Tariff Schedule|section 232 of the Trade Expansion Act|section 301 of the Trade Act|section 122 of the Trade Act|\brates? of duty\b/i } },
+
+  // Written 17 Nov 2026 for the test-ready build, from the House's rules and manual, House Practice, the Constitution, the U.S. Code and
+  // Senate.gov. They wait for the owner's approval (reviewed: false), so no page or prompt uses them yet.
+  { id: "house-fast-track", kind: "process", title: "The House's fast track for bills with wide support",
+    bullets: [
+      "The House has a shortcut for bills that few members oppose (called suspension of the rules). It is used often.",
+      "Debate lasts 40 minutes, half for each side. Members cannot offer changes from the floor.",
+      "A bill passes this way only if two-thirds of the members voting say yes. More than half is not enough.",
+      "A bill that falls short is not dead. The House can take it up again under its regular process, where more than half is enough."],
+    sources: [{ label: "Rules of the House, 119th Congress: Rule XV, clause 1", url: "https://www.govinfo.gov/content/pkg/HMAN-119/html/HMAN-119-pg716.htm" },
+      { label: "House Practice: suspension of the rules", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-54.pdf" },
+      { label: "How Our Laws Are Made (House Document 110-49)", url: "https://www.govinfo.gov/content/pkg/CDOC-110hdoc49/html/CDOC-110hdoc49.htm" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /\bsuspend the rules\b/i } },
+
+  { id: "house-debate-terms", kind: "process", title: "How the House sets the terms of debate on a bill",
+    bullets: [
+      "Before the House debates most major bills, it votes on a short measure that sets the terms of the debate (often called the rule). Its title starts \"Providing for consideration of\".",
+      "The terms say how long the debate lasts and which changes, if any, members may offer. Under a closed rule, no changes may be offered from the floor.",
+      "A vote on the terms is not a vote on the bill. The bill gets its own vote afterward.",
+      "Just before it, the House often votes on whether to end debate on the terms (called ordering the previous question). Both votes need more than half of the members voting."],
+    sources: [{ label: "House Practice: special orders of business", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-53.pdf" },
+      { label: "House Practice: the previous question", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-40.pdf" },
+      { label: "Rules of the House, 119th Congress: Rule XIII, clause 6", url: "https://www.govinfo.gov/content/pkg/HMAN-119/html/HMAN-119-pg667.htm" },
+      { label: "An example: H. Res. 1650, setting the terms for H.R. 1013", url: "https://www.govinfo.gov/content/pkg/BILLS-119hres1650rh/html/BILLS-119hres1650rh.htm" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /Considered under the provisions of rule H\. ?Res\.|Rule provides for consideration of/i } },
+
+  { id: "veto-override", kind: "process", title: "What happens when the President vetoes a bill",
+    bullets: [
+      "After Congress passes a bill, the President has 10 days, not counting Sundays, to sign it or send it back with objections. Sending it back is a veto.",
+      "Congress can still make the bill law. Two-thirds of the members voting in the House, and then two-thirds in the Senate, must vote to pass it again.",
+      "If the President does nothing for 10 days while Congress is meeting, the bill becomes law without a signature. If Congress has gone home so the bill cannot be sent back, the bill dies (a pocket veto), and Congress cannot undo that.",
+      "Overrides are rare. The Senate's count lists 2,599 vetoes in U.S. history; 112 were overridden."],
+    sources: [{ label: "U.S. Constitution, Article I, section 7 (House Document 110-50)", url: "https://www.govinfo.gov/content/pkg/CDOC-110hdoc50/html/CDOC-110hdoc50.htm" },
+      { label: "House Practice: veto of bills", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-58.pdf" },
+      { label: "U.S. Senate: vetoes, 1789 to present", url: "https://www.senate.gov/legislative/vetoes/vetoCounts.htm" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { actions: /\bvetoed\b|\bveto message\b|objections of the President/i } },
+
+  { id: "war-powers", kind: "process", title: "How Congress can order troops out of a conflict",
+    bullets: [
+      "A 1973 law, the War Powers Resolution, limits how long a President can use the armed forces in fighting without approval from Congress.",
+      "The President must report to Congress within 48 hours of sending forces into fighting. The forces must come out within 60 days, plus up to 30 more to withdraw them safely, unless Congress approves the action.",
+      "Congress can also vote to direct the President to remove the forces. The law puts these measures ahead of other business, with deadlines for a vote.",
+      "What such a vote does depends on its kind. One kind is not sent to the President and, by the Senate's own description, does not have the force of law. The other kind goes to the President, who can veto it."],
+    sources: [{ label: "50 U.S.C. 1543 (the 48-hour report)", url: USC(50, "1543") }, { label: "50 U.S.C. 1544 (the 60 days, and removal when Congress directs it)", url: USC(50, "1544") },
+      { label: "50 U.S.C. 1546 and 1546a (priority for these measures)", url: USC(50, "1546a") },
+      { label: "U.S. Senate glossary (the two kinds of measure)", url: "https://www.senate.gov/about/research-tools/glossary.htm" },
+      { label: "House Practice: war powers", url: "https://www.govinfo.gov/content/pkg/GPO-HPRACTICE-118/pdf/GPO-HPRACTICE-118-15.pdf" }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { title: /War Powers Resolution|remov(?:e|al of) United States Armed Forces/i } },
+
+  { id: "constitutional-amendment", kind: "process", title: "How the Constitution gets amended",
+    bullets: [
+      "Changing the Constitution takes two steps. First, two-thirds of the members voting in both the House and the Senate must approve the proposed change.",
+      "Second, three-fourths of the states must approve it: 38 of the 50. Congress chooses whether state legislatures or special state conventions decide.",
+      "The President has no formal part. A proposed amendment is not sent to the President to sign.",
+      "It rarely succeeds. Congress has sent 33 amendments to the states, and 27 were approved. About 12,000 have been proposed in Congress since 1789."],
+    sources: [{ label: "U.S. Constitution, Article V (House Document 110-50)", url: "https://www.govinfo.gov/content/pkg/CDOC-110hdoc50/html/CDOC-110hdoc50.htm" },
+      { label: "Constitution Annotated: Article V", url: "https://www.govinfo.gov/content/pkg/GPO-CONAN-2022/pdf/GPO-CONAN-2022-12.pdf" },
+      { label: "U.S. Senate: measures proposed to amend the Constitution", url: "https://www.senate.gov/legislative/MeasuresProposedToAmendTheConstitution.htm" },
+      { label: "1 U.S.C. 106b (how a ratified amendment is certified)", url: USC(1, "106b") }],
+    lawAsOf: "2026-11-17", reviewed: false, match: { title: /Proposing an amendment to the Constitution/i } },
 ];
 
 export type PrimerContext = { title: string; text: string; actions: string };
