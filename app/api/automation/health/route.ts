@@ -39,6 +39,9 @@ async function lastRun() {
     if (!row) return null;
     // Error text is status words and generic fetch/extraction messages; strip anything URL-shaped defensively.
     const note = row.error ? row.error.replace(/https?:\/\/\S+/g, "[url]").slice(0, 300) : null;
+    // Still "RUNNING" more than 5½ minutes after it started means the host cut it off (its limit is 300 s).
+    if (row.status === "RUNNING" && Date.now() - row.startedAt > 330_000)
+      return { ...row, status: "CUT_OFF", error: "Cut off by the host's 5-minute limit before it finished.", hadError: true };
     return { ...row, error: note, hadError: row.status === "FAILED" };
   } catch { return "unavailable" as const; }
 }

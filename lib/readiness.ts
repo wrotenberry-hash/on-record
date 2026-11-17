@@ -109,7 +109,10 @@ export function readiness(i: ReadinessInput): Check[] {
   add("trial.invites", 7, "25 invite links", yes(i.trial.invites >= 25, `${i.trial.invites} links are ready on Editor → Trial invites. None has been sent.`, `${i.trial.invites} links exist; 25 are needed.`));
   add("trial.welcome", 7, "Welcome screen", yes(i.trial.welcomeScreen, "An invite opens on a short page: what to try and how to give feedback.", "Not built yet."));
   add("trial.booking", 7, "Booking link for 15-minute calls", i.trial.bookingLink ? { state: "pass", detail: "Your booking link is on the welcome screen." } : { state: "owner", detail: "The button is built. Paste your booking link into Vercel as TRIAL_BOOKING_URL (2 minutes)." });
-  add("trial.summaries", 7, "Passing summaries are shown to trial readers", yes(i.trial.summariesShownToTrial, "Trial readers see every summary that passed; held ones stay hidden.", "Summaries are still hidden from readers."));
+  add("trial.summaries", 7, "Passing summaries are shown to trial readers", i.trial.summariesShownToTrial
+    ? { state: "pass", detail: "Trial readers see every summary that passed; held ones stay hidden." }
+    : cov.passing90d > 0 ? { state: "owner", detail: `${cov.passing90d} summaries have passed every check. Showing them to trial readers is your decision.` }
+    : { state: "fail", detail: "No summary has passed every check yet, so there is nothing to show." });
   return c;
 }
 
