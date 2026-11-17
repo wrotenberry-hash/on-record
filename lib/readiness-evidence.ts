@@ -16,7 +16,7 @@ type Evidence = Pick<ReadinessInput, "brand"> & { flow: ReadinessInput["flow"] }
 export const EVIDENCE: Evidence = {
   brand: { literalsLeft: 0, testedWithOtherName: { ranOn: "17 Nov 2026", note: "Tried as \"Constituent\": top bar, titles, cards, emails and the manifest all followed; tests/brand.test.mjs fails if a typed-out name comes back." } },
   flow: { e2e: null, fiveLegislatorsForTexasAddress: null, comingUpWithAnswers: null, districtMessageShown: null, accountNotNeeded: null },
-  influence: { contactOnBillAndMemberPages: null, hearingsStepLive: false, townHallsLine: false, voicePage: null },
+  influence: { contactOnBillAndMemberPages: { ranOn: "17 Nov 2026", note: "Seen at phone width on bill pages (whole bill and a single vote), member pages and Texas pages; taps send only the kind of page." }, hearingsStepLive: false, townHallsLine: false, voicePage: null },
   trust: { methodology: null, pledge: null, about: null, privacyDraft: null, termsDraft: null, legalReviewed: false, founderText: false },
   quality: { e2e: null, axe: null, speed: null, errorMonitoring: false, uptimeCheck: null, feedbackPrompt: true, somethingWrongLink: null, analytics: null },
   texas: { calendarDates: 0, readyForSession: null, notReadyWhy: "" },
