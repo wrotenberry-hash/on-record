@@ -8,6 +8,7 @@ import { tickAuthorized } from "@/lib/tick-auth";
 import { archiveOldCases, intakePauseState, runMonitoring, runRhythm, type MonitoringOutcome, type RhythmOutcome } from "@/lib/monitoring-runtime";
 import { runFederalIngest, type IngestSummary } from "@/lib/federal/ingest";
 import { runAnalysisBatch, type AnalysisRun } from "@/lib/analysis/generate";
+import { fireSummaryChain } from "@/lib/analysis/chain";
 import { runClassifyBatch, type ClassifyRun } from "@/lib/analysis/classify";
 import { sendSummariesReadyIfDue } from "@/lib/analysis/report";
 import { intakeAllowed } from "@/lib/monitoring";
@@ -24,6 +25,9 @@ export const maxDuration = 300;
 const MAX_CAPTURE_ATTEMPTS = 3;
 export const dynamic = "force-dynamic";
 
+/** Where this deployment answers, for handing summary writing over to its own route (set at the start of each run). */
+let origin = "";
+
 /** Vercel Cron calls the job with GET and the CRON_SECRET bearer. */
 export async function GET(request: Request) { return runTick(request); }
 
@@ -36,6 +40,7 @@ async function runTick(request: Request) {
     { cronSecret: process.env.CRON_SECRET, tickSecret: process.env.AUTOMATION_TICK_SECRET });
   if (!via) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const now = Date.now(), slot = new Date(now).toISOString().slice(0, 13), day = slot.slice(0, 10);
+  origin = new URL(request.url).origin;
   const db = getDb();
   // Owner decision 2026-11-16: waiting cases older than 14 days are archived (never deleted) on every
   // run, before the backlog check, so the pause lifts on its own. The editor can restore any of them.
@@ -173,6 +178,8 @@ async function analysisStep(startedAt: number, reserveMs = 0): Promise<(Analysis
   let analysis: AnalysisRun | { status: "FAILED"; error: string };
   try { analysis = await runAnalysisBatch({ budgetMs, trigger: "scheduled" }); }
   catch (error) { analysis = { status: "FAILED", error: (error instanceof Error ? error.message : "analysis failed").slice(0, 200) }; }
+  // Test-ready build: summaries left over for lack of time continue in their own back-to-back runs (lib/analysis/chain.ts).
+  if ("stoppedBy" in analysis && analysis.stoppedBy === "time budget") await fireSummaryChain(origin, 1);
   // Round 1 review without email: write what this run wrote or rewrote to the function log, beside the cited bill sections.
   if ("made" in analysis && analysis.made.length) await import("@/lib/analysis/report").then(m => m.logReviewPackets(analysis.made.map(x => x.billId))).catch(() => null);
   // Issue suggestions for unsorted bills use whatever time is left; never after a billing refusal (AI work stops).
