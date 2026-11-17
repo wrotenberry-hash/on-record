@@ -3,7 +3,8 @@ import { getDb } from "@/db";
 import { officialAmendments, officialBillActions, officialBillCommittees, officialBillDepth, officialBills, officialBillTexts, officialCommitteeMembers,
   officialCommittees, officialFloorSchedule, officialMemberVotes, officialRollCalls, officialTallyChecks } from "@/db/schema";
 import { chunked, fetchText, getCursor, setCursor, type Step } from "@/lib/federal/ingest";
-import { congressBillApi, congressForYear, type BillRef } from "@/lib/federal/parse";
+import { congressBillApi, congressForYear, congressGovPage, type BillRef } from "@/lib/federal/parse";
+import { floorBillStub } from "@/lib/flow/rules";
 import { COMMITTEE_MEMBERSHIP_URL, COMMITTEES_URL, committeeIdFromSystemCode, houseFloorUrl, lifecycle, parseActions, parseAmendments, parseCommitteeMembership,
   parseCommittees, parseHouseFloor, parseSenateFloor, parseTextVersions, SENATE_FLOOR_URL, stageOf, tallyMismatches, weekOf } from "@/lib/federal/depth-parse";
 
@@ -111,7 +112,25 @@ export async function ingestFloor(db: Db, now = Date.now()): Promise<Step> {
     if (items.length) await db.insert(officialFloorSchedule).values(items.map(i => ({ chamber: "senate", weekOf: w, label: i.label, billId: i.billId, description: i.description, sourceUrl: SENATE_FLOOR_URL, retrievedAt: now }))).onConflictDoNothing();
     senate = items.length;
   }
-  return { ok: true, house, senate, senateStatus: sRes.status };
+  const stubs = await ensureFloorBillStubs(db, now).catch(() => 0);
+  return { ok: true, house, senate, senateStatus: sRes.status, stubs };
+}
+
+/**
+ * Owner, 17 Nov 2026 ("what's coming up" with Support / Oppose in one tap): a bill on this week's or a later floor
+ * schedule gets a starter bill record when it has none, exactly as a bill first seen in a roll call does, so readers
+ * can open it and answer before the vote. The bill step completes the record later. Existing records are untouched.
+ */
+export async function ensureFloorBillStubs(db: Db, now = Date.now()) {
+  const rows = await db.select({ chamber: officialFloorSchedule.chamber, billId: officialFloorSchedule.billId, label: officialFloorSchedule.label, description: officialFloorSchedule.description,
+    sourceUrl: officialFloorSchedule.sourceUrl }).from(officialFloorSchedule).where(and(sql`${officialFloorSchedule.weekOf} >= ${weekOf(now)}`, isNotNull(officialFloorSchedule.billId)));
+  const stubs = rows.flatMap(r => { const b = floorBillStub(r); return b ? [{ ...b, congressUrl: congressGovPage(b), detailStatus: "stub" as const, sourceUrl: r.sourceUrl, retrievedAt: now }] : []; })
+    .filter((b, i, a) => a.findIndex(x => x.id === b.id) === i);
+  if (!stubs.length) return 0;
+  const have = new Set((await db.select({ id: officialBills.id }).from(officialBills).where(inArray(officialBills.id, stubs.map(b => b.id)))).map(r => r.id));
+  const missing = stubs.filter(b => !have.has(b.id));
+  if (missing.length) await db.insert(officialBills).values(missing).onConflictDoNothing();
+  return missing.length;
 }
 
 /** Every roll call's official totals against its stored member votes. Mismatches are recorded, shown as under review, and alert. */
