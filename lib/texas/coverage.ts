@@ -193,6 +193,79 @@ export function advanceBillCursor(cur: BillCursor, page: { count: number; update
   return { cursor: { since: newest, page: 1 }, caughtUp: false, remainingPages };
 }
 
+/* ------------------------------------------- Bills, newest first (the back-to-back loader) --- */
+
+/**
+ * 17 Nov: the reader above goes oldest-update first, so on a session with thousands of bills the newest filings wait
+ * behind the whole backlog. The loader now reads newest-update first (sort=updated_desc). A "pass" reads every bill
+ * updated since `mark`, page by page; bills updated while a pass is under way move to the top of the list, which
+ * pushes later pages down (a bill may be read twice, never skipped), and `top` (the newest bill when the pass began)
+ * becomes the next pass's mark. While a long pass is under way, each link first runs a short "fresh" pass for bills
+ * updated since `top`, so a bill filed today never waits for the pass to finish.
+ */
+export type PassPos = { top: string | null; page: number };
+export type SessionBills = { mark: string | null; main: PassPos; fresh: PassPos | null; freshMark: string | null; waiting: number | null };
+export const BILLS_PER_PAGE = 20;
+const emptyPass = (): PassPos => ({ top: null, page: 1 });
+export function readSessionBills(raw: string | null): SessionBills {
+  let v: Partial<SessionBills> | null = null;
+  try { v = raw ? JSON.parse(raw) as Partial<SessionBills> : null; } catch { v = null; }
+  const pos = (p: unknown): PassPos | null => { const x = p as Partial<PassPos> | null; return x && Number.isInteger(x.page) && x.page! >= 1 ? { top: osSecond(x.top) , page: x.page! } : null; };
+  return { mark: osSecond(v?.mark), main: pos(v?.main) ?? emptyPass(), fresh: pos(v?.fresh), freshMark: osSecond(v?.freshMark), waiting: typeof v?.waiting === "number" ? v.waiting : null };
+}
+/** A fresh pass is due when the main pass is past its first page (page 1 already is the newest). */
+export const needsFresh = (s: SessionBills) => s.main.page > 1 && !!s.main.top;
+/** What to ask the source for: sort=updated_desc, updated_since=`since` (inclusive), page. */
+export function billRequest(s: SessionBills, mode: "main" | "fresh"): { since: string | null; page: number } {
+  return mode === "main" ? { since: s.mark, page: s.main.page } : { since: s.freshMark ?? s.main.top, page: s.fresh?.page ?? 1 };
+}
+const maxIso = (...xs: Array<string | null | undefined>) => xs.filter((x): x is string => !!x).sort().pop() ?? null;
+/** After one page is stored. `done` means that pass has read every bill it was looking for. */
+export function advanceSessionBills(s: SessionBills, mode: "main" | "fresh", page: { count: number; updated: string[]; maxPage: number; total: number | null }): { state: SessionBills; done: boolean; waiting: number } {
+  const newest = maxIso(...page.updated);
+  const pos = mode === "main" ? s.main : (s.fresh ?? emptyPass());
+  const top = pos.top ?? newest ?? billRequest(s, mode).since;
+  const done = page.count === 0 || pos.page >= page.maxPage;
+  const left = page.total != null ? Math.max(0, page.total - pos.page * BILLS_PER_PAGE) : Math.max(0, page.maxPage - pos.page) * BILLS_PER_PAGE;
+  if (mode === "fresh") {
+    if (done) return { state: { ...s, fresh: null, freshMark: maxIso(top, s.freshMark, s.main.top) }, done: true, waiting: s.waiting ?? 0 };
+    return { state: { ...s, fresh: { top, page: pos.page + 1 } }, done: false, waiting: s.waiting ?? 0 };
+  }
+  // Everything up to the newer of `top` and what the fresh passes reached is stored once the main pass ends.
+  if (done) return { state: { mark: maxIso(top, s.freshMark, s.mark), main: emptyPass(), fresh: null, freshMark: null, waiting: 0 }, done: true, waiting: 0 };
+  return { state: { ...s, main: { top, page: pos.page + 1 }, waiting: left }, done: false, waiting: left };
+}
+/** "about 300 waiting" for the probe and readiness: whole pages, rounded up. */
+export const waitingPages = (waiting: number | null) => Math.ceil(Math.max(0, waiting ?? 0) / BILLS_PER_PAGE);
+
+/* -------------------------------------------------- Committees and hearings: when to read --- */
+
+/**
+ * 17 Nov: production had 20 committees, all with chamber unknown. They came from the first build, which read one page
+ * of 20 without asking for a chamber and guessed the chamber from parent_id (an opaque id, so the guess always failed).
+ * The chamber-by-chamber walk only started once that read was a week old. A walk now starts at once when no committee
+ * is stored or any has no chamber (unless a full walk finished in the last day, so a source that sends nothing cannot
+ * make it loop), and otherwise weekly.
+ */
+export function committeeWalkDue(i: { walking: boolean; lastFullRead: number; stored: number; chamberUnknown: number; now: number }): boolean {
+  if (i.walking) return true;
+  if (i.now - i.lastFullRead < DAY) return false;
+  return i.stored === 0 || i.chamberUnknown > 0 || i.now - i.lastFullRead > 7 * DAY;
+}
+
+/** Upcoming hearings and floor events, every page (20 per page). Read again every six hours. */
+export type EventWalk = { startedAt: number; page: number; stored: number };
+export const EVENTS_EVERY_MS = 6 * 3600e3;
+export function readEventWalk(raw: string | null): EventWalk | null {
+  try { const w = raw ? JSON.parse(raw) as Partial<EventWalk> : null; return w && typeof w.startedAt === "number" && Number.isInteger(w.page) && w.page! >= 1 ? { startedAt: w.startedAt, page: w.page!, stored: Number(w.stored) || 0 } : null; }
+  catch { return null; }
+}
+export const eventsDue = (walk: EventWalk | null, lastFull: number, now: number) => !!walk || now - lastFull > EVENTS_EVERY_MS;
+export function nextEventStep(w: EventWalk, page: { count: number; maxPage: number; pastEnd?: boolean }): EventWalk | "done" {
+  if (page.pastEnd || page.count === 0 || w.page >= page.maxPage) return "done";
+  return { ...w, page: w.page + 1, stored: w.stored + page.count };
+}
+
 /* ------------------------------------------------------------- LegiScan --- */
 
 export type LegiscanSession = { session_id?: number; year_start?: number; special?: number; session_name?: string; session_title?: string };
