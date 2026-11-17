@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { officialCommitteeMeetings } from "@/db/schema";
 import { fetchText, type Step } from "@/lib/federal/ingest";
@@ -82,9 +82,4 @@ export async function upcomingMeetings(now = Date.now(), days = MEETING_WINDOW_D
 export async function upcomingMeetingCount(db: Db = getDb(), now = Date.now()) {
   const from = new Date(now - 3 * 3600e3).toISOString();
   return Number((await db.select({ n: sql<number>`count(*)` }).from(officialCommitteeMeetings).where(gte(officialCommitteeMeetings.startsAt, from)).get())?.n ?? 0);
-}
-
-/** One stored meeting by id (for a reminder on it). */
-export async function meetingById(id: string) {
-  return (await getDb().select().from(officialCommitteeMeetings).where(eq(officialCommitteeMeetings.id, id)).get()) ?? null;
 }
