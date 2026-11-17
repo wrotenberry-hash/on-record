@@ -34,9 +34,9 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
   // Texas hearings the "My legislators" view cannot place: no memberships loaded, no state legislators saved, or no committee found from the hearing's name.
   const txHearings = items.filter(i => i.where === "Texas"), txMatched = matched.filter(i => i.where === "Texas").length;
   const txNote = view === "mine" && who.texas.reader && txHearings.length > 0 && txMatched === 0
-    ? !who.texas.membershipsLoaded ? "Texas hearings cannot yet be matched to a member: Texas committee memberships are not loaded."
-      : !who.texas.stateLegislators ? "Texas hearings cannot yet be matched to your state legislators. Add your street address on Your legislators so we can find them."
-      : txHearings.some(i => !i.txCommitteeId) ? "Some Texas hearings cannot yet be matched to a committee, so they are not shown here." : null
+    ? !who.texas.membershipsLoaded ? <>Texas hearings cannot yet be matched to a member: Texas committee memberships are not loaded.</>
+      : !who.texas.stateLegislators ? <>Texas hearings cannot yet be matched to your state legislators. Add your street address on <Link href="/legislators">Your legislators</Link> so we can find them.</>
+      : txHearings.some(i => !i.txCommitteeId) ? <>Some Texas hearings cannot yet be matched to a committee, so they are not shown here.</> : null
     : null;
   const remind = (i: ComingItem) => canRemind && i.status !== "Canceled" && <form action={toggleReminder}><input type="hidden" name="key" value={i.key} /><input type="hidden" name="on" value={reminded.has(i.key) ? "0" : "1"} />
     <button className={reminded.has(i.key) ? "follow-btn on" : "follow-btn"} aria-pressed={reminded.has(i.key)}>{reminded.has(i.key) ? "Reminder set" : "Remind me"}</button></form>;
@@ -54,6 +54,8 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
           : <p className="gate gate-open" role="note">Add your ZIP code on <Link href="/legislators">Your legislators</Link> and this view will show what is coming up for them.</p>)
         : <p className="meta">Everything on the House and Senate floor schedules, committee meetings in Congress, and Texas hearings.{!loc && <> <Link href="/legislators">Add your ZIP code</Link> to see only what your legislators will take part in.</>}</p>}
 
+      {hearings.length > 0 && floor.length > 4 && <p className="meta coming-skip"><a href="#hearings">Skip to hearings ({hearings.length})</a></p>}
+
       <h2>Floor votes <OfficialBadge /></h2>
       {floor.length ? <ul className="result-list">{floor.map(i => <li key={i.key} className="coming-item">
         <span className="meta">{i.where} · {i.when}</span><Link href={i.href}>{i.title}</Link><span className="meta">{i.detail}</span>
@@ -65,8 +67,8 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
       <h2 id="hearings">Hearings <OfficialBadge /></h2>
       {hearings.length ? <ul className="result-list">{hearings.map(i => <li key={i.key} className="coming-item">
         <span className="meta">{i.where} · {i.when}</span>
-        <b className="coming-committee">{i.committee ?? (i.where === "Texas" ? "Texas Legislature" : "Committee meeting")}</b>
-        <span className="meta">{i.meetingKind}{i.status && <> · <b className="coming-status">{i.status}</b></>}</span>
+        <b className="coming-committee">{i.committee ?? (i.where === "Texas" ? "Texas Legislature hearing" : "Committee meeting")}</b>
+        {(i.meetingKind || i.status) && <span className="meta">{i.meetingKind}{i.meetingKind && i.status ? " · " : ""}{i.status && <b className="coming-status">{i.status}</b>}</span>}
         <span className="official-line"><OfficialBadge /> <span>{clip(i.title)}</span></span>
         {i.place && <span className="meta">Where: {i.place}</span>}
         {!!i.bills?.length && <span className="meta">Bills named: {i.bills.map((b, n) => <span key={b.label}>{n ? ", " : ""}{!b.href ? b.label : b.href.startsWith("/") ? <Link href={b.href}>{b.label}</Link>

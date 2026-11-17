@@ -43,12 +43,12 @@ export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
   return [...floor.map(f => ({ key: `floor:${f.chamber}:${f.weekOf}:${f.label}`, when: `Week of ${new Date(monday(f.weekOf)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`, whenMs: monday(f.weekOf),
       title: `${f.label}: ${f.title ?? f.description ?? ""}`.trim(), detail: `${f.chamber === "senate" ? "Senate" : "House"} floor schedule`, href: f.billId ? `/bills/${f.billId}` : "/coming", where: "Congress" as const,
       kind: "floor" as const, chamber: f.chamber })),
-    ...meetings.map(m => ({ key: `meeting:${m.id}`, when: whenLabel(m.startsAt, "Congress"), whenMs: Date.parse(m.startsAt), title: m.title, detail: meetingKindLine(m.meetingType), href: "/coming", where: "Congress" as const,
+    ...meetings.map(m => ({ key: `meeting:${m.id}`, when: whenLabel(m.startsAt, "Congress"), whenMs: Date.parse(m.startsAt), title: m.title, detail: meetingKindLine(m.meetingType), href: "/coming?show=all#hearings", where: "Congress" as const,
       kind: "hearing" as const, chamber: m.chamber, committee: m.committeeName, committeeCodes: (m.committeeCode ?? "").split(",").filter(Boolean), meetingKind: meetingKindLine(m.meetingType), status: meetingStatusNote(m.status),
       place: m.location, bills: (m.billIds ?? []).slice(0, 12).map(id => ({ label: billIdLabel(id), href: held.has(id) ? `/bills/${id}` : officialBillPage(id) })), sourceUrl: m.url })),
     ...events.map(e => ({ key: `tx:${e.id}`, when: whenLabel(e.start, "Texas"),
       whenMs: Date.parse(e.start), title: e.name, detail: `Texas hearing${e.location ? ` · ${e.location}` : ""}${(e.bills as string[] | null)?.length ? ` · ${(e.bills as string[]).slice(0, 5).join(", ")}` : ""}`, href: "/texas", where: "Texas" as const,
-      kind: "hearing" as const, committee: null, txCommitteeId: txCommitteeFor(e.name, txComms), meetingKind: "Texas Legislature hearing", status: null, place: e.location,
+      kind: "hearing" as const, committee: null, txCommitteeId: txCommitteeFor(e.name, txComms), meetingKind: "", status: null, place: e.location,
       bills: ((e.bills as string[] | null) ?? []).slice(0, 12).map(label => { const b = txOurs.find(x => x.identifier === label); return { label, href: b ? `/texas/bills/${encodeURIComponent(b.id)}` : null }; }), sourceUrl: e.url }))]
     .filter(i => Number.isFinite(i.whenMs)).sort((a, b) => a.whenMs - b.whenMs);
 }

@@ -83,7 +83,7 @@ export function memberVoteLine(m: Meaningful | null, position: string | null | u
 /** The threshold wording (owner, 17 Nov 2026). */
 export const DISTRICT_THRESHOLD_MESSAGE = `Not enough verified answers from your district yet. Totals show once ${MIN_SHOWN} verified people have answered.`;
 export const DISTRICT_OFF_MESSAGE = "District totals are not switched on yet, so there is nothing to show here. Your answers stay private.";
-export const DISTRICT_UNKNOWN_MESSAGE = "We do not know your district yet. Add your street address to see your district's view.";
+export const DISTRICT_UNKNOWN_MESSAGE = "We do not know your district yet. Find your legislators to see your district's view.";
 
 export type DistrictView = { kind: "off" | "unknown" | "below" | "total"; text: string };
 /**
