@@ -147,7 +147,7 @@ export async function fireTexasChain(origin: string, link: number, opts: { chain
   const q = new URLSearchParams({ chain: String(link), start: opts.start ?? (link === 1 ? "scheduled" : "chain") });
   if (opts.chain) q.set("id", opts.chain);
   if (opts.startUsed) q.set("used", String(opts.startUsed));
-  try { await fetch(`${origin}/api/automation/texas?${q}`, { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(4000), cache: "no-store" }); }
-  catch { /* expected: the next link keeps running after this request stops waiting */ }
-  return true;
+  // Imported here, not at the top: this file's rules are loaded by tests without the app's path aliases.
+  const { fireLink } = await import("../chain-fire.ts");
+  return (await fireLink(`${origin}/api/automation/texas?${q}`, secret, `TX_CHAIN hand-over to link ${link}`)).ok;
 }

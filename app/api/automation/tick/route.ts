@@ -180,7 +180,9 @@ async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { statu
   const { runTexasIngest } = await import("@/lib/texas/ingest");
   const texas = await runTexasIngest({ budgetMs: Math.max(10_000, budgetMs - (Date.now() - started)) }).catch(error => ({ ok: false, error: (error instanceof Error ? error.message : "texas failed").slice(0, 200) }));
   // Texas build (17 Nov): the rest of the Texas loading continues in its own back-to-back runs (lib/texas/chain.ts), within the source's daily limit.
-  await import("@/lib/texas/chain").then(m => m.fireTexasChain(origin, 1)).catch(() => false);
+  // 18 Nov: the first try started a new chain, found the lock kept for this run's own chain, and stopped. The hand-over is link 2 of the same chain.
+  const txRun = texas as { continues?: boolean; chain?: string; startUsed?: number };
+  if (txRun.continues && txRun.chain) await import("@/lib/texas/chain").then(m => m.fireTexasChain(origin, 2, { chain: txRun.chain, start: "chain", startUsed: txRun.startUsed ?? 0 })).catch(() => false);
   return { ...federal, texas };
 }
 

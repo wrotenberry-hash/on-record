@@ -534,7 +534,9 @@ export async function runTexasIngest({ budgetMs = 60_000 }: { budgetMs?: number 
   const c = texasConfig();
   if (!c.openStates && !c.legiscan) return { ok: true, skipped: "OPENSTATES_API_KEY and LEGISCAN_API_KEY are not set" };
   const run = await runTexasLink({ budgetMs, runCap: c.maxRequests, kind: "scheduled" });
-  return { ok: run.status !== "FAILED", ...(run.error ? { error: run.error } : {}), stoppedBy: run.stoppedBy, requests: run.requests, usedToday: run.usedToday, ...run.detail };
+  // `continues`, `chain` and `startUsed` let the scheduled update hand over to link 2 of this same chain (the lock is kept for it).
+  return { ok: run.status !== "FAILED", ...(run.error ? { error: run.error } : {}), stoppedBy: run.stoppedBy, requests: run.requests, usedToday: run.usedToday, ...run.detail,
+    continues: run.decision.next, chain: String(run.detail.chain ?? ""), startUsed: run.startUsed };
 }
 
 /* ------------------------------------------------------------------- Probe --- */

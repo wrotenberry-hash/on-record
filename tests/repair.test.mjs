@@ -22,7 +22,10 @@ test("false alarm: a company or a soldier and what happens to them is a concrete
 test("false alarm: the names of laws and agencies are not the insurance marketplace or investing jargon", () => {
   const names = ["", "The bill amends the Securities Exchange Act of 1934. The Securities and Exchange Commission enforces it. Shares trade on a stock exchange."];
   assert.deepEqual(unexplainedJargon(names).map(x => x.term), []);
-  assert.deepEqual(unexplainedJargon(["", "Plans sold on the Exchange change."]).map(x => x.term), ["Exchange"]);
+  assert.deepEqual(unexplainedJargon(["", "Health plans sold on the Exchange change."]).map(x => x.term), ["Exchange"]);
+  // 18 Nov 2026, H.R. 4795: an everyday "exchange" in a bill that has nothing to do with health coverage.
+  assert.deepEqual(unexplainedJargon(["", "The bill bars federal money for academic exchange programs with the university."]).map(x => x.term), []);
+  assert.deepEqual(unexplainedJargon(["Cut insurance costs", "People who buy a plan on an exchange would pay less."]).map(x => x.term), ["exchange"], "the health subject can be named in another part");
   assert.deepEqual(unexplainedJargon(["", "Members may not buy securities."]).map(x => x.term), ["securities"]);
 });
 

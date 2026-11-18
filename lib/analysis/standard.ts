@@ -13,8 +13,14 @@
 
 // ───────────── 5. The jargon list. Add a term whenever a review or the reader test finds a new one. ─────────────
 
-export type JargonTerm = { term: string; re: RegExp; plain: string };
-const j = (term: string, pattern: string, plain: string): JargonTerm => ({ term, re: new RegExp(`\\b(?:${pattern})\\b`, "i"), plain });
+/** `when`: the term is jargon only where the summary is about that subject (an everyday word with one technical meaning). */
+export type JargonTerm = { term: string; re: RegExp; plain: string; when?: RegExp };
+const j = (term: string, pattern: string, plain: string, when?: RegExp): JargonTerm => ({ term, re: new RegExp(`\\b(?:${pattern})\\b`, "i"), plain, ...(when ? { when } : {}) });
+/**
+ * 18 Nov 2026 (H.R. 4795): "academic exchange programs" was explained as the health-plan marketplace, and the added
+ * words then failed the source check three times. "Exchange" is health jargon only in a summary about health coverage.
+ */
+const ABOUT_HEALTH_COVERAGE = /\b(?:health (?:plans?|insurance|coverage|care|benefits?)|insur(?:ance|ers?|ed)|medicaid|medicare|affordable care act|premiums?|deductibles?|copays?|healthcare\.gov)\b/i;
 
 export const JARGON: JargonTerm[] = [
   // Health coverage
@@ -24,7 +30,7 @@ export const JARGON: JargonTerm[] = [
   j("cost-sharing", "cost[- ]sharing", "what you pay yourself: deductibles and copays"),
   j("Basic Health Program", "basic health programs?", "state-run low-cost coverage for people who earn a little too much for Medicaid"),
   j("qualified health plan", "qualified health plans?", "a plan approved for sale on the government marketplace"),
-  j("Exchange", "(?<!securities (?:and )?)(?<!stock )(?:federally[- ]facilitated |state[- ]based )?exchanges?(?! act\\b| commission\\b)", "the government marketplace where people buy health plans (HealthCare.gov in most states)"),
+  j("Exchange", "(?<!securities (?:and )?)(?<!stock )(?:federally[- ]facilitated |state[- ]based )?exchanges?(?! act\\b| commission\\b)", "the government marketplace where people buy health plans (HealthCare.gov in most states)", ABOUT_HEALTH_COVERAGE),
   j("issuer", "issuers?", "insurance company"),
   j("essential health benefits", "essential health benefits?", "the services every plan must cover"),
   j("catastrophic plan", "catastrophic (?:plans?|coverage)", "a plan with low monthly payments and a very high deductible"),
@@ -118,7 +124,9 @@ export function plainWordsNearby(text: string, from: number, plain: string): boo
 /** Jargon terms used without an explanation on first use. `parts` are the Analysis texts in reading order; the headline comes first. */
 export function unexplainedJargon(parts: readonly string[]): Array<{ term: string; plain: string; part: number }> {
   const out: Array<{ term: string; plain: string; part: number }> = [];
+  const whole = parts.join(" ");
   for (const t of JARGON) {
+    if (t.when && !t.when.test(whole)) continue; // an everyday word outside its technical subject
     for (let p = 0; p < parts.length; p++) {
       const m = t.re.exec(parts[p]);
       if (!m) continue;
