@@ -825,3 +825,89 @@ export const errorEvents = sqliteTable("error_events", {
   day: text("day").notNull(), source: text("source", { enum: ["server", "client"] }).notNull(), route: text("route").notNull(), message: text("message").notNull(),
   n: integer("n").notNull().default(0), firstAt: integer("first_at").notNull(), lastAt: integer("last_at").notNull(),
 }, t => [primaryKey({ columns: [t.day, t.source, t.route, t.message] })]);
+
+// ---- Texas build: summaries
+// Texas bill summaries in the full format of the federal ones (owner instruction, 17 Nov 2026, point 3). New tables only.
+// The old tx_bill_summaries table holds first-template rows; it is not read or written any more and its rows are never shown.
+// Written by lib/texas/summaries.ts; only a bill with a committee hearing, a vote or a follower gets a row.
+export const txSummaries = sqliteTable("tx_summaries", {
+  id: text("id").primaryKey(), billId: text("bill_id").notNull(), // tx_bills.id; one live summary per bill, earlier wording in tx_summary_versions
+  sequence: integer("sequence").notNull(), // 0-based order of generation, for 1-in-5 sampling
+  textVersion: text("text_version").notNull(), textVersionLabel: text("text_version_label").notNull(), textDate: text("text_date"),
+  textUrl: text("text_url").notNull(), textChars: integer("text_chars").notNull(), truncated: integer("truncated").notNull().default(0),
+  headline: text("headline").notNull(),
+  whatItDoes: text("what_it_does", { mode: "json" }).$type<Array<{ text: string; section: string }>>().notNull(),
+  whoItAffects: text("who_it_affects", { mode: "json" }).$type<Array<{ text: string; section: string }>>().notNull(),
+  whatChangesForYou: text("what_changes_for_you").notNull(),
+  caseFor: text("case_for", { mode: "json" }).$type<Array<{ argument: string; attribution: string; source?: string }>>().notNull(),
+  caseAgainst: text("case_against", { mode: "json" }).$type<Array<{ argument: string; attribution: string; source?: string }>>().notNull(),
+  unknowns: text("unknowns", { mode: "json" }).$type<string[]>().notNull(),
+  confidence: text("confidence", { enum: ["high", "medium", "low"] }).notNull(), confidenceReason: text("confidence_reason").notNull(),
+  checkPassed: integer("check_passed").notNull(), attempts: integer("attempts").notNull(),
+  status: text("status", { enum: ["visible", "held", "rejected"] }).notNull(),
+  model: text("model").notNull(), promptVersion: text("prompt_version").notNull(),
+  inputTokens: integer("input_tokens").notNull(), outputTokens: integer("output_tokens").notNull(), costUsd: real("cost_usd").notNull(),
+  sources: text("sources", { mode: "json" }).$type<Array<{ label: string; url: string; date: string | null }>>().notNull(),
+  // Why this bill was allowed a summary: a hearing, a vote or a follower, with the date.
+  eligibility: text("eligibility", { mode: "json" }).$type<Array<{ kind: "hearing" | "vote" | "followed"; date: string | null; detail: string }>>().notNull(),
+  createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(), reviewedAt: integer("reviewed_at"),
+}, t => [uniqueIndex("tx_summaries_bill_uq").on(t.billId), index("tx_summaries_status_idx").on(t.status),
+  check("tx_summaries_status", sql`${t.status} IN ('visible', 'held', 'rejected')`),
+  check("tx_summaries_confidence", sql`${t.confidence} IN ('high', 'medium', 'low')`)]);
+
+// "In plain English", the voting question, the official sources the generator was given (each with its address and date), and the fiscal note's top line.
+export const txSummaryDetails = sqliteTable("tx_summary_details", {
+  summaryId: text("summary_id").primaryKey().references(() => txSummaries.id),
+  plainEnglish: text("plain_english").notNull(), question: text("question").notNull(),
+  sourceDocs: text("source_docs", { mode: "json" }).$type<Array<{ id: string; kind: string; label: string; url: string; date: string | null }>>().notNull(),
+  fiscal: text("fiscal", { mode: "json" }).$type<{ url: string; date: string | null; describes: string; headline: string | null; noSignificantImpact: boolean } | null>(),
+  notes: text("notes", { mode: "json" }).$type<string[]>().notNull(), // sources that were not found or could not be read
+  unread: text("unread", { mode: "json" }).$type<string[]>().notNull(), // an analysis that prints arguments and could not be read: the summary is held
+  promptVersion: text("prompt_version").notNull(), updatedAt: integer("updated_at").notNull(),
+});
+
+// "How it works today → what would change → why now", and the ids of the approved explainers that applied.
+export const txSummaryStructure = sqliteTable("tx_summary_structure", {
+  summaryId: text("summary_id").primaryKey().references(() => txSummaries.id),
+  howItWorksToday: text("how_it_works_today", { mode: "json" }).$type<Array<{ text: string; section: string }>>().notNull(),
+  changes: text("changes", { mode: "json" }).$type<Array<{ label?: string; before?: string; today: string; ifPassed: string; source: string }>>().notNull(),
+  whyNow: text("why_now").notNull(), primers: text("primers", { mode: "json" }).$type<string[]>().notNull(),
+  promptVersion: text("prompt_version").notNull(), updatedAt: integer("updated_at").notNull(),
+});
+
+// One row per attempt: the written rules' result, what the mechanical repair changed, the model and its cost.
+export const txSummaryChecks = sqliteTable("tx_summary_checks", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => txSummaries.id).notNull(),
+  attempt: integer("attempt").notNull(), passed: integer("passed").notNull(),
+  failures: text("failures", { mode: "json" }).$type<string[]>().notNull(), warnings: text("warnings", { mode: "json" }).$type<string[]>().notNull(),
+  metrics: text("metrics", { mode: "json" }).$type<Record<string, number>>().notNull(), repairs: text("repairs", { mode: "json" }).$type<string[]>().notNull(),
+  model: text("model").notNull(), costUsd: real("cost_usd").notNull(), promptVersion: text("prompt_version").notNull(), createdAt: integer("created_at").notNull(),
+}, t => [index("tx_summary_checks_summary_idx").on(t.summaryId)]);
+
+// One row per average-reader test: what the readers answered, the judge's verdicts, pass or fail with the reasons, the cost.
+export const txSummaryReaderTests = sqliteTable("tx_summary_reader_tests", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => txSummaries.id).notNull(),
+  attempt: integer("attempt").notNull(), passed: integer("passed").notNull(),
+  headline: text("headline").notNull(), plainEnglish: text("plain_english").notNull(),
+  reader: text("reader", { mode: "json" }).$type<Record<string, unknown>>().notNull(), judge: text("judge", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  reasons: text("reasons", { mode: "json" }).$type<string[]>().notNull(),
+  costUsd: real("cost_usd").notNull(), model: text("model").notNull(), promptVersion: text("prompt_version").notNull(), at: integer("at").notNull(),
+}, t => [index("tx_summary_reader_tests_summary_idx").on(t.summaryId, t.at)]);
+
+// What a summary said before it was written again (a newer generator, or a newer text of the bill).
+export const txSummaryVersions = sqliteTable("tx_summary_versions", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => txSummaries.id).notNull(),
+  promptVersion: text("prompt_version").notNull(), textVersion: text("text_version").notNull(),
+  content: text("content", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  checkPassed: integer("check_passed").notNull(), costUsd: real("cost_usd").notNull(), replacedAt: integer("replaced_at").notNull(),
+}, t => [index("tx_summary_versions_summary_idx").on(t.summaryId)]);
+
+// The editor's list: a summary that failed a check or the reader test, one with low confidence, or the 1-in-5 audit sample.
+export const txSummaryReviewQueue = sqliteTable("tx_summary_review_queue", {
+  id: text("id").primaryKey(), summaryId: text("summary_id").references(() => txSummaries.id).notNull(),
+  reason: text("reason", { enum: ["sample", "low_confidence", "check_failed"] }).notNull(),
+  status: text("status", { enum: ["open", "approved", "rejected"] }).notNull().default("open"),
+  note: text("note"), reviewerKey: text("reviewer_key"), createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
+}, t => [uniqueIndex("tx_summary_queue_summary_uq").on(t.summaryId), index("tx_summary_queue_status_idx").on(t.status),
+  check("tx_summary_queue_reason", sql`${t.reason} IN ('sample', 'low_confidence', 'check_failed')`),
+  check("tx_summary_queue_status", sql`${t.status} IN ('open', 'approved', 'rejected')`)]);
