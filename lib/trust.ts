@@ -195,10 +195,14 @@ export const READER_TOTALS = {
   rules: [
     "An answer is counted only from a verified real person: a confirmed email, an automatic bot check, and a text-message code sent to a U.S. mobile number that is not an internet (VoIP) number and has not verified another account.",
     "District totals count only readers whose street address the Census Bureau places in that district.",
+    "One person, one home. One account per phone number, and one home address per account, which can be changed once every 90 days. So a reader is counted in one congressional district, one state senate district and one state house district at a time.",
+    "An answer is counted in the districts the reader lived in when they gave it. Moving later does not carry earlier answers to the new district.",
+    "At most six accounts count at one home address. Further accounts there can read and follow, and are counted only after the editor has reviewed them.",
     `A new account's answers start counting ${HOURS} hours after the account was created.`,
     `A total is never shown below ${MIN_SHOWN} answers. Until then the page says “fewer than ${MIN_SHOWN} so far”.`,
     "“Unsure” is a private answer. It is never counted.",
     "Answers that look like coordinated activity (a sudden surge, many new accounts from one network or device, the same reason text from several accounts) are set aside from the totals until the editor has looked. They are never deleted.",
+    "A whole account is set aside the same way, and never deleted, when one device or network sets up accounts at many addresses, when many new accounts appear in one district just before a vote, or when an address is changed again and again.",
     "Every total carries the words “Not a scientific poll”.",
   ],
 } as const;
@@ -303,6 +307,8 @@ export const PROCESSORS: Processor[] = [
     receives: "An empty signal with no content. Your device then asks the site itself for the text of the alert." },
   { id: "twilio", name: "Twilio", url: "https://www.twilio.com/", role: "Checks that a phone number is a real mobile line and texts the code.", when: "verification", readerData: true, hosts: ["lookups.twilio.com", "verify.twilio.com"],
     receives: "Your phone number and the code you type." },
+  { id: "usps", name: "U.S. Postal Service address check", url: "https://developers.usps.com/addressesv3", role: "Says whether a street address has several homes, so a unit number can be asked for. Switched off; the site's owner has not turned it on.", when: "verification", readerData: true, hosts: ["apis.usps.com"],
+    receives: "If it is turned on: the street address and unit you type, sent from the site's server. Not your name, your email or your device's internet address." },
   { id: "turnstile", name: "Cloudflare Turnstile", url: "https://www.cloudflare.com/application-services/products/turnstile/", role: "The automatic bot check on the sign-in form, the phone step, and a verified reader's first counted answer.", when: "verification", readerData: true, hosts: ["challenges.cloudflare.com"],
     receives: "Its script runs in your browser on those forms, so Cloudflare sees your browser and internet address. The site also sends Cloudflare your internet address with the result of the check." },
   { id: "openai", name: "OpenAI", url: "https://openai.com/", role: "Drafts and tests bill summaries, sorts bills into issues, and suggests research leads on officials' public statements.", when: "always", readerData: false, hosts: ["api.openai.com"],
@@ -327,9 +333,9 @@ export const STORED: Stored[] = [
   { when: "optional", what: "Reports and feedback", detail: "A problem report holds the page, the reason you chose and your optional note. The one-question feedback answer is stored with no link to you." },
   { when: "everyone", what: "Errors on the site", detail: "When a page fails, the site counts it: the day, the kind of page (never the exact address) and a short technical message. Nothing about you is kept with it." },
   { when: "everyone", what: "Limits on repeated use", detail: "A scrambled form of your device's random number and of your network range, kept for 48 hours, to stop one device or network from flooding the site. The raw internet address is not stored." },
-  { when: "verification", what: "Phone number", detail: "Never stored. The site keeps only a keyed hash of it (a scrambled fingerprint that cannot be turned back into the number), so one phone cannot verify two accounts, plus the line type and the time it was confirmed. While you type the code, the number sits encrypted in a cookie on your own device for 10 minutes." },
-  { when: "verification", what: "Home address", detail: "Sent to the Census Bureau to find your district, then stored encrypted, with your district and state codes. Totals use the district code alone." },
-  { when: "verification", what: "Sign-up checks", detail: "The time you passed the bot check, and a scrambled form of the network range and device you signed up from, cleared after 30 days. A counted answer also carries a scrambled form of the network range and device it came from." },
+  { when: "verification", what: "Phone number", detail: "Never stored. The site keeps only a keyed hash of it (a scrambled fingerprint that cannot be turned back into the number), so one phone cannot verify two accounts, plus the line type and the time it was confirmed. While you type the code, the number sits encrypted in a cookie on your own device for 10 minutes. If you delete your account, that fingerprint alone is kept for 90 days, with nothing that says whose it was, so the same number cannot open a new account straight away; then it is deleted too." },
+  { when: "verification", what: "Home address", detail: "Sent to the Census Bureau to find your districts, then stored encrypted, with the codes of your state and your congressional, state senate and state house districts. The site also keeps a scrambled fingerprint of the address in a standard form, with and without the unit number, to count how many accounts share one home. Totals use the district codes alone. You have one home address at a time; a new one replaces the old one. Each counted answer keeps the district codes you had when you gave it." },
+  { when: "verification", what: "Sign-up checks", detail: "The time you passed the bot check, and a scrambled form of the network range and device you signed up from, cleared after 30 days. A counted answer also carries a scrambled form of the network range and device it came from. Each time you set, change or try to change your home address, the date is kept with a scrambled form of the device and network range it came from; those two are cleared after 30 days. If your account is set aside for review, the reason and the date are kept." },
 ];
 
 /* ───────────────────────────── 10. Markers for the lawyer and the founder ───────────────────────────── */
@@ -342,7 +348,7 @@ export const LEGAL_REVIEW = {
   sensitive: "whether political opinions need separate, explicit consent in any state or country the site will serve, and whether a notice for California, Texas or other state privacy laws is required",
   retention: "how long to keep an email address, answers, the answer history, encrypted addresses and inactive accounts. The code sets no end date for these; it deletes them only when the reader deletes the account",
   countedHashes: "the scrambled network range and device kept with each counted answer have no deletion date in the code; decide one",
-  deletionGaps: "account deletion leaves one row behind: a random id tied to the invite link the reader came in with. It holds no email and no answers. Decide whether it must go too",
+  deletionGaps: "account deletion leaves two things behind: a random id tied to the invite link the reader came in with, which holds no email and no answers; and, for 90 days, the scrambled fingerprint of the phone number, with no link to the person, so the number cannot open a new account straight away. Decide whether either must go sooner",
   noAccountDelete: "a reader who never signed in by email has no delete button; their answers and follows are tied to the invite link. Decide how such a reader asks for deletion and how fast it is done",
   databaseAccess: "the person who runs the site can read the database directly, including which invite gave which answers; say who has access and under what rule",
   keyRotation: "phone hashes and stored addresses are protected by keys derived from one site secret; decide whether separate keys or a key-change plan are required",

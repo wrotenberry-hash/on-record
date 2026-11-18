@@ -38,6 +38,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const note = m === "sent" || m === "fail" ? t : m ? MESSAGES[m] : null;
   const profile = vc.enabled && account ? await profileFor(account.id) : null;
   const tier = profile?.tier ?? 0;
+  // One person, one residence: an account set aside for review can read and follow; its answers are saved but not counted.
+  const holds = vc.enabled && account ? await import("@/lib/verify/residence-store").then(async m => m.liveHolds((await import("@/db")).getDb(), account.id)).catch(() => []) : [];
   const pendingCode = !!(await cookies()).get(PENDING_PHONE_COOKIE)?.value && !!profile?.pendingPhoneHash;
   const needChallenge = vc.turnstileReady && !profile?.signupChallengeAt;
   const prefs = appUserId ? await getDb().select().from(alertPrefs).where(eq(alertPrefs.userId, appUserId)).get().catch(() => null) : null;
@@ -57,6 +59,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <h2>Make your answers count</h2>
           <p>Support and Oppose answers from verified real people are added, <b>without your name</b>, to the totals on each bill. Answers from visitors stay private and are never counted.</p>
           <p className="gate gate-open" role="status"><b>Your level:</b> {TIER_LABEL[tier]}.{tier >= 1 && countsLater ? ` New accounts count after 24 hours: from ${when(countsFrom(account.createdAt))}.` : ""}{profile?.districtId ? ` District ${profile.districtId}.` : ""}</p>
+          {holds.length > 0 && <p className="gate gate-closed" role="status"><b>Waiting for a review.</b> {holds.some(h => h.kind === "household_cap") ? "Six accounts already count at your address." : "Something about how this account was set up needs a person to look at it."} You can read and follow as usual. Your answers are saved and will count once the review clears. Nothing has been deleted.</p>}
           {v && t && <p className={ok === "1" ? "gate gate-open" : "gate gate-closed"} role="status">{t}</p>}
           {!profile?.phoneVerifiedAt && !pendingCode && <form action={sendPhoneCode} className="verify-form">
             <h3>1. Confirm you are a real person</h3>
@@ -72,8 +75,10 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <button>Confirm</button></form>}
           {profile?.phoneVerifiedAt && <form action={saveAddress} className="verify-form">
             <h3>{profile.districtId ? "Your district" : "3. Match your district (optional)"}</h3>
-            <p className="meta">{profile.districtId ? `Matched to ${profile.districtId}. Enter a new address to change it.` : "Your answers then also count for the district you live in. The Census Bureau's geocoder finds the district; we keep the address encrypted and count only the district."}</p>
+            <p className="meta">{profile.districtId ? `Matched to ${profile.districtId}. One home address per account: a new address replaces this one, and you can change it once every 90 days. Answers you already gave stay counted where you lived when you gave them.`
+              : "Your answers then also count for the districts you live in: one for Congress, one state senate, one state house. The Census Bureau's geocoder finds them; we keep the address encrypted and count only the district codes. One home address per account; you can change it once every 90 days, so check it before you save."}</p>
             <label htmlFor="v-street">Street address</label><input id="v-street" name="street" autoComplete="address-line1" required />
+            <label htmlFor="v-unit">Apartment or unit, if you have one</label><input id="v-unit" name="unit" autoComplete="address-line2" maxLength={20} />
             <div className="verify-row"><span><label htmlFor="v-city">City</label><input id="v-city" name="city" autoComplete="address-level2" required /></span>
               <span><label htmlFor="v-state">State</label><input id="v-state" name="state" autoComplete="address-level1" maxLength={2} required placeholder="TX" /></span>
               <span><label htmlFor="v-zip">ZIP</label><input id="v-zip" name="zip" autoComplete="postal-code" inputMode="numeric" maxLength={10} required /></span></div>

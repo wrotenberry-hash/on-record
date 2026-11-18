@@ -911,3 +911,65 @@ export const txSummaryReviewQueue = sqliteTable("tx_summary_review_queue", {
 }, t => [uniqueIndex("tx_summary_queue_summary_uq").on(t.summaryId), index("tx_summary_queue_status_idx").on(t.status),
   check("tx_summary_queue_reason", sql`${t.reason} IN ('sample', 'low_confidence', 'check_failed')`),
   check("tx_summary_queue_status", sql`${t.status} IN ('open', 'approved', 'rejected')`)]);
+
+// ── One person, one residence (owner, 18 Nov 2026; migration 0035). New tables only; nothing above is altered. ──
+// The one active home address of an account: the primary key is the account, so there is never a second row, and the
+// row carries exactly one congressional district and at most one state senate and one state house district.
+// The address itself stays encrypted on the verification profile; here are only keyed hashes of its normalized form
+// (address_key with the unit, building_key without it) and the district codes.
+export const accountResidences = sqliteTable("account_residences", {
+  accountId: text("account_id").primaryKey().references(() => readerAccounts.id),
+  addressKey: text("address_key").notNull(), buildingKey: text("building_key").notNull(), hasUnit: integer("has_unit").notNull().default(0),
+  congressional: text("congressional").notNull(), stateCode: text("state_code").notNull(), stateUpper: text("state_upper"), stateLower: text("state_lower"),
+  setAt: integer("set_at").notNull(),
+}, t => [index("residence_address_idx").on(t.addressKey), index("residence_building_idx").on(t.buildingKey), index("residence_cd_idx").on(t.congressional, t.setAt)]);
+
+// Every time an address was set, changed or refused (the 90-day rule), with a scrambled form of the device and network
+// range it came from. Read for the 90-day rule and the review signals; no address text.
+export const residenceChanges = sqliteTable("residence_changes", {
+  id: text("id").primaryKey(), accountId: text("account_id").references(() => readerAccounts.id).notNull(),
+  kind: text("kind", { enum: ["first", "change", "refused"] }).notNull(), at: integer("at").notNull(),
+  fromAddressKey: text("from_address_key"), toAddressKey: text("to_address_key").notNull(), fromCongressional: text("from_congressional"), toCongressional: text("to_congressional"),
+  device: text("device"), ipRange: text("ip_range"),
+}, t => [index("residence_changes_account_idx").on(t.accountId, t.at), index("residence_changes_device_idx").on(t.device, t.at), index("residence_changes_ip_idx").on(t.ipRange, t.at),
+  check("residence_changes_kind", sql`${t.kind} IN ('first', 'change', 'refused')`)]);
+
+// Where a counted answer counts: the districts of the account's home when the answer first had one. Written once per
+// answer and never updated, so a later move does not carry earlier answers to the new district.
+export const positionResidences = sqliteTable("position_residences", {
+  userId: text("user_id").notNull(), billId: text("bill_id").notNull(), accountId: text("account_id").references(() => readerAccounts.id).notNull(),
+  congressional: text("congressional").notNull(), stateCode: text("state_code").notNull(), stateUpper: text("state_upper"), stateLower: text("state_lower"),
+  stampedAt: integer("stamped_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.billId] }), index("position_residences_account_idx").on(t.accountId)]);
+
+// An account set aside for review: it can read and follow, and none of its answers count while a hold is open or
+// confirmed. Nothing is deleted. One row per account, reason and subject, so a cleared hold is not raised again by the same pattern.
+export const accountHolds = sqliteTable("account_holds", {
+  id: text("id").primaryKey(), accountId: text("account_id").references(() => readerAccounts.id).notNull(),
+  kind: text("kind", { enum: ["household_cap", "device_addresses", "network_addresses", "district_cluster", "address_changes"] }).notNull(),
+  subject: text("subject").notNull(), status: text("status", { enum: ["open", "cleared", "confirmed"] }).notNull().default("open"),
+  detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(), createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
+}, t => [uniqueIndex("account_holds_uq").on(t.accountId, t.kind, t.subject), index("account_holds_status_idx").on(t.status, t.createdAt),
+  check("account_holds_kind", sql`${t.kind} IN ('household_cap', 'device_addresses', 'network_addresses', 'district_cluster', 'address_changes')`),
+  check("account_holds_status", sql`${t.status} IN ('open', 'cleared', 'confirmed')`)]);
+
+// The keyed hash of a deleted account's phone, kept until `until` (90 days) so the number cannot open a new account
+// straight away. No account id: the account is gone.
+export const phoneHolds = sqliteTable("phone_holds", {
+  phoneHash: text("phone_hash").primaryKey(), releasedAt: integer("released_at").notNull(), until: integer("until").notNull(),
+}, t => [index("phone_holds_until_idx").on(t.until)]);
+
+// A code mailed to an address for one account. Only a keyed hash of the code is stored. It is redeemed once, by that account.
+export const mailCodes = sqliteTable("mail_codes", {
+  id: text("id").primaryKey(), codeHash: text("code_hash").notNull(), accountId: text("account_id").references(() => readerAccounts.id).notNull(),
+  addressKey: text("address_key").notNull(), issuedAt: integer("issued_at").notNull(), expiresAt: integer("expires_at").notNull(),
+  redeemedAt: integer("redeemed_at"), redeemedBy: text("redeemed_by"),
+}, t => [uniqueIndex("mail_codes_hash_uq").on(t.codeHash), index("mail_codes_account_idx").on(t.accountId)]);
+
+// Mail-verified status: one per account, tied to the address the code was mailed to and the phone hash the account had
+// when it redeemed. A code backs one row only (unique), and a later redemption with the same phone hash at a different
+// address revokes this one.
+export const mailVerifications = sqliteTable("mail_verifications", {
+  accountId: text("account_id").primaryKey().references(() => readerAccounts.id), addressKey: text("address_key").notNull(), phoneHash: text("phone_hash").notNull(),
+  codeId: text("code_id").notNull(), verifiedAt: integer("verified_at").notNull(), revokedAt: integer("revoked_at"), revokedReason: text("revoked_reason"),
+}, t => [uniqueIndex("mail_verifications_code_uq").on(t.codeId), index("mail_verifications_phone_idx").on(t.phoneHash)]);

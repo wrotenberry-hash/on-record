@@ -220,7 +220,9 @@ test("cookie lifetimes on the privacy page are the ones in the code", () => {
 test("outside services: who gets reader data, and when", () => {
   assert.equal(new Set(PROCESSORS.map(p => p.id)).size, PROCESSORS.length);
   for (const id of ["vercel", "turso", "resend", "openai", "twilio", "turnstile", "census"]) assert.ok(PROCESSORS.some(p => p.id === id), `${id} is listed`);
-  assert.deepEqual(PROCESSORS.filter(p => p.when === "verification").map(p => p.id).sort(), ["turnstile", "twilio"]);
+  assert.deepEqual(PROCESSORS.filter(p => p.when === "verification").map(p => p.id).sort(), ["turnstile", "twilio", "usps"]);
+  // The Postal Service's address check is listed because the code can call it, and says plainly that it is switched off.
+  assert.match(PROCESSORS.find(p => p.id === "usps").role, /Switched off/); assert.match(read("lib/verify/config.ts"), /ADDRESS_AUTHORITY/);
   assert.deepEqual(PROCESSORS.filter(p => !p.readerData).map(p => p.id).sort(), ["openai", "social"]);
   for (const p of PROCESSORS) { assert.match(p.url, /^https:\/\//); assert.ok(p.receives.length > 20 && p.role.length > 10); }
 });
@@ -234,8 +236,16 @@ test("phone and address: the privacy page says what the code does", () => {
   assert.doesNotMatch(schema.match(/export const verificationProfiles[\s\S]*?\]\);/)[0], /\bphone: text|phoneNumber|phone_number/);
   assert.match(phone, /^Never stored\./); assert.match(phone, /keyed hash/); assert.match(phone, /10 minutes/);
   // Address: geocoded by the Census Bureau, then stored encrypted beside the district code.
-  assert.match(flow, /addressCipher: await encryptAddress\(address\)/);
+  assert.match(flow, /addressCipher: await encryptAddress\(/);
   assert.match(address, /stored encrypted/); assert.match(address, /Census Bureau/);
+  // One person, one residence (18 Nov 2026): what is new in the database is on the page.
+  assert.match(phone, /kept for 90 days/); assert.match(read("lib/verify/residence.ts"), /phoneHoldMs: 90 \* DAY/);
+  assert.match(address, /scrambled fingerprint of the address/); assert.match(address, /state senate and state house/);
+  assert.match(flow, /addressKey: await keyedHash\("residence", n\.address\)/, "only a keyed hash of the normalized address is kept");
+  assert.doesNotMatch(schema.match(/export const accountResidences[\s\S]*?\]\);/)[0], /street|addressLine|address_line|cipher/i, "no address text in the residence table");
+  assert.ok(STORED.some(x => /change or try to change your home address/.test(x.detail) && /cleared after 30 days/.test(x.detail)));
+  assert.match(store, /residenceChanges\)\.set\(\{ device: null, ipRange: null \}\)/);
+  assert.match(LEGAL_REVIEW.deletionGaps, /for 90 days, the scrambled fingerprint of the phone number/);
   // Retention the page states: 48 hours for rate rows, 30 days for sign-up hashes.
   assert.match(store, /rateEvents\.at, now - 48 \* 3600e3/); assert.match(store, /now - 30 \* 86400e3/);
   assert.ok(STORED.some(s => /48 hours/.test(s.detail))); assert.ok(STORED.some(s => /cleared after 30 days/.test(s.detail)));

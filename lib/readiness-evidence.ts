@@ -21,7 +21,7 @@ export const EVIDENCE: Evidence = {
     about: { ranOn: "17 Nov 2026" }, privacyDraft: { ranOn: "17 Nov 2026", note: "16 points marked for the lawyer." }, termsDraft: { ranOn: "17 Nov 2026", note: "10 points marked for the lawyer." }, legalReviewed: false, founderText: false },
   quality: { e2e: { ranOn: "18 Nov 2026", passed: 32, total: 32, failing: [], waitingOnOwner: [], note: "Production build, phone width, CPU slowed 4×; report in tests/e2e/report.md. Four Texas tasks, the newest for the Texas bill summary. The summary tasks use labelled stand-in summaries in the test copy." },
     axe: { ranOn: "18 Nov 2026", pages: 47, violations: 0 },
-    speed: { ranOn: "18 Nov 2026", slowestMs: 486, slowestPage: "/compare", note: "Local server, so network time is not included." },
+    speed: { ranOn: "18 Nov 2026", slowestMs: 671, slowestPage: "/compare", note: "Local server, so network time is not included." },
     errorMonitoring: true, uptimeCheck: null, feedbackPrompt: true,
     somethingWrongLink: { ranOn: "17 Nov 2026", note: "The suite files a report from a page and finds it in the queue, with and without JavaScript." },
     analytics: { ranOn: "17 Nov 2026", note: "Trial at a glance on Editor → Metrics and in the health probe." } },

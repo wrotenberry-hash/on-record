@@ -114,6 +114,10 @@ export async function seedDistrictAnswers({ billId, state, district = "37", n = 
     await retry(() => run(`insert into verification_profiles (account_id, tier, signup_challenge_at, phone_hash, phone_line_type, phone_verified_at, district_id, state_code, address_matched_at, created_at, updated_at)
       values (?, 2, ?, ?, 'mobile', ?, ?, ?, ?, ?, ?)`, [account, old, `e2e-phone-${user}`, old, `${state}-${district}`, state, old, old, old]));
     await retry(() => run("insert into counted_positions (user_id, bill_id, account_id, stance, tier, created_at, updated_at) values (?, ?, ?, ?, 2, ?, ?)", [user, billId, account, i < 20 ? "support" : "oppose", old, old]));
+    // One person, one residence (18 Nov 2026): each made-up account has one home, and its answer is stamped with that home's district,
+    // so the site's own recount gives the same totals as the copy of the rule below.
+    await retry(() => run("insert into account_residences (account_id, address_key, building_key, has_unit, congressional, state_code, set_at) values (?, ?, ?, 0, ?, ?, ?)", [account, `e2e-home-${user}`, `e2e-home-${user}`, `${state}-${district}`, state, old]));
+    await retry(() => run("insert into position_residences (user_id, bill_id, account_id, congressional, state_code, stamped_at) values (?, ?, ?, ?, ?, ?)", [user, billId, account, `${state}-${district}`, state, old]));
   }
   await recomputeTotals(billId);
   return { billId, scope: state, n };

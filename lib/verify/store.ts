@@ -5,7 +5,8 @@ import { billFollows, readerLocations, countedPositions, digestSends, flaggedPos
   sentimentTotals, userFollows, verificationProfiles } from "@/db/schema";
 import { keyedHash } from "@/lib/verify/crypto";
 import { verificationConfig } from "@/lib/verify/config";
-import { COST_USD, LIMITS, monthKey, positionCounts, tierFor, ipRange, type LimitName, type Tier } from "@/lib/verify/rules";
+import { COST_USD, LIMITS, monthKey, tierFor, ipRange, type LimitName, type Tier } from "@/lib/verify/rules";
+import { holdCounts, holdPhone, purgePhoneHolds, recomputeBillTotals } from "@/lib/verify/residence-store";
 
 export type Account = typeof readerAccounts.$inferSelect;
 export type Profile = typeof verificationProfiles.$inferSelect;
@@ -36,7 +37,7 @@ export async function withinLimit(name: LimitName, scopeValue: string | null, no
   return true;
 }
 
-export async function bumpCount(kind: "account_blocked" | "position_quarantined" | "spend", reason: string, n = 1, now = Date.now()) {
+export async function bumpCount(kind: "account_blocked" | "position_quarantined" | "account_held" | "spend", reason: string, n = 1, now = Date.now()) {
   if (n <= 0) return;
   await getDb().insert(integrityCounts).values({ month: monthKey(now), kind, reason, n })
     .onConflictDoUpdate({ target: [integrityCounts.month, integrityCounts.kind, integrityCounts.reason], set: { n: sql`${integrityCounts.n} + ${n}` } });
@@ -82,28 +83,13 @@ async function recomputeAccountBills(accountId: string) {
   for (const b of bills) await recomputeBill(b.billId);
 }
 
-/** Recomputes one bill's totals from its counted, unquarantined positions of accounts at least 24 h old. */
+/**
+ * Recomputes one bill's totals from its counted, unquarantined positions of accounts at least 24 h old. Each answer
+ * counts in the districts it was stamped with when it first had a home, and not at all while its account is set aside
+ * for review (lib/verify/residence-store.ts).
+ */
 export async function recomputeBill(billId: string, now = Date.now()) {
-  const db = getDb();
-  const rows = await db.select({ stance: countedPositions.stance, tier: countedPositions.tier, districtId: verificationProfiles.districtId, state: verificationProfiles.stateCode,
-    accountCreatedAt: readerAccounts.createdAt,
-    quarantined: sql<number>`exists (select 1 from flagged_positions fp join integrity_flags f on f.id = fp.flag_id where fp.user_id = ${countedPositions.userId} and fp.bill_id = ${countedPositions.billId} and f.status in ('open', 'confirmed'))` })
-    .from(countedPositions).innerJoin(readerAccounts, eq(readerAccounts.id, countedPositions.accountId))
-    .innerJoin(verificationProfiles, eq(verificationProfiles.accountId, countedPositions.accountId)).where(eq(countedPositions.billId, billId));
-  const totals = new Map<string, { support: number; oppose: number }>();
-  const add = (scope: string, group: "real" | "district", stance: string) => {
-    const t = totals.get(`${scope}|${group}`) ?? { support: 0, oppose: 0 };
-    if (stance === "support") t.support++; else t.oppose++;
-    totals.set(`${scope}|${group}`, t);
-  };
-  for (const r of rows) {
-    if (!positionCounts({ tier: r.tier, accountCreatedAt: r.accountCreatedAt, quarantined: Number(r.quarantined) === 1, now })) continue;
-    add("US", "real", r.stance);
-    if (r.tier >= 2 && r.districtId && r.state) { add("US", "district", r.stance); add(r.state, "district", r.stance); add(r.districtId, "district", r.stance); }
-  }
-  await db.delete(sentimentTotals).where(eq(sentimentTotals.billId, billId));
-  const values = [...totals].map(([k, t]) => { const [scope, tierGroup] = k.split("|"); return { billId, scope, tierGroup: tierGroup as "real" | "district", ...t, updatedAt: now }; });
-  if (values.length) await db.insert(sentimentTotals).values(values);
+  await recomputeBillTotals(getDb(), billId, now);
 }
 
 /** Every bill with counted positions (each scheduled run: accounts cross the 24-hour line over time). */
@@ -161,6 +147,17 @@ export async function deleteAccountAndPositions(account: Account) {
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, account.appUserId));
   await db.delete(alertOutbox).where(eq(alertOutbox.userId, account.appUserId));
   await db.delete(reminders).where(eq(reminders.userId, account.appUserId));
+  // One person, one residence: the phone's keyed hash is kept out for 90 days so the number cannot open a new account
+  // straight away (it holds no account id); everything else these tables hold about the account goes.
+  const { accountHolds, accountResidences, mailCodes, mailVerifications, positionResidences, residenceChanges } = await import("@/db/schema");
+  const phoneHash = (await db.select({ phoneHash: verificationProfiles.phoneHash }).from(verificationProfiles).where(eq(verificationProfiles.accountId, account.id)).get())?.phoneHash ?? null;
+  if (phoneHash) await holdPhone(db, phoneHash, Date.now());
+  await db.delete(positionResidences).where(eq(positionResidences.accountId, account.id));
+  await db.delete(mailVerifications).where(eq(mailVerifications.accountId, account.id));
+  await db.delete(mailCodes).where(eq(mailCodes.accountId, account.id));
+  await db.delete(accountHolds).where(eq(accountHolds.accountId, account.id));
+  await db.delete(residenceChanges).where(eq(residenceChanges.accountId, account.id));
+  await db.delete(accountResidences).where(eq(accountResidences.accountId, account.id));
   await db.delete(verificationProfiles).where(eq(verificationProfiles.accountId, account.id));
   await db.delete(digestSends).where(eq(digestSends.accountId, account.id));
   // A briefing subscription points at the account: with it left in place the database refused to delete the account row,
@@ -178,6 +175,9 @@ export async function deleteAccountAndPositions(account: Account) {
 export async function purgeVerificationData(now = Date.now()) {
   const db = getDb();
   await db.delete(rateEvents).where(lt(rateEvents.at, now - 48 * 3600e3));
+  await purgePhoneHolds(db, now); // a deleted account's phone hash is dropped when its 90 days are up
+  const { residenceChanges } = await import("@/db/schema");
+  await db.update(residenceChanges).set({ device: null, ipRange: null }).where(and(lt(residenceChanges.at, now - 30 * 86400e3), sql`(${residenceChanges.device} is not null or ${residenceChanges.ipRange} is not null)`));
   await db.update(verificationProfiles).set({ signupIpRange: null, signupDevice: null }).where(and(lt(verificationProfiles.createdAt, now - 30 * 86400e3), sql`(${verificationProfiles.signupIpRange} is not null or ${verificationProfiles.signupDevice} is not null)`));
 }
 
@@ -193,5 +193,6 @@ export async function verificationCounts() {
   const t = (k: number) => Number(tiers.find(r => r.tier === k)?.n ?? 0), f = (k: string) => Number(flags.find(r => r.status === k)?.n ?? 0);
   return { enabled: c.enabled, turnstileConfigured: c.turnstileReady, twilioConfigured: c.twilioReady, monthlyCapUsd: c.monthlyCapUsd, spendMonthUsd: await verifySpendUsd(),
     profiles: { tier0: t(0), tier1: t(1), tier2: t(2) }, countedPositions: Number(positions?.n ?? 0),
-    flags: { open: f("open"), confirmed: f("confirmed"), cleared: f("cleared") }, quarantinedPositions: Number(quarantined?.n ?? 0) };
+    flags: { open: f("open"), confirmed: f("confirmed"), cleared: f("cleared") }, quarantinedPositions: Number(quarantined?.n ?? 0),
+    accountsSetAside: await holdCounts(db).catch(() => null), addressAuthorityConfigured: c.addressAuthorityReady };
 }

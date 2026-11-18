@@ -140,4 +140,7 @@ export const REASON_LABEL: Record<string, string> = {
   phone_reused: "Phone already used by another account", rate_limited: "Too many attempts", bill_surge: "Sudden surge on one bill",
   district_surge: "Sudden surge in one district", ip_cluster: "Many new accounts from one network", device_cluster: "Many accounts from one device",
   same_reason: "Identical reason text across accounts",
+  phone_held: "Phone belonged to an account deleted in the last 90 days", household_cap: "More than six accounts at one address",
+  device_addresses: "One device set up accounts at several addresses", network_addresses: "One network set up accounts at many addresses",
+  district_cluster: "Many new accounts in one district just before a vote", address_changes: "Repeated address changes",
 };

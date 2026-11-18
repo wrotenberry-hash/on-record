@@ -35,7 +35,7 @@ export async function checkPhoneCode(formData: FormData) {
 export async function saveAddress(formData: FormData) {
   const a = await account();
   if (!a) redirect("/account?m=closed");
-  const r = await setAddress(a, { street: String(formData.get("street") ?? ""), city: String(formData.get("city") ?? ""), state: String(formData.get("state") ?? ""), zip: String(formData.get("zip") ?? "") });
+  const r = await setAddress(a, { street: String(formData.get("street") ?? ""), unit: String(formData.get("unit") ?? ""), city: String(formData.get("city") ?? ""), state: String(formData.get("state") ?? ""), zip: String(formData.get("zip") ?? "") });
   await countEvent(r.ok ? "verify_address_ok" : "verify_address_failed", "trial");
   back(r.ok ? "done" : "address", r);
 }

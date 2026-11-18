@@ -1,5 +1,7 @@
 import { verificationConfig } from "@/lib/verify/config";
 import { districtFromCensus } from "@/lib/verify/rules";
+import { districtsFromCensus } from "@/lib/federal/depth-parse";
+import { authorityFromUsps } from "@/lib/verify/residence";
 import { congressForYear } from "@/lib/federal/parse";
 import { censusCongress } from "@/lib/flow/rules";
 
@@ -78,5 +80,31 @@ export async function geocodeDistrict(address: string, now = Date.now()) {
     }
   }
   const d = districtFromCensus(match);
-  return d ? { ok: true as const, ...d, matchedAddress: String((match as { matchedAddress?: string }).matchedAddress ?? "") } : { ok: false as const, reason: "no_district" as const };
+  // The same answer carries the state senate and state house districts ("TX-SD-14", "TX-HD-49"); null where a state has none.
+  const all = d ? districtsFromCensus(match) : null;
+  return d ? { ok: true as const, ...d, stateUpper: all?.stateUpper ?? null, stateLower: all?.stateLower ?? null, matchedAddress: String((match as { matchedAddress?: string }).matchedAddress ?? "") }
+    : { ok: false as const, reason: "no_district" as const };
+}
+
+/**
+ * The official address database: does this address have several units, and is the unit given a real one? The Postal
+ * Service's Addresses API (version 3.3.1, read 18 Nov 2026): a token from POST /oauth2/v3/token (client credentials),
+ * then GET /addresses/v3/address. Answers null when the check is not switched on, not keyed, or did not answer; the
+ * caller then keeps the unit as typed and relies on the household cap.
+ */
+let uspsToken: { value: string; until: number } | null = null;
+export async function addressAuthority(a: { street: string; unit: string | null; city: string; state: string; zip: string }) {
+  const c = verificationConfig();
+  if (!c.addressAuthorityReady) return null;
+  if (!uspsToken || uspsToken.until < Date.now() + 60_000) {
+    const t = await call(`${c.usps.base}/oauth2/v3/token`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ grant_type: "client_credentials", client_id: c.usps.clientId, client_secret: c.usps.clientSecret }) });
+    const value = typeof t.body?.access_token === "string" ? t.body.access_token : null;
+    if (!value) return null;
+    uspsToken = { value, until: Date.now() + Math.max(60, Number(t.body?.expires_in ?? 600)) * 1000 };
+  }
+  const q = new URLSearchParams({ streetAddress: a.street, ...(a.unit ? { secondaryAddress: a.unit } : {}), city: a.city, state: a.state, ZIPCode: a.zip.slice(0, 5) });
+  const r = await call(`${c.usps.base}/addresses/v3/address?${q}`, { headers: { authorization: `Bearer ${uspsToken.value}` } });
+  if (r.status === 401) uspsToken = null;
+  return r.status === 200 ? authorityFromUsps(r.body) : null;
 }

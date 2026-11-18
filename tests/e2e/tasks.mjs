@@ -208,6 +208,8 @@ export const tasks = [
       await t.type("#v-street", "1100 Congress Ave"); await t.type("#v-city", "Austin"); await t.type("#v-state", "TX"); await t.type("#v-zip", "78701");
       await t.tap('button:has-text("Match my district")');
       await t.see('[role="status"]:has-text("District TX-37")', "the matched district");
+      // One person, one residence (18 Nov 2026): one district of each kind, named to the reader.
+      await t.see('[role="status"]:has-text("TX-37, TX-SD-14, TX-HD-49")', "the congressional, state senate and state house districts");
       await t.tap(menu("This week"));
       await t.tap('main a[href^="/bills/"]', "a bill");
       await t.page.waitForFunction(() => { const f = document.querySelector('#your-view input[name="cf-turnstile-response"]'); return !f || !!f.value; }, null, { timeout: 8000 }).catch(() => {});
@@ -215,6 +217,13 @@ export const tasks = [
       await t.see('#your-view button[name="stance"][value="support"][aria-pressed="true"]', "Support shown as chosen");
       const note = await t.text("#your-view");
       if (!/count/i.test(note)) t.fail("The bill page does not say whether the answer counts.");
+      // A different home address straight away is refused: one address per account, changed at most once every 90 days.
+      await t.page.goto("/account#verify", { waitUntil: "load" });
+      await t.see("#v-unit", "the apartment or unit field");
+      await t.type("#v-street", "1100 Congress Ave"); await t.type("#v-unit", "5"); await t.type("#v-city", "Austin"); await t.type("#v-state", "TX"); await t.type("#v-zip", "78701");
+      await t.tap('button:has-text("Update district")');
+      await t.see('[role="status"]:has-text("once every 90 days")', "the 90-day rule, in plain words");
+      if (!(await t.has('[role="status"]:has-text("District TX-37")'))) t.fail("A refused change should leave the district as it was.");
       return "local stand-ins for the text message, bot check and district lookup; by hand this needs the Turnstile and Twilio keys";
     } },
 

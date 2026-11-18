@@ -16,8 +16,11 @@ export function verificationConfig() {
   const twilio = { accountSid: env("TWILIO_ACCOUNT_SID"), user: twilioUser, pass: twilioPass, serviceSid: env("TWILIO_VERIFY_SERVICE_SID"),
     verifyBase: env("TWILIO_VERIFY_BASE") || "https://verify.twilio.com", lookupBase: env("TWILIO_LOOKUP_BASE") || "https://lookups.twilio.com" };
   const census = { base: env("CENSUS_GEOCODER_BASE") || "https://geocoding.geo.census.gov" };
+  // The official address database (unit numbers). Off unless ADDRESS_AUTHORITY=usps and both keys are set: the Postal
+  // Service's terms allow its address check only for mailing and shipping, so turning it on is the owner's decision (O-146).
+  const usps = { on: env("ADDRESS_AUTHORITY").toLowerCase() === "usps", clientId: env("USPS_CLIENT_ID"), clientSecret: env("USPS_CLIENT_SECRET"), base: env("USPS_API_BASE") || "https://apis.usps.com" };
   const capRaw = Number(env("VERIFY_MONTHLY_CAP_USD") || "10");
-  return { enabled, turnstile, twilio, census, monthlyCapUsd: Number.isFinite(capRaw) && capRaw >= 0 ? capRaw : 10,
+  return { enabled, turnstile, twilio, census, usps, addressAuthorityReady: usps.on && !!usps.clientId && !!usps.clientSecret, monthlyCapUsd: Number.isFinite(capRaw) && capRaw >= 0 ? capRaw : 10,
     turnstileReady: !!(turnstile.siteKey && turnstile.secret), twilioReady: !!(twilio.user && twilio.pass && twilio.serviceSid) };
 }
 export type VerificationConfig = ReturnType<typeof verificationConfig>;
