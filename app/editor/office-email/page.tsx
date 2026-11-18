@@ -1,41 +1,36 @@
 import Link from "next/link";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
-import { requireEditorUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { officialBills, officialFloorSchedule, officialMemberVotes, officialPoliticians, officialRollCalls } from "@/db/schema";
-import { memberDistrictId, totalsLine } from "@/lib/verify/rules";
-import { scopeTotals } from "@/lib/verify/store";
-import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
-import { weekOf } from "@/lib/federal/depth-parse";
-import { BRAND } from "@/lib/brand";
+import { requireEditorUser } from "@/lib/auth";
 import { Wordmark } from "@/components/brand/wordmark";
+import { officeRule } from "@/lib/office/domains";
+import { composeOfficeEmail, OFFICE_EMAIL_FLAG, officeEmailEnabled } from "@/lib/office/email";
+import { memberOf, memberOptions, officeDashboard } from "@/lib/office/store";
 
 export const dynamic = "force-dynamic";
 const requestTime = () => Date.now();
 
-/** Round J design: the weekly office email, previewed for one member. Never sent (docs/OFFICE_EMAIL_DESIGN.md). */
+/**
+ * The weekly office email, exactly as it would be written for one member today: the same composer and the same
+ * dashboard the scheduled sender uses (lib/office/email.ts, lib/office/store.ts). Nothing is sent from this page.
+ * The one design is docs/OFFICE_EMAIL_DESIGN.md.
+ */
 export default async function OfficeEmailPreview({ searchParams }: { searchParams: Promise<{ member?: string }> }) {
   await requireEditorUser("/editor/office-email");
-  const db = getDb(), id = (await searchParams).member ?? "";
-  const m = /^[A-Z]\d{6}$/.test(id) ? await db.select().from(officialPoliticians).where(eq(officialPoliticians.id, id)).get() : await db.select().from(officialPoliticians).where(eq(officialPoliticians.chamber, "house")).limit(1).get();
-  if (!m) return <main className="fed-page"><p>No member.</p></main>;
-  const scope = m.chamber === "senate" ? m.state : memberDistrictId(m.state, m.district);
-  const week = requestTime() - 7 * 86400e3;
-  const voted = await db.select({ billId: officialRollCalls.billId, question: officialRollCalls.question, title: officialRollCalls.title, billTitle: officialBills.title, position: officialMemberVotes.position })
-    .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
-    .where(and(eq(officialMemberVotes.politicianId, m.id), gte(officialRollCalls.votedAt, week), sql`${officialRollCalls.billId} is not null`)).orderBy(desc(officialRollCalls.votedAt)).limit(10);
-  const upcoming = await db.select({ billId: officialFloorSchedule.billId, label: officialFloorSchedule.label, title: officialBills.title }).from(officialFloorSchedule).leftJoin(officialBills, eq(officialBills.id, officialFloorSchedule.billId))
-    .where(and(eq(officialFloorSchedule.chamber, m.chamber), sql`${officialFloorSchedule.weekOf} >= ${weekOf(Date.now())}`, sql`${officialFloorSchedule.billId} is not null`)).limit(10);
-  const ids = [...voted.map(v => v.billId!), ...upcoming.map(u => u.billId!)];
-  const totals = await scopeTotals(scope, ids).catch(() => []);
-  const t = (b: string) => totals.find(x => x.billId === b) ?? null;
-  const text = [`${BRAND.name}: what counted residents of ${scope} said this week`, "", `To the office of ${m.fullName}. Not a scientific poll: answers from readers who verified a mobile number and matched an address to ${scope}; totals shown only from 25 answers.`, "",
-    "Votes this week:", ...(voted.length ? voted.map(v => `- ${v.billTitle ?? v.title}: ${positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title))}. ${totalsLine("Counted residents", t(v.billId!))}`) : ["- none recorded"]), "",
-    "On the floor schedule next:", ...(upcoming.length ? upcoming.map(u => `- ${u.label} ${u.title ?? ""}: ${totalsLine("Counted residents", t(u.billId!))}`) : ["- none posted"]), "",
-    "Aggregates only; no names or individual answers. Transparency note: /transparency. Stop these emails: (one-click link)."].join("\n");
+  const db = getDb(), asked = (await searchParams).member ?? "", on = officeEmailEnabled(process.env[OFFICE_EMAIL_FLAG]);
+  const options = (await Promise.all((["us-house", "us-senate", "tx-senate", "tx-house"] as const).map(async id => ({ body: officeRule(id).body, members: await memberOptions(db, officeRule(id)).catch(() => []) })))).filter(g => g.members.length);
+  const key = /^(fed|tx):/.test(asked) ? asked : /^[A-Z]\d{6}$/.test(asked) ? `fed:${asked}` : options[0]?.members[0]?.key ?? "";
+  const member = key ? await memberOf(db, key) : null;
+  const email = member ? composeOfficeEmail(await officeDashboard(db, member, requestTime()), { dashboard: "(link to the office dashboard)", optOut: "(this office's own link to stop the email)" }) : null;
   return <>
-    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
-    <main className="fed-page analysis-admin"><div className="eyebrow">EDITOR · OFFICE EMAIL (DESIGN, NOT SENT)</div><h1>Preview for {m.fullName}</h1>
-      <p className="gate gate-closed" role="status">This email is never sent. It needs public reading on, a verified sending domain and the owner&apos;s go-ahead.</p>
-      <pre className="email-preview">{text}</pre><p className="meta">Try another member: /editor/office-email?member=BIOGUIDE.</p></main></>;
+    <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><Link href="/editor/offices">Offices</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
+    <main className="fed-page analysis-admin"><div className="eyebrow">EDITOR · WEEKLY OFFICE EMAIL</div><h1>{member ? `The email for ${member.seat} ${member.name}` : "The weekly office email"}</h1>
+      <p className={on ? "gate gate-open" : "gate gate-closed"} role="status"><b>Sending is {on ? "on" : "off"}.</b> {on ? `${OFFICE_EMAIL_FLAG} is set to 1.` : `Nothing is sent until ${OFFICE_EMAIL_FLAG} is set to 1.`} This page only shows the words; it sends nothing.</p>
+      <form method="get" className="review-actions"><label htmlFor="member">Member</label>
+        <select id="member" name="member" defaultValue={key}>{options.map(g => <optgroup key={g.body} label={g.body}>{g.members.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}</optgroup>)}</select>
+        <button>Show</button></form>
+      {email ? <>
+        <p className="meta">{email.items > 0 ? `This email lists ${email.items} bill${email.items === 1 ? "" : "s"} with a total, so it would be sent to this member's confirmed office accounts.` : "No bill coming up or voted on this week has 25 counted voters in this district, so no email would be sent this week."}</p>
+        <h2>Subject</h2><pre className="email-preview">{email.subject}</pre>
+        <h2>Body</h2><pre className="email-preview">{email.text}</pre></> : <p className="meta">No member on file.</p>}
+    </main></>;
 }

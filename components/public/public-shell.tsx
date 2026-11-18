@@ -32,10 +32,11 @@ export const PUBLIC_PAGES = [
   { href: "/pledge", label: "Pledge" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
+  { href: "/office", label: "For legislators' offices" },
   { href: "/records", label: "Published records" },
 ] as const;
 
-const INFO_PAGES = new Set(["/method", "/about", "/corrections", "/transparency", "/pledge", "/privacy", "/terms", "/records"]);
+const INFO_PAGES = new Set(["/method", "/about", "/corrections", "/transparency", "/pledge", "/privacy", "/terms", "/office", "/records"]);
 
 type Access = { allowed: boolean; preview: boolean; editor?: unknown; invite?: { activeDays?: number } | null; audience?: Audience };
 

@@ -213,6 +213,9 @@ test("cookie lifetimes on the privacy page are the ones in the code", () => {
   assert.match(read("lib/accounts.ts"), /LINK_TTL_MS = 30 \* 60 \* 1000/);
   assert.match(read("lib/auth.ts"), /SESSION_TTL_MS = 30 \* 24 \* 60 \* 60 \* 1000/); assert.equal(lasts("on_record_session"), "30 days");
   assert.match(read("lib/verify/flow.ts"), /PENDING_MS = 10 \* 60 \* 1000/); assert.equal(lasts("or_pp"), "10 minutes");
+  // A legislator's office: its own cookie, 30 days, sent only to the office pages.
+  assert.match(read("lib/office/rules.ts"), /OFFICE_SESSION_MS = 30 \* 24 \* 3600 \* 1000/); assert.equal(lasts("or_office"), "30 days");
+  assert.match(read("lib/office/session.ts"), /path: "\/office", maxAge: Math\.floor\(OFFICE_SESSION_MS \/ 1000\)/);
   for (const [file, name] of [["lib/location.ts", "or_loc"], ["lib/reader-issues.ts", "or_issues"], ["lib/visits.ts", "or_lv"], ["lib/verify/store.ts", "or_dev"]]) {
     assert.match(read(file), /maxAge: 400 \* 24 \* 3600/); assert.equal(lasts(name), "400 days");
   }
