@@ -52,7 +52,7 @@ test("a source that is not a government site says so", () => {
 
 test("every outside host the code reads from is on the methodology or privacy page", () => {
   // The files that fetch official records or talk to an outside service. Explainers (primers) and gold examples only cite pages.
-  const scanned = [...files("lib/federal"), ...files("lib/texas"), ...files("lib/verify"),
+  const scanned = [...files("lib/federal"), ...files("lib/texas"), ...files("lib/verify"), ...files("lib/mail-verify"),
     ...files("lib/analysis").filter(f => !/primers\.ts$|gold-examples\.ts$/.test(f)), "lib/mailer.ts", "lib/automated-research.ts", "lib/social.ts", "lib/push.ts", "app/dashboard/page.tsx"];
   const known = new Set([...SOURCES.flatMap(s => s.hosts), ...PROCESSORS.flatMap(p => p.hosts)]);
   const own = /vercel\.app$|\.example$|^app\.local$/; // the site's own address and placeholders
@@ -217,6 +217,7 @@ test("cookie lifetimes on the privacy page are the ones in the code", () => {
     assert.match(read(file), /maxAge: 400 \* 24 \* 3600/); assert.equal(lasts(name), "400 days");
   }
   assert.match(read("app/feedback/actions.ts"), /maxAge: 365 \* 24 \* 3600/); assert.equal(lasts("or_fb"), "365 days");
+  assert.match(read("lib/mail-verify/rules.ts"), /MAIL_OFFER_MAX_AGE_S = 400 \* 24 \* 3600/); assert.equal(lasts("or_mvo"), "400 days");
   assert.match(read("lib/share.ts"), /maxAge: 7 \* 24 \* 3600/); assert.equal(lasts("or_from_share"), "7 days");
   // The place cookie holds district codes only: the saved shape has no ZIP and no street.
   assert.match(read("lib/location.ts"), /export type Location = \{ state: string; congressional: string \| null; stateUpper: string \| null; stateLower: string \| null; source: "zip" \| "address" \}/);
@@ -225,7 +226,14 @@ test("cookie lifetimes on the privacy page are the ones in the code", () => {
 test("outside services: who gets reader data, and when", () => {
   assert.equal(new Set(PROCESSORS.map(p => p.id)).size, PROCESSORS.length);
   for (const id of ["vercel", "turso", "resend", "openai", "twilio", "turnstile", "census"]) assert.ok(PROCESSORS.some(p => p.id === id), `${id} is listed`);
-  assert.deepEqual(PROCESSORS.filter(p => p.when === "verification").map(p => p.id).sort(), ["turnstile", "twilio", "usps"]);
+  assert.deepEqual(PROCESSORS.filter(p => p.when === "verification").map(p => p.id).sort(), ["postcard", "turnstile", "twilio", "usps"]);
+  // Postcards (mail-verified): listed because the code has a place for a mailing company, and says plainly that none is used.
+  // The day an adapter is built this fails, so the privacy page is rewritten to name the company before a card is mailed.
+  const postcard = PROCESSORS.find(p => p.id === "postcard"), sender = read("lib/mail-verify/sender.ts");
+  assert.match(postcard.role, /Switched off: no company has been chosen and no postcard is mailed/); assert.deepEqual(postcard.hosts, []);
+  assert.match(sender, /VENDOR_ADAPTER_BUILT: Record<string, boolean> = \{ lob: false, postgrid: false, click2mail: false, stannp: false \}/);
+  assert.doesNotMatch(sender, /fetch\(|https?:\/\//, "the sender file calls no outside host");
+  assert.match(postcard.receives, /your home address and the code printed on the card/);
   // The Postal Service's address check is listed because the code can call it, and says plainly that it is switched off.
   assert.match(PROCESSORS.find(p => p.id === "usps").role, /Switched off/); assert.match(read("lib/verify/config.ts"), /ADDRESS_AUTHORITY/);
   assert.deepEqual(PROCESSORS.filter(p => !p.readerData).map(p => p.id).sort(), ["openai", "social"]);
@@ -251,6 +259,12 @@ test("phone and address: the privacy page says what the code does", () => {
   assert.ok(STORED.some(x => /change or try to change your home address/.test(x.detail) && /cleared after 30 days/.test(x.detail)));
   assert.match(store, /residenceChanges\)\.set\(\{ device: null, ipRange: null \}\)/);
   assert.match(LEGAL_REVIEW.deletionGaps, /for 90 days, the scrambled fingerprint of the phone number/);
+  // Postcards (mail-verified): only a keyed hash of the code is kept, and deleting the account removes the code, the card and the status.
+  const postcardCode = STORED.find(s => s.what === "Postcard code").detail;
+  assert.match(read("lib/mail-verify/flow.ts"), /keyedHash\("mail-code", code\)/); assert.match(postcardCode, /never stored/); assert.match(postcardCode, /keyed hash/);
+  assert.doesNotMatch(schema.match(/export const mailCodes[\s\S]*?\]\);/)[0], /\bcode: text|plain/i, "no plain code in the table");
+  for (const t of ["mailCodes", "mailVerifications", "mailPostcards"]) assert.ok(store.includes(`db.delete(${t})`), `deleting an account removes ${t}`);
+  assert.match(postcardCode, /deleted when you delete your account/);
   // Retention the page states: 48 hours for rate rows, 30 days for sign-up hashes.
   assert.match(store, /rateEvents\.at, now - 48 \* 3600e3/); assert.match(store, /now - 30 \* 86400e3/);
   assert.ok(STORED.some(s => /48 hours/.test(s.detail))); assert.ok(STORED.some(s => /cleared after 30 days/.test(s.detail)));

@@ -11,6 +11,7 @@ import { countedNote } from "@/lib/verify/flow";
 import { castBillVote, chooseEarlierAnswers } from "@/app/voice/actions";
 import { groupLine, legacyPrompt, NOT_SCIENTIFIC, PROMISE, REASON_MAX, TIER_MEANS, TIER_NAME, whoCanWeighIn } from "@/lib/constituent/rules";
 import type { TotalsBlock, VoteBoxData } from "@/lib/constituent/view";
+import { MailVerifyOffer } from "@/components/account/mail-verify-offer";
 
 const ANSWER_WORD = { support: "Support", oppose: "Oppose", unsure: "Unsure", cleared: "cleared" } as const;
 
@@ -35,6 +36,7 @@ export function VoteBox({ billKey, question, plain, officialTitle, data, code, b
         <p>{ask}</p><input type="hidden" name="back" value={back} />
         <button name="choice" value="count">Yes, count them</button> <button name="choice" value="private" className="secondary">No, keep them private</button></form>}
       {note && <p className="gate gate-open" role="status">{note}</p>}
+      <MailVerifyOffer userId={data.userId} tier={data.tier} back={back} />
       {data.standing === "outside" ? <p className="gate gate-closed" role="note">{whoCanWeighIn(data.jurisdiction)}</p>
         : <form action={castBillVote} className="stance-row"><input type="hidden" name="billId" value={billKey} />
           <label className="reason-field" htmlFor="stance-reason">Why? (optional, private to you, {REASON_MAX} characters)<input id="stance-reason" name="reason" maxLength={REASON_MAX} /></label>
