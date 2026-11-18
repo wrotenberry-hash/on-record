@@ -12,13 +12,15 @@ export const VISIT_COOKIE = "or_lv";
 import { nextVisit } from "@/lib/visit-rules";
 export { nextVisit };
 
-export async function recordVisit(userId: string | null, now = Date.now()) {
+export async function recordVisit(userId: string | null, now = Date.now(), countReturn = false) {
   const jar = await cookies();
   let v = nextVisit(jar.get(VISIT_COOKIE)?.value, now);
   if (userId) {
     const row = await getDb().select().from(readerVisits).where(eq(readerVisits.userId, userId)).get();
     if (row) { const s = nextVisit(`${row.lastSeenAt}|${row.previousSeenAt ?? ""}`, now); v = { last: now, previous: Math.max(s.previous ?? 0, v.previous ?? 0) || null }; }
     await getDb().insert(readerVisits).values({ userId, lastSeenAt: now, previousSeenAt: v.previous }).onConflictDoUpdate({ target: readerVisits.userId, set: { lastSeenAt: now, previousSeenAt: v.previous } });
+    // Week-two return rate (18 Nov 2026): for a trial reader, the first-visit time once and "came back in week two" once.
+    if (countReturn) await import("@/lib/week-two").then(m => m.noteVisit(getDb(), userId, now)).catch(() => {});
   }
   jar.set(VISIT_COOKIE, `${v.last}|${v.previous ?? ""}`, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 400 * 24 * 3600 });
   return v;

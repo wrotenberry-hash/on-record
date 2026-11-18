@@ -2,6 +2,7 @@ import { outputText, responseRequest } from "@/lib/automated-research";
 import { callCost, priceTable } from "@/lib/model-cost";
 import { pageTestResult, readerTestResult, type JudgeResult, type PageAnswers, type PageVerdicts, type ReaderAnswers } from "@/lib/analysis/standard";
 import type { SummaryDraft } from "@/lib/analysis/checker";
+import { TONE_JUDGE_ADDITION } from "./tone.ts";
 
 /**
  * The automated average-reader test (owner instruction, 17 Nov 2026). It runs on every summary before it can publish.
@@ -52,8 +53,9 @@ const readerSchema = { type: "object", additionalProperties: false, required: ["
 const pageReaderSchema = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatChanges", "whoIsAffected"],
   properties: { howItWorksToday: { type: "string" }, whatChanges: { type: "string" }, whoIsAffected: { type: "string" } } };
 const pageVerdicts = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatChanges", "whoIsAffected"], properties: { howItWorksToday: verdict, whatChanges: verdict, whoIsAffected: verdict } };
-const judgeSchema = { type: "object", additionalProperties: false, required: ["whatItDoes", "whoIsAffected", "dailyLifeChange", "page", "arguments"],
-  properties: { whatItDoes: verdict, whoIsAffected: verdict, dailyLifeChange: verdict, page: pageVerdicts,
+const toneVerdict = { type: "object", additionalProperties: false, required: ["calm", "words", "why"], properties: { calm: { type: "boolean" }, words: { type: "array", items: { type: "string" } }, why: { type: "string" } } };
+const judgeSchema = { type: "object", additionalProperties: false, required: ["whatItDoes", "whoIsAffected", "dailyLifeChange", "page", "arguments", "tone"],
+  properties: { whatItDoes: verdict, whoIsAffected: verdict, dailyLifeChange: verdict, page: pageVerdicts, tone: toneVerdict,
     arguments: { type: "array", items: { type: "object", additionalProperties: false, required: ["side", "index", "supported", "why"],
       properties: { side: { type: "string", enum: ["for", "against"] }, index: { type: "integer" }, supported: { type: "boolean" }, why: { type: "string" } } } } } };
 
@@ -84,13 +86,17 @@ export async function runReaderTest(key: string, model: string, summaryId: strin
   const hasPage = (draft.howItWorksToday?.length ?? 0) > 0;
   const page = hasPage ? await ask<PageAnswers>(key, m, "page_reader", PAGE_READER_INSTRUCTIONS, `The page:\n\n${readerPage(draft)}`, pageReaderSchema, summaryId, timeoutMs) : null;
   const args = [...draft.caseFor.map((a, i) => ({ side: "for", index: i, ...a })), ...draft.caseAgainst.map((a, i) => ({ side: "against", index: i, ...a }))];
+  // Everything a reader sees, for the tone check: the page, both cases with who they are credited to, and what is not known.
+  const seen = [readerPage(draft), `The case for\n${draft.caseFor.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`, `The case against\n${draft.caseAgainst.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`,
+    `What changes for you\n${draft.whatChangesForYou ?? ""}`, `What we don't know\n${draft.unknowns.map(u => `- ${u}`).join("\n")}`].join("\n\n");
   const judgeInput = [`OFFICIAL SOURCES:\n${sourcesText}`, `THE READER'S ANSWERS:\n${JSON.stringify({ whatItDoes: reader.value.whatItDoes, whoIsAffected: reader.value.whoIsAffected, dailyLifeChange: reader.value.dailyLifeChange })}`,
     `THE SECOND READER'S "PAGE" ANSWERS:\n${JSON.stringify(page?.value ?? { howItWorksToday: "", whatChanges: "", whoIsAffected: "" })}`,
-    `ARGUMENTS TO CHECK (each has side, index, the reason, who it is credited to, and the id of the source it cites):\n${JSON.stringify(args)}`].join("\n\n");
-  const judge = await ask<JudgeResult & { page: PageVerdicts }>(key, m, "reader_check", `${JUDGE_INSTRUCTIONS}\n${PAGE_JUDGE_ADDITION}`, judgeInput, judgeSchema, summaryId, timeoutMs);
+    `ARGUMENTS TO CHECK (each has side, index, the reason, who it is credited to, and the id of the source it cites):\n${JSON.stringify(args)}`,
+    `THE PAGE (for the tone check only):\n${seen}`].join("\n\n");
+  const judge = await ask<JudgeResult & { page: PageVerdicts }>(key, m, "reader_check", `${JUDGE_INSTRUCTIONS}\n${PAGE_JUDGE_ADDITION}\n${TONE_JUDGE_ADDITION}`, judgeInput, judgeSchema, summaryId, timeoutMs);
   // Only verdicts for arguments that exist count.
   judge.value.arguments = (judge.value.arguments ?? []).filter(a => args.some(x => x.side === a.side && x.index === a.index));
-  const note = readerTestResult(reader.value, judge.value, readerNote(draft));
+  const note = readerTestResult(reader.value, judge.value, readerNote(draft), seen);
   const whole = page ? pageTestResult(page.value, judge.value.page) : { passed: true, reasons: [] as string[] };
   return { passed: note.passed && whole.passed, reasons: [...note.reasons, ...whole.reasons], reader: { ...reader.value, ...(page ? { page: page.value } : {}) }, judge: judge.value, model: m,
     costUsd: Math.round((reader.cost.usd + judge.cost.usd + (page?.cost.usd ?? 0)) * 1_000_000) / 1_000_000,

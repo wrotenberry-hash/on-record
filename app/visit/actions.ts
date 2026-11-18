@@ -6,5 +6,6 @@ import { recordVisit } from "@/lib/visits";
 export async function markVisit() {
   const access = await viewerAccess();
   if (!access.allowed) return;
-  await recordVisit(access.invite || access.editor ? await currentAppUserId() : null);
+  // Only a trial reader's visit counts toward the week-two return rate; the editor's own visits never do.
+  await recordVisit(access.invite || access.editor ? await currentAppUserId() : null, Date.now(), !!access.invite && !access.editor);
 }
