@@ -42,7 +42,7 @@ async function freshInvite(number) {
   const inv = (await rows("select id from beta_invites where number = ? and revoked_at is null", [number]))[0];
   if (!inv) throw new Error(`No usable invite number ${number} in the local database.`);
   const user = (await rows("select id from app_users where external_key = ?", [`invite:${inv.id}`]))[0];
-  if (user) for (const t of ["reader_locations", "reader_issues", "opinion_user_votes", "reader_unsure", "position_history", "counted_positions"]) await db.execute({ sql: `delete from ${t} where user_id = ?`, args: [user.id] });
+  if (user) for (const t of ["reader_locations", "reader_issues", "opinion_user_votes", "reader_unsure", "position_history", "counted_positions", "voice_votes", "voice_legacy_choices"]) await db.execute({ sql: `delete from ${t} where user_id = ?`, args: [user.id] });
   // A fresh reader has no earlier visits either. Without this the same four invites reach their third active day when
   // the suite runs on three different days, and the one-question feedback prompt (a second form) appears on the landing.
   await db.execute({ sql: "update beta_invites set active_days = 0, last_active_day = null, first_seen_at = null, last_seen_at = null where id = ?", args: [inv.id] });

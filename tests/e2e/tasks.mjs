@@ -185,10 +185,12 @@ export const tasks = [
     async run(t) {
       await t.start();
       await t.tap(MY_SENATOR, "my senator");
-      await t.see('h2:has-text("What verified readers say")', "“What verified readers say” on the member page");
+      await t.see('h2:has-text("What residents of")', "“What residents of … say” on the member page");
       const text = await t.text('.fed-section.sentiment');
-      if (!/District-matched in [A-Z]{2}(-\d{2}|-AL)?: \d+ support · \d+ oppose/.test(text)) t.fail(`District totals are not shown beside the member's vote: “${text.slice(0, 160)}”`);
-      return "district totals beside the member's vote (28 seeded test answers; real totals need the Turnstile and Twilio keys)";
+      if (!/[A-Z]{2}(-\d{2}|-AL)?, \d+ voters: Address-matched, \d+ voters: \d+ support · \d+ oppose · \d+ unsure/.test(text)) t.fail(`District totals are not shown beside the member's vote: “${text.slice(0, 160)}”`);
+      if (/verified readers|Real people/i.test(text)) t.fail("The member page still uses the old names for who is counted.");
+      if (!/Not a scientific poll\./.test(text)) t.fail("The totals are not labelled “Not a scientific poll.”");
+      return "the state's totals beside the senator's vote, Support / Oppose / Unsure with the number of voters (28 seeded test answers; real totals need the Turnstile and Twilio keys)";
     } },
 
   { id: "15", name: "Verify and cast a first counted vote", target: { taps: null, seconds: 90 }, reader: "account", needs: ["standins"],
@@ -206,7 +208,7 @@ export const tasks = [
       await t.tap('form.verify-form button:has-text("Confirm")');
       await t.see("#v-street", "the district step");
       await t.type("#v-street", "1100 Congress Ave"); await t.type("#v-city", "Austin"); await t.type("#v-state", "TX"); await t.type("#v-zip", "78701");
-      await t.tap('button:has-text("Match my district")');
+      await t.tap('button:has-text("Match my address")');
       await t.see('[role="status"]:has-text("District TX-37")', "the matched district");
       // One person, one residence (18 Nov 2026): one district of each kind, named to the reader.
       await t.see('[role="status"]:has-text("TX-37, TX-SD-14, TX-HD-49")', "the congressional, state senate and state house districts");
@@ -221,7 +223,7 @@ export const tasks = [
       await t.page.goto("/account#verify", { waitUntil: "load" });
       await t.see("#v-unit", "the apartment or unit field");
       await t.type("#v-street", "1100 Congress Ave"); await t.type("#v-unit", "5"); await t.type("#v-city", "Austin"); await t.type("#v-state", "TX"); await t.type("#v-zip", "78701");
-      await t.tap('button:has-text("Update district")');
+      await t.tap('button:has-text("Update address")');
       await t.see('[role="status"]:has-text("once every 90 days")', "the 90-day rule, in plain words");
       if (!(await t.has('[role="status"]:has-text("District TX-37")'))) t.fail("A refused change should leave the district as it was.");
       return "local stand-ins for the text message, bot check and district lookup; by hand this needs the Turnstile and Twilio keys";

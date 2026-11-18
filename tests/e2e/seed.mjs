@@ -113,7 +113,7 @@ export async function seedDistrictAnswers({ billId, state, district = "37", n = 
     await retry(() => run("insert into reader_accounts (id, app_user_id, email_hash, email, created_at, verified_at) values (?, ?, ?, ?, ?, ?)", [account, user, `e2e-${user}`, `${user}@e2e.invalid`, old, old]));
     await retry(() => run(`insert into verification_profiles (account_id, tier, signup_challenge_at, phone_hash, phone_line_type, phone_verified_at, district_id, state_code, address_matched_at, created_at, updated_at)
       values (?, 2, ?, ?, 'mobile', ?, ?, ?, ?, ?, ?)`, [account, old, `e2e-phone-${user}`, old, `${state}-${district}`, state, old, old, old]));
-    await retry(() => run("insert into counted_positions (user_id, bill_id, account_id, stance, tier, created_at, updated_at) values (?, ?, ?, ?, 2, ?, ?)", [user, billId, account, i < 20 ? "support" : "oppose", old, old]));
+    await retry(() => run("insert into voice_votes (user_id, bill_key, account_id, answer, counts, created_at, updated_at) values (?, ?, ?, ?, 1, ?, ?)", [user, billId, account, i < 20 ? "support" : i < 26 ? "oppose" : "unsure", old, old]));
     // One person, one residence (18 Nov 2026): each made-up account has one home, and its answer is stamped with that home's district,
     // so the site's own recount gives the same totals as the copy of the rule below.
     await retry(() => run("insert into account_residences (account_id, address_key, building_key, has_unit, congressional, state_code, set_at) values (?, ?, ?, 0, ?, ?, ?)", [account, `e2e-home-${user}`, `e2e-home-${user}`, `${state}-${district}`, state, old]));
@@ -123,15 +123,23 @@ export async function seedDistrictAnswers({ billId, state, district = "37", n = 
   return { billId, scope: state, n };
 }
 
+/**
+ * A copy of the counting rule for the made-up accounts above (address-matched, older than 24 hours, a home in a state):
+ * a federal bill counts each answer for the nation, the state and the congressional district on its stamp
+ * (lib/constituent/rules.ts is the rule the site itself runs; tests/constituent.test.mjs covers it).
+ */
 async function recomputeTotals(billId, now = Date.now()) {
-  const rows = await all(`select c.stance, c.tier, p.district_id, p.state_code from counted_positions c join reader_accounts a on a.id = c.account_id
-    join verification_profiles p on p.account_id = c.account_id where c.bill_id = ? and c.tier >= 1 and a.created_at <= ?
-    and not exists (select 1 from flagged_positions fp join integrity_flags f on f.id = fp.flag_id where fp.user_id = c.user_id and fp.bill_id = c.bill_id and f.status in ('open', 'confirmed'))`, [billId, now - 86400e3]);
+  const rows = await all(`select v.answer, h.congressional, h.state_code from voice_votes v join reader_accounts a on a.id = v.account_id
+    join verification_profiles p on p.account_id = v.account_id join position_residences h on h.user_id = v.user_id and h.bill_id = v.bill_key
+    where v.bill_key = ? and v.counts = 1 and p.tier >= 2 and p.phone_hash is not null and a.created_at <= ?
+    and exists (select 1 from account_residences r where r.account_id = v.account_id)
+    and not exists (select 1 from account_holds ah where ah.account_id = v.account_id and ah.status in ('open', 'confirmed'))
+    and not exists (select 1 from flagged_positions fp join integrity_flags f on f.id = fp.flag_id where fp.user_id = v.user_id and fp.bill_id = v.bill_key and f.status in ('open', 'confirmed'))`, [billId, now - 86400e3]);
   const totals = new Map();
-  const add = (scope, group, stance) => { const k = `${scope}|${group}`, t = totals.get(k) ?? { support: 0, oppose: 0 }; t[stance === "support" ? "support" : "oppose"]++; totals.set(k, t); };
-  for (const r of rows) { add("US", "real", r.stance); if (Number(r.tier) >= 2 && r.district_id && r.state_code) { add("US", "district", r.stance); add(r.state_code, "district", r.stance); add(r.district_id, "district", r.stance); } }
-  await retry(() => run("delete from sentiment_totals where bill_id = ?", [billId]));
-  for (const [k, t] of totals) { const [scope, group] = k.split("|"); await retry(() => run("insert into sentiment_totals (bill_id, scope, tier_group, support, oppose, updated_at) values (?, ?, ?, ?, ?, ?)", [billId, scope, group, t.support, t.oppose, now])); }
+  const add = (scope, answer) => { const t = totals.get(scope) ?? { support: 0, oppose: 0, unsure: 0 }; t[answer]++; totals.set(scope, t); };
+  for (const r of rows) for (const scope of ["US", r.state_code, r.congressional]) add(scope, r.answer);
+  await retry(() => run("delete from voice_totals where bill_key = ?", [billId]));
+  for (const [scope, t] of totals) await retry(() => run("insert into voice_totals (bill_key, scope, tier, support, oppose, unsure, updated_at) values (?, ?, 'address', ?, ?, ?, ?)", [billId, scope, t.support, t.oppose, t.unsure, now]));
 }
 
 /** Removes what the suite added: its invites, the readers made from them and everything those readers saved. */
@@ -140,7 +148,7 @@ export async function cleanup() {
   const users = (await all("select id from app_users where external_key like 'e2e:%'")).map(r => r.id);
   for (const id of invites) { const u = await appUserForInvite(id); if (u) users.push(u); }
   // Totals are rebuilt for every bill that has any, so a run that was cut short leaves nothing stale behind.
-  const seededBills = (await all("select bill_id from counted_positions union select bill_id from sentiment_totals")).map(r => r.bill_id);
+  const seededBills = (await all("select bill_key from voice_votes where account_id like 'e2e-%' union select bill_key from voice_totals")).map(r => r.bill_key);
   const tables = (await all("select name from sqlite_master where type = 'table'")).map(r => r.name);
   const has = async (t, c) => tables.includes(t) && (await all(`pragma table_info(${t})`)).some(r => r.name === c);
   const accounts = [];
