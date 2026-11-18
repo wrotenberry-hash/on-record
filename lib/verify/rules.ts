@@ -108,6 +108,8 @@ export const LIMITS = {
   share_device_hour: { max: 60, windowMs: 3600e3 }, manual_run_hour: { max: 4, windowMs: 3600e3 }, manual_run_gap: { max: 1, windowMs: 600e3 }, report_device_day: { max: 10, windowMs: 86400e3 }, report_ip_day: { max: 40, windowMs: 86400e3 },
   // The error page reporting that it was shown (app/api/errors): a handful per device, a cap per network range.
   error_device_hour: { max: 10, windowMs: 3600e3 }, error_ip_hour: { max: 60, windowMs: 3600e3 },
+  // Associations: tries at a join code per reader account; sign-in links asked for per network range and per address typed.
+  assoc_join_account_day: { max: 10, windowMs: 86400e3 }, assoc_link_ip_hour: { max: 10, windowMs: 3600e3 }, assoc_link_email_hour: { max: 3, windowMs: 3600e3 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

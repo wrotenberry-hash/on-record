@@ -15,6 +15,7 @@ import { PENDING_PHONE_COOKIE } from "@/lib/verify/flow";
 import { countsFrom } from "@/lib/verify/rules";
 import { Turnstile } from "@/components/verify/turnstile";
 import { brandTitle } from "@/lib/brand";
+import { AssociationsBlock } from "@/components/associations/account-block";
 
 // What the account has confirmed so far. The second level is "address-matched", never "verified" (docs/CONSTITUENT_VOICE.md).
 const TIER_LABEL = ["Visitor: you can read, follow and save a private position; your answers are not counted", "Phone confirmed: you can read, follow and save a private position; your answers are not counted in any total until your home address is matched",
@@ -86,6 +87,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
               <span><label htmlFor="v-zip">ZIP</label><input id="v-zip" name="zip" autoComplete="postal-code" inputMode="numeric" maxLength={10} required /></span></div>
             <button>{profile.districtId ? "Update address" : "Match my address"}</button></form>}
         </div>}
+        <AssociationsBlock accountId={account.id} />
         <div className="fed-section" id="delete"><h2>Delete your account</h2>
           <p className="meta">Deletes your account, every Support/Oppose answer (private and counted), your follows{vc.enabled ? ", and your verification record" : ""}. Totals are recalculated without you. This cannot be undone.</p>
           <form action={deleteMyAccount} className="review-actions"><label className="consent"><input type="checkbox" name="confirm" value="yes" /> <span>Yes, delete everything</span></label><button className="secondary">Delete my account</button></form></div>
