@@ -143,7 +143,7 @@ async function run(name, number, { zip, street, expectCards, chooseDistrict }) {
   check(name, (await first.getByRole("button", { name: "Support", exact: true }).getAttribute("aria-pressed")) === "true", "Support is not shown as chosen");
   await page.locator(".flow-compare > li").first().waitFor({ timeout: 30_000 });
   const compare = await page.locator("#district").innerText();
-  check(name, /25 verified people/.test(compare), "the district block does not give the 25-person threshold message");
+  check(name, /Not enough constituents yet — share this bill\.|25 counted residents/.test(compare), "the district block does not give the 25-voter threshold message");
   check(name, !/\d+ support · \d+ oppose/.test(compare) || /In [A-Z]{2}-/.test(compare), "a total is shown without a district");
   const after = await page.evaluate(() => window.scrollY);
   check(name, Math.abs(after - before) < 300 || after > 0, "the page jumped to the top after the answer");

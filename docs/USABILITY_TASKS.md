@@ -1,6 +1,6 @@
 # Usability tasks
 
-**Current results: `tests/e2e/report.md` (18 Nov 2026, production build, 390 px, CPU slowed 4×): 32 of 32 tasks pass, including four Texas tasks (find my state senator and representative from an address; see how my state senator voted; a voice vote shows its label and no member position; a Texas bill's summary is hidden until Texas summaries are released and reads in the federal order once they are); 47 of 47 pages with no accessibility problems; every page usable in under 2 s. The summary tasks and the Texas tasks use labelled stand-in rows in the test copy. Rerun with `npm run e2e -- --prod`. The tables below are the history from 16 Nov.**
+**Current results: `tests/e2e/report.md` (18 Nov 2026, production build, 390 px, CPU slowed 4×): 36 of 36 tasks pass, including four for residents' votes on bills (the promise and the totals after answering; the same voting box on a Texas bill; a reader outside Texas sees who can weigh in and no buttons; a returning reader is asked once about earlier answers) and four Texas tasks; 47 of 47 pages with no accessibility problems; every page usable in under 2 s. The summary, Texas and voting tasks use labelled stand-in rows in the test copy. Rerun with `npm run e2e -- --prod`. The tables below are the history from 16 Nov.**
 
 Tasks a first-time reader should finish on a phone, with a target time. Each is
 checked by a scripted run at iPhone size (Playwright, local stand-ins for the
