@@ -96,7 +96,7 @@ export async function decideLegacy(db: Db, userId: string, choice: "count" | "pr
 
 /** Every answer on a bill with the facts the counting rule needs. One query; the rule itself is lib/constituent/rules.ts. */
 export async function voteFacts(db: Db, billKey: string, onlyUserId?: string): Promise<VoteFacts[]> {
-  const rows = await db.select({ answer: voiceVotes.answer, counts: voiceVotes.counts, accountId: voiceVotes.accountId,
+  const all = await db.select({ answer: voiceVotes.answer, counts: voiceVotes.counts, accountId: voiceVotes.accountId, updatedAt: voiceVotes.updatedAt,
     accountCreatedAt: sql<number | null>`(select a.created_at from reader_accounts a where a.id = ${voiceVotes.accountId})`,
     emailVerifiedAt: sql<number | null>`(select a.verified_at from reader_accounts a where a.id = ${voiceVotes.accountId})`,
     phoneVerifiedAt: sql<number | null>`(select p.phone_verified_at from verification_profiles p where p.account_id = ${voiceVotes.accountId} and p.phone_hash is not null)`,
@@ -107,6 +107,12 @@ export async function voteFacts(db: Db, billKey: string, onlyUserId?: string): P
     congressional: positionResidences.congressional, state: positionResidences.stateCode, stateUpper: positionResidences.stateUpper, stateLower: positionResidences.stateLower })
     .from(voiceVotes).leftJoin(positionResidences, and(eq(positionResidences.userId, voiceVotes.userId), eq(positionResidences.billId, voiceVotes.billKey)))
     .where(onlyUserId ? and(eq(voiceVotes.billKey, billKey), eq(voiceVotes.userId, onlyUserId)) : eq(voiceVotes.billKey, billKey));
+  // One person, one vote: an account that answered the same bill from two devices (two reader ids) has two rows.
+  // Only its latest answer is a candidate to count; the earlier one stays that device's private position.
+  const latest = new Map<string, number>();
+  for (const r of all) if (r.accountId) latest.set(r.accountId, Math.max(latest.get(r.accountId) ?? 0, r.updatedAt));
+  const kept = new Set<string>();
+  const rows = onlyUserId ? all : all.filter(r => { if (!r.accountId) return true; if (r.updatedAt !== latest.get(r.accountId) || kept.has(r.accountId)) return false; kept.add(r.accountId); return true; });
   return rows.map(r => ({ answer: r.answer as Answer, consent: r.counts === 1,
     tier: tierOf(r.accountId ? { emailVerifiedAt: r.emailVerifiedAt, phoneVerifiedAt: r.phoneVerifiedAt, hasHome: Number(r.hasHome) === 1, mailVerified: Number(r.mailVerified) === 1 } : null),
     accountCreatedAt: r.accountCreatedAt === null ? null : Number(r.accountCreatedAt), quarantined: Number(r.quarantined) === 1, held: Number(r.held) === 1,

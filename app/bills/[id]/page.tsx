@@ -8,7 +8,7 @@ import { AnalysisBadge, OpinionBadge, OfficialBadge, PositionPill, billLabel, me
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, getBill } from "@/lib/federal/queries";
 import { costEstimates, followedVotes, summaryForBill } from "@/lib/analysis/queries";
-import { saveStance, toggleBillFollow } from "./actions";
+import { toggleBillFollow } from "./actions";
 import { billAmendments, billTimeline, floorThisWeek, rollCallParties } from "@/lib/federal/bill-depth";
 import { cosponsorPartyCounts } from "@/lib/federal/legislators";
 import { changesFor } from "@/lib/analysis/changes";
@@ -21,14 +21,10 @@ import { Glossed } from "@/components/ui/glossed";
 import { VoteExplainer, YesNo } from "@/components/federal/vote-row";
 import { GLOSSARY_URL } from "@/lib/federal/vote-labels";
 import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
-import { verificationConfig } from "@/lib/verify/config";
 import { VoteBox } from "@/components/voice/vote-box";
 import { billTotals } from "@/lib/verify/store";
 import { NOT_SCIENTIFIC, scopeForMember, scopeLine, type ScopeTotals } from "@/lib/constituent/rules";
 import { voteBoxData } from "@/lib/constituent/view";
-import { accountForAppUser, currentAccount } from "@/lib/accounts";
-import { Turnstile } from "@/components/verify/turnstile";
-import { countedNote } from "@/lib/verify/flow";
 import { BRAND, brandTitle } from "@/lib/brand";
 import { ContactForBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 

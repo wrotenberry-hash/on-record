@@ -9,7 +9,7 @@ import { checkPosition } from "@/lib/verify/anomaly";
 import { bumpCount, ensureProfile, profileFor, recomputeBill, refreshTier, requestContext, spendAllowed, updateProfile, withinLimit, type Account } from "@/lib/verify/store";
 import { standingOfVote } from "@/lib/constituent/store";
 import type { Answer } from "@/lib/constituent/rules";
-import { cleanReason, countsFrom, lineTypeAccepted, looksLikePoBox, normalisePhone, normaliseReason, type Tier } from "@/lib/verify/rules";
+import { cleanReason, countsFrom, lineTypeAccepted, looksLikePoBox, normalisePhone, normaliseReason } from "@/lib/verify/rules";
 import { addressAuthority } from "@/lib/verify/providers";
 import { HOLD_LABEL, normaliseResidence, phoneAvailable, splitUnit, unitDecision, type HoldKind } from "@/lib/verify/residence";
 import { billsOfAccounts, liveHolds, phoneHeldUntil, setResidence } from "@/lib/verify/residence-store";

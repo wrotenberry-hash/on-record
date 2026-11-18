@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { officialBills, officialMemberVotes, officialRollCalls } from "@/db/schema";
 import { READER_S } from "@/lib/analysis/publish-gate";

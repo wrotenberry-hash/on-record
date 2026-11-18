@@ -20,11 +20,20 @@ import { getDb } from "@/db";
 import { officialPoliticians } from "@/db/schema";
 import { NOT_ENOUGH_DISTRICT, scopeLine } from "@/lib/constituent/rules";
 import type { ScopeRow } from "@/lib/verify/store";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { BRAND, brandTitle } from "@/lib/brand";
 import { ContactForMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
+
+/** Names reach only viewers allowed to see the page; anyone else gets the site name. */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  if (!(await viewerAccess()).allowed) return { title: BRAND.name };
+  const p = await getPolitician((await params).id);
+  if (!p) return { title: brandTitle("Not found") };
+  const meta = memberMeta(p), { previewMeta } = await import("@/lib/seo"), { SITE } = await import("@/lib/share");
+  return { ...meta, ...previewMeta(SITE, `/politicians/${p.id}`, meta.title, meta.description, `/api/cards/g?t=member&member=${p.id}&format=link`), alternates: { canonical: `/politicians/${p.id}` } };
+}
 
 /** One district's two groups on one bill, mail-verified first. */
 function DistrictGroups({ scope, row }: { scope: string; row: ScopeRow }) { return <>{scopeLine(scope, row.groups)}</>; }

@@ -234,6 +234,19 @@ test("a new account's votes count after 24 hours; a vote saved while a check fai
   assert.equal(await countedVotesOf(db, limited.userId, T0 + 2 * DAY), 1);
 });
 
+test("one account counts once on a bill, even when it answered from two devices", async () => {
+  const bill = await federalBill("119-hr-7010"), r = await reader();
+  await home(r, AUSTIN);
+  // The same account signed in on a second device that was opened with a different invite: a second reader id.
+  const second = `user-${++seq}`;
+  await db.insert(schema.appUsers).values({ id: second, kind: "public", externalKey: `k-${seq}`, createdAt: T0 - DAY });
+  await vote(r, bill, "support", T0 + 1);
+  await castVote(db, { userId: second, accountId: r.id, billKey: bill, answer: "oppose", reason: null, reasonHash: null, device: null, ipRange: null, now: T0 + 2 });
+  const t = await recomputeVoice(db, bill, T0 + 2 * DAY);
+  assert.deepEqual(t.get("US|address"), { support: 0, oppose: 1, unsure: 0 }, "the account's latest answer, once");
+  assert.equal((await db.select().from(schema.voiceVotes).where(eq(schema.voiceVotes.billKey, bill))).length, 2, "both rows are kept; neither is deleted");
+});
+
 /* ───────────────────────────── 6. What may be shown ───────────────────────────── */
 
 test("district totals appear only at 25 counted voters, mail-verified first, and a tiny group is not broken out", () => {
