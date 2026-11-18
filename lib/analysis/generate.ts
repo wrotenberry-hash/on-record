@@ -8,7 +8,7 @@ import { outputText, responseRequest } from "@/lib/automated-research";
 import { billStatusUrl, MAX_TEXT_CHARS, parseBillStatus, parseBillTextHtml, type BillStatus } from "@/lib/analysis/billtext";
 import { checkSummary, routeSummary, spreadAcrossCategories, type CheckResult, type SummaryDraft } from "@/lib/analysis/checker";
 import { callCost, maxCallCost, priceTable } from "@/lib/model-cost";
-import { spendSince } from "@/lib/model-calls";
+import { summarySpendSince } from "@/lib/model-calls";
 import { LAWMAKING_TYPES } from "@/lib/federal/parse";
 import { billLabel } from "@/components/federal/badges";
 import { CHECKPOINT_SUMMARIES } from "@/lib/analysis/report-format";
@@ -352,7 +352,7 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
   const stale = await staleSummaries();
   if (room <= 0 && !stale.length) return finish("SKIPPED", `summary cap reached (${existing} of ANALYSIS_MAX_SUMMARIES ${limits.maxSummaries})`);
   const monthStartMs = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1);
-  let spent = await spendSince(monthStartMs, "analysis") + await spendSince(monthStartMs, "reader_test"); // the reader test counts toward the same cap
+  let spent = await summarySpendSince(monthStartMs); // federal and Texas, writing and the reader test: one cap
   if (spent >= limits.spendCapUsd) return finish("SKIPPED", `spend cap reached ($${spent.toFixed(2)} of ANALYSIS_SPEND_CAP_USD $${limits.spendCapUsd})`);
   await db.insert(ingestRuns).values({ id, job: "analysis", status: "RUNNING", startedAt: started, detail: { trigger } });
   try {

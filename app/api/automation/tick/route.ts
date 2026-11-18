@@ -179,6 +179,8 @@ async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { statu
   // Round H: Texas Legislature (Open States, LegiScan fallback) right after the federal record; no model calls.
   const { runTexasIngest } = await import("@/lib/texas/ingest");
   const texas = await runTexasIngest({ budgetMs: Math.max(10_000, budgetMs - (Date.now() - started)) }).catch(error => ({ ok: false, error: (error instanceof Error ? error.message : "texas failed").slice(0, 200) }));
+  // Texas build (17 Nov): the rest of the Texas loading continues in its own back-to-back runs (lib/texas/chain.ts), within the source's daily limit.
+  await import("@/lib/texas/chain").then(m => m.fireTexasChain(origin, 1)).catch(() => false);
   return { ...federal, texas };
 }
 

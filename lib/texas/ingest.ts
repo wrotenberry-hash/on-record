@@ -9,6 +9,7 @@ import { BRAND } from "@/lib/brand";
 import { parseOpenStatesContacts } from "@/lib/contact-parse";
 import { upsertContacts } from "@/lib/contacts";
 import { tloSessionCode, txCalendar, txSessionState, txToday } from "@/lib/texas/calendar";
+import { runTexasHistory } from "@/lib/texas/history";
 import { advanceSessionBills, billRequest, billUpdatedAts, committeeRequestCap, committeeWalkDue, eventsDue, matchLegiscanSession, needsFresh, nextCommitteeStep, nextEventStep,
   parseOpenStatesSessions, peoplePageKinds, peopleRefreshMs, planSessions, readCommitteeWalk, readEventWalk, readSessionBills, seatLine, startCommitteeWalk, txReadiness, txSeatCoverage,
   waitingPages, type LegiscanSession, type SessionPlanItem, type SourceSession } from "@/lib/texas/coverage";
@@ -391,30 +392,6 @@ async function legiscanVotes(r: Run, plan: SessionPlanItem[]) {
   return { ok: true, bills, votes, mismatches, skipped };
 }
 
-/** Round I: Texas session statistics by stage from LegiScan master lists (one request per session), weekly. */
-async function legiscanHistory(r: Run) {
-  const db = r.db, now = Date.now();
-  if (now - Number(await getCursor(db, "tx:history") ?? 0) < WEEK) return { skipped: true };
-  const sessions = await legiscanSessions(r) ?? [];
-  let stored = 0;
-  for (const s of TX_SESSIONS.filter(x => x.start <= txToday(now))) {
-    const match = matchLegiscanSession(sessions, s);
-    if (!match?.session_id) continue;
-    const ml = await lsCall(r, `op=getMasterList&id=${match.session_id}`);
-    if (!ml) return { sessions: stored, stopped: "LegiScan daily budget" };
-    if (legiscanMasterListSession(ml.body) !== match.session_id) continue;
-    const list = parseLegiscanMasterList(ml.body);
-    if (!list.length) continue;
-    const counts: Record<string, number> = {};
-    for (const b of list) { const st = legiscanStage(b.status); counts[st] = (counts[st] ?? 0) + 1; }
-    await db.insert(txSessionStats).values({ session: s.id, counts, source: `LegiScan master list, session ${match.session_id}`, retrievedAt: now })
-      .onConflictDoUpdate({ target: txSessionStats.session, set: { counts, source: `LegiScan master list, session ${match.session_id}`, retrievedAt: now } });
-    stored++;
-  }
-  await setCursor(db, "tx:history", String(now));
-  return { sessions: stored };
-}
-
 /* ------------------------------------------------- Texas Legislature Online --- */
 
 async function tloGet(url: string) {
@@ -479,8 +456,11 @@ async function sideSources(r: Run, plan: SessionPlanItem[], today: string) {
     const atSource = plan.find(p => p.id === focus)?.sourceId;
     if (!c.openStates || r.stoppedBy === "rate limited" || !atSource || behind > 0) r.out.legiscan = await viaLegiscan(r);
     if (c.openStates) r.out.legiscanVotes = await legiscanVotes(r, plan);
-    r.out.history = await legiscanHistory(r);
   }
+  // Past sessions for the dashboard (17 Nov): Texas Legislature Online's own statistics pages, a few requests a run, no key
+  // needed. It also does the LegiScan step when that key is set, and never lets a counted figure replace an official one.
+  if (Date.now() < r.deadline - 60_000) r.out.historyStats = await runTexasHistory({ budgetMs: Math.min(40_000, r.deadline - Date.now() - 30_000), requestBudget: 4 })
+    .catch(e => ({ ok: false, error: String(e instanceof Error ? e.message : e).slice(0, 200) }));
   if (r.s.tloCheck && Date.now() < r.deadline - 40_000) {
     r.out.tloCodes = await tloCodes(r);
     r.out.tloCheck = await tloSpotCheck(r, plan);

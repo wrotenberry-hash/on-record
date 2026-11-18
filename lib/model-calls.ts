@@ -21,6 +21,17 @@ export async function spendSince(since: number, purpose?: string): Promise<numbe
   return Number(row?.usd ?? 0);
 }
 
+/**
+ * Every purpose that is bill-summary work, federal and Texas: writing, and the average-reader test. The owner's monthly
+ * cap for bill summaries (ANALYSIS_SPEND_CAP_USD, $25) covers all of them together.
+ */
+export const SUMMARY_SPEND_PURPOSES = ["analysis", "reader_test", "tx_analysis", "tx_reader_test"] as const;
+export async function summarySpendSince(since: number): Promise<number> {
+  let total = 0;
+  for (const p of SUMMARY_SPEND_PURPOSES) total += await spendSince(since, p);
+  return total;
+}
+
 /** Month-to-date style breakdown: priced spend and call count per purpose since `since`. */
 export async function spendByPurposeSince(since: number): Promise<Record<string, { usd: number; calls: number }>> {
   const rows = await getDb().select({ purpose: modelCalls.purpose, usd: sql<number>`coalesce(sum(${modelCalls.costUsd}), 0)`, calls: sql<number>`count(*)` })

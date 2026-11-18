@@ -220,6 +220,8 @@ export async function GET(request: Request) {
     events7d: await eventTotals(7).catch(() => "unavailable" as const),
     // The test-ready checklist in numbers (docs/TEST_READY_BUILD.md); the lines themselves are on Editor → What's next.
     readiness: await import("@/lib/readiness-data").then(m => m.readinessNow()).then(r => ({ ...r.totals, notYet: r.checks.filter(c => c.state === "fail").map(c => c.id), needsOwner: r.checks.filter(c => c.state === "owner").map(c => c.id) })).catch(() => null),
+    // The Texas checklist in numbers (docs/TEXAS_BUILD.md); the lines themselves are on Editor → What's next.
+    texasReadiness: await import("@/lib/texas-readiness-data").then(m => m.texasReadinessNow()).then(r => ({ ...r.totals, notYet: r.checks.filter(c => c.state === "fail").map(c => c.id), needsOwner: r.checks.filter(c => c.state === "owner").map(c => c.id) })).catch(() => null),
     time: new Date().toISOString() };
   // ?only=analysis,readiness returns just those parts (plus service, status and time), for a quick check of one thing.
   const only = new URL(request.url).searchParams.get("only")?.split(",").map(k => k.trim()).filter(Boolean);

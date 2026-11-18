@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { adjudications, alertEvents, automationRuns, ingestRuns, machineResearchDrafts, materialityDecisions, people, publications, representations, reviews, sourceAuthentications, sourceCaptures, sourceCommunications, caseArchive, officialTallyChecks } from "@/db/schema";
 import { signAction } from "@/lib/session-token";
 import { ALERT_KINDS, decideRhythm, evaluate, formatAlertEmail, formatRhythmEmail, parseMonthlyLimit, type Alert, type AlertKind, type Evaluation, type ReadyCase, type RhythmDecision, type Spend, intakePauseThreshold, intakePausedFor } from "@/lib/monitoring";
-import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince } from "@/lib/model-calls";
+import { lastBillingRefusal, lastSuccessfulCallAt, spendByPurposeSince, spendSince, summarySpendSince } from "@/lib/model-calls";
 import { BRAND } from "@/lib/brand";
 
 /**
@@ -79,7 +79,7 @@ export async function evaluateNow(now = Date.now()): Promise<Evaluation & { conf
   ]);
   const intakePaused = await intakePauseState().catch(() => null);
   const { analysisLimits } = await import("@/lib/analysis/generate");
-  const summarySpend = await spendSince(monthStart(now), "analysis").then(v => ({ monthToDateUsd: Math.round(v * 100) / 100, capUsd: analysisLimits().spendCapUsd })).catch(() => null);
+  const summarySpend = await summarySpendSince(monthStart(now)).then(v => ({ monthToDateUsd: Math.round(v * 100) / 100, capUsd: analysisLimits().spendCapUsd })).catch(() => null);
   // Federal and Texas roll calls whose stored votes do not add up to the reported totals.
   const tallyMismatches = await getDb().get<{ n: number }>(sql`select ((select count(*) from official_tally_checks where ok = 0) + (select count(*) from tx_votes where tally_ok = 0)) as n`)
     .then(r => Number(r?.n ?? 0)).catch(() => getDb().select({ n: sql<number>`count(*)` }).from(officialTallyChecks).where(eq(officialTallyChecks.ok, 0)).get().then(r => Number(r?.n ?? 0)).catch(() => null));
