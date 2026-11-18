@@ -1,7 +1,7 @@
 import { texasSummariesPaused, TEXAS_SUMMARIES_PUBLIC } from "@/lib/analysis/publish-gate";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { ingestRuns, txBillSummaries, txSummaries, txSummaryChecks, txSummaryDetails, txSummaryReaderTests, txSummaryReviewQueue, txSummaryStructure, txSummaryVersions } from "@/db/schema";
+import { ingestRuns, txBills, txBillSummaries, txSummaries, txSummaryChecks, txSummaryDetails, txSummaryReaderTests, txSummaryReviewQueue, txSummaryStructure, txSummaryVersions } from "@/db/schema";
 import { analysisLimits } from "@/lib/analysis/generate";
 import type { Primer } from "@/lib/analysis/primers";
 import { outputText, responseRequest } from "@/lib/automated-research";
@@ -194,6 +194,22 @@ export async function decideTxSummary(summaryId: string, decision: "approved" | 
   const db = getDb(), now = Date.now();
   await db.update(txSummaries).set({ status: decision === "approved" ? "visible" : "rejected", reviewedAt: now }).where(eq(txSummaries.id, summaryId));
   await db.update(txSummaryReviewQueue).set({ status: decision, decidedAt: now, reviewerKey, note: note?.slice(0, 500) ?? null }).where(eq(txSummaryReviewQueue.summaryId, summaryId));
+}
+
+/** Every Texas summary with its bill, its place in the review queue and its latest checks: for Editor → Texas summaries. */
+export async function txSummaryList() {
+  const db = getDb();
+  const rows = await db.select({ s: txSummaries, identifier: txBills.identifier, session: txBills.session, title: txBills.title })
+    .from(txSummaries).innerJoin(txBills, eq(txBills.id, txSummaries.billId)).orderBy(desc(txSummaries.createdAt)).limit(200);
+  if (!rows.length) return [];
+  const ids = rows.map(r => r.s.id);
+  const [queue, checks, tests] = await Promise.all([
+    db.select().from(txSummaryReviewQueue).where(inArray(txSummaryReviewQueue.summaryId, ids)),
+    db.select({ summaryId: txSummaryChecks.summaryId, attempt: txSummaryChecks.attempt, passed: txSummaryChecks.passed, failures: txSummaryChecks.failures }).from(txSummaryChecks).where(inArray(txSummaryChecks.summaryId, ids)).orderBy(desc(txSummaryChecks.attempt)),
+    db.select({ summaryId: txSummaryReaderTests.summaryId, attempt: txSummaryReaderTests.attempt, passed: txSummaryReaderTests.passed, reasons: txSummaryReaderTests.reasons }).from(txSummaryReaderTests).where(inArray(txSummaryReaderTests.summaryId, ids)).orderBy(desc(txSummaryReaderTests.attempt)),
+  ]);
+  return rows.map(r => ({ ...r, queue: queue.find(q => q.summaryId === r.s.id) ?? null,
+    check: checks.find(c => c.summaryId === r.s.id) ?? null, readerTest: tests.find(t => t.summaryId === r.s.id) ?? null }));
 }
 
 /** Counts and spend for the health probe and the editor's pages. No bill text, no summary text. */

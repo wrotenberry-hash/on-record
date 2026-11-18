@@ -7,9 +7,9 @@ import { txBill, txVoteParties } from "@/lib/texas/queries";
 import { TX_SESSIONS, TX_STAGE_LABEL, type TxStage } from "@/lib/texas/parse";
 import { firstUseTerms, mainDecision } from "@/lib/texas/vote-record";
 import { DecisionRow, MemberVoteLists, TLO_RECORD } from "@/components/texas/decisions";
-import { txSummaryFor } from "@/lib/texas/summaries";
+import { txSummaryForPage } from "@/lib/texas/summaries";
 import { AnalysisBadge } from "@/components/federal/badges";
-import { BRAND } from "@/lib/brand";
+import { TxSummaryRest, TxSummaryTop } from "@/components/texas/summary";
 import { ContactForTxBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
@@ -30,8 +30,8 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
   const parties = await txVoteParties(votes.map(v => v.id)).catch(() => new Map<string, Record<string, Record<string, number>>>());
   // Newest first; the terms are explained at their first use in that order (main list, then the rest).
   const main = decisions.filter(mainDecision).reverse(), rest = decisions.filter(d => !mainDecision(d)).reverse(), terms = firstUseTerms([...main, ...rest]);
-  const s = await txSummaryFor(bill.id, access.preview && !!access.editor).catch(() => null);
-  const pts = (x: unknown) => (x as Array<{ text: string; section: string }>) ?? [], args = (x: unknown) => (x as Array<{ argument: string; attribution: string }>) ?? [];
+  // Readers get a summary only when it passed and the Texas gate is open; the signed-in editor also sees a held one, labelled.
+  const analysis = await txSummaryForPage(bill.id, !!access.editor).catch(() => null);
   const at = STEPS.indexOf(bill.stage as TxStage), session = TX_SESSIONS.find(s => s.id === bill.session);
   const firstDate = (cls: string, chamber?: string) => actions.find(a => (a.classification as string[] | null)?.includes(cls) && (!chamber || a.chamber === chamber))?.date ?? null;
   return <PublicShell current="/texas" access={access} page="/texas/bills/[id]">
@@ -39,8 +39,8 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
       <p className="crumbs"><Link href="/texas">← Texas Legislature</Link></p>
       <div className="eyebrow">{bill.identifier} · {session?.name ?? `Session ${bill.session}`}</div>
       <p className="official-line"><OfficialBadge /> <span>{bill.title}</span></p>
-      {s ? <h1 className="bill-headline">{s.headline} <AnalysisBadge /></h1> : <h1>{bill.identifier}</h1>}
-      {s?.status === "held" && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it.</div>}
+      {analysis ? <h1 className="bill-headline">{analysis.summary.headline} <AnalysisBadge /></h1> : <h1>{bill.identifier}</h1>}
+      {analysis && <TxSummaryTop a={analysis} />}
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
         <ol className="timeline" aria-label="Where this bill is">{(bill.stage === "vetoed" ? [...STEPS.slice(0, 5), "vetoed" as TxStage] : bill.stage === "failed" ? ["filed", "committee", "failed"] as TxStage[] : STEPS).map((s, i) => {
           const done = bill.stage === s || (at >= 0 && i <= at) || (bill.stage === "vetoed" && i < 5);
@@ -55,16 +55,7 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
         {sponsors.length > 0 ? <p className="meta">Authors and sponsors: {sponsors.sort((a, b) => b.primary - a.primary).map(s => s.personId ? <Link key={s.name} className="tap" href={`/texas/members/${encodeURIComponent(s.personId)}`}>{s.name}</Link> : s.name).reduce<React.ReactNode[]>((acc, x, i) => (i ? [...acc, ", ", x] : [x]), [])}</p> : <p className="meta">No authors or sponsors are on file yet.</p>}
         <p className="meta"><a className={TAP} href={bill.tloUrl} target="_blank" rel="noopener noreferrer">{TLO_RECORD}</a>. Where this page and the official record differ, the official record is right.</p>
       </div>
-      {s && <>
-        <div className="fed-section"><h2>What it does <AnalysisBadge /></h2><ul className="analysis-list">{pts(s.whatItDoes).map((p, i) => <li key={i}>{p.text} <span className="cite">{p.section}</span></li>)}</ul></div>
-        <div className="fed-section"><h2>Who it affects <AnalysisBadge /></h2><ul className="analysis-list">{pts(s.whoItAffects).map((p, i) => <li key={i}>{p.text} <span className="cite">{p.section}</span></li>)}</ul></div>
-        <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
-        <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2><div className="case-grid">
-          <div><h3>For</h3><ul className="analysis-list">{args(s.caseFor).map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span></li>)}</ul></div>
-          <div><h3>Against</h3><ul className="analysis-list">{args(s.caseAgainst).map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span></li>)}</ul></div></div></div>
-        <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2><ul className="analysis-list">{((s.unknowns as string[]) ?? []).map((u, i) => <li key={i}>{u}</li>)}</ul>
-          <p className="meta">Written by {s.model} from the {s.textLabel.toLowerCase()} text on Texas Legislature Online, checked by {BRAND.name}&apos;s rule checker ({s.checkPassed ? "passed" : "did not pass"}{s.readingGrade ? `, reading grade ${s.readingGrade}` : ""}). Confidence: {s.confidence}.</p></div>
-      </>}
+      {analysis && <TxSummaryRest a={analysis} />}
       {/* BEGIN contact-your-legislator (test-ready build): the reader's Texas legislators, official phone, email and an editable message. */}
       <ContactForTxBill bill={bill} votes={votes} />
       {/* END contact-your-legislator */}

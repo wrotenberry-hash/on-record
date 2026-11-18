@@ -9,7 +9,10 @@
  * the ones already in the local copy (Senate district 14, House district 49), which the Census stand-in returns for
  * 1100 Congress Ave, Austin.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { execute, query, retry } from "./seed.mjs";
+import { ROOT } from "./lib/env.mjs";
 
 const SENATE_BILL = "e2e-tx-90-sb9001", VOICE_BILL = "e2e-tx-90-hb9002", VOTE = "e2e-vote-sb9001";
 const tlo = b => `https://capitol.texas.gov/BillLookup/History.aspx?LegSess=90R&Bill=${b}`;
@@ -18,6 +21,8 @@ const tlo = b => `https://capitol.texas.gov/BillLookup/History.aspx?LegSess=90R&
 export async function cleanupTexas() {
   const tables = (await query("select name from sqlite_master where type = 'table'")).map(r => r.name);
   if (!tables.includes("tx_bills")) return;
+  for (const t of ["tx_summary_details", "tx_summary_structure"]) if (tables.includes(t)) await retry(() => execute(`delete from ${t} where summary_id like 'e2e-%'`));
+  if (tables.includes("tx_summaries")) await retry(() => execute("delete from tx_summaries where id like 'e2e-%'"));
   await retry(() => execute("delete from tx_member_votes where vote_id like 'e2e-%'"));
   await retry(() => execute("delete from tx_votes where id like 'e2e-%' or bill_id like 'e2e-%'"));
   for (const t of ["tx_bill_actions", "tx_bill_sponsors", "tx_bill_versions"]) await retry(() => execute(`delete from ${t} where bill_id like 'e2e-%'`));
@@ -52,6 +57,37 @@ export async function seedTexas() {
     await act(VOICE_BILL, i, i === 1 ? day(6) : day(1), "lower", desc, cls);
   await retry(() => execute("insert into tx_bill_sponsors (bill_id, name, person_id, \"primary\") values (?, ?, ?, 1)", [VOICE_BILL, rep.name, rep.id]));
   return { senator, rep };
+}
+
+/** Is the Texas gate open (lib/analysis/publish-gate.ts)? Readers see a Texas summary only when it is. */
+export function texasGateOpen() {
+  return /export const TEXAS_SUMMARIES_PUBLIC = true\b/.test(readFileSync(resolve(ROOT, "lib/analysis/publish-gate.ts"), "utf8"));
+}
+
+const SUMMARY = "e2e-tx-summary-sb9001";
+/** A labelled stand-in summary on the Senate test bill, marked as passed, in the new format. Removed by cleanupTexas(). */
+export async function seedTexasSummary() {
+  const now = Date.now(), j = JSON.stringify, url = tlo("SB9001");
+  await retry(() => execute(`insert into tx_summaries (id, bill_id, sequence, text_version, text_version_label, text_date, text_url, text_chars, truncated, headline,
+    what_it_does, who_it_affects, what_changes_for_you, case_for, case_against, unknowns, confidence, confidence_reason, check_passed, attempts, status, model, prompt_version,
+    input_tokens, output_tokens, cost_usd, sources, eligibility, created_at, updated_at, reviewed_at)
+    values (?, ?, 0, 'introduced', 'Introduced', null, ?, 1000, 0, ?, ?, ?, ?, ?, '[]', ?, 'high', 'Test data.', 1, 1, 'visible', 'e2e-stand-in', 'e2e', 0, 0, 0, ?, ?, ?, ?, null)`,
+    [SUMMARY, SENATE_BILL, url, "Test headline: let school districts start classes a week earlier (test data)",
+      j([{ text: "Lets a school district start classes one week earlier (test data).", section: "Sec. 1" }]),
+      j([{ text: "Students, parents and teachers in districts that choose the earlier start (test data).", section: "Sec. 1" }]),
+      "If your district chose the earlier start, school would begin one week sooner (test data).",
+      j([{ argument: "Districts say an earlier start leaves more teaching days before state tests (test data).", attribution: "bill analysis", source: "ANALYSIS" }]),
+      j(["How many districts would choose the earlier start (test data)."]),
+      j([{ label: "Texas Legislature Online: bill text (test data)", url, date: null }]),
+      j([{ kind: "vote", date: null, detail: "Record vote in the Senate (test data)" }]), now, now]));
+  await retry(() => execute(`insert into tx_summary_details (summary_id, plain_english, question, source_docs, fiscal, notes, unread, prompt_version, updated_at) values (?, ?, ?, ?, ?, '[]', '[]', 'e2e', ?)`,
+    [SUMMARY, "This test bill would let school districts start classes one week earlier than state law allows today (test data).", "Should school districts be allowed to start classes a week earlier?",
+      j([{ id: "ANALYSIS", kind: "bill_analysis", label: "Senate Research Center bill analysis (test data)", url, date: null }]),
+      j({ url, date: null, describes: "as introduced", headline: null, noSignificantImpact: true }), now]));
+  await retry(() => execute(`insert into tx_summary_structure (summary_id, how_it_works_today, changes, why_now, primers, prompt_version, updated_at) values (?, ?, ?, ?, '[]', 'e2e', ?)`,
+    [SUMMARY, j([{ text: "State law sets the earliest day a school year may start (test data).", section: "ANALYSIS" }]),
+      j([{ today: "Classes may not start before the fourth Monday in August (test data).", ifPassed: "A district could start one week earlier (test data).", source: "Sec. 1" }]),
+      "The Senate passed it on a record vote this week (test data).", now]));
 }
 
 /** Gives ZIP 78701 and the Capitol's street address on the home page, as a reader would. */
@@ -104,6 +140,27 @@ export const tasks = [
       const yes = await list.locator("p", { hasText: "Yes (" }).innerText();
       if (!yes.includes(who.senator.name)) t.fail(`${who.senator.name} is not listed under Yes: “${yes}”`);
       return `SB 9001: “${label}”; ${who.senator.name} listed under Yes`;
+    }) },
+
+  { id: "tx-summary", name: "Texas: a bill's summary reads in the same order as a federal bill, and only once Texas summaries are released", target: { taps: null, seconds: 30 }, reader: "new",
+    run: withTexas(async t => {
+      await seedTexasSummary();
+      await t.start(`/texas/bills/${SENATE_BILL}`);
+      await t.see("#decisions", "the bill's decisions");
+      const heads = (await t.page.locator(".bill-page h2").allInnerTexts()).map(h => h.replace(/\s+/g, " ").replace(/ (Analysis|Official)$/i, "").trim());
+      const shown = heads.includes("In plain English");
+      if (!texasGateOpen()) {
+        if (shown || (await t.page.locator(".bill-headline").count())) t.fail("A reader sees a Texas summary while Texas summaries are not released.");
+        return `not released yet: the reader sees the official record only (${heads.slice(0, 3).join(", ")}, …)`;
+      }
+      const want = ["In plain English", "What would change", "How it works today", "Why now", "Status", "Who it affects", "Cost", "What changes for you", "The case for and against", "What we don't know"];
+      const got = heads.map(h => h.replace("’", "'")).filter(h => want.includes(h));
+      if (got.join(" | ") !== want.join(" | ")) t.fail(`The sections read: ${got.join(", ")}`);
+      const against = await t.text(".case-grid div:nth-child(2)");
+      if (!/No official record of arguments against this bill was found\./.test(against)) t.fail(`A side with no argument should say so, it reads: “${against}”`);
+      if (!/no significant cost to the state/.test(await t.text(".bill-page"))) t.fail("The Legislative Budget Board's cost line is missing.");
+      if (await t.has(".held-note")) t.fail("A reader sees the editor's held note.");
+      return `sections in order: ${got.join(", ")}; a side with no argument says so; the official cost line is shown`;
     }) },
 
   { id: "tx-voice", name: "Texas: a bill decided by voice vote shows the label and no member position", target: { taps: null, seconds: 30 }, reader: "new",

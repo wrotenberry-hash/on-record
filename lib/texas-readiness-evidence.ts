@@ -9,6 +9,6 @@ export const TX_EVIDENCE: Pick<TexasReadinessInput, "address" | "votes"> & { sum
     liveGeocoder: { ranOn: "17 Nov 2026", note: "The live Census service returned Senate district 14 and House district 49 for 1100 Congress Ave, Austin." } },
   votes: { rulesFromRealHistories: { ranOn: "17 Nov 2026", note: "Built from the official 2025 histories of S.B. 1, H.B. 2 and S.B. 500." },
     phoneTasks: { ranOn: "18 Nov 2026", note: "Phone tasks: a recorded vote lists the senator under Yes; a voice vote shows the label, no member list and no position." } },
-  summaries: { built: { ranOn: "18 Nov 2026", note: "48 tests on real 2025 documents from Texas Legislature Online; no real model call has been made yet." }, pdfReader: false, pageDrawsThem: false, goldApproved: false },
+  summaries: { built: { ranOn: "18 Nov 2026", note: "48 tests on real 2025 documents from Texas Legislature Online; no real model call has been made yet." }, pdfReader: false, pageDrawsThem: true, goldApproved: false },
   dashboardPage: { ranOn: "17 Nov 2026", note: "Seen at phone width with data and with none." },
 };
