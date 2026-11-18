@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { officialBills, officialMemberVotes, officialRollCalls, opinionUserVotes, readerUnsure } from "@/db/schema";
+import { officialBills, officialMemberVotes, officialRollCalls } from "@/db/schema";
 import { READER_S } from "@/lib/analysis/publish-gate";
 import { federalLegislators, type Legislator } from "@/lib/federal/legislators";
 import type { Location } from "@/lib/location";
@@ -29,11 +29,8 @@ export async function readerLegislators(loc: Location | null): Promise<Legislato
 export async function voiceFor(userId: string | null, input: { members: Legislator[]; verificationEnabled: boolean; districtId: string | null }): Promise<VoiceBill[]> {
   if (!userId) return [];
   const db = getDb();
-  const [stances, unsure] = await Promise.all([
-    db.select().from(opinionUserVotes).where(eq(opinionUserVotes.userId, userId)),
-    db.select().from(readerUnsure).where(eq(readerUnsure.userId, userId)),
-  ]);
-  const answers = answeredBills(stances, unsure);
+  const mine = await import("@/lib/opinions").then(m => m.answersOf(userId));
+  const answers = answeredBills(mine.filter(a => a.answer !== "unsure").map(a => ({ billId: a.billId, stance: a.answer, updatedAt: a.at })), mine.filter(a => a.answer === "unsure").map(a => ({ billId: a.billId, updatedAt: a.at })));
   if (!answers.length) return [];
   const billIds = answers.map(a => a.billId);
   const [bills, rolls, totals] = await Promise.all([

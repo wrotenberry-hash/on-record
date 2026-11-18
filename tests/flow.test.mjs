@@ -247,20 +247,22 @@ test("a scheduled bill gets a starter bill record: the House title, or the numbe
 test("the district comparison: a total only from 25 counted answers, otherwise the reason, never a number", () => {
   assert.equal(MIN_SHOWN, 25);
   const below = districtCompareLine({ enabled: true, district: "TX-37", totals: { support: 14, oppose: 10 } });
-  assert.deepEqual(below, { state: "below", text: "Not enough verified answers from your district yet. Totals show once 25 verified people have answered." });
+  assert.deepEqual(below, { state: "below", text: "Not enough constituents yet — share this bill." }); // owner's wording, 18 Nov 2026
   assert.equal(districtCompareLine({ enabled: true, district: "TX-37", totals: null }).state, "below");
-  assert.deepEqual(districtCompareLine({ enabled: true, district: "TX-37", totals: { support: 15, oppose: 10 } }), { state: "shown", text: "In TX-37: 15 support · 10 oppose" });
+  assert.deepEqual(districtCompareLine({ enabled: true, district: "TX-37", totals: { support: 15, oppose: 10 } }), { state: "shown", text: "In TX-37: 15 support · 10 oppose · 0 unsure (25 voters)" });
+  assert.equal(districtCompareLine({ enabled: true, district: "TX-37", totals: { support: 10, oppose: 10, unsure: 5 } }).state, "shown", "Unsure is a counted answer");
   assert.equal(districtCompareLine({ enabled: true, district: null, totals: { support: 40, oppose: 10 } }).state, "no_district");
   // With verification switched off nothing is counted, and it says so even when a total exists in the table.
   const off = districtCompareLine({ enabled: false, district: "TX-37", totals: { support: 40, oppose: 30 } });
   assert.equal(off.state, "off");
-  assert.match(off.text, /^Counting opens when verification is switched on\./);
+  assert.match(off.text, /^Counting is not switched on yet, so no answer is added to a total today\./);
   for (const line of [below, off, districtCompareLine({ enabled: true, district: null, totals: null })]) assert.doesNotMatch(line.text.replace(/\b25\b/g, ""), /\d/, "no figure below the threshold");
 });
 
 test("the small print under the buttons says what is true for each setting", () => {
-  assert.match(answerPrivacyLine(true), /^Your answer is private\. It counts toward your district’s total only after you verify you are a real person/);
-  assert.match(answerPrivacyLine(false), /Nothing is counted toward a district total yet/);
+  assert.match(answerPrivacyLine(true), /^Your individual vote is private\. Counted votes are added into anonymous totals: yours counts once your home address is matched\./);
+  assert.match(answerPrivacyLine(false), /^Your individual vote is private\. Counting is not switched on yet/);
+  for (const on of [true, false]) assert.doesNotMatch(answerPrivacyLine(on), /only you see it|verify you are a real person|never/i, "the old promise is gone");
 });
 
 /* ------------------------------------------------------- time to first weigh-in --- */

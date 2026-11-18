@@ -42,7 +42,7 @@ export default async function VoicePage() {
     <section className="fed-page voice-page">
       <div className="eyebrow">YOUR VOICE <OpinionBadge /></div>
       <h1>Your voice</h1>
-      <p className="lede">The bills you have weighed in on, how your legislators voted on each one, and what verified people in your district said.</p>
+      <p className="lede">The bills you have weighed in on, how your legislators voted on each one, and what counted residents of your district said.</p>
 
       {!loc && bills.length > 0 && <p className="gate gate-open" role="note">Add your ZIP code on <Link href="/legislators">Your legislators</Link> to see how your senators and representative voted on these bills.</p>}
       {loc && !hasRep && bills.length > 0 && <p className="meta">Only your two senators are shown. <Link href="/legislators">Pick your House district</Link> to add your representative.</p>}
@@ -73,7 +73,7 @@ export default async function VoicePage() {
             {line.note && !b.members.slice(n + 1).some(x => x.line.note === line.note) && <small className="voice-note">{line.note}</small>}
           </li>)}</ul></>}
 
-        <h3 className="subhead">Your district{districtId && vc.enabled ? ` (${districtId})` : ""} <OpinionBadge title="Added up from verified readers' answers, without names" /></h3>
+        <h3 className="subhead">Your district{districtId && vc.enabled ? ` (${districtId})` : ""} <OpinionBadge title="Added up from counted residents' answers, without names" /></h3>
         {b.district.kind === "total" ? <p className="voice-district"><b>{b.district.text}</b> <span className="not-poll">Not a scientific poll.</span></p>
           : b.district.kind === "unknown" ? <p className="meta">We do not know your district yet. <Link href="/legislators">Find your legislators</Link> to see your district&apos;s view.</p>
           : <p className="meta">{b.district.kind === "off" ? "No totals yet: counting is not switched on." : b.district.text}</p>}
@@ -89,7 +89,7 @@ export default async function VoicePage() {
         <ul className="analysis-list">
           <li><b>Private by default.</b> Only you see your answers and this page. They are never shown with your name.</li>
           <li><b>Counted only after you verify.</b> An answer is added to a total, without your name, only after you <Link href="/account#verify">verify you are a real person</Link> and your account is 24 hours old. Unsure is never counted.{!vc.enabled && " Counting is not switched on yet."}</li>
-          <li><b>Totals need {MIN_SHOWN} people.</b> A district&apos;s total shows only once {MIN_SHOWN} verified people there have answered.</li>
+          <li><b>Totals need {MIN_SHOWN} people.</b> A district&apos;s total shows only once {MIN_SHOWN} address-matched or mail-verified residents there have answered.</li>
           <li><b>You can change your mind.</b> Tap Change beside any answer on this page, or clear your answer on the bill&apos;s page.</li>
         </ul>
         <p className="meta"><Link href="/privacy">Privacy</Link> · <Link href="/account">Your account</Link></p></div>

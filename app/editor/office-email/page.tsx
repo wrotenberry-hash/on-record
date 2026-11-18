@@ -29,9 +29,9 @@ export default async function OfficeEmailPreview({ searchParams }: { searchParam
   const ids = [...voted.map(v => v.billId!), ...upcoming.map(u => u.billId!)];
   const totals = await scopeTotals(scope, ids).catch(() => []);
   const t = (b: string) => totals.find(x => x.billId === b) ?? null;
-  const text = [`${BRAND.name}: what verified constituents in ${scope} said this week`, "", `To the office of ${m.fullName}. Not a scientific poll: answers from readers who verified a mobile number and matched an address to ${scope}; totals shown only from 25 answers.`, "",
-    "Votes this week:", ...(voted.length ? voted.map(v => `- ${v.billTitle ?? v.title}: ${positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title))}. ${totalsLine("District-matched", t(v.billId!))}`) : ["- none recorded"]), "",
-    "On the floor schedule next:", ...(upcoming.length ? upcoming.map(u => `- ${u.label} ${u.title ?? ""}: ${totalsLine("District-matched", t(u.billId!))}`) : ["- none posted"]), "",
+  const text = [`${BRAND.name}: what counted residents of ${scope} said this week`, "", `To the office of ${m.fullName}. Not a scientific poll: answers from readers who verified a mobile number and matched an address to ${scope}; totals shown only from 25 answers.`, "",
+    "Votes this week:", ...(voted.length ? voted.map(v => `- ${v.billTitle ?? v.title}: ${positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title))}. ${totalsLine("Counted residents", t(v.billId!))}`) : ["- none recorded"]), "",
+    "On the floor schedule next:", ...(upcoming.length ? upcoming.map(u => `- ${u.label} ${u.title ?? ""}: ${totalsLine("Counted residents", t(u.billId!))}`) : ["- none posted"]), "",
     "Aggregates only; no names or individual answers. Transparency note: /transparency. Stop these emails: (one-click link)."].join("\n");
   return <>
     <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link><nav><Link href="/editor">Cases</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>

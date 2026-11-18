@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { analysisBillSummaries, analysisSummaryDetails, billCategories, officialBills, officialFloorSchedule, officialMemberVotes, officialRollCalls,
-  opinionUserVotes, readerUnsure, txBills, txEvents, txMemberVotes, txVotes } from "@/db/schema";
+  txBills, txEvents, txMemberVotes, txVotes } from "@/db/schema";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { federalLegislators, type Legislator } from "@/lib/federal/legislators";
 import { tallyUnderReview } from "@/lib/federal/depth";
@@ -141,12 +141,7 @@ export type ComingUp = { scheduled: FlowBill[]; scheduledTotal: number; recent: 
 async function answersOf(userId: string | null, billIds: string[]) {
   const out = new Map<string, "support" | "oppose" | "unsure">();
   if (!userId || !billIds.length) return out;
-  const db = getDb();
-  const [stances, unsure] = await Promise.all([
-    db.select({ billId: opinionUserVotes.billId, stance: opinionUserVotes.stance }).from(opinionUserVotes).where(and(eq(opinionUserVotes.userId, userId), inArray(opinionUserVotes.billId, billIds))),
-    db.select({ billId: readerUnsure.billId }).from(readerUnsure).where(and(eq(readerUnsure.userId, userId), inArray(readerUnsure.billId, billIds)))]);
-  for (const u of unsure) out.set(u.billId, "unsure");
-  for (const s of stances) out.set(s.billId, s.stance);
+  for (const a of await import("@/lib/opinions").then(m => m.answersOf(userId, billIds))) out.set(a.billId, a.answer);
   return out;
 }
 
@@ -213,10 +208,7 @@ export type AnsweredBill = { billId: string; billLabel: string; name: BillName; 
 export async function answeredBills(userId: string | null, limit = 5): Promise<AnsweredBill[]> {
   if (!userId) return [];
   const db = getDb();
-  const [stances, unsure] = await Promise.all([
-    db.select({ billId: opinionUserVotes.billId, answer: opinionUserVotes.stance, at: opinionUserVotes.updatedAt }).from(opinionUserVotes).where(eq(opinionUserVotes.userId, userId)).orderBy(desc(opinionUserVotes.updatedAt)).limit(limit),
-    db.select({ billId: readerUnsure.billId, answer: sql<"unsure">`'unsure'`, at: readerUnsure.updatedAt }).from(readerUnsure).where(eq(readerUnsure.userId, userId)).orderBy(desc(readerUnsure.updatedAt)).limit(limit)]);
-  const top = [...stances, ...unsure].sort((a, b) => b.at - a.at).slice(0, limit);
+  const top = (await import("@/lib/opinions").then(m => m.answersOf(userId, undefined, limit))).slice(0, limit);
   if (!top.length) return [];
   const ids = top.map(t => t.billId);
   const [bills, summaries] = await Promise.all([db.select({ id: officialBills.id, title: officialBills.title, billType: officialBills.billType, number: officialBills.number }).from(officialBills).where(inArray(officialBills.id, ids)),

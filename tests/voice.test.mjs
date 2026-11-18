@@ -119,16 +119,16 @@ test("the wording is the same whichever way a member voted and whoever they are"
 
 test("a district total is never shown below the threshold", () => {
   assert.equal(MIN_SHOWN, 25);
-  assert.equal(DISTRICT_THRESHOLD_MESSAGE, "Not enough verified answers from your district yet. Totals show once 25 verified people have answered.");
+  assert.equal(DISTRICT_THRESHOLD_MESSAGE, "Not enough constituents yet — share this bill."); // owner's wording, 18 Nov 2026
   for (const totals of [null, undefined, { support: 0, oppose: 0 }, { support: 24, oppose: 0 }, { support: 12, oppose: 12 }]) {
     const d = districtView({ enabled: true, districtId: "TX-07", totals });
     assert.equal(d.kind, "below");
     assert.equal(d.text, DISTRICT_THRESHOLD_MESSAGE);
-    assert.doesNotMatch(d.text.replace("25", ""), /\d/, "no count appears below the threshold");
+    assert.doesNotMatch(d.text, /\d/, "no count appears below the threshold");
   }
   const shown = districtView({ enabled: true, districtId: "TX-07", totals: { support: 13, oppose: 12 } });
   assert.equal(shown.kind, "total");
-  assert.equal(shown.text, "Verified people in TX-07: 13 support · 12 oppose");
+  assert.equal(shown.text, "Counted residents of TX-07: 13 support · 12 oppose · 0 unsure (25 voters)");
 });
 
 test("with verification off or no district, the page says so and shows no number", () => {

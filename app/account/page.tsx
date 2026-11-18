@@ -16,7 +16,9 @@ import { countsFrom } from "@/lib/verify/rules";
 import { Turnstile } from "@/components/verify/turnstile";
 import { brandTitle } from "@/lib/brand";
 
-const TIER_LABEL = ["Visitor: your answers are private and not counted", "Real person: your answers count toward national totals", "District-matched: your answers count nationally and for your district"];
+// What the account has confirmed so far. The second level is "address-matched", never "verified" (docs/CONSTITUENT_VOICE.md).
+const TIER_LABEL = ["Visitor: you can read, follow and save a private position; your answers are not counted", "Phone confirmed: you can read, follow and save a private position; your answers are not counted in any total until your home address is matched",
+  "Address-matched: your answers count in the totals for where you live"];
 const requestTime = () => Date.now();
 const when = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) + " ET";
 
@@ -57,12 +59,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <form action={signOut}><button className="link-button">Sign out on this device</button></form>
         {vc.enabled && <div className="fed-section verify-steps" id="verify">
           <h2>Make your answers count</h2>
-          <p>Support and Oppose answers from verified real people are added, <b>without your name</b>, to the totals on each bill. Answers from visitors stay private and are never counted.</p>
+          <p>Your individual vote is private. Support, Oppose and Unsure answers from address-matched and mail-verified residents are added, <b>without a name</b>, into totals that anyone can see. Answers from accounts with only a phone, and from visitors, stay private and are counted in no total.</p>
           <p className="gate gate-open" role="status"><b>Your level:</b> {TIER_LABEL[tier]}.{tier >= 1 && countsLater ? ` New accounts count after 24 hours: from ${when(countsFrom(account.createdAt))}.` : ""}{profile?.districtId ? ` District ${profile.districtId}.` : ""}</p>
           {holds.length > 0 && <p className="gate gate-closed" role="status"><b>Waiting for a review.</b> {holds.some(h => h.kind === "household_cap") ? "Six accounts already count at your address." : "Something about how this account was set up needs a person to look at it."} You can read and follow as usual. Your answers are saved and will count once the review clears. Nothing has been deleted.</p>}
           {v && t && <p className={ok === "1" ? "gate gate-open" : "gate gate-closed"} role="status">{t}</p>}
           {!profile?.phoneVerifiedAt && !pendingCode && <form action={sendPhoneCode} className="verify-form">
-            <h3>1. Confirm you are a real person</h3>
+            <h3>1. Confirm your phone</h3>
             <label htmlFor="v-phone">Your US mobile number</label>
             <input id="v-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required placeholder="512 555 0100" />
             <label className="consent"><input type="checkbox" name="consent" value="yes" required /> <span>Text me one 6-digit code. We send it through Twilio; message and data rates may apply. We use the number once, keep only a scrambled fingerprint (a hash) so it cannot verify a second account, and never text you anything else or share it. Internet (VoIP) and virtual numbers cannot be used.</span></label>
@@ -74,15 +76,15 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <input id="v-code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={10} required />
             <button>Confirm</button></form>}
           {profile?.phoneVerifiedAt && <form action={saveAddress} className="verify-form">
-            <h3>{profile.districtId ? "Your district" : "3. Match your district (optional)"}</h3>
+            <h3>{profile.districtId ? "Your home address" : "3. Match your home address"}</h3>
             <p className="meta">{profile.districtId ? `Matched to ${profile.districtId}. One home address per account: a new address replaces this one, and you can change it once every 90 days. Answers you already gave stay counted where you lived when you gave them.`
-              : "Your answers then also count for the districts you live in: one for Congress, one state senate, one state house. The Census Bureau's geocoder finds them; we keep the address encrypted and count only the district codes. One home address per account; you can change it once every 90 days, so check it before you save."}</p>
+              : "Your answers count only once your home address is matched. They then count for the districts you live in: one for Congress, one state senate, one state house. The Census Bureau's geocoder finds them; we keep the address encrypted and count only the district codes. One home address per account; you can change it once every 90 days, so check it before you save."}</p>
             <label htmlFor="v-street">Street address</label><input id="v-street" name="street" autoComplete="address-line1" required />
             <label htmlFor="v-unit">Apartment or unit, if you have one</label><input id="v-unit" name="unit" autoComplete="address-line2" maxLength={20} />
             <div className="verify-row"><span><label htmlFor="v-city">City</label><input id="v-city" name="city" autoComplete="address-level2" required /></span>
               <span><label htmlFor="v-state">State</label><input id="v-state" name="state" autoComplete="address-level1" maxLength={2} required placeholder="TX" /></span>
               <span><label htmlFor="v-zip">ZIP</label><input id="v-zip" name="zip" autoComplete="postal-code" inputMode="numeric" maxLength={10} required /></span></div>
-            <button>{profile.districtId ? "Update district" : "Match my district"}</button></form>}
+            <button>{profile.districtId ? "Update address" : "Match my address"}</button></form>}
         </div>}
         <div className="fed-section" id="delete"><h2>Delete your account</h2>
           <p className="meta">Deletes your account, every Support/Oppose answer (private and counted), your follows{vc.enabled ? ", and your verification record" : ""}. Totals are recalculated without you. This cannot be undone.</p>

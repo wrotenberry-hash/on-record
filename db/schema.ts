@@ -973,3 +973,84 @@ export const mailVerifications = sqliteTable("mail_verifications", {
   accountId: text("account_id").primaryKey().references(() => readerAccounts.id), addressKey: text("address_key").notNull(), phoneHash: text("phone_hash").notNull(),
   codeId: text("code_id").notNull(), verifiedAt: integer("verified_at").notNull(), revokedAt: integer("revoked_at"), revokedReason: text("revoked_reason"),
 }, t => [uniqueIndex("mail_verifications_code_uq").on(t.codeId), index("mail_verifications_phone_idx").on(t.phoneHash)]);
+
+// ── Constituent voice, one consolidated build (owner, 18 Nov 2026; migration 0036; docs/CONSTITUENT_VOICE.md). New tables only. ──
+// Which people may weigh in on a bill, stored per bill so a new state needs no code change: "US" for a federal bill,
+// a state code ("TX") for a state bill. bill_key is the bill's id in its own table (official_bills or tx_bills).
+export const billJurisdictions = sqliteTable("bill_jurisdictions", {
+  billKey: text("bill_key").primaryKey(), jurisdiction: text("jurisdiction").notNull(), level: text("level", { enum: ["federal", "state"] }).notNull(), setAt: integer("set_at").notNull(),
+}, t => [index("bill_jurisdictions_idx").on(t.jurisdiction), check("bill_jurisdictions_level", sql`${t.level} IN ('federal', 'state')`)]);
+
+// Every answer on every bill: Support, Oppose or Unsure, with the optional private reason. One row per reader and bill;
+// changes are kept in position_history. Whether it counts is worked out when totals are rebuilt (lib/voice/rules.ts),
+// never stored, except `counts`: 0 marks an answer given before the promise changed that the reader has not chosen to count.
+// device and ip_range are keyed hashes for fraud review only, cleared after 30 days unless the answer is under review.
+export const voiceVotes = sqliteTable("voice_votes", {
+  userId: text("user_id").notNull(), billKey: text("bill_key").notNull(), accountId: text("account_id"),
+  answer: text("answer", { enum: ["support", "oppose", "unsure"] }).notNull(), reason: text("reason"), reasonHash: text("reason_hash"),
+  counts: integer("counts").notNull().default(1), device: text("device"), ipRange: text("ip_range"),
+  createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.billKey] }), index("voice_votes_bill_idx").on(t.billKey, t.createdAt), index("voice_votes_account_idx").on(t.accountId),
+  index("voice_votes_reason_idx").on(t.reasonHash), check("voice_votes_answer", sql`${t.answer} IN ('support', 'oppose', 'unsure')`)]);
+
+// Rebuilt totals. scope: "US" (the states and DC), "US-TERR" (the territories, as their own group), a state or territory
+// code, or a district ("TX-37", "TX-SD-14", "TX-HD-49"). tier: "mail" (mail-verified) or "address" (address-matched).
+export const voiceTotals = sqliteTable("voice_totals", {
+  billKey: text("bill_key").notNull(), scope: text("scope").notNull(), tier: text("tier", { enum: ["mail", "address"] }).notNull(),
+  support: integer("support").notNull(), oppose: integer("oppose").notNull(), unsure: integer("unsure").notNull(), updatedAt: integer("updated_at").notNull(),
+}, t => [primaryKey({ columns: [t.billKey, t.scope, t.tier] }), index("voice_totals_scope_idx").on(t.scope), check("voice_totals_tier", sql`${t.tier} IN ('mail', 'address')`)]);
+
+// A reader's earlier answers (given under the old promise) are copied into voice_votes once, uncounted. `choice` is
+// what they said when asked on their next visit: "count" them or keep them "private". Null until they answer.
+export const voiceLegacyChoices = sqliteTable("voice_legacy_choices", {
+  userId: text("user_id").primaryKey(), imported: integer("imported").notNull(), importedAt: integer("imported_at").notNull(),
+  choice: text("choice", { enum: ["count", "private"] }), decidedAt: integer("decided_at"),
+}, t => [check("voice_legacy_choice", sql`${t.choice} IS NULL OR ${t.choice} IN ('count', 'private')`)]);
+
+// A postcard carrying a mailed code. "mock" means nothing was mailed (the flag is off or no vendor is set). cost_usd is
+// what the vendor charged; the monthly cap is checked against the sum.
+export const mailPostcards = sqliteTable("mail_postcards", {
+  id: text("id").primaryKey(), accountId: text("account_id").references(() => readerAccounts.id).notNull(), codeId: text("code_id").notNull(), addressKey: text("address_key").notNull(),
+  vendor: text("vendor").notNull(), vendorRef: text("vendor_ref"), status: text("status", { enum: ["queued", "mock", "sent", "failed"] }).notNull(),
+  costUsd: real("cost_usd").notNull().default(0), createdAt: integer("created_at").notNull(), sentAt: integer("sent_at"),
+}, t => [index("mail_postcards_account_idx").on(t.accountId), index("mail_postcards_address_idx").on(t.addressKey, t.createdAt), index("mail_postcards_month_idx").on(t.createdAt),
+  check("mail_postcards_status", sql`${t.status} IN ('queued', 'mock', 'sent', 'failed')`)]);
+
+// A legislator's office, unlocked by an official government email address. member_key: "fed:<bioguide id>" or
+// "tx:<tx_people id>". status: "pending" until the emailed link is used; "review" when the address proves a government
+// employer but not which office, until the editor confirms; "active"; "revoked". The same for every party.
+export const officeAccounts = sqliteTable("office_accounts", {
+  id: text("id").primaryKey(), email: text("email").notNull(), emailHash: text("email_hash").notNull(), domain: text("domain").notNull(),
+  memberKey: text("member_key").notNull(), level: text("level", { enum: ["federal", "state"] }).notNull(),
+  status: text("status", { enum: ["pending", "review", "active", "revoked"] }).notNull().default("pending"), weeklyEmail: integer("weekly_email").notNull().default(1),
+  createdAt: integer("created_at").notNull(), emailVerifiedAt: integer("email_verified_at"), decidedAt: integer("decided_at"), decidedBy: text("decided_by"), lastSeenAt: integer("last_seen_at"),
+}, t => [uniqueIndex("office_accounts_email_uq").on(t.emailHash), index("office_accounts_member_idx").on(t.memberKey, t.status),
+  check("office_accounts_level", sql`${t.level} IN ('federal', 'state')`), check("office_accounts_status", sql`${t.status} IN ('pending', 'review', 'active', 'revoked')`)]);
+
+// Single-use sign-in links for offices and association administrators (30 minutes), like magic_links for readers.
+export const accessLinks = sqliteTable("access_links", {
+  nonce: text("nonce").primaryKey(), kind: text("kind", { enum: ["office", "association"] }).notNull(), subjectId: text("subject_id").notNull(),
+  createdAt: integer("created_at").notNull(), expiresAt: integer("expires_at").notNull(), usedAt: integer("used_at"),
+}, t => [index("access_links_subject_idx").on(t.kind, t.subjectId), check("access_links_kind", sql`${t.kind} IN ('office', 'association')`)]);
+
+// One row per weekly office email attempt.
+export const officeEmailSends = sqliteTable("office_email_sends", {
+  id: text("id").primaryKey(), officeAccountId: text("office_account_id").references(() => officeAccounts.id).notNull(), week: text("week").notNull(),
+  sentAt: integer("sent_at").notNull(), items: integer("items").notNull(), ok: integer("ok").notNull(), error: text("error"),
+}, t => [uniqueIndex("office_email_sends_week_uq").on(t.officeAccountId, t.week)]);
+
+// An association may see totals for its own members only, aggregates only. Members join with the association's code;
+// only a keyed hash of the code is stored.
+export const associations = sqliteTable("associations", {
+  id: text("id").primaryKey(), name: text("name").notNull(), slug: text("slug").notNull(), joinCodeHash: text("join_code_hash").notNull(),
+  status: text("status", { enum: ["pending", "active", "closed"] }).notNull().default("pending"), createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"),
+}, t => [uniqueIndex("associations_slug_uq").on(t.slug), uniqueIndex("associations_code_uq").on(t.joinCodeHash), check("associations_status", sql`${t.status} IN ('pending', 'active', 'closed')`)]);
+
+export const associationMembers = sqliteTable("association_members", {
+  associationId: text("association_id").references(() => associations.id).notNull(), accountId: text("account_id").references(() => readerAccounts.id).notNull(), joinedAt: integer("joined_at").notNull(),
+}, t => [primaryKey({ columns: [t.associationId, t.accountId] }), index("association_members_account_idx").on(t.accountId)]);
+
+export const associationAdmins = sqliteTable("association_admins", {
+  id: text("id").primaryKey(), associationId: text("association_id").references(() => associations.id).notNull(), email: text("email").notNull(), emailHash: text("email_hash").notNull(),
+  status: text("status", { enum: ["pending", "active", "revoked"] }).notNull().default("pending"), createdAt: integer("created_at").notNull(), verifiedAt: integer("verified_at"),
+}, t => [uniqueIndex("association_admins_uq").on(t.associationId, t.emailHash), check("association_admins_status", sql`${t.status} IN ('pending', 'active', 'revoked')`)]);

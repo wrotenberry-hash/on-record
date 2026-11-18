@@ -46,7 +46,7 @@ export async function runInstantAlerts(now = Date.now()) {
     if (loc?.congressional && first.billId) {
       const { scopeTotals } = await import("@/lib/verify/store"); const { totalsLine, MIN_SHOWN } = await import("@/lib/verify/rules");
       const t = (await scopeTotals(loc.congressional, [first.billId]).catch(() => []))[0];
-      if (t && t.support + t.oppose >= MIN_SHOWN) lines.push(`${totalsLine(`District-matched readers in ${loc.congressional}`, t)} (not a scientific poll)`);
+      if (t && t.voters >= MIN_SHOWN) lines.push(`${totalsLine(`Counted residents of ${loc.congressional}`, t)} (not a scientific poll)`);
     }
     await notifyUser(userId, { title: `${votes[0].name} voted on ${first.billType ? billLabel(first.billType, first.number!) : "a bill"}`, body: lines.join("; "), url: first.billId ? `/bills/${first.billId}` : "/" });
     if (account?.verifiedAt) await sendTo(account.email, "Your legislators just voted on your issues", [...lines, "", `${SITE}${first.billId ? `/bills/${first.billId}` : "/"}`, "", "Turn instant alerts off on your Account page."].join("\n"));

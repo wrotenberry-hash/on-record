@@ -5,11 +5,6 @@ import { getDb } from "@/db";
 import { officialBills } from "@/db/schema";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { countEvent } from "@/lib/events";
-import { redirect } from "next/navigation";
-import { accountForAppUser, currentAccount } from "@/lib/accounts";
-import { castCounted } from "@/lib/verify/flow";
-import { ensureDeviceCookie } from "@/lib/verify/store";
-import { verificationConfig } from "@/lib/verify/config";
 
 /** Follow or unfollow a bill: one email when its stage changes (readers with a verified email). */
 export async function toggleBillFollow(formData: FormData) {
@@ -26,30 +21,11 @@ export async function toggleBillFollow(formData: FormData) {
   revalidatePath(`/bills/${billId}`);
 }
 
-/** The reader's own Support or Oppose on a bill (or clear it). Kept private to that reader. */
+/**
+ * The reader's own Support, Oppose or Unsure on a federal bill (or clear it). The single answer is private; an answer
+ * that counts is added into anonymous totals (docs/CONSTITUENT_VOICE.md). Texas bills use the same path: app/voice/actions.ts.
+ */
 export async function saveStance(formData: FormData) {
-  const access = await viewerAccess();
-  if (!access.allowed || (!access.invite && !access.editor)) return;
-  const billId = String(formData.get("billId") ?? ""), raw = String(formData.get("stance") ?? "");
-  const answer = raw === "support" || raw === "oppose" || raw === "unsure" ? raw : null;
-  const stance = answer === "support" || answer === "oppose" ? answer : null;
-  if (!/^\d{2,3}-[a-z]+-\d+$/.test(billId)) return;
-  if (!(await getDb().select({ id: officialBills.id }).from(officialBills).where(eq(officialBills.id, billId)).get())) return;
-  const userId = await currentAppUserId(true);
-  if (!userId) return;
-  const { setAnswer } = await import("@/lib/opinions");
-  const { cleanReason } = await import("@/lib/verify/rules");
-  await setAnswer(userId, billId, answer, cleanReason(formData.get("reason")));
-  await countEvent(answer ? `answer_${answer}` : "stance_cleared", access.audience);
-  // Round J: a verified reader's answer also goes toward the tier totals (behind VERIFICATION_ENABLED).
-  if (verificationConfig().enabled) {
-    await ensureDeviceCookie();
-    const account = (await currentAccount()) ?? (await accountForAppUser(userId));
-    const outcome = await castCounted({ userId, account, billId, stance, reason: formData.get("reason"), turnstile: String(formData.get("cf-turnstile-response") ?? "") || null });
-    if (outcome.counted) await countEvent(stance ? "position_counted" : "position_uncounted", access.audience);
-    revalidatePath(`/bills/${billId}`);
-    if (outcome.code) redirect(`/bills/${billId}?c=${outcome.code}#your-view`);
-    return;
-  }
-  revalidatePath(`/bills/${billId}`);
+  const { castBillVote } = await import("@/app/voice/actions");
+  return castBillVote(formData);
 }

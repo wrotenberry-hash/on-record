@@ -135,7 +135,7 @@ export const LABELS = [
     where: "Votes and how each member voted, bill titles and status, sponsors, committees, the floor schedule, and counts made directly from those records." },
   { label: "Analysis", means: "Written by the site to explain a record. An AI model drafts it and fixed rules check it. It is never mixed into an Official section.",
     where: "Bill summaries (the headline, the plain-English part and every section under them), the note on what changed between two versions of a bill, and the tag on a bill that was sorted into an issue by AI." },
-  { label: "Your view", means: "Your own Support, Oppose or Unsure answer. Only you see it.",
+  { label: "Your view", means: "Your own Support, Oppose or Unsure answer. Your individual vote is private; counted votes are added into anonymous totals.",
     where: "The answer box on a bill page, and your own page of answers." },
 ] as const;
 
@@ -193,16 +193,20 @@ const HOURS = ACCOUNT_MIN_AGE_MS / 3_600_000;
 export const READER_TOTALS = {
   minShown: MIN_SHOWN, waitHours: HOURS,
   rules: [
-    "An answer is counted only from a verified real person: a confirmed email, an automatic bot check, and a text-message code sent to a U.S. mobile number that is not an internet (VoIP) number and has not verified another account.",
-    "District totals count only readers whose street address the Census Bureau places in that district.",
-    "One person, one home. One account per phone number, and one home address per account, which can be changed once every 90 days. So a reader is counted in one congressional district, one state senate district and one state house district at a time.",
-    "An answer is counted in the districts the reader lived in when they gave it. Moving later does not carry earlier answers to the new district.",
+    "Your individual vote is private. Counted votes are added, without a name, into totals that anyone can see.",
+    "An answer is counted only from an address-matched or mail-verified resident. Address-matched means a confirmed email, a text-message code sent to a U.S. mobile number that is not an internet (VoIP) number and is not used by another account, and a home address the Census Bureau's geocoder placed. Mail-verified adds a code from a postcard mailed to that address. An account with only a phone can read, follow and save a private position, and is counted in no total.",
+    "An answer counts only if the home address is inside the bill's jurisdiction. A federal bill counts residents of any state or the District of Columbia; residents of a U.S. territory are counted as their own group. A state bill counts residents of that state only. Anyone else can read the bill and see the totals.",
+    "Support, Oppose and Unsure are all counted answers. Totals are shown for the nation (federal bills), the state and the district, with mail-verified and address-matched residents listed separately, mail-verified first.",
+    "One person, one home. One account per phone number, and one home address per account, which can be changed once every 90 days. So a resident is counted in one congressional district, one state senate district and one state house district at a time.",
+    "An answer is counted in the districts the resident lived in when they gave it. Moving later does not carry earlier answers to the new district; new answers follow the new address.",
     "At most six accounts count at one home address. Further accounts there can read and follow, and are counted only after the editor has reviewed them.",
     `A new account's answers start counting ${HOURS} hours after the account was created.`,
-    `A total is never shown below ${MIN_SHOWN} answers. Until then the page says “fewer than ${MIN_SHOWN} so far”.`,
-    "“Unsure” is a private answer. It is never counted.",
+    `A total is never shown below ${MIN_SHOWN} counted voters. Below that a district says “Not enough constituents yet — share this bill.” A group of fewer than 5 voters is shown by its size only, not by answer.`,
+    "Answers given before 19 November 2026, when the site said no answer would be added up, stay uncounted unless the person who gave them chooses, once, to count them.",
     "Answers that look like coordinated activity (a sudden surge, many new accounts from one network or device, the same reason text from several accounts) are set aside from the totals until the editor has looked. They are never deleted.",
-    "A whole account is set aside the same way, and never deleted, when one device or network sets up accounts at many addresses, when many new accounts appear in one district just before a vote, or when an address is changed again and again.",
+    "A whole account is set aside the same way, and never deleted, when one device or network sets up accounts at many addresses, when many new accounts or address changes arrive in one district just before a vote, or when an address is changed again and again.",
+    "No individual vote and no reason is ever shown to anyone but the person who gave it. Legislators' offices and associations see the same totals, never a person.",
+    "The place your device or internet address appears to be is used only as a sign of possible fraud for review. It never decides whether you may vote on a bill.",
     "Every total carries the words “Not a scientific poll”.",
   ],
 } as const;
@@ -236,7 +240,7 @@ export const PLEDGE_ALWAYS: PledgeItem[] = [
   { id: "corrections", promise: "Correct errors in public.",
     check: "The corrections page lists every correction, every summary withdrawn after a re-check, and every fix made after a reader's report. Earlier versions are kept, not overwritten." },
   { id: "private-answers", promise: "Keep your answers private.",
-    check: `Your Support, Oppose or Unsure answer is shown only to you. Only totals are shown to anyone else, and never below ${MIN_SHOWN} answers.` },
+    check: `Your individual Support, Oppose or Unsure answer, and your reason, are shown only to you. Only anonymous totals are shown to anyone else, and never below ${MIN_SHOWN} counted voters.` },
 ];
 
 export const PLEDGE_NEVER: PledgeItem[] = [
@@ -309,7 +313,7 @@ export const PROCESSORS: Processor[] = [
     receives: "Your phone number and the code you type." },
   { id: "usps", name: "U.S. Postal Service address check", url: "https://developers.usps.com/addressesv3", role: "Says whether a street address has several homes, so a unit number can be asked for. Switched off; the site's owner has not turned it on.", when: "verification", readerData: true, hosts: ["apis.usps.com"],
     receives: "If it is turned on: the street address and unit you type, sent from the site's server. Not your name, your email or your device's internet address." },
-  { id: "turnstile", name: "Cloudflare Turnstile", url: "https://www.cloudflare.com/application-services/products/turnstile/", role: "The automatic bot check on the sign-in form, the phone step, and a verified reader's first counted answer.", when: "verification", readerData: true, hosts: ["challenges.cloudflare.com"],
+  { id: "turnstile", name: "Cloudflare Turnstile", url: "https://www.cloudflare.com/application-services/products/turnstile/", role: "The automatic bot check on the sign-in form, the phone step, and an address-matched reader's first counted answer.", when: "verification", readerData: true, hosts: ["challenges.cloudflare.com"],
     receives: "Its script runs in your browser on those forms, so Cloudflare sees your browser and internet address. The site also sends Cloudflare your internet address with the result of the check." },
   { id: "openai", name: "OpenAI", url: "https://openai.com/", role: "Drafts and tests bill summaries, sorts bills into issues, and suggests research leads on officials' public statements.", when: "always", readerData: false, hosts: ["api.openai.com"],
     receives: "Nothing about readers. It receives bill text, official documents and public statements by officials." },
@@ -324,7 +328,7 @@ export type Stored = { what: string; detail: string; when: "everyone" | "account
 export const STORED: Stored[] = [
   { when: "everyone", what: "Your place", detail: "Your state and district codes, kept in a cookie and, for an invited reader, in the database so they follow you to another device. The site does not keep your street address from a legislator lookup, and it does not save your ZIP code in its database: the ZIP stays in a cookie in your browser." },
   { when: "everyone", what: "Your issues and follows", detail: "Up to three issues you picked, and the members and bills you follow." },
-  { when: "everyone", what: "Your answers", detail: "Support, Oppose or Unsure on a bill; each change you make to an answer, with the time; and the reason you may add, up to 280 characters. Shown only to you." },
+  { when: "everyone", what: "Your answers", detail: "Support, Oppose or Unsure on a bill; each change you make to an answer, with the time; and the reason you may add, up to 280 characters. Your individual answer and your reason are shown only to you. If your account is address-matched or mail-verified and you live inside the bill's jurisdiction, the answer is also added, without your name, into totals anyone can see. Answers you gave before 19 November 2026 are not added unless you choose that." },
   { when: "everyone", what: "Visit times", detail: "The time of your last visit and the one before, to show what is new. For an invite link: the first and last day it was used and on how many days. Never which pages you opened." },
   { when: "account", what: "Your email address", detail: "Kept to send your sign-in link and the site's emails to you. The sign-in links you asked for are kept with it." },
   { when: "account", what: "Emails that are on unless you turn them off", detail: "Once you sign in: a weekly email on how the members you follow voted, and an email when a bill you follow moves. Each can be switched off on the Account page, and the weekly email from the link at the bottom of it. The site keeps your choice and a log of the weekly emails sent." },
@@ -335,7 +339,7 @@ export const STORED: Stored[] = [
   { when: "everyone", what: "Limits on repeated use", detail: "A scrambled form of your device's random number and of your network range, kept for 48 hours, to stop one device or network from flooding the site. The raw internet address is not stored." },
   { when: "verification", what: "Phone number", detail: "Never stored. The site keeps only a keyed hash of it (a scrambled fingerprint that cannot be turned back into the number), so one phone cannot verify two accounts, plus the line type and the time it was confirmed. While you type the code, the number sits encrypted in a cookie on your own device for 10 minutes. If you delete your account, that fingerprint alone is kept for 90 days, with nothing that says whose it was, so the same number cannot open a new account straight away; then it is deleted too." },
   { when: "verification", what: "Home address", detail: "Sent to the Census Bureau to find your districts, then stored encrypted, with the codes of your state and your congressional, state senate and state house districts. The site also keeps a scrambled fingerprint of the address in a standard form, with and without the unit number, to count how many accounts share one home. Totals use the district codes alone. You have one home address at a time; a new one replaces the old one. Each counted answer keeps the district codes you had when you gave it." },
-  { when: "verification", what: "Sign-up checks", detail: "The time you passed the bot check, and a scrambled form of the network range and device you signed up from, cleared after 30 days. A counted answer also carries a scrambled form of the network range and device it came from. Each time you set, change or try to change your home address, the date is kept with a scrambled form of the device and network range it came from; those two are cleared after 30 days. If your account is set aside for review, the reason and the date are kept." },
+  { when: "verification", what: "Sign-up checks", detail: "The time you passed the bot check, and a scrambled form of the network range and device you signed up from, cleared after 30 days. An answer from a signed-in account also carries a scrambled form of the network range and device it came from, cleared after 30 days unless the answer is under review. Each time you set, change or try to change your home address, the date is kept with a scrambled form of the device and network range it came from; those two are cleared after 30 days. If your account is set aside for review, the reason and the date are kept." },
 ];
 
 /* ───────────────────────────── 10. Markers for the lawyer and the founder ───────────────────────────── */
@@ -347,7 +351,7 @@ export const LEGAL_REVIEW = {
   hostLogs: "what Vercel and Turso log and for how long, and whether a data processing agreement is in place with each service named here",
   sensitive: "whether political opinions need separate, explicit consent in any state or country the site will serve, and whether a notice for California, Texas or other state privacy laws is required",
   retention: "how long to keep an email address, answers, the answer history, encrypted addresses and inactive accounts. The code sets no end date for these; it deletes them only when the reader deletes the account",
-  countedHashes: "the scrambled network range and device kept with each counted answer have no deletion date in the code; decide one",
+  countedHashes: "the scrambled network range and device kept with an answer are cleared after 30 days, or when a review of that answer closes if later; decide whether 30 days is right",
   deletionGaps: "account deletion leaves two things behind: a random id tied to the invite link the reader came in with, which holds no email and no answers; and, for 90 days, the scrambled fingerprint of the phone number, with no link to the person, so the number cannot open a new account straight away. Decide whether either must go sooner",
   noAccountDelete: "a reader who never signed in by email has no delete button; their answers and follows are tied to the invite link. Decide how such a reader asks for deletion and how fast it is done",
   databaseAccess: "the person who runs the site can read the database directly, including which invite gave which answers; say who has access and under what rule",

@@ -18,7 +18,7 @@
 const DAY = 86400e3;
 
 export const RESIDENCE = {
-  changeEveryMs: 90 * DAY, phoneHoldMs: 90 * DAY, householdCap: 6, mailCodeTtlMs: 45 * DAY,
+  changeEveryMs: 90 * DAY, phoneHoldMs: 90 * DAY, householdCap: 6, mailCodeTtlMs: 30 * DAY, postcardsPerAddressYear: 2,
   /** One device setting homes at this many different addresses in 30 days; one network range at this many in 7 days. */
   deviceAddresses: 3, deviceWindowMs: 30 * DAY, networkAddresses: 6, networkWindowMs: 7 * DAY,
   /** The third change of address inside a year, or three refused tries inside 30 days. */
@@ -152,32 +152,7 @@ export function districtClusterSignal(input: { recent: number; baseline: number;
 /** An answer keeps the first home it was given. Only an answer with no home yet takes the account's current one. */
 export function stampFor<T extends Districts>(existing: T | null, current: T | null): T | null { return existing ?? current; }
 
-export type CountRow = { stance: "support" | "oppose" | string; tier: number; accountCreatedAt: number; quarantined: boolean; held: boolean; stamp: Districts | null };
-export type Totals = Map<string, { support: number; oppose: number }>;
-const ACCOUNT_MIN_AGE_MS = 24 * 3600 * 1000; // the same 24-hour rule as lib/verify/rules.ts
-
-/**
- * One bill's totals. Keys are "scope|group": "US|real" (every verified person), and for a district-matched answer
- * "US|district", the state, and each of its three districts. An answer is added to one district of each kind, the one
- * on its stamp, and to none while its account is set aside.
- */
-export function countPositions(rows: readonly CountRow[], now: number): Totals {
-  const totals: Totals = new Map();
-  const add = (scope: string, group: "real" | "district", stance: string) => {
-    const t = totals.get(`${scope}|${group}`) ?? { support: 0, oppose: 0 };
-    if (stance === "support") t.support++; else t.oppose++;
-    totals.set(`${scope}|${group}`, t);
-  };
-  for (const r of rows) {
-    if (r.tier < 1 || r.quarantined || r.held || now - r.accountCreatedAt < ACCOUNT_MIN_AGE_MS) continue;
-    add("US", "real", r.stance);
-    if (r.tier < 2 || !r.stamp) continue;
-    add("US", "district", r.stance); add(r.stamp.state, "district", r.stance); add(r.stamp.congressional, "district", r.stance);
-    if (r.stamp.stateUpper) add(r.stamp.stateUpper, "district", r.stance);
-    if (r.stamp.stateLower) add(r.stamp.stateLower, "district", r.stance);
-  }
-  return totals;
-}
+// Counting itself (who counts, in which totals, under which tier) is lib/constituent/rules.ts.
 
 /** Plain words for each reason an account is set aside (editor screen, transparency note, the reader's own account page). */
 export const HOLD_LABEL: Record<HoldKind, string> = {

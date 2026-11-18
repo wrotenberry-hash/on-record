@@ -20,7 +20,7 @@ export default async function TransparencyPage() {
     <section className="fed-page">
       <div className="eyebrow">TRANSPARENCY</div>
       <h1>Keeping the totals to real people</h1>
-      <p>Support and Oppose totals count only verified real people: a confirmed email, an automatic bot check, and a text-message code to a mobile number that is not an internet (VoIP) number and not used by another account. District totals also need an address the Census Bureau places in that district. Visitors&apos; answers are never counted, and new accounts count after 24 hours.</p>
+      <p>Totals count only address-matched and mail-verified residents whose home is inside the bill&apos;s jurisdiction. Address-matched means a confirmed email, a text-message code to a mobile number that is not an internet (VoIP) number and not used by another account, and a home address the Census Bureau&apos;s geocoder placed; mail-verified adds a code from a mailed postcard. Accounts with only a phone, and visitors, are never counted, and new accounts count after 24 hours.</p>
       <p>Answers that look like coordinated activity (sudden surges, many new accounts from one network or device, identical reasons) are set aside from the totals while the editor looks at them. They are never deleted; the editor either returns them to the totals or keeps them out.</p>
       <h2>Each month</h2>
       {months.length ? months.map(m => <div key={m.month} className="fed-section"><h3>{monthName(m.month)}</h3>

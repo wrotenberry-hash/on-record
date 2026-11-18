@@ -95,19 +95,19 @@ export type CompareState = "off" | "no_district" | "below" | "shown";
  * The line under "See how your district compares" for one bill. A total is shown only from MIN_SHOWN (25) counted
  * answers; below that the reader is told why, never a number. With verification off nothing is counted at all.
  */
-export function districtCompareLine(i: { enabled: boolean; district: string | null; totals: { support: number; oppose: number } | null | undefined }): { state: CompareState; text: string } {
-  if (!i.enabled) return { state: "off", text: `Counting opens when verification is switched on. Until then every answer stays private and nothing is added up. Totals will show once ${MIN_SHOWN} verified people in your district have answered.` };
+export function districtCompareLine(i: { enabled: boolean; district: string | null; totals: { support: number; oppose: number; unsure?: number } | null | undefined }): { state: CompareState; text: string } {
+  if (!i.enabled) return { state: "off", text: `Counting is not switched on yet, so no answer is added to a total today. Your individual vote stays private either way. Totals will show once ${MIN_SHOWN} counted residents of your district have answered.` };
   if (!i.district) return { state: "no_district", text: "Pick your House district above to see how your district compares." };
-  const n = (i.totals?.support ?? 0) + (i.totals?.oppose ?? 0);
-  if (n < MIN_SHOWN) return { state: "below", text: `Not enough verified answers from your district yet. Totals show once ${MIN_SHOWN} verified people have answered.` };
+  const n = (i.totals?.support ?? 0) + (i.totals?.oppose ?? 0) + (i.totals?.unsure ?? 0);
+  if (n < MIN_SHOWN) return { state: "below", text: "Not enough constituents yet — share this bill." };
   return { state: "shown", text: totalsLine(`In ${i.district}`, i.totals) };
 }
 
 /** The small print under the buttons: who sees an answer, and when it counts. True to lib/verify (tier 2 for a district). */
 export function answerPrivacyLine(verificationOn: boolean): string {
   return verificationOn
-    ? "Your answer is private. It counts toward your district’s total only after you verify you are a real person and match your address to your district."
-    : "Your answer is private: only you see it. Nothing is counted toward a district total yet; counting opens when verification is switched on.";
+    ? "Your individual vote is private. Counted votes are added into anonymous totals: yours counts once your home address is matched."
+    : "Your individual vote is private. Counting is not switched on yet, so no answer is added to a total today.";
 }
 
 /* ------------------------------------------------------- time to first weigh-in --- */

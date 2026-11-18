@@ -3,10 +3,10 @@ import { getDb } from "@/db";
 import { officialBills, positionHistory } from "@/db/schema";
 import { currentAppUserId, type ViewerAccess } from "@/lib/viewer";
 import { countEvent } from "@/lib/events";
-import { setAnswer, type Answer } from "@/lib/opinions";
+import type { Answer } from "@/lib/opinions";
 import { accountForAppUser, currentAccount } from "@/lib/accounts";
-import { castCounted } from "@/lib/verify/flow";
-import { ensureDeviceCookie, profileFor } from "@/lib/verify/store";
+import { saveVote } from "@/lib/verify/flow";
+import { ensureDeviceCookie } from "@/lib/verify/store";
 import { verificationConfig } from "@/lib/verify/config";
 
 /**
@@ -29,15 +29,13 @@ export async function saveReaderAnswer(access: ViewerAccess, billId: string, ans
   const userId = await currentAppUserId(true);
   if (!userId) return no;
   const before = Number((await db.select({ n: sql<number>`count(*)` }).from(positionHistory).where(eq(positionHistory.userId, userId)).get())?.n ?? 0);
-  await setAnswer(userId, billId, answer, null);
-  await countEvent(`answer_${answer}`, access.audience);
-  const first = before === 0, stance = answer === "unsure" ? null : answer;
-  if (!verificationConfig().enabled) return { ok: true, first, note: null };
-  await ensureDeviceCookie();
+  const first = before === 0;
+  if (verificationConfig().enabled) await ensureDeviceCookie();
   const account = (await currentAccount()) ?? (await accountForAppUser(userId));
-  const profile = account ? await profileFor(account.id).catch(() => null) : null;
-  if (account && profile && (profile.tier ?? 0) >= 1 && !profile.firstVoteChallengeAt) return { ok: true, first, note: stance ? "finish_on_bill_page" : null };
-  const outcome = await castCounted({ userId, account, billId, stance, reason: null, turnstile: null });
-  if (outcome.counted) await countEvent(stance ? "position_counted" : "position_uncounted", access.audience);
-  return { ok: true, first, note: outcome.code === "counted" ? "counted" : outcome.code === "rate" ? "rate" : outcome.code?.startsWith("from-") ? "counts_later" : null };
+  // The bot check before an address-matched reader's first counted answer runs on the bill page; with no token here that
+  // answer is saved as a private position and the reader is told where to finish. No failed check is recorded.
+  const outcome = await saveVote({ userId, account, billKey: billId, answer, reason: null, turnstile: null });
+  await countEvent(`answer_${answer}`, access.audience);
+  if (outcome.counted) await countEvent("position_counted", access.audience);
+  return { ok: true, first, note: outcome.code === "counted" ? "counted" : outcome.code === "rate" ? "rate" : outcome.code === "challenge" ? "finish_on_bill_page" : outcome.code?.startsWith("from-") ? "counts_later" : null };
 }

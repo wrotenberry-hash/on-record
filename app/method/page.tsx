@@ -117,7 +117,7 @@ export default async function MethodPage() {
         <p>A party-line vote is one where most voting Democrats and most voting Republicans were on opposite sides, with at least 10 of each voting. Votes on procedure are counted apart from votes on a bill. Lists such as &ldquo;missed votes&rdquo; are counts, shown the same way for every member.</p>
 
         <h3>Reader totals</h3>
-        <p>{verificationOn ? "Real-person verification is switched on, so totals can appear on a bill once enough verified readers have answered." : "Real-person verification is switched off at the moment. Until it is on, every answer stays private and nothing is added up."}</p>
+        <p>{verificationOn ? "Address matching is switched on, so totals can appear on a bill once enough counted residents have answered." : "Address matching is switched off at the moment. Until it is on, no account can be address-matched, so no answer is added into a total."}</p>
         <ul>{READER_TOTALS.rules.map(r => <li key={r}>{r}</li>)}</ul>
         <p>A monthly note on what was blocked or set aside, as counts only, is on the <Link href="/transparency">transparency page</Link>.</p>
       </section>

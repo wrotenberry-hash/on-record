@@ -16,6 +16,6 @@ export function StanceButtons({ billId, question, initial }: { billId: string; q
     <span className="flow-q">{question}</span>
     {CHOICES.map(([value, text]) => <button key={value} type="submit" name="stance" value={value} className={current === value ? "on" : ""} aria-pressed={current === value} disabled={pending}>{text}</button>)}
     <span className={state.error ? "flow-saved err" : "flow-saved"} role="status">
-      {pending ? "Saving…" : state.error ? state.error : state.saved && label ? `Saved: ${label}. ${state.note ?? "Only you see this."}` : current && label ? `Your answer: ${label}.` : ""}</span>
+      {pending ? "Saving…" : state.error ? state.error : state.saved && label ? `Saved: ${label}. ${state.note ?? "Your individual vote is private."}` : current && label ? `Your answer: ${label}.` : ""}</span>
   </form>;
 }

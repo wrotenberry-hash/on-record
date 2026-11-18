@@ -81,7 +81,7 @@ export function memberVoteLine(m: Meaningful | null, position: string | null | u
 }
 
 /** The threshold wording (owner, 17 Nov 2026). */
-export const DISTRICT_THRESHOLD_MESSAGE = `Not enough verified answers from your district yet. Totals show once ${MIN_SHOWN} verified people have answered.`;
+export const DISTRICT_THRESHOLD_MESSAGE = "Not enough constituents yet — share this bill.";
 export const DISTRICT_OFF_MESSAGE = "District totals are not switched on yet, so there is nothing to show here. Your answers stay private.";
 export const DISTRICT_UNKNOWN_MESSAGE = "We do not know your district yet. Find your legislators to see your district's view.";
 
@@ -90,12 +90,12 @@ export type DistrictView = { kind: "off" | "unknown" | "below" | "total"; text: 
  * What the page says about the reader's district for one bill. A total is shown only when verification is on, the district
  * is known and at least MIN_SHOWN counted answers exist there; below that, never a number.
  */
-export function districtView(input: { enabled: boolean; districtId: string | null; totals: { support: number; oppose: number } | null | undefined }): DistrictView {
+export function districtView(input: { enabled: boolean; districtId: string | null; totals: { support: number; oppose: number; unsure?: number } | null | undefined }): DistrictView {
   if (!input.enabled) return { kind: "off", text: DISTRICT_OFF_MESSAGE };
   if (!input.districtId) return { kind: "unknown", text: DISTRICT_UNKNOWN_MESSAGE };
-  const n = (input.totals?.support ?? 0) + (input.totals?.oppose ?? 0);
+  const n = (input.totals?.support ?? 0) + (input.totals?.oppose ?? 0) + (input.totals?.unsure ?? 0);
   if (n < MIN_SHOWN) return { kind: "below", text: DISTRICT_THRESHOLD_MESSAGE };
-  return { kind: "total", text: totalsLine(`Verified people in ${input.districtId}`, input.totals) };
+  return { kind: "total", text: totalsLine(`Counted residents of ${input.districtId}`, input.totals) };
 }
 
 /** "Support", "Oppose", "Unsure": the reader's answer as the bill page's buttons name it. */

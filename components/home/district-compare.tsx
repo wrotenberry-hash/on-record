@@ -35,7 +35,7 @@ export async function DistrictCompare({ userId, loc }: { userId: string | null; 
       {line.state === "shown" ? <span className="flow-total">{line.text}</span> : <span className="meta">{district ? `${district}: ` : ""}no total yet</span>}</li>)}</ul>
       : <p className="meta">Answer a bill above and it appears here beside your district’s total.</p>}
     {anyHidden && <p className="flow-threshold" role="note">{general.text}</p>}
-    {anyShown && <p className="meta">Not a scientific poll. Totals count verified, district-matched readers only.</p>}
+    {anyShown && <p className="meta">Not a scientific poll. Totals count address-matched and mail-verified residents only.</p>}
     <p className="flow-small">{enabled
       ? <>To be counted: sign in with your email on your <Link href="/account#verify">Account page</Link>, then verify a mobile number and your address. Answers you have already saved join the totals with your first counted answer.</>
       : <>When counting opens, you will verify on your <Link href="/account">Account page</Link>. Your answers are saved and stay private until then.</>}</p>

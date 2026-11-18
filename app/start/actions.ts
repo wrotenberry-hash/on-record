@@ -97,7 +97,7 @@ export async function saveFlowIssues(formData: FormData) {
 
 export type AnswerState = { billId: string; answer: "support" | "oppose" | "unsure" | null; saved: boolean; note: string | null; error: string | null };
 const NOTES = {
-  counted: "Counted toward the totals, without your name.",
+  counted: "Counted in the anonymous totals. Your individual vote stays private.",
   counts_later: "New accounts start counting after 24 hours.",
   rate: "You have answered a lot in a short time, so this one is not counted.",
   finish_on_bill_page: "To have it counted, answer once on the bill’s page, where a quick automatic check runs.",

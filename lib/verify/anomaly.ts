@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { countedPositions, flaggedPositions, integrityFlags, readerAccounts, verificationProfiles } from "@/db/schema";
+import { flaggedPositions, integrityFlags, readerAccounts, verificationProfiles, voiceVotes } from "@/db/schema";
 import { ANOMALY, isSurge } from "@/lib/verify/rules";
 import { bumpCount, recomputeBill } from "@/lib/verify/store";
 
@@ -48,36 +48,36 @@ const young = (now: number) => sql`${readerAccounts.createdAt} > ${now - ANOMALY
 async function billSurge(billId: string, now: number) {
   const db = getDb(), from = now - ANOMALY.surgeWindowMs;
   const [last, base] = await Promise.all([
-    db.select({ n: sql<number>`count(*)` }).from(countedPositions).where(and(eq(countedPositions.billId, billId), gte(countedPositions.createdAt, from))).get(),
-    db.select({ n: sql<number>`count(*)` }).from(countedPositions).where(and(eq(countedPositions.billId, billId), gte(countedPositions.createdAt, from - ANOMALY.baselineMs), lt(countedPositions.createdAt, from))).get(),
+    db.select({ n: sql<number>`count(*)` }).from(voiceVotes).where(and(eq(voiceVotes.billKey, billId), gte(voiceVotes.createdAt, from))).get(),
+    db.select({ n: sql<number>`count(*)` }).from(voiceVotes).where(and(eq(voiceVotes.billKey, billId), gte(voiceVotes.createdAt, from - ANOMALY.baselineMs), lt(voiceVotes.createdAt, from))).get(),
   ]);
   const lastHour = Number(last?.n ?? 0), baseline = Number(base?.n ?? 0);
   if (!isSurge(lastHour, baseline, ANOMALY.surgeFloor)) return 0;
   const flag = await flagFor("bill_surge", billId, { lastHour, baseline7d: baseline }, now);
-  const pos = await db.select({ userId: countedPositions.userId, billId: countedPositions.billId }).from(countedPositions)
-    .innerJoin(readerAccounts, eq(readerAccounts.id, countedPositions.accountId)).where(and(eq(countedPositions.billId, billId), gte(countedPositions.createdAt, from), young(now)));
+  const pos = await db.select({ userId: voiceVotes.userId, billId: voiceVotes.billKey }).from(voiceVotes)
+    .innerJoin(readerAccounts, eq(readerAccounts.id, voiceVotes.accountId)).where(and(eq(voiceVotes.billKey, billId), gte(voiceVotes.createdAt, from), young(now)));
   return quarantine(flag, "bill_surge", pos);
 }
 
 async function districtSurge(billId: string, districtId: string, now: number) {
   const db = getDb(), from = now - ANOMALY.surgeWindowMs;
-  const scoped = (since: number, until?: number) => db.select({ n: sql<number>`count(*)` }).from(countedPositions)
-    .innerJoin(verificationProfiles, eq(verificationProfiles.accountId, countedPositions.accountId))
-    .where(and(eq(countedPositions.billId, billId), eq(verificationProfiles.districtId, districtId), gte(countedPositions.createdAt, since), ...(until ? [lt(countedPositions.createdAt, until)] : []))).get();
+  const scoped = (since: number, until?: number) => db.select({ n: sql<number>`count(*)` }).from(voiceVotes)
+    .innerJoin(verificationProfiles, eq(verificationProfiles.accountId, voiceVotes.accountId))
+    .where(and(eq(voiceVotes.billKey, billId), eq(verificationProfiles.districtId, districtId), gte(voiceVotes.createdAt, since), ...(until ? [lt(voiceVotes.createdAt, until)] : []))).get();
   const [last, base] = await Promise.all([scoped(from), scoped(from - ANOMALY.baselineMs, from)]);
   const lastHour = Number(last?.n ?? 0), baseline = Number(base?.n ?? 0);
   if (!isSurge(lastHour, baseline, ANOMALY.districtSurgeFloor)) return 0;
   const flag = await flagFor("district_surge", `${billId}@${districtId}`, { lastHour, baseline7d: baseline, districtId }, now);
-  const pos = await db.select({ userId: countedPositions.userId, billId: countedPositions.billId }).from(countedPositions)
-    .innerJoin(verificationProfiles, eq(verificationProfiles.accountId, countedPositions.accountId)).innerJoin(readerAccounts, eq(readerAccounts.id, countedPositions.accountId))
-    .where(and(eq(countedPositions.billId, billId), eq(verificationProfiles.districtId, districtId), gte(countedPositions.createdAt, from), young(now)));
+  const pos = await db.select({ userId: voiceVotes.userId, billId: voiceVotes.billKey }).from(voiceVotes)
+    .innerJoin(verificationProfiles, eq(verificationProfiles.accountId, voiceVotes.accountId)).innerJoin(readerAccounts, eq(readerAccounts.id, voiceVotes.accountId))
+    .where(and(eq(voiceVotes.billKey, billId), eq(verificationProfiles.districtId, districtId), gte(voiceVotes.createdAt, from), young(now)));
   return quarantine(flag, "district_surge", pos);
 }
 
 async function sameReason(reasonHash: string, now: number) {
   const db = getDb(), since = now - ANOMALY.sameReasonWindowMs;
-  const rows = await db.select({ userId: countedPositions.userId, billId: countedPositions.billId, accountId: countedPositions.accountId }).from(countedPositions)
-    .where(and(eq(countedPositions.reasonHash, reasonHash), gte(countedPositions.updatedAt, since)));
+  const rows = await db.select({ userId: voiceVotes.userId, billId: voiceVotes.billKey, accountId: voiceVotes.accountId }).from(voiceVotes)
+    .where(and(eq(voiceVotes.reasonHash, reasonHash), gte(voiceVotes.updatedAt, since)));
   const accounts = new Set(rows.map(r => r.accountId)).size;
   if (accounts < ANOMALY.sameReasonAccounts) return 0;
   const flag = await flagFor("same_reason", reasonHash, { accounts }, now);
@@ -92,8 +92,8 @@ async function cluster(kind: "ip_cluster" | "device_cluster", value: string, now
     .where(and(eq(col, value), ...(kind === "ip_cluster" ? [gte(verificationProfiles.createdAt, now - ANOMALY.clusterWindowMs)] : [])));
   if (accounts.length < min) return 0;
   const flag = await flagFor(kind, value, { accounts: accounts.length }, now);
-  const pos = await db.select({ userId: countedPositions.userId, billId: countedPositions.billId }).from(countedPositions)
-    .where(inArray(countedPositions.accountId, accounts.map(a => a.accountId)));
+  const pos = await db.select({ userId: voiceVotes.userId, billId: voiceVotes.billKey }).from(voiceVotes)
+    .where(inArray(voiceVotes.accountId, accounts.map(a => a.accountId)));
   const n = await quarantine(flag, kind, pos);
   for (const b of new Set(pos.map(p => p.billId))) await recomputeBill(b);
   return n;

@@ -109,7 +109,7 @@ export default async function PrivacyPage() {
 
       <section id="totals">
         <h2>6. How totals are shown</h2>
-        <Answer>Your own answer is never shown to anyone else. Only totals are shown, and never below {READER_TOTALS.minShown} answers.</Answer>
+        <Answer>Your individual vote is private. Counted votes are added into anonymous totals, which anyone can see, and never below {READER_TOTALS.minShown} counted voters.</Answer>
         <ul>{READER_TOTALS.rules.map(r => <li key={r}>{r}</li>)}</ul>
         <p>District totals are shown by state and by district, not by any smaller area.</p>
       </section>

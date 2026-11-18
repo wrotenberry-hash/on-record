@@ -59,7 +59,7 @@ export async function requestMagicLink(rawEmail: string, viewer: { appUserId: st
   const link = `${SITE_URL}/account/verify?t=${encodeURIComponent(token)}`;
   const sent = await sendTo(email, `Your ${BRAND.name} sign-in link`, [`Tap to sign in to ${BRAND.name} on this device:`, "", link, "",
     "The link works once, for 30 minutes. If you did not ask for it, ignore this email; nothing changes.", "",
-    "Signing in keeps your follows and your own Support/Oppose answers on every device. They are never shown to anyone else."].join("\n"));
+    "Signing in keeps your follows and your own answers on bills on every device. Your individual vote is private. Counted votes are added into anonymous totals."].join("\n"));
   if (sent.ok) return { ok: true as const, message: `Sent. Check ${email} and tap the link within 30 minutes.` };
   return { ok: false as const, message: sent.domainNeeded
     ? "Email sign-in is not switched on yet (the site's sending address still needs to be verified). Your invite link keeps you signed in on this device in the meantime."

@@ -2,11 +2,13 @@ import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { getDb } from "@/db";
 import { billFollows, readerLocations, countedPositions, digestSends, flaggedPositions, integrityCounts, integrityFlags, magicLinks, opinionUserVotes, rateEvents, readerAccounts,
-  sentimentTotals, userFollows, verificationProfiles } from "@/db/schema";
+  userFollows, verificationProfiles, voiceVotes } from "@/db/schema";
 import { keyedHash } from "@/lib/verify/crypto";
 import { verificationConfig } from "@/lib/verify/config";
 import { COST_USD, LIMITS, monthKey, tierFor, ipRange, type LimitName, type Tier } from "@/lib/verify/rules";
-import { holdCounts, holdPhone, purgePhoneHolds, recomputeBillTotals } from "@/lib/verify/residence-store";
+import { billsOfAccounts, holdCounts, holdPhone, purgePhoneHolds } from "@/lib/verify/residence-store";
+import { purgeVoteSignals, recomputeAllVoice, recomputeVoice, totalsForBill, totalsForScope } from "@/lib/constituent/store";
+import { voters, type ScopeTotals } from "@/lib/constituent/rules";
 
 export type Account = typeof readerAccounts.$inferSelect;
 export type Profile = typeof verificationProfiles.$inferSelect;
@@ -66,66 +68,43 @@ export async function updateProfile(accountId: string, set: Partial<Profile>) {
   await getDb().update(verificationProfiles).set({ ...set, updatedAt: Date.now() }).where(eq(verificationProfiles.accountId, accountId));
 }
 
-/** Recomputes the account's tier; when it changes, re-stamps its positions and recomputes those bills' totals. */
+/**
+ * Recomputes what the account has confirmed so far (0 nothing, 1 phone, 2 phone and home address) and, when it changes,
+ * rebuilds the totals of the bills it answered. The names a reader sees are in lib/constituent/rules.ts (TIER_NAME):
+ * level 2 is "address-matched", never "verified".
+ */
 export async function refreshTier(account: Account): Promise<Tier> {
   const p = await profileFor(account.id);
   const tier = tierFor(p ? { emailVerifiedAt: account.verifiedAt, ...p } : null);
   if (p && p.tier !== tier) {
     await updateProfile(account.id, { tier });
-    await getDb().update(countedPositions).set({ tier }).where(eq(countedPositions.accountId, account.id));
-    await recomputeAccountBills(account.id);
+    for (const b of await billsOfAccounts(getDb(), [account.id])) await recomputeBill(b);
   }
   return tier;
 }
 
-async function recomputeAccountBills(accountId: string) {
-  const bills = await getDb().selectDistinct({ billId: countedPositions.billId }).from(countedPositions).where(eq(countedPositions.accountId, accountId));
-  for (const b of bills) await recomputeBill(b.billId);
-}
-
-/**
- * Recomputes one bill's totals from its counted, unquarantined positions of accounts at least 24 h old. Each answer
- * counts in the districts it was stamped with when it first had a home, and not at all while its account is set aside
- * for review (lib/verify/residence-store.ts).
- */
+/** Rebuilds one bill's totals (lib/constituent/store.ts: who counts, where, and in which group). */
 export async function recomputeBill(billId: string, now = Date.now()) {
-  await recomputeBillTotals(getDb(), billId, now);
+  await recomputeVoice(getDb(), billId, now);
 }
 
-/** Every bill with counted positions (each scheduled run: accounts cross the 24-hour line over time). */
+/** Every bill with an answer (each scheduled run: accounts cross the 24-hour line over time). */
 export async function recomputeAll(now = Date.now()) {
-  const bills = await getDb().selectDistinct({ billId: countedPositions.billId }).from(countedPositions);
-  for (const b of bills) await recomputeBill(b.billId, now);
-  return bills.length;
+  return recomputeAllVoice(getDb(), now);
 }
 
-export async function totalsFor(billId: string) {
-  const rows = await getDb().select().from(sentimentTotals).where(eq(sentimentTotals.billId, billId));
-  const get = (scope: string, group: "real" | "district") => rows.find(r => r.scope === scope && r.tierGroup === group) ?? null;
-  return { real: get("US", "real"), district: get("US", "district"), scope: (s: string) => get(s, "district") };
-}
+/** One row per bill for a scope: the two groups, and their sum for places that show one line. */
+export type ScopeRow = { billId: string; scope: string; tierGroup: "district"; support: number; oppose: number; unsure: number; voters: number; groups: ScopeTotals };
+const row = (billId: string, scope: string, g: ScopeTotals): ScopeRow => ({ billId, scope, tierGroup: "district", support: (g.mail?.support ?? 0) + (g.address?.support ?? 0),
+  oppose: (g.mail?.oppose ?? 0) + (g.address?.oppose ?? 0), unsure: (g.mail?.unsure ?? 0) + (g.address?.unsure ?? 0), voters: voters(g.mail) + voters(g.address), groups: g });
 
-/** District-matched totals in one scope (a district or a state) for many bills. */
-export async function scopeTotals(scope: string, billIds: string[]) {
-  if (!billIds.length) return [];
-  return getDb().select().from(sentimentTotals).where(and(eq(sentimentTotals.scope, scope), inArray(sentimentTotals.billId, billIds)));
+/** Counted totals in one scope (a district, a state, "US") for many bills. */
+export async function scopeTotals(scope: string, billIds: string[]): Promise<ScopeRow[]> {
+  return [...await totalsForScope(getDb(), scope, billIds)].map(([billId, g]) => row(billId, scope, g));
 }
-
-/** Writes or clears the counted copy of a reader's answer. */
-export async function writeCounted(input: { userId: string; account: Account; tier: Tier; billId: string; stance: "support" | "oppose" | null;
-  reason: string | null; reasonHash: string | null; ctx: { ipRange: string | null; device: string | null } }) {
-  const db = getDb(), now = Date.now();
-  if (!input.stance) await db.delete(countedPositions).where(and(eq(countedPositions.userId, input.userId), eq(countedPositions.billId, input.billId)));
-  else await db.insert(countedPositions).values({ userId: input.userId, billId: input.billId, accountId: input.account.id, stance: input.stance, tier: input.tier,
-    reason: input.reason, reasonHash: input.reasonHash, device: input.ctx.device, ipRange: input.ctx.ipRange, createdAt: now, updatedAt: now })
-    .onConflictDoUpdate({ target: [countedPositions.userId, countedPositions.billId], set: { stance: input.stance, tier: input.tier, reason: input.reason, reasonHash: input.reasonHash, updatedAt: now } });
-}
-
-/** After the first-vote challenge: the reader's earlier private answers join the counted set. */
-export async function backfillCounted(userId: string, account: Account, tier: Tier, ctx: { ipRange: string | null; device: string | null }) {
-  const answers = await getDb().select().from(opinionUserVotes).where(eq(opinionUserVotes.userId, userId));
-  for (const a of answers) await writeCounted({ userId, account, tier, billId: a.billId, stance: a.stance as "support" | "oppose", reason: null, reasonHash: null, ctx });
-  return answers.map(a => a.billId);
+/** One bill's counted totals in the scopes asked for, keyed by scope. */
+export async function billTotals(billId: string, scopes: readonly string[]): Promise<Map<string, ScopeTotals>> {
+  return totalsForBill(getDb(), billId, scopes);
 }
 
 /** Deletes the account, its answers (counted and private), follows and verification record. Recomputes the bills it touched. */
@@ -134,6 +113,12 @@ export async function deleteAccountAndPositions(account: Account) {
   const bills = await db.selectDistinct({ billId: countedPositions.billId }).from(countedPositions).where(eq(countedPositions.accountId, account.id));
   await db.delete(flaggedPositions).where(eq(flaggedPositions.userId, account.appUserId));
   await db.delete(countedPositions).where(eq(countedPositions.userId, account.appUserId));
+  const { associationMembers, mailPostcards, voiceLegacyChoices } = await import("@/db/schema");
+  const answered = await db.selectDistinct({ billKey: voiceVotes.billKey }).from(voiceVotes).where(eq(voiceVotes.userId, account.appUserId));
+  await db.delete(voiceVotes).where(eq(voiceVotes.userId, account.appUserId));
+  await db.delete(voiceLegacyChoices).where(eq(voiceLegacyChoices.userId, account.appUserId));
+  await db.delete(mailPostcards).where(eq(mailPostcards.accountId, account.id));
+  await db.delete(associationMembers).where(eq(associationMembers.accountId, account.id));
   await db.delete(opinionUserVotes).where(eq(opinionUserVotes.userId, account.appUserId));
   await db.delete(userFollows).where(eq(userFollows.userId, account.appUserId));
   await db.delete(billFollows).where(eq(billFollows.userId, account.appUserId));
@@ -168,7 +153,7 @@ export async function deleteAccountAndPositions(account: Account) {
   if (links.length) await db.delete(linkChallenges).where(inArray(linkChallenges.nonce, links.map(l => l.nonce)));
   await db.delete(magicLinks).where(eq(magicLinks.emailHash, account.emailHash));
   await db.delete(readerAccounts).where(eq(readerAccounts.id, account.id));
-  for (const b of bills) await recomputeBill(b.billId);
+  for (const b of new Set([...bills.map(x => x.billId), ...answered.map(x => x.billKey)])) await recomputeBill(b);
 }
 
 /** Housekeeping each scheduled run: drop rate rows after 48 h and sign-up network/device hashes after 30 days. */
@@ -176,6 +161,7 @@ export async function purgeVerificationData(now = Date.now()) {
   const db = getDb();
   await db.delete(rateEvents).where(lt(rateEvents.at, now - 48 * 3600e3));
   await purgePhoneHolds(db, now); // a deleted account's phone hash is dropped when its 90 days are up
+  await purgeVoteSignals(db, now); // the scrambled device and network kept with an answer: 30 days, unless under review
   const { residenceChanges } = await import("@/db/schema");
   await db.update(residenceChanges).set({ device: null, ipRange: null }).where(and(lt(residenceChanges.at, now - 30 * 86400e3), sql`(${residenceChanges.device} is not null or ${residenceChanges.ipRange} is not null)`));
   await db.update(verificationProfiles).set({ signupIpRange: null, signupDevice: null }).where(and(lt(verificationProfiles.createdAt, now - 30 * 86400e3), sql`(${verificationProfiles.signupIpRange} is not null or ${verificationProfiles.signupDevice} is not null)`));
@@ -188,7 +174,7 @@ export async function verificationCounts() {
     db.select({ tier: verificationProfiles.tier, n: sql<number>`count(*)` }).from(verificationProfiles).groupBy(verificationProfiles.tier),
     db.select({ status: integrityFlags.status, n: sql<number>`count(*)` }).from(integrityFlags).groupBy(integrityFlags.status),
     db.select({ n: sql<number>`count(distinct ${flaggedPositions.userId} || ':' || ${flaggedPositions.billId})` }).from(flaggedPositions).innerJoin(integrityFlags, eq(integrityFlags.id, flaggedPositions.flagId)).where(inArray(integrityFlags.status, ["open", "confirmed"])).get(),
-    db.select({ n: sql<number>`count(*)` }).from(countedPositions).get(),
+    db.select({ n: sql<number>`count(*)` }).from(voiceVotes).where(sql`${voiceVotes.accountId} is not null`).get(),
   ]);
   const t = (k: number) => Number(tiers.find(r => r.tier === k)?.n ?? 0), f = (k: string) => Number(flags.find(r => r.status === k)?.n ?? 0);
   return { enabled: c.enabled, turnstileConfigured: c.turnstileReady, twilioConfigured: c.twilioReady, monthlyCapUsd: c.monthlyCapUsd, spendMonthUsd: await verifySpendUsd(),

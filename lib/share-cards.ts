@@ -69,7 +69,7 @@ export async function districtVsLegislatorCard(memberId: string, billId: string)
   if (!m) return null;
   const scope = m.chamber === "senate" ? m.state : memberDistrictId(m.state, m.district);
   const t = (await scopeTotals(scope, [billId]).catch(() => []))[0];
-  if (!t || t.support + t.oppose < MIN_SHOWN) return null;
+  if (!t || t.voters < MIN_SHOWN) return null;
   const v = await db.select({ id: officialRollCalls.id, position: officialMemberVotes.position, question: officialRollCalls.question, title: officialRollCalls.title })
     .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
     .where(and(eq(officialMemberVotes.politicianId, memberId), eq(officialRollCalls.billId, billId))).orderBy(desc(officialRollCalls.votedAt));
@@ -78,7 +78,7 @@ export async function districtVsLegislatorCard(memberId: string, billId: string)
   if (!r || !pick) return null;
   const line = voteLine(cardVote(r, `${m.fullName}: ${positionLine(pick.position, voteKind(r.question, r.billTitle ?? r.title))}`));
   return { eyebrow: `MY DISTRICT VS MY LEGISLATOR · ${scope}`, title: r.billType ? billLabel(r.billType, r.number!) : "This bill", subtitle: (r.billTitle ?? "").slice(0, 110),
-    lines: [line, { ...line, vote: totalsLine(`District-matched readers in ${scope}`, t), describe: { label: "Readers", text: "Verified readers who matched an address to this district. Not a scientific poll." }, kindLabel: "Readers", source: `${BRAND.name}, aggregate counts only` }],
+    lines: [line, { ...line, vote: totalsLine(`Counted residents of ${scope}`, t), describe: { label: "Readers", text: "Address-matched and mail-verified residents of this district. Not a scientific poll." }, kindLabel: "Readers", source: `${BRAND.name}, aggregate counts only` }],
     note: null, footer: BRAND.taglineShort };
 }
 

@@ -89,6 +89,7 @@ test("a surge needs the floor and ten times the hourly baseline", () => {
 
 test("totals show only from 25 answers", () => {
   assert.equal(totalsLine("Real people", { support: 20, oppose: 4 }), `Real people: fewer than ${MIN_SHOWN} so far`);
-  assert.equal(totalsLine("Real people", { support: 20, oppose: 5 }), "Real people: 20 support · 5 oppose");
+  assert.equal(totalsLine("Real people", { support: 20, oppose: 5 }), "Real people: 20 support · 5 oppose · 0 unsure (25 voters)");
+  assert.equal(totalsLine("TX-37", { support: 12, oppose: 6, unsure: 7 }), "TX-37: 12 support · 6 oppose · 7 unsure (25 voters)", "Unsure is a counted answer");
   assert.equal(totalsLine("District-matched", null), `District-matched: fewer than ${MIN_SHOWN} so far`);
 });

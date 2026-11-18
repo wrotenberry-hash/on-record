@@ -17,12 +17,20 @@ import { verificationConfig } from "@/lib/verify/config";
 import { scopeTotals } from "@/lib/verify/store";
 import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
 import { getDb } from "@/db";
-import { officialPoliticians, sentimentTotals } from "@/db/schema";
+import { officialPoliticians } from "@/db/schema";
+import { groupLine, NOT_ENOUGH_DISTRICT, shownTotals } from "@/lib/constituent/rules";
+import type { ScopeRow } from "@/lib/verify/store";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { BRAND, brandTitle } from "@/lib/brand";
 import { ContactForMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
+
+/** One district's two groups on one bill, mail-verified first. Only called from 25 counted voters up. */
+function DistrictGroups({ scope, row }: { scope: string; row: ScopeRow }) {
+  const shown = shownTotals(row.groups, "district");
+  return shown.show ? <>{scope}, {shown.voters} voters: {shown.groups.map(g => groupLine(g)).join("; ")}</> : <>{scope}: {shown.message}</>;
+}
 
 /** Names reach only viewers allowed to see the page; anyone else gets the site name. */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -57,16 +65,17 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const canAnswer = !!access.editor || !!access.invite;
   const userId = canAnswer ? await currentAppUserId() : null;
   const agreement = userId ? await agreementWith(userId, p.id).catch(() => ({ rows: [], answered: 0 })) : null;
-  // Round J: what verified readers say on the bills this member voted on. District-matched readers in the
-  // member's own district (House) or state (Senate) lead; real people nationally follow. Never a rating.
+  // Resident voting (18 Nov 2026): what counted residents of this member's own district (House) or state (Senate) said
+  // on the bills the member voted on, beside the member's actual vote. Never a rating. Shown to everyone, so a
+  // legislator's office never has to sign up to see it.
   const constituents = verificationConfig().enabled ? await (async () => {
     const scope = p.chamber === "senate" ? p.state : memberDistrictId(p.state, p.district);
     const billIds = [...new Set(votes.map(v => v.billId).filter((b): b is string => !!b))];
     const local = await scopeTotals(scope, billIds).catch(() => []);
-    const national = billIds.length ? await getDb().select().from(sentimentTotals).where(and(eq(sentimentTotals.scope, "US"), eq(sentimentTotals.tierGroup, "real"), inArray(sentimentTotals.billId, billIds))).catch(() => []) : [];
+    const national = await scopeTotals("US", billIds).catch(() => []);
     const rows = billIds.map(id => ({ id, local: local.find(t => t.billId === id) ?? null, national: national.find(t => t.billId === id) ?? null,
       vote: votes.find(v => v.billId === id && voteKind(v.question, v.billTitle ?? v.title) === "passage") ?? votes.find(v => v.billId === id)! }))
-      .filter(r => (r.local && r.local.support + r.local.oppose >= MIN_SHOWN) || (r.national && r.national.support + r.national.oppose >= MIN_SHOWN)).slice(0, 6);
+      .filter(r => (r.local && r.local.voters >= MIN_SHOWN) || (r.national && r.national.voters >= MIN_SHOWN)).slice(0, 12);
     // Upcoming: bills on this week's floor schedule in the member's chamber, with the same totals.
     const { getDb: db2 } = await import("@/db"); const { officialFloorSchedule: fs, officialBills: ob } = await import("@/db/schema"); const { weekOf } = await import("@/lib/federal/depth-parse");
     const upcomingBills = await db2().select({ id: fs.billId, label: fs.label, title: ob.title }).from(fs).leftJoin(ob, eq(ob.id, fs.billId))
@@ -101,14 +110,14 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           <p className="meta">From your own Support/Oppose answers and this member&apos;s votes on passing those bills; procedural votes are left out. Only you see this. It is your comparison, not a rating of the member by {BRAND.name}.</p></>
           : <p className="meta">{agreement.answered ? "None of the bills you answered has a vote by this member on passing it yet." : "Say Support or Oppose on a bill page, and this shows how often this member's votes on passing those bills matched yours. Only you see it."}</p>}</div>}
 
-      {constituents && <div className="fed-section sentiment"><h2>What verified readers say <OpinionBadge /></h2>
+      {constituents && <div className="fed-section sentiment" id="constituents"><h2>What residents of {constituents.scope} say <OpinionBadge /></h2>
         {constituents.rows.length ? <ul className="analysis-list">{constituents.rows.map(r => <li key={r.id}><Link href={`/bills/${r.id}`}>{r.vote.billTitle ?? r.vote.title}</Link><br />
-          <span className="lead">{totalsLine(`District-matched in ${constituents.scope}`, r.local)}</span><br /><span className="meta">{totalsLine("Real people, nationally", r.national)}</span><br />
-          <span><b>{p.fullName}:</b> {positionLine(r.vote.position, voteKind(r.vote.question, r.vote.billTitle ?? r.vote.title))} <OfficialBadge /></span>{r.local && r.local.support + r.local.oppose >= MIN_SHOWN && <> · <Link className="src-link" href={`/share/card?t=district&member=${p.id}&bill=${r.id}`}>Share</Link></>}</li>)}</ul>
-          : <p className="meta">Not enough verified answers yet on bills {p.fullName} voted on: totals show from {MIN_SHOWN} answers.</p>}
-        {constituents.upcoming.length > 0 && <><h3 className="subhead">Coming up — weigh in now</h3><ul className="analysis-list">{constituents.upcoming.map(u => <li key={u.id!}><Link href={`/bills/${u.id}#your-view`}>{u.label}: {u.title ?? ""}</Link><br /><span className="meta">{totalsLine(`District-matched in ${constituents.scope}`, u.local)}</span></li>)}</ul></>}
+          <span className="lead">{r.local && r.local.voters >= MIN_SHOWN ? <DistrictGroups scope={constituents.scope} row={r.local} /> : `${constituents.scope}: ${NOT_ENOUGH_DISTRICT}`}</span><br /><span className="meta">{totalsLine("The nation", r.national)}</span><br />
+          <span><b>{p.fullName}:</b> {positionLine(r.vote.position, voteKind(r.vote.question, r.vote.billTitle ?? r.vote.title))} <OfficialBadge /></span>{r.local && r.local.voters >= MIN_SHOWN && <> · <Link className="src-link" href={`/share/card?t=district&member=${p.id}&bill=${r.id}`}>Share</Link></>}</li>)}</ul>
+          : <p className="meta">{NOT_ENOUGH_DISTRICT} Totals for {constituents.scope} show from {MIN_SHOWN} counted voters on a bill {p.fullName} voted on.</p>}
+        {constituents.upcoming.length > 0 && <><h3 className="subhead">Coming up — weigh in now</h3><ul className="analysis-list">{constituents.upcoming.map(u => <li key={u.id!}><Link href={`/bills/${u.id}#your-view`}>{u.label}: {u.title ?? ""}</Link><br /><span className="meta">{u.local && u.local.voters >= MIN_SHOWN ? <DistrictGroups scope={constituents.scope} row={u.local} /> : `${constituents.scope}: ${NOT_ENOUGH_DISTRICT}`}</span></li>)}</ul></>}
         <p className="not-poll">Not a scientific poll.</p>
-        <p className="meta">District-matched readers matched an address to {constituents.scope}. Shown beside the member&apos;s actual vote, never as a score.</p></div>}
+        <p className="meta">Counted residents are address-matched or mail-verified at a home in {constituents.scope}; mail-verified are listed first. Shown beside the member&apos;s actual vote, never as a score. No individual vote is ever shown.</p></div>}
 
       {latestBill && <div className="fed-section latest-bill"><h2>Latest vote on a bill <OfficialBadge /></h2>
         <p className="lead">{positionLine(latestBill.position, voteKind(latestBill.question, latestBill.billTitle ?? latestBill.title))}</p>

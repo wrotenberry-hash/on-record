@@ -124,10 +124,10 @@ export function isSurge(lastHour: number, baselineCount: number, floor: number) 
   return lastHour >= floor && lastHour >= ANOMALY.surgeMultiple * hourlyBaseline;
 }
 
-/** "Real people: 31 support · 12 oppose" or the not-enough line. */
-export function totalsLine(label: string, t: { support: number; oppose: number } | null | undefined) {
-  const n = (t?.support ?? 0) + (t?.oppose ?? 0);
-  return n >= MIN_SHOWN ? `${label}: ${t!.support} support · ${t!.oppose} oppose` : `${label}: fewer than ${MIN_SHOWN} so far`;
+/** "TX-37: 31 support · 12 oppose · 4 unsure (47 voters)" or the not-enough line. Unsure is a counted answer since 18 Nov 2026. */
+export function totalsLine(label: string, t: { support: number; oppose: number; unsure?: number } | null | undefined) {
+  const n = (t?.support ?? 0) + (t?.oppose ?? 0) + (t?.unsure ?? 0);
+  return n >= MIN_SHOWN ? `${label}: ${t!.support} support · ${t!.oppose} oppose · ${t!.unsure ?? 0} unsure (${n} voters)` : `${label}: fewer than ${MIN_SHOWN} so far`;
 }
 
 /** Verification costs (O-34): Twilio US list prices, Oct 2026: Verify $0.05 per success + $0.0083 per SMS (counted per send, so a failed attempt is over-counted); Lookup line type $0.008. */

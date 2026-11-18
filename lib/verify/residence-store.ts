@@ -6,10 +6,9 @@
  */
 import { and, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { accountHolds, accountResidences, countedPositions, mailCodes, mailVerifications, phoneHolds, positionResidences, readerAccounts, residenceChanges,
-  sentimentTotals, verificationProfiles } from "../../db/schema.ts";
-import { addressChangesSignal, canSetAddress, countPositions, districtClusterSignal, householdDecision, mailRevocations, manyAddressesSignal, phoneHoldUntil, redeemDecision,
-  RESIDENCE, type CountRow, type Districts, type HoldKind, type RedeemRefusal } from "./residence.ts";
+import { accountHolds, accountResidences, mailCodes, mailVerifications, phoneHolds, positionResidences, readerAccounts, residenceChanges, verificationProfiles, voiceVotes } from "../../db/schema.ts";
+import { addressChangesSignal, canSetAddress, districtClusterSignal, householdDecision, mailRevocations, manyAddressesSignal, phoneHoldUntil, redeemDecision,
+  RESIDENCE, type Districts, type HoldKind, type RedeemRefusal } from "./residence.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the app passes its typed handle, the tests a plain one
 export type Db = LibSQLDatabase<any>;
@@ -37,12 +36,12 @@ export async function countedAtAddress(db: Db, addressKey: string, exceptAccount
   return Number(row?.n ?? 0);
 }
 
-/** Gives every counted answer of the account that has no home yet the account's current one. Existing stamps are left alone. */
+/** Gives every answer of the account that has no home yet the account's current one. Existing stamps are left alone. */
 export async function stampUnstamped(db: Db, accountId: string, now: number): Promise<number> {
   const home = await residenceOf(db, accountId);
   if (!home) return 0;
-  const open = await db.select({ userId: countedPositions.userId, billId: countedPositions.billId }).from(countedPositions).where(and(eq(countedPositions.accountId, accountId),
-    sql`not exists (select 1 from position_residences p where p.user_id = ${countedPositions.userId} and p.bill_id = ${countedPositions.billId})`));
+  const open = await db.select({ userId: voiceVotes.userId, billId: voiceVotes.billKey }).from(voiceVotes).where(and(eq(voiceVotes.accountId, accountId),
+    sql`not exists (select 1 from position_residences p where p.user_id = ${voiceVotes.userId} and p.bill_id = ${voiceVotes.billKey})`));
   for (const p of open) await db.insert(positionResidences).values({ userId: p.userId, billId: p.billId, accountId, congressional: home.congressional, stateCode: home.stateCode,
     stateUpper: home.stateUpper, stateLower: home.stateLower, stampedAt: now }).onConflictDoNothing();
   return open.length;
@@ -129,28 +128,10 @@ async function repeatedChanges(db: Db, accountId: string, now: number): Promise<
   return (await liveHolds(db, accountId)).some(h => h.kind === "address_changes");
 }
 
-/** Recomputes one bill's totals: each counted answer in the districts on its stamp; none from an account that is set aside. */
-export async function recomputeBillTotals(db: Db, billId: string, now: number) {
-  const rows = await db.select({ stance: countedPositions.stance, tier: countedPositions.tier, accountCreatedAt: readerAccounts.createdAt,
-    congressional: positionResidences.congressional, state: positionResidences.stateCode, stateUpper: positionResidences.stateUpper, stateLower: positionResidences.stateLower,
-    quarantined: sql<number>`exists (select 1 from flagged_positions fp join integrity_flags f on f.id = fp.flag_id where fp.user_id = ${countedPositions.userId} and fp.bill_id = ${countedPositions.billId} and f.status in ('open', 'confirmed'))`,
-    held: sql<number>`exists (select 1 from account_holds h where h.account_id = ${countedPositions.accountId} and h.status in ('open', 'confirmed'))` })
-    .from(countedPositions).innerJoin(readerAccounts, eq(readerAccounts.id, countedPositions.accountId))
-    .innerJoin(verificationProfiles, eq(verificationProfiles.accountId, countedPositions.accountId))
-    .leftJoin(positionResidences, and(eq(positionResidences.userId, countedPositions.userId), eq(positionResidences.billId, countedPositions.billId)))
-    .where(eq(countedPositions.billId, billId));
-  const totals = countPositions(rows.map((r): CountRow => ({ stance: r.stance, tier: r.tier, accountCreatedAt: r.accountCreatedAt, quarantined: Number(r.quarantined) === 1, held: Number(r.held) === 1,
-    stamp: r.congressional && r.state ? { congressional: r.congressional, state: r.state, stateUpper: r.stateUpper, stateLower: r.stateLower } : null })), now);
-  await db.delete(sentimentTotals).where(eq(sentimentTotals.billId, billId));
-  const values = [...totals].map(([k, t]) => { const [scope, tierGroup] = k.split("|"); return { billId, scope, tierGroup: tierGroup as "real" | "district", ...t, updatedAt: now }; });
-  if (values.length) await db.insert(sentimentTotals).values(values);
-  return totals;
-}
-
-/** The bills an account has counted answers on (to recompute after a hold, a decision or a new address). */
+/** The bills an account has answers on (to rebuild totals after a hold, a decision or a new address). */
 export async function billsOfAccounts(db: Db, accountIds: readonly string[]): Promise<string[]> {
   if (!accountIds.length) return [];
-  return (await db.selectDistinct({ billId: countedPositions.billId }).from(countedPositions).where(inArray(countedPositions.accountId, [...accountIds]))).map(r => r.billId);
+  return (await db.selectDistinct({ billKey: voiceVotes.billKey }).from(voiceVotes).where(inArray(voiceVotes.accountId, [...accountIds]))).map(r => r.billKey);
 }
 
 /** Editor decision on a hold: "clear" counts the account again; "confirm" keeps it out. Nothing is deleted. */

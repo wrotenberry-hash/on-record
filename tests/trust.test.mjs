@@ -131,21 +131,26 @@ test("member figures: the method page and the member page say the same thing, an
   assert.equal(withPartyMajority("Nay", { Yea: 4, Nay: 2 }), false);
 });
 
-test("reader totals: 24 hours, never below 25, Unsure not counted", () => {
+test("reader totals: 24 hours, never below 25, Unsure counted, phone-only accounts never", () => {
   assert.equal(READER_TOTALS.minShown, MIN_SHOWN); assert.equal(MIN_SHOWN, 25);
   assert.equal(READER_TOTALS.waitHours, ACCOUNT_MIN_AGE_MS / 3_600_000); assert.equal(READER_TOTALS.waitHours, 24);
   const rules = READER_TOTALS.rules.join(" ");
   assert.match(rules, /24 hours after the account was created/);
-  assert.match(rules, /never shown below 25 answers/);
-  assert.ok(rules.includes(`“fewer than ${MIN_SHOWN} so far”`));
-  assert.equal(totalsLine("Real people", { support: 20, oppose: 4 }), "Real people: fewer than 25 so far");
-  assert.equal(totalsLine("Real people", { support: 20, oppose: 5 }), "Real people: 20 support · 5 oppose");
+  assert.match(rules, /never shown below 25 counted voters/);
+  assert.ok(rules.includes("“Not enough constituents yet — share this bill.”"));
+  assert.equal(totalsLine("TX-37", { support: 20, oppose: 4 }), "TX-37: fewer than 25 so far");
+  assert.equal(totalsLine("TX-37", { support: 20, oppose: 4, unsure: 1 }), "TX-37: 20 support · 4 oppose · 1 unsure (25 voters)");
   assert.equal(positionCounts({ tier: 1, accountCreatedAt: 0, quarantined: false, now: ACCOUNT_MIN_AGE_MS - 1 }), false);
   assert.equal(positionCounts({ tier: 0, accountCreatedAt: 0, quarantined: false, now: 10 * ACCOUNT_MIN_AGE_MS }), false);
-  assert.match(rules, /“Unsure” is a private answer\. It is never counted\./);
-  // Unsure cannot be stored as a counted answer at all.
-  assert.match(read("db/schema.ts"), /counted_stance", sql`\$\{t\.stance\} IN \('support', 'oppose'\)`/);
-  assert.ok(read("app/bills/[id]/page.tsx").includes("Not a scientific poll."));
+  // 18 Nov 2026 (docs/CONSTITUENT_VOICE.md): the promise changed, Unsure is a counted answer, and a phone alone counts nowhere.
+  assert.match(rules, /Your individual vote is private\. Counted votes are added, without a name, into totals that anyone can see\./);
+  assert.match(rules, /Support, Oppose and Unsure are all counted answers/);
+  assert.match(rules, /An account with only a phone can read, follow and save a private position, and is counted in no total/);
+  assert.match(rules, /A state bill counts residents of that state only/);
+  assert.match(rules, /stay uncounted unless the person who gave them chooses, once, to count them/);
+  assert.doesNotMatch(rules, /verified real person|Unsure” is a private answer/);
+  assert.match(read("db/schema.ts"), /voice_votes_answer", sql`\$\{t\.answer\} IN \('support', 'oppose', 'unsure'\)`/);
+  assert.ok(read("lib/constituent/rules.ts").includes('NOT_SCIENTIFIC = "Not a scientific poll."')); assert.ok(read("components/voice/vote-box.tsx").includes("{NOT_SCIENTIFIC}"));
 });
 
 test("a claim is checked in six steps", () => {

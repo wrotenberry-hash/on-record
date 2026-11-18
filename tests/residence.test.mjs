@@ -11,9 +11,10 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema.ts";
-import { addressChangesSignal, authorityFromUsps, canSetAddress, countPositions, districtClusterSignal, householdDecision, mailRevocations, manyAddressesSignal, normaliseResidence, normaliseUnit,
+import { addressChangesSignal, authorityFromUsps, canSetAddress, districtClusterSignal, householdDecision, mailRevocations, manyAddressesSignal, normaliseResidence, normaliseUnit,
   phoneAvailable, redeemDecision, RESIDENCE, splitUnit, stampFor, unitDecision } from "../lib/verify/residence.ts";
-import { decideHold, holdPhone, issueMailCode, liveHolds, mailVerified, phoneHeldUntil, purgePhoneHolds, recomputeBillTotals, redeemMailCode, residenceOf, setResidence, stampPosition } from "../lib/verify/residence-store.ts";
+import { decideHold, holdPhone, issueMailCode, liveHolds, mailVerified, phoneHeldUntil, purgePhoneHolds, redeemMailCode, residenceOf, setResidence } from "../lib/verify/residence-store.ts";
+import { castVote, recomputeVoice } from "../lib/constituent/store.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), ".."), DAY = 86400e3;
 const dir = mkdtempSync(join(tmpdir(), "residence-")), client = createClient({ url: `file:${join(dir, "test.db")}` }), db = drizzle(client);
@@ -41,19 +42,20 @@ async function moveIn(a, address, districts, now, extra = {}) {
   const r = await setResidence(db, { accountId: a.id, addressKey: `addr:${address}`, buildingKey: `bldg:${address.split("|")[0]}`, hasUnit: address.includes("|"), districts,
     device: extra.device ?? null, ipRange: extra.ipRange ?? null, voteSoon: extra.voteSoon ?? { federal: false, state: false }, now });
   if (r.ok && r.kind !== "same") await db.update(schema.verificationProfiles).set({ tier: 2, districtId: districts.congressional, stateCode: districts.state, addressMatchedAt: now }).where(eq(schema.verificationProfiles.accountId, a.id));
-  if (r.ok && r.kind !== "same") await db.update(schema.countedPositions).set({ tier: 2 }).where(eq(schema.countedPositions.accountId, a.id));
   return r;
 }
-/** What castCounted does: the counted copy of the answer, then its home. */
-async function answer(a, billId, stance, now) {
-  const tier = (await db.select().from(schema.verificationProfiles).where(eq(schema.verificationProfiles.accountId, a.id)).get()).tier;
-  await db.insert(schema.countedPositions).values({ userId: a.userId, billId, accountId: a.id, stance, tier, createdAt: now, updatedAt: now })
-    .onConflictDoUpdate({ target: [schema.countedPositions.userId, schema.countedPositions.billId], set: { stance, tier, updatedAt: now } });
-  await stampPosition(db, { userId: a.userId, billId, accountId: a.id }, now);
+/** A Texas bill, for the state senate and state house totals. */
+async function texasBill(id) {
+  await db.insert(schema.txBills).values({ id, session: "90", identifier: `HB ${++seq}`, title: `Relating to a test (${id}).`, chamber: "lower", classification: ["bill"], subjects: [], stage: "filed",
+    tloUrl: "https://capitol.texas.gov/", feed: "openstates", sourceUrl: "https://capitol.texas.gov/", retrievedAt: T0 }).onConflictDoNothing();
+  return id;
 }
+/** What saving an answer does: the answer, then its home (lib/constituent/store.ts). */
+const answer = (a, billId, stance, now) => castVote(db, { userId: a.userId, accountId: a.id, billKey: billId, answer: stance, reason: null, reasonHash: null, device: null, ipRange: null, now });
 /** The database itself refused the row (a unique or primary-key rule), not just the code above it. */
 const refusedByDatabase = promise => assert.rejects(promise, e => /UNIQUE constraint|PRIMARY KEY/i.test(`${e?.message} ${e?.cause?.message ?? ""}`));
-const totals = async (billId, now) => Object.fromEntries([...(await recomputeBillTotals(db, billId, now))].map(([k, v]) => [k, v.support + v.oppose]));
+/** Totals as "scope|group": number of voters. Groups are "address" (address-matched) and "mail" (mail-verified). */
+const totals = async (billId, now) => Object.fromEntries([...(await recomputeVoice(db, billId, now))].map(([k, v]) => [k, v.support + v.oppose + v.unsure]));
 
 /* ───────────────────────────── The owner's three tests ───────────────────────────── */
 
@@ -63,11 +65,12 @@ test("one phone cannot hold two counted accounts", async () => {
   await refusedByDatabase(account({ phone: "phone-shared" }));
   // The rule the phone step applies before it sends a code.
   assert.deepEqual(phoneAvailable({ takenByOtherAccount: true, heldUntil: null, now: T0 }), { ok: false, reason: "taken" });
-  // Without a verified phone an account is not a counted account at all.
+  // Without a confirmed phone an account is not a counted account at all, even with a home address.
   const b = await bill("119-hr-9001"), noPhone = await account({ tier: 0 });
+  await moveIn(first, "1 MAIN ST AUSTIN TX 78701", AUSTIN, T0); await moveIn(noPhone, "2 MAIN ST AUSTIN TX 78701", AUSTIN, T0);
   await db.update(schema.verificationProfiles).set({ phoneHash: null, phoneVerifiedAt: null }).where(eq(schema.verificationProfiles.accountId, noPhone.id));
-  await answer(first, b, "support", T0); await answer(noPhone, b, "support", T0);
-  assert.deepEqual(await totals(b, T0 + DAY), { "US|real": 1 });
+  await answer(first, b, "support", T0 + 1); await answer(noPhone, b, "support", T0 + 1);
+  assert.deepEqual(await totals(b, T0 + DAY), { "US|address": 1, "TX|address": 1, "TX-37|address": 1 });
 });
 
 test("a deleted account's phone cannot be attached to a new account for 90 days, and only a hash is kept", async () => {
@@ -87,49 +90,55 @@ test("a deleted account's phone cannot be attached to a new account for 90 days,
 });
 
 test("one account cannot be counted in two districts", async () => {
-  const a = await account(), b = await bill("119-hr-9002");
+  const a = await account(), b = await bill("119-hr-9002"), tx = await texasBill("tx-90-hb-9002");
   assert.equal((await moveIn(a, "100 MAIN ST AUSTIN TX 78701", AUSTIN, T0)).kind, "first");
-  await answer(a, b, "support", T0 + 1);
+  await answer(a, b, "support", T0 + 1); await answer(a, tx, "support", T0 + 1);
   // The database holds one residence row per account: a second insert is refused, a new address replaces the old one.
   await refusedByDatabase(db.insert(schema.accountResidences).values({ accountId: a.id, addressKey: "x", buildingKey: "x", congressional: "TX-07", stateCode: "TX", setAt: T0 }));
-  assert.deepEqual(await totals(b, T0 + DAY), { "US|real": 1, "US|district": 1, "TX|district": 1, "TX-37|district": 1, "TX-SD-14|district": 1, "TX-HD-49|district": 1 });
+  assert.deepEqual(await totals(b, T0 + DAY), { "US|address": 1, "TX|address": 1, "TX-37|address": 1 }, "a federal bill: the nation, the state, one congressional district");
+  assert.deepEqual(await totals(tx, T0 + DAY), { "TX|address": 1, "TX-SD-14|address": 1, "TX-HD-49|address": 1 }, "a state bill: the state, one state senate district, one state house district");
   // After a move the account is in the new districts only: one of each kind.
   assert.equal((await moveIn(a, "9 OAK ST HOUSTON TX 77002", HOUSTON, T0 + 91 * DAY)).kind, "change");
   const home = await residenceOf(db, a.id);
   assert.deepEqual([home.congressional, home.stateUpper, home.stateLower], ["TX-07", "TX-SD-15", "TX-HD-134"]);
   assert.equal((await db.select().from(schema.accountResidences).where(eq(schema.accountResidences.accountId, a.id))).length, 1);
   // A new answer counts in the new districts, once each; no bill ever shows this account in two districts of one kind.
-  const c = await bill("119-hr-9003");
-  await answer(a, c, "oppose", T0 + 92 * DAY);
+  const c = await bill("119-hr-9003"), tx2 = await texasBill("tx-90-hb-9003");
+  await answer(a, c, "oppose", T0 + 92 * DAY); await answer(a, tx2, "oppose", T0 + 92 * DAY);
   for (const id of [b, c]) {
     const t = await totals(id, T0 + 93 * DAY);
-    for (const kind of [/^TX-\d+\|/, /^TX-SD-/, /^TX-HD-/]) assert.equal(Object.keys(t).filter(k => kind.test(k)).length, 1, `${id}: one district of each kind`);
-    assert.equal(t["US|district"], 1);
+    assert.equal(Object.keys(t).filter(k => /^TX-\d+\|/.test(k)).length, 1, `${id}: one congressional district`);
+    assert.equal(t["US|address"], 1);
   }
+  for (const id of [tx, tx2]) {
+    const t = await totals(id, T0 + 93 * DAY);
+    for (const kind of [/^TX-SD-/, /^TX-HD-/]) assert.equal(Object.keys(t).filter(k => kind.test(k)).length, 1, `${id}: one district of each kind`);
+  }
+  assert.equal((await totals(tx2, T0 + 93 * DAY))["TX-SD-15|address"], 1);
 });
 
 test("an address change after voting does not move past votes", async () => {
-  const a = await account(), b = await bill("119-hr-9004");
+  const a = await account(), b = await bill("119-hr-9004"), tx = await texasBill("tx-90-hb-9004");
   await moveIn(a, "200 MAIN ST AUSTIN TX 78701", AUSTIN, T0);
-  await answer(a, b, "support", T0 + 1);
+  await answer(a, b, "support", T0 + 1); await answer(a, tx, "support", T0 + 1);
   await moveIn(a, "20 OAK ST HOUSTON TX 77002", HOUSTON, T0 + 91 * DAY);
-  const after = await totals(b, T0 + 92 * DAY);
-  assert.equal(after["TX-37|district"], 1, "still counted where the reader lived when they answered");
-  assert.equal(after["TX-07|district"], undefined, "not carried to the new district");
-  assert.equal(after["TX-SD-14|district"], 1); assert.equal(after["TX-HD-49|district"], 1);
+  const after = await totals(b, T0 + 92 * DAY), afterTx = await totals(tx, T0 + 92 * DAY);
+  assert.equal(after["TX-37|address"], 1, "still counted where the reader lived when they answered");
+  assert.equal(after["TX-07|address"], undefined, "not carried to the new district");
+  assert.equal(afterTx["TX-SD-14|address"], 1); assert.equal(afterTx["TX-HD-49|address"], 1); assert.equal(afterTx["TX-SD-15|address"], undefined);
   // Changing the answer itself after the move keeps its place too.
   await answer(a, b, "oppose", T0 + 93 * DAY);
-  const changed = await recomputeBillTotals(db, b, T0 + 94 * DAY);
-  assert.deepEqual(changed.get("TX-37|district"), { support: 0, oppose: 1 });
-  assert.equal(changed.get("TX-07|district"), undefined);
+  const changed = await recomputeVoice(db, b, T0 + 94 * DAY);
+  assert.deepEqual(changed.get("TX-37|address"), { support: 0, oppose: 1, unsure: 0 });
+  assert.equal(changed.get("TX-07|address"), undefined);
   // An answer given before the account had any address takes the first address, once.
   const early = await account(), d = await bill("119-hr-9005");
   await answer(early, d, "support", T0);
-  assert.deepEqual(await totals(d, T0 + DAY), { "US|real": 1 });
+  assert.deepEqual(await totals(d, T0 + DAY), {}, "a phone-only account is counted in no total");
   await moveIn(early, "300 MAIN ST AUSTIN TX 78701", AUSTIN, T0 + 2 * DAY);
-  assert.equal((await totals(d, T0 + 3 * DAY))["TX-37|district"], 1);
+  assert.equal((await totals(d, T0 + 3 * DAY))["TX-37|address"], 1);
   await moveIn(early, "30 OAK ST HOUSTON TX 77002", HOUSTON, T0 + 95 * DAY);
-  assert.equal((await totals(d, T0 + 96 * DAY))["TX-37|district"], 1);
+  assert.equal((await totals(d, T0 + 96 * DAY))["TX-37|address"], 1);
   assert.deepEqual(stampFor(AUSTIN, HOUSTON), AUSTIN); assert.deepEqual(stampFor(null, HOUSTON), HOUSTON);
 });
 
@@ -154,18 +163,18 @@ test("at most six counted accounts per normalized address; the seventh reads and
   assert.equal(householdDecision(5), "counted"); assert.equal(householdDecision(6), "over_cap");
   const b = await bill("119-hr-9006"), home = "500 ELM ST AUSTIN TX 78702", people = [];
   for (let i = 0; i < 7; i++) { const p = await account(); people.push(p); const r = await moveIn(p, home, AUSTIN, T0 + i); await answer(p, b, "support", T0 + 100 + i); assert.deepEqual(r.held, i < 6 ? [] : ["household_cap"]); }
-  assert.equal((await totals(b, T0 + DAY))["TX-37|district"], 6);
-  assert.equal((await totals(b, T0 + DAY))["US|real"], 6, "an account set aside is not counted anywhere");
+  assert.equal((await totals(b, T0 + DAY))["TX-37|address"], 6);
+  assert.equal((await totals(b, T0 + DAY))["US|address"], 6, "an account set aside is not counted anywhere");
   // Nothing was deleted: the seventh account, its address and its answer are all still there.
   const seventh = people[6];
   assert.ok(await residenceOf(db, seventh.id));
-  assert.equal((await db.select().from(schema.countedPositions).where(eq(schema.countedPositions.accountId, seventh.id))).length, 1);
+  assert.equal((await db.select().from(schema.voiceVotes).where(eq(schema.voiceVotes.accountId, seventh.id))).length, 1);
   // The editor clears it: it counts. Confirming instead would keep it out.
   const hold = (await liveHolds(db, seventh.id))[0];
   assert.equal(await decideHold(db, hold.id, "clear", T0 + 2 * DAY), seventh.id);
-  assert.equal((await totals(b, T0 + 3 * DAY))["TX-37|district"], 7);
+  assert.equal((await totals(b, T0 + 3 * DAY))["TX-37|address"], 7);
   await decideHold(db, hold.id, "confirm", T0 + 4 * DAY);
-  assert.equal((await totals(b, T0 + 5 * DAY))["TX-37|district"], 6);
+  assert.equal((await totals(b, T0 + 5 * DAY))["TX-37|address"], 6);
   // A different unit at the same building is a different household.
   const neighbour = await account();
   assert.deepEqual((await moveIn(neighbour, `${home}|2B`, AUSTIN, T0 + 6 * DAY)).held, []);
@@ -211,7 +220,7 @@ test("a mailed code is redeemed by one account only, once, at the address it was
   // Expired, and mailed to an address the account has since left.
   await issueMailCode(db, { accountId: other.id, codeHash: "code-2", now: T0 });
   assert.deepEqual(await redeemMailCode(db, { accountId: other.id, codeHash: "code-2", now: T0 + RESIDENCE.mailCodeTtlMs + 1 }), { ok: false, reason: "expired" });
-  await issueMailCode(db, { accountId: other.id, codeHash: "code-3", now: T0 + 60 * DAY });
+  await issueMailCode(db, { accountId: other.id, codeHash: "code-3", now: T0 + 70 * DAY });
   await moveIn(other, "60 OAK ST HOUSTON TX 77002", HOUSTON, T0 + 91 * DAY);
   assert.deepEqual(await redeemMailCode(db, { accountId: other.id, codeHash: "code-3", now: T0 + 92 * DAY }), { ok: false, reason: "moved" });
   assert.deepEqual(redeemDecision({ accountId: "a", addressKey: "k", expiresAt: 10, redeemedAt: null }, { id: "a", addressKey: "k", phoneHash: null }, 5), { ok: false, reason: "no_phone" });
@@ -252,7 +261,7 @@ test("one device setting up accounts at several addresses sets them all aside; o
   for (const [i, p] of farm.entries()) { await answer(p, b, "support", T0); const r = await moveIn(p, `${810 + i} CEDAR ST AUSTIN TX 78705`, AUSTIN, T0 + i, { device: "dev-farm" }); assert.deepEqual(r.held, i < 2 ? [] : ["device_addresses"]); }
   for (const p of farm) assert.deepEqual((await liveHolds(db, p.id)).map(h => h.kind), ["device_addresses"], "the earlier accounts from that device are set aside too");
   assert.deepEqual(await totals(b, T0 + DAY), {}, "none of them counts while under review");
-  assert.equal((await db.select().from(schema.countedPositions).where(eq(schema.countedPositions.billId, b))).length, 3, "set aside, never deleted");
+  assert.equal((await db.select().from(schema.voiceVotes).where(eq(schema.voiceVotes.billKey, b))).length, 3, "set aside, never deleted");
   // A hold the editor cleared is not raised again by the same pattern.
   const hold = (await liveHolds(db, farm[0].id))[0];
   await decideHold(db, hold.id, "clear", T0 + 2 * DAY);
@@ -290,17 +299,7 @@ test("repeated address changes are set aside for review", async () => {
   assert.equal((await residenceOf(db, a.id)).congressional, "TX-37");
 });
 
-/* ───────────────────────────── Counting ───────────────────────────── */
-
-test("counting: an answer is added to one district of each kind, and to none while set aside", () => {
-  const row = (over = {}) => ({ stance: "support", tier: 2, accountCreatedAt: 0, quarantined: false, held: false, stamp: AUSTIN, ...over });
-  const keys = rows => [...countPositions(rows, 2 * DAY).keys()].sort();
-  assert.deepEqual(keys([row()]), ["TX-37|district", "TX-HD-49|district", "TX-SD-14|district", "TX|district", "US|district", "US|real"]);
-  assert.deepEqual(keys([row({ held: true })]), []); assert.deepEqual(keys([row({ quarantined: true })]), []);
-  assert.deepEqual(keys([row({ accountCreatedAt: 2 * DAY - 1000 })]), [], "new accounts count after 24 hours");
-  assert.deepEqual(keys([row({ tier: 1 })]), ["US|real"]); assert.deepEqual(keys([row({ stamp: null })]), ["US|real"]);
-  assert.deepEqual(keys([row({ stamp: { congressional: "DC-AL", state: "DC", stateUpper: null, stateLower: null } })]), ["DC-AL|district", "DC|district", "US|district", "US|real"]);
-});
+test("a mailed code lasts 30 days", () => { assert.equal(RESIDENCE.mailCodeTtlMs, 30 * DAY); assert.equal(RESIDENCE.postcardsPerAddressYear, 2); });
 
 test("the migration only creates tables", () => {
   const sql = readFileSync(join(ROOT, "drizzle/0035_one_residence.sql"), "utf8");

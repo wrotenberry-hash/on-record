@@ -254,3 +254,11 @@ h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middl
 
 /* Test-ready build, 17 Nov: links a reader taps inside a line of small text get a tap area of at least 24 px (WCAG 2.2 target size). */
 .meta a.tap{display:inline-block;padding:6px 0;min-height:24px}
+
+/* Resident voting (18 Nov 2026): totals by place, and the one-time question about earlier answers. */
+.voice-totals { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
+.voice-totals > li { border-left: 3px solid #163b3c; padding-left: 10px; }
+.voice-totals .analysis-list { margin: 4px 0 0; }
+.legacy-choice { display: grid; gap: 8px; }
+.legacy-choice p { margin: 0; }
+.legacy-choice button { min-height: 44px; }

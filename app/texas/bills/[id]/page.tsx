@@ -10,6 +10,9 @@ import { DecisionRow, MemberVoteLists, TLO_RECORD } from "@/components/texas/dec
 import { txSummaryForPage } from "@/lib/texas/summaries";
 import { AnalysisBadge } from "@/components/federal/badges";
 import { TxSummaryRest, TxSummaryTop } from "@/components/texas/summary";
+import { VoteBox } from "@/components/voice/vote-box";
+import { voteBoxData } from "@/lib/constituent/view";
+import { stanceQuestion } from "@/lib/federal/stance-question";
 import { ContactForTxBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 
 export const dynamic = "force-dynamic";
@@ -21,7 +24,7 @@ const STATUS_PLAIN: Record<TxStage, string> = {
 };
 const TAP = "tap";
 
-export default async function TexasBillPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TexasBillPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ c?: string }> }) {
   const access = await viewerAccess();
   if (!access.allowed) return <PublicShell current="/texas" access={access} page="/texas/bills/[id]">{null}</PublicShell>;
   const data = await txBill((await params).id);
@@ -32,6 +35,10 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
   const main = decisions.filter(mainDecision).reverse(), rest = decisions.filter(d => !mainDecision(d)).reverse(), terms = firstUseTerms([...main, ...rest]);
   // Readers get a summary only when it passed and the Texas gate is open; the signed-in editor also sees a held one, labelled.
   const analysis = await txSummaryForPage(bill.id, !!access.editor).catch(() => null);
+  // Resident voting (18 Nov 2026): Support / Oppose / Unsure on every bill. The question uses the plain headline when a
+  // summary is on show; otherwise it names the bill, with the official title beside it.
+  const voice = await voteBoxData(bill.id, access).catch(() => null);
+  const ask = analysis && !analysis.held ? stanceQuestion({ question: analysis.details?.question ?? null, headline: analysis.summary.headline }) : { question: `Do you support ${bill.identifier}?`, plain: false };
   const at = STEPS.indexOf(bill.stage as TxStage), session = TX_SESSIONS.find(s => s.id === bill.session);
   const firstDate = (cls: string, chamber?: string) => actions.find(a => (a.classification as string[] | null)?.includes(cls) && (!chamber || a.chamber === chamber))?.date ?? null;
   return <PublicShell current="/texas" access={access} page="/texas/bills/[id]">
@@ -56,6 +63,7 @@ export default async function TexasBillPage({ params }: { params: Promise<{ id: 
         <p className="meta"><a className={TAP} href={bill.tloUrl} target="_blank" rel="noopener noreferrer">{TLO_RECORD}</a>. Where this page and the official record differ, the official record is right.</p>
       </div>
       {analysis && <TxSummaryRest a={analysis} />}
+      {voice && <VoteBox billKey={bill.id} question={ask.question} plain={ask.plain} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/texas/bills/${encodeURIComponent(bill.id)}`} />}
       {/* BEGIN contact-your-legislator (test-ready build): the reader's Texas legislators, official phone, email and an editable message. */}
       <ContactForTxBill bill={bill} votes={votes} />
       {/* END contact-your-legislator */}

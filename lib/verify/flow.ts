@@ -6,12 +6,13 @@ import { verificationConfig } from "@/lib/verify/config";
 import { decryptValue, encryptAddress, encryptValue, keyedHash } from "@/lib/verify/crypto";
 import { checkSmsCode, geocodeDistrict, lookupLineType, sendSmsCode, verifyTurnstile } from "@/lib/verify/providers";
 import { checkPosition } from "@/lib/verify/anomaly";
-import { backfillCounted, bumpCount, ensureProfile, profileFor, recomputeBill, refreshTier, requestContext, spendAllowed, updateProfile, withinLimit, writeCounted,
-  type Account } from "@/lib/verify/store";
+import { bumpCount, ensureProfile, profileFor, recomputeBill, refreshTier, requestContext, spendAllowed, updateProfile, withinLimit, type Account } from "@/lib/verify/store";
+import { standingOfVote } from "@/lib/constituent/store";
+import type { Answer } from "@/lib/constituent/rules";
 import { cleanReason, countsFrom, lineTypeAccepted, looksLikePoBox, normalisePhone, normaliseReason, type Tier } from "@/lib/verify/rules";
 import { addressAuthority } from "@/lib/verify/providers";
 import { HOLD_LABEL, normaliseResidence, phoneAvailable, splitUnit, unitDecision, type HoldKind } from "@/lib/verify/residence";
-import { billsOfAccounts, liveHolds, phoneHeldUntil, setResidence, stampPosition } from "@/lib/verify/residence-store";
+import { billsOfAccounts, liveHolds, phoneHeldUntil, setResidence } from "@/lib/verify/residence-store";
 
 /**
  * The verification steps a reader takes on the Account page, and the counted
@@ -83,7 +84,7 @@ export async function confirmPhone(account: Account, code: string): Promise<Resu
   catch { await bumpCount("account_blocked", "phone_reused"); return { ok: false, message: "That number already verified another account. One phone per account." }; }
   jar.delete({ name: PENDING_PHONE_COOKIE, path: "/account" });
   const tier = await refreshTier(account);
-  return { ok: true, message: tier >= 1 ? "Phone confirmed. You are verified as a real person." : "Phone confirmed." };
+  return { ok: true, message: tier >= 1 ? "Phone confirmed. Next, match your home address so your answers can count where you live." : "Phone confirmed." };
 }
 
 /** Is a vote expected within a week? Federal: a bill is on a floor schedule this week or next. State: the Texas Legislature is in session. */
@@ -141,47 +142,52 @@ export async function setAddress(account: Account, raw: { street: string; unit?:
 
 export type CountedOutcome = { counted: boolean; code: CountedCode | null };
 /** Fixed notes shown after an answer; the page maps a code to text (nothing from the URL is shown as text). */
-export type CountedCode = "rate" | "challenge" | "counted" | "review" | `from-${number}`;
+export type CountedCode = "rate" | "challenge" | "counted" | "review" | "private" | "outside" | "legacy" | `from-${number}`;
 export function countedNote(code: string | null | undefined): string | null {
   if (!code) return null;
-  if (code === "rate") return "Saved privately. You have answered a lot in a short time, so this one does not count; try again later.";
-  if (code === "challenge") return "Saved privately. The automatic bot check did not finish, so it does not count yet; answer again to retry.";
-  if (code === "counted") return "Counted toward the totals, without your name.";
+  if (code === "rate") return "Saved as your private position. You have answered a lot in a short time, so this one is not counted; answer again later to count it.";
+  if (code === "challenge") return "Saved as your private position. The automatic bot check did not finish, so it is not counted yet; answer again to retry.";
+  if (code === "counted") return "Counted in the anonymous totals. Your individual vote stays private.";
   if (code === "review") return "Saved. Your account is waiting for a review, so this answer is not counted yet. It will be once the review clears.";
+  if (code === "private") return "Saved as your private position. It is not counted in any total until your home address is matched.";
+  if (code === "outside") return "Saved as your private position. Only people who live inside this bill's jurisdiction are counted on it.";
   const m = code.match(/^from-(\d{13})$/);
   return m ? `Counted from ${new Date(Number(m[1])).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET (new accounts count after 24 hours).` : null;
 }
 
 /**
- * The counted copy of a Support/Oppose answer. Private answers are always saved
- * first by the caller; this decides whether the answer also goes toward totals.
+ * Saves a reader's answer on a bill (federal or state) and says whether it counts (docs/CONSTITUENT_VOICE.md).
+ *
+ * Every answer is saved: a single answer is always private. It is added into the anonymous totals only for an
+ * address-matched or mail-verified account, at least 24 hours old, whose home is inside the bill's jurisdiction. For such
+ * an account two checks run when the answer is given: the limits on answers per hour, and the automatic bot check before
+ * its first counted answer. An answer that fails either is saved as a private position and marked not counted.
  */
-export async function castCounted(input: { userId: string; account: Account | null; billId: string; stance: "support" | "oppose" | null; reason: unknown; turnstile: string | null }): Promise<CountedOutcome> {
-  const c = verificationConfig();
-  if (!c.enabled || !input.account) return { counted: false, code: null };
-  const profile = await profileFor(input.account.id);
-  const tier = (profile?.tier ?? 0) as Tier;
-  if (tier < 1 || !profile) return { counted: false, code: null };
-  const ctx = await requestContext();
-  if (input.stance && (!(await withinLimit("vote_account_hour", input.account.id)) || !(await withinLimit("vote_account_day", input.account.id))
-    || !(await withinLimit("vote_device_hour", ctx.device)) || !(await withinLimit("vote_ip_hour", ctx.ipRange)))) {
-    return { counted: false, code: "rate" };
+export async function saveVote(input: { userId: string; account: Account | null; billKey: string; answer: Answer | null; reason: unknown; turnstile: string | null }): Promise<CountedOutcome> {
+  const c = verificationConfig(), db = getDb(), now = Date.now();
+  const reason = cleanReason(input.reason), norm = normaliseReason(reason), reasonHash = norm ? await keyedHash("reason", norm) : null;
+  const profile = c.enabled && input.account ? await profileFor(input.account.id) : null;
+  const matched = !!profile && (profile.tier ?? 0) >= 2;
+  const ctx = c.enabled && input.account ? await requestContext() : { ip: null, ipRange: null, device: null };
+  let counts: 1 | -1 = 1, code: CountedCode | null = null;
+  if (matched && input.answer) {
+    if (!(await withinLimit("vote_account_hour", input.account!.id)) || !(await withinLimit("vote_account_day", input.account!.id))
+      || !(await withinLimit("vote_device_hour", ctx.device)) || !(await withinLimit("vote_ip_hour", ctx.ipRange))) { counts = -1; code = "rate"; }
+    else if (!profile!.firstVoteChallengeAt) {
+      const t = await verifyTurnstile(input.turnstile, ctx.ip);
+      if (t.ok) await updateProfile(input.account!.id, { firstVoteChallengeAt: now });
+      else { counts = -1; code = "challenge"; if (input.turnstile) await bumpCount("account_blocked", "bot_challenge"); }
+    }
   }
-  if (!profile.firstVoteChallengeAt) {
-    const t = await verifyTurnstile(input.turnstile, ctx.ip);
-    if (!t.ok) { await bumpCount("account_blocked", "bot_challenge"); return { counted: false, code: "challenge" }; }
-    await updateProfile(input.account.id, { firstVoteChallengeAt: Date.now() });
-    const earlier = await backfillCounted(input.userId, input.account, tier, ctx);
-    for (const b of earlier) if (b !== input.billId) await recomputeBill(b);
-  }
-  const reason = cleanReason(input.reason), norm = normaliseReason(reason);
-  const reasonHash = norm ? await keyedHash("reason", norm) : null;
-  await writeCounted({ userId: input.userId, account: input.account, tier, billId: input.billId, stance: input.stance, reason, reasonHash, ctx });
-  // The answer takes the account's home now if it has none yet; one it already has is never changed (a move does not carry it).
-  if (input.stance) await stampPosition(getDb(), { userId: input.userId, billId: input.billId, accountId: input.account.id }, Date.now());
-  if (input.stance) await checkPosition({ billId: input.billId, districtId: tier >= 2 ? profile.districtId : null, reasonHash, profile });
-  await recomputeBill(input.billId);
-  const from = countsFrom(input.account.createdAt);
-  if (input.stance && (await liveHolds(getDb(), input.account.id)).length) return { counted: false, code: "review" };
-  return { counted: true, code: !input.stance ? null : from > Date.now() ? `from-${from}` : "counted" };
+  const { setAnswer } = await import("@/lib/opinions");
+  await setAnswer(input.userId, input.billKey, input.answer, reason, { accountId: input.account?.id ?? null, counts, device: ctx.device, ipRange: ctx.ipRange, reasonHash });
+  if (!c.enabled || !input.account || !profile) return { counted: false, code: null };
+  if (matched && input.answer && counts === 1) await checkPosition({ billId: input.billKey, districtId: profile.districtId, reasonHash, profile });
+  await recomputeBill(input.billKey);
+  if (!input.answer) return { counted: false, code: null };
+  if (code) return { counted: false, code };
+  const standing = await standingOfVote(db, input.userId, input.billKey, now);
+  if (standing?.counts) return { counted: true, code: "counted" };
+  const why = standing?.why;
+  return { counted: false, code: why === "too_new" ? `from-${countsFrom(input.account.createdAt)}` : why === "under_review" ? "review" : why === "outside_jurisdiction" ? "outside" : "private" };
 }
