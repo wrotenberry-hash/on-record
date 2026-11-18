@@ -127,6 +127,18 @@ same pure rule (`voteCounts` in `lib/voice/rules.ts`) is applied each time a bil
   not been checked against the live service.
 - Office dashboard, mailed postcards and associations are separate parts: see their own sections in `STATUS.md`.
 
+## The three other parts
+
+| Part | Where | State |
+|---|---|---|
+| Legislator office access (point 7) | `lib/office`, `app/office`, `docs/OFFICE_EMAIL_DESIGN.md`, Editor → Offices | Built and merged. Behind the same invite-only gate as the rest of the site. Weekly email built, not wired, off. |
+| Mail-verified by postcard (point 4) | `lib/mail-verify`, `docs/POSTCARD_VENDORS.md` | Built and merged, switched off (`MAIL_VERIFICATION_ENABLED`). Rehearsal only; no vendor adapter. |
+| Associations (point 9) | `lib/associations`, `app/association`, Editor → Associations | Built and merged, switched off (`ASSOCIATIONS_ENABLED`). |
+
+Switches, all off in production today: `VERIFICATION_ENABLED` (address matching and counting), `MAIL_VERIFICATION_ENABLED`,
+`POSTCARD_VENDOR` + `POSTCARD_API_KEY` + `POSTCARD_PIECE_COST_USD`, `POSTCARD_MONTHLY_CAP_USD` (100), `ASSOCIATIONS_ENABLED`,
+`OFFICE_EMAIL_ENABLED`, `ADDRESS_AUTHORITY=usps` + its two keys.
+
 ## Status, open decisions and what is not proven
 
 Kept current in `STATUS.md`, `docs/DECISIONS.md` (from O-147) and Editor → What's next.
