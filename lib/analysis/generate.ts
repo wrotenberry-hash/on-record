@@ -142,7 +142,8 @@ const PRIORITY_BILLS = (process.env.ANALYSIS_PRIORITY_BILLS ?? "119-sjres-197").
  * check ran before this moment is written again once; its new check is later than this, so it is not tried again.
  * 17 Nov 20:15 UTC: the sentence count no longer treats "Sen." or "H.R." as the end of a sentence.
  */
-export const CHECK_FIXED_AT = Date.UTC(2026, 10, 17, 20, 15);
+// 18 Nov 14:30 UTC: seven false alarms found by reading the morning's 17 summaries against their sources (O-140).
+export const CHECK_FIXED_AT = Date.UTC(2026, 10, 18, 14, 30);
 
 async function staleSummaries() {
   const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? "5");
@@ -219,7 +220,6 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   const truncated = parsed.chars > MAX_TEXT_CHARS;
   const gathered = await gatherSources({ title: c.title, billType: c.billType, number: c.number, sponsorName: c.sponsorName, billStatusXml: statusRes.text, status, billText: parsed.text });
   for (const d of gathered.docs) if (d.id === "CRS") d.url = congressUrl(c); else if (d.id === "STATUS") d.url = `${congressUrl(c)}/all-actions`;
-  for (const line of sourcePacketLines(billLabel(c.billType, c.number), gathered)) console.log(line);
   const now = Date.now();
   for (const e of status.cbo) await db.insert(officialCostEstimates).values({ billId: c.id, url: e.url, pubDate: e.pubDate, title: e.title, description: e.description, sourceUrl: statusUrl, retrievedAt: now })
     .onConflictDoUpdate({ target: [officialCostEstimates.billId, officialCostEstimates.url], set: { pubDate: e.pubDate, title: e.title, description: e.description, retrievedAt: now } });
@@ -229,6 +229,9 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
     const st = list.find(x => x.id === "STATUS");
     if (st && !st.text.includes(c.latestActionText)) st.text += `\nLatest action${c.latestActionAt ? ` (${c.latestActionAt.slice(0, 10)})` : ""}: ${c.latestActionText}`;
   }
+  // Logged after the latest action is added, so the saved sources are what the writer and the fact check were given
+  // (18 Nov: a review could not find the Senate step in the saved record because it was logged first).
+  for (const line of sourcePacketLines(billLabel(c.billType, c.number), gathered)) console.log(line);
   const input = inputFor(c, status, version, parsed.text, parsed.sections, truncated, gathered);
   const table = priceTable(process.env.OPENAI_PRICES_JSON);
   let writer = limits.writerModel;
@@ -347,6 +350,8 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
   const busy = await db.select({ id: ingestRuns.id }).from(ingestRuns).where(and(eq(ingestRuns.job, "analysis"), eq(ingestRuns.status, "RUNNING"), sql`${ingestRuns.startedAt} > ${started - 290_000}`)).get();
   if (busy) return finish("SKIPPED", "another summary run is in progress");
   if (!key) return finish("SKIPPED", "OPENAI_API_KEY not set");
+  // Take out explanations the repair step attached to the wrong word; the earlier wording is kept as a version.
+  await import("@/lib/analysis/unrepair-run").then(m => m.cleanMisappliedExplanations()).catch(e => console.error(`SUMMARY_CLEANUP failed | ${e instanceof Error ? e.message : e}`));
   const existing = Number((await db.select({ n: sql<number>`count(*)` }).from(analysisBillSummaries).get())?.n ?? 0);
   const room = Math.min(max ?? Infinity, limits.maxSummaries - existing);
   const stale = await staleSummaries();

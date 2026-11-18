@@ -42,11 +42,16 @@ export const JARGON: JargonTerm[] = [
   j("open enrollment", "open enrollment", "the yearly sign-up period"),
   j("special enrollment period", "special enrollment periods?", "a chance to sign up outside the yearly sign-up period"),
   j("premium", "premiums?(?! tax credit)", "the monthly price of a plan"),
-  j("enrolled", "enroll(?:ed|ees?|ment|ing|s)?", "signed up; people in the plans"),
+  // 18 Nov: one explanation for every form read badly ("enrollment (signed up; people in the plans) changes"). One per form.
+  j("enrolled", "enroll(?:ed|ing|s)?", "signed up"),
+  j("enrollment", "enrollments?", "the number of people signed up"),
+  j("enrollees", "enrollees?", "people who signed up"),
   j("marketplace", "(?:state |federal |health insurance )?marketplaces?", "the government site where people buy health plans"),
   // Money and budgets
   j("deficit", "deficits?", "the gap between what the government spends and takes in"),
-  j("appropriations", "appropriat(?:ions?|es?|ed|ing)", "money Congress approves to be spent"),
+  // 18 Nov (H.R. 4219, H.R. 10326): "if appropriate" and "considers appropriate" were explained as money. The plain word
+  // "appropriate" counts only as the verb with money after it ("may appropriate $10 million", "to appropriate funds").
+  j("appropriations", "appropriat(?:ions?|es|ed|ing)|(?<!\\b(?:the|an|as|if|where|when|deems?|considers?|is|are|be|most|more) )appropriate(?= (?:up to |about |an additional |more |less |no |any |the |such |new |extra )?(?:\\$|money|funds?|sums?|dollars|amounts?|\\d))", "money Congress approves to be spent"),
   j("authorization", "authoriz(?:ation|ations|es) of appropriations|reauthoriz(?:es?|ation|ed|ing)", "permission for a program to exist and be funded"),
   j("reconciliation", "(?:budget )?reconciliation", "a budget process that lets the Senate pass a bill with 51 votes instead of 60"),
   j("mandatory spending", "mandatory spending|direct spending", "spending that happens automatically under existing law"),
@@ -70,7 +75,10 @@ export const JARGON: JargonTerm[] = [
   j("engrossed", "engrossed|enrolled bill", "the official copy as passed"),
   j("sunset", "sunsets?", "an end date written into the law"),
   // Rules and legal language
-  j("final rule", "(?:interim )?final rules?|proposed rules?|rulemaking", "a regulation an agency has issued"),
+  // 18 Nov: a proposed rule is not one "an agency has issued", and rulemaking is the process, not the regulation.
+  j("final rule", "(?:interim )?final rules?", "a regulation an agency has issued"),
+  j("proposed rule", "proposed rules?", "a regulation an agency has put forward but not yet issued"),
+  j("rulemaking", "rulemakings?", "the steps an agency takes to write a regulation"),
   j("promulgate", "promulgat(?:e|es|ed|ing|ion)", "issue"),
   j("codify", "codif(?:y|ies|ied|ication)", "write into law"),
   j("preempt", "pre-?empt(?:s|ed|ion|ing)?", "override state law"),
@@ -191,7 +199,8 @@ export const FILLER: Array<[RegExp, string]> = [
   [/\bpayment and program standards\b|\bprogram standards\b/i, "\"program standards\""],
   [/\bimprov(?:e|es|ing) (?:the )?implementation\b/i, "\"improve implementation\""],
   [/\b(?:changes|updates|revises|modifies|addresses) (?:some|the|several|certain)? ?(?:rules|law|laws|policies)\b(?! (?:so|by|to|for|that|on how))/i, "\"changes some rules\""],
-  [/\brelated (?:provisions|matters|purposes|requirements)\b|\band related\b(?! to)/i, "\"and related matters\""],
+  // 18 Nov: "HealthCare.gov and related state sites" names the thing; only a trailing "and related" or an empty noun is filler.
+  [/\brelated (?:provisions|matters|purposes|requirements|agencies|issues|items|activities)\b|\band related(?=\s*(?:[.,;:)]|$))/i, "\"and related matters\""],
 ];
 
 export function fillerIn(text: string): string[] { return [...new Set(FILLER.filter(([re]) => re.test(text)).map(([, label]) => label))]; }
@@ -226,10 +235,15 @@ export const VAGUE_ANSWER = /\b(?:it|this|the bill|the note) (?:changes|updates|
 export const COMMON_KNOWLEDGE = new Set(("congress house senate senator senators representative representatives lawmaker lawmakers member members president government federal state states " +
   "bill bills law laws rule rules vote votes voted voting voter voters election elections ballot tax taxes taxpayer taxpayers stock stocks share shares company companies " +
   "insurance plan plans coverage doctor doctors retirement retiree retirees veteran veterans military troops disability pay payment payments income cost costs budget debt " +
-  "photo id identification passport license mail spouse spouses children dependent court courts judge police school schools job jobs worker workers employer employers").split(" "));
+  "photo id identification passport license mail spouse spouses children dependent court courts judge police school schools job jobs worker workers employer employers " +
+  // 18 Nov: the reader model listed these as "not understood" in four tests each while answering correctly about them.
+  "tribal tribe tribes grant grants loan loans rebate rebates penalty penalties fine fines fraud calendar committee committees agency agencies city cities county counties").split(" "));
 export function isCommonKnowledge(flag: string): boolean {
-  const t = flag.toLowerCase().replace(/\(.*?\)/g, " ").replace(/["“”'’.,:;]/g, " ").replace(/\b(?:the|a|an|of|in|for|to|and|or|federal|health|u s|us)\b/g, " ").trim().split(/\s+/).filter(Boolean);
-  return t.length > 0 && t.length <= 3 && t.every(w => COMMON_KNOWLEDGE.has(w) || COMMON_KNOWLEDGE.has(w.replace(/s$/, "")));
+  const bare = flag.toLowerCase().replace(/\(.*?\)/g, " ").replace(/["“”'’.,:;]/g, " ").trim();
+  const t = bare.replace(/\b(?:the|a|an|of|in|for|to|and|or|federal|health|u s|us)\b/g, " ").trim().split(/\s+/).filter(Boolean);
+  // 18 Nov: "federal" on its own left nothing to look up, so it was counted as a word the reader did not know.
+  if (!t.length) return bare.length > 0;
+  return t.length <= 3 && t.every(w => COMMON_KNOWLEDGE.has(w) || COMMON_KNOWLEDGE.has(w.replace(/s$/, "")));
 }
 
 /** "It doesn't say." as the whole answer: the reader could not answer from the text. */

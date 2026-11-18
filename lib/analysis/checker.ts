@@ -163,7 +163,11 @@ export function citeOverlap(pointText: string, cite: string, sections: readonly 
 /** "Most people would see no direct change unless they vote": a broad exception cancels the claim (Round 1 review). */
 const NO_CHANGE_UNLESS = /\bmost (people|americans|readers)\b[^.]*\b(no|not)\b[^.]*\bchange\b[^.]*\b(unless|except)\b/i;
 
-export function bannedWordsIn(text: string): string[] {
+/** "A federally declared disaster" and "disaster relief" are terms of law, not a label on the bill (18 Nov, H.R. 9500: the check forced "declared emergency", which the law does not say). */
+const OFFICIAL_DISASTER = /\b(?:(?:federally |presidentially |state[- ])?declared |major |natural )disasters?\b|\bdisasters? (?:relief|declarations?|areas?|assistance|loans?|aid|recovery|zones?)\b/gi;
+
+export function bannedWordsIn(input: string): string[] {
+  const text = input.replace(OFFICIAL_DISASTER, " ");
   const found = new Set<string>();
   for (const word of BANNED_WORDS) {
     const pattern = new RegExp(`(^|[^a-z-])${word.replace(/[-\s]/g, m => (m === "-" ? "-" : "\\s+"))}($|[^a-z-])`, "i");
@@ -551,6 +555,12 @@ export function unsupportedClaims(claim: string, sources: readonly string[], age
     // The name people know is accurate when the source uses the official one ("HealthCare.gov" for a Federally-facilitated Exchange).
     if (EVERYDAY_NAMES.some(n => n.everyday.test(t) && n.official.test(corpusRaw))) return false;
     if (/^[A-Z]{2,6}$/.test(t)) return !(new RegExp(`\\b${esc(t)}\\b`).test(corpusRaw) || inits.has(t));
+    // 18 Nov: "Israel-related" and "Senate-confirmed" were refused although the sources name Israel and the Senate.
+    // A hyphenated word is supported when every capitalised part of it is in the sources; the rest is an ordinary word.
+    if (t.includes("-")) {
+      const names = t.split("-").filter(part => /^[A-Z]/.test(part));
+      if (names.length && names.every(part => new RegExp(`\\b${esc(part.toLowerCase().replace(/(ies|es|s)$/, ""))}`).test(corpus))) return false;
+    }
     const l = t.toLowerCase();
     if (/^[\d$]/.test(t)) return !corpus.includes(l.replace(/^\$/, "")) ;
     const stem = l.replace(/(ies|es|s)$/, "");

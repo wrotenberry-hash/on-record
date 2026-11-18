@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { cleanSummaryText } from "@/lib/analysis/unrepair";
 import { getDb } from "@/db";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisSummaryDetails, analysisSummaryStructure, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
@@ -21,8 +22,11 @@ export async function summaryForBill(billId: string, includeHeld: boolean) {
     db.select().from(analysisSummaryStructure).where(eq(analysisSummaryStructure.summaryId, summary.id)).get(),
   ]);
   // b5 parts belong to the summary only when written by the same generator run.
-  return { summary, checks, queue: queue ?? null, details: details && details.promptVersion === summary.promptVersion ? details : null,
+  const out = { summary, checks, queue: queue ?? null, details: details && details.promptVersion === summary.promptVersion ? details : null,
     structure: structure && structure.promptVersion === summary.promptVersion ? structure : null };
+  // 18 Nov: an explanation the repair step attached to the wrong word is never shown, whatever is stored (lib/analysis/unrepair.ts).
+  cleanSummaryText(out.summary, out.details, out.structure);
+  return out;
 }
 
 export async function costEstimates(billId: string) {
