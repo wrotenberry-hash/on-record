@@ -145,23 +145,126 @@ export const isCommitteeChair = (role: string) => /^chair/i.test(role.trim());
 /* ------------------------------------------------------------- Events --- */
 
 export type TxEvent = { id: string; name: string; start: string; location: string | null; classification: string | null; bills: string[]; url: string | null };
-/** Open States /events?jurisdiction=tx (committee hearings and floor calendars). */
-export function parseOpenStatesEvents(data: unknown): TxEvent[] {
-  const d = data as { results?: Array<{ id?: string; name?: string; start_date?: string; location?: { name?: string } | null; classification?: string;
-    agenda?: Array<{ related_entities?: Array<{ entity_type?: string; name?: string; bill?: { identifier?: string } | null }> }>; sources?: Array<{ url?: string }> }> } | null;
-  return (d?.results ?? []).flatMap(e => e?.id && e.name && e.start_date ? [{ id: e.id, name: e.name, start: e.start_date, location: e.location?.name ?? null, classification: e.classification ?? null,
-    bills: [...new Set((e.agenda ?? []).flatMap(a => (a.related_entities ?? []).filter(r => r.entity_type === "bill").map(r => (r.bill?.identifier ?? r.name ?? "").replace(/\s+/g, " ").trim()).filter(Boolean)))],
-    url: e.sources?.[0]?.url ?? null }] : []);
+type RawEvent = { id?: string; name?: string; start_date?: string; location?: { name?: string } | null; classification?: string; status?: string; deleted?: boolean;
+  agenda?: Array<{ related_entities?: Array<{ entity_type?: string; name?: string; bill?: { identifier?: string } | null }> }>;
+  participants?: Array<{ entity_type?: string; name?: string; note?: string; organization?: { name?: string; classification?: string } | null }>;
+  sources?: Array<{ url?: string }>; links?: Array<{ url?: string }> };
+/** A bill number as the site stores it: "HB 1", "SJR 3". Accepts "HB1", "H.B. 1", "hb  1". */
+export function txBillNumber(raw: string): string {
+  const m = raw.replace(/\./g, "").replace(/\s+/g, " ").trim().toUpperCase().match(/^([A-Z]{2,4}) ?0*(\d{1,5})$/);
+  return m ? `${m[1]} ${m[2]}` : raw.replace(/\s+/g, " ").trim();
+}
+const eventBills = (e: RawEvent) => [...new Set((e.agenda ?? []).flatMap(a => (a?.related_entities ?? []).filter(r => r?.entity_type === "bill")
+  .map(r => txBillNumber(r.bill?.identifier ?? r.name ?? "")).filter(Boolean)))];
+/**
+ * Open States /events?jurisdiction=tx (committee hearings and floor calendars). 17 Nov: the agenda (and so the bills
+ * a hearing takes up) is only sent when the request asks for include=agenda; the first build did not ask, so every
+ * stored hearing had no bills. Cancelled and deleted events are left out.
+ */
+export function parseOpenStatesEvents(data: unknown): TxEvent[] { return parseOpenStatesEventPage(data).events; }
+export type TxEventFull = TxEvent & { committee: string | null; chamber: "upper" | "lower" | "legislature" | null; sourceUrl: string | null };
+export function parseOpenStatesEventPage(data: unknown): { events: TxEventFull[]; cancelled: string[]; page: number; maxPage: number; total: number | null } {
+  const d = data as { results?: RawEvent[]; pagination?: { page?: number; max_page?: number; total_items?: number } } | null;
+  const rows = Array.isArray(d?.results) ? d!.results : [], cancelled: string[] = [];
+  const events = rows.flatMap((e): TxEventFull[] => {
+    if (!e?.id || !e.name || !e.start_date) return [];
+    if (e.deleted || /cancel/i.test(e.status ?? "")) { cancelled.push(e.id); return []; }
+    const org = (e.participants ?? []).find(p => p?.entity_type === "organization");
+    const ch = org?.organization?.classification, sourceUrl = e.sources?.find(s => s?.url)?.url ?? null;
+    const named = `${org?.name ?? ""} ${e.name}`;
+    const chamber = ch === "upper" || ch === "lower" || ch === "legislature" ? ch : /\bsenate\b/i.test(named) ? "upper" : /\bhouse\b/i.test(named) ? "lower" : /\bjoint\b/i.test(named) ? "legislature" : null;
+    return [{ id: e.id, name: e.name.trim(), start: e.start_date, location: e.location?.name ?? null, classification: e.classification ?? null, bills: eventBills(e),
+      url: sourceUrl ?? e.links?.find(l => l?.url)?.url ?? null, committee: org?.name?.trim() || null, chamber, sourceUrl }];
+  });
+  const n = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) && v >= 1 ? v : fallback);
+  return { events, cancelled, page: n(d?.pagination?.page, 1), maxPage: n(d?.pagination?.max_page, 1), total: typeof d?.pagination?.total_items === "number" ? d.pagination.total_items : null };
+}
+/**
+ * The site's bill ids for the bills on a hearing's agenda (tx_events.bills holds bill numbers such as "HB 1"). An
+ * event belongs to the session whose dates hold it, else the next session to start (prefiling hearings, interim).
+ */
+export function txEventSession(start: string, sessions: TxSession[] = TX_SESSIONS): TxSession | null {
+  const day = start.slice(0, 10);
+  const inside = sessions.filter(s => s.start <= day && (!s.end || day <= s.end)).sort((a, b) => b.start.localeCompare(a.start))[0];
+  if (inside) return inside;
+  return sessions.filter(s => s.start > day).sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
+}
+export function txEventBillIds(bills: unknown, start: string, sessions: TxSession[] = TX_SESSIONS): string[] {
+  const s = txEventSession(start, sessions);
+  return s && Array.isArray(bills) ? bills.filter((b): b is string => typeof b === "string" && !!b.trim()).map(b => txBillId(s.id, txBillNumber(b))) : [];
 }
 
 /* ------------------------------------------------------- LegiScan fallback --- */
 
 /** LegiScan getMasterList: bill numbers, titles and last actions (no votes). Used when Open States is unavailable. */
-export function parseLegiscanMasterList(data: unknown): Array<{ number: string; title: string; lastActionDate: string | null; lastAction: string | null; status: number | null; url: string | null }> {
-  const list = (data as { masterlist?: Record<string, { number?: string; title?: string; last_action_date?: string; last_action?: string; status?: number; url?: string }> } | null)?.masterlist;
+export function parseLegiscanMasterList(data: unknown): Array<{ number: string; title: string; lastActionDate: string | null; lastAction: string | null; status: number | null; url: string | null; billId: number | null }> {
+  const list = (data as { masterlist?: Record<string, { bill_id?: number; number?: string; title?: string; last_action_date?: string; last_action?: string; status?: number; url?: string }> } | null)?.masterlist;
   if (!list || typeof list !== "object") return [];
   return Object.entries(list).filter(([k]) => k !== "session").flatMap(([, b]) => b?.number ? [{ number: b.number.replace(/^([A-Z]+)(\d+)$/, "$1 $2"), title: b.title ?? "",
-    lastActionDate: b.last_action_date ?? null, lastAction: b.last_action ?? null, status: typeof b.status === "number" ? b.status : null, url: b.url ?? null }] : []);
+    lastActionDate: b.last_action_date ?? null, lastAction: b.last_action ?? null, status: typeof b.status === "number" ? b.status : null, url: b.url ?? null,
+    billId: typeof b.bill_id === "number" ? b.bill_id : null }] : []);
+}
+/** The LegiScan session id a master list belongs to (masterlist.session.session_id). */
+export const legiscanMasterListSession = (data: unknown): number | null => {
+  const id = (data as { masterlist?: { session?: { session_id?: unknown } } } | null)?.masterlist?.session?.session_id;
+  return typeof id === "number" ? id : null;
+};
+
+/*
+ * LegiScan recorded votes, for bills where Open States has none (LegiScan API manual, "getBill" and "getRollCall").
+ * getBill: { status: "OK", bill: { bill_id, bill_number, session: { session_id, ... }, votes: [{ roll_call_id, date, desc, yea, nay, nv, absent, total, passed, chamber }] } }
+ * getRollCall: { status: "OK", roll_call: { roll_call_id, bill_id, date, desc, yea, nay, nv, absent, total, passed, chamber, votes: [{ people_id, vote_id, vote_text }] } }
+ * getSessionPeople: { status: "OK", sessionpeople: { session: {...}, people: [{ people_id, name, role, district, party }] } }
+ */
+export type LegiscanBillVotes = { billId: number; number: string; sessionId: number | null; rollCalls: Array<{ rollCallId: number; date: string; desc: string; chamber: "upper" | "lower" | null }> };
+const lsChamber = (c: unknown): "upper" | "lower" | null => (c === "S" || c === "Senate" ? "upper" : c === "H" || c === "House" ? "lower" : null);
+export function parseLegiscanBill(data: unknown): LegiscanBillVotes | null {
+  const d = data as { status?: string; bill?: { bill_id?: number; bill_number?: string; session?: { session_id?: number } | null; session_id?: number;
+    votes?: Array<{ roll_call_id?: number; date?: string; desc?: string; chamber?: string }> } } | null;
+  const b = d?.status === "OK" ? d.bill : null;
+  if (!b || typeof b.bill_id !== "number" || !b.bill_number) return null;
+  return { billId: b.bill_id, number: txBillNumber(b.bill_number), sessionId: typeof b.session?.session_id === "number" ? b.session.session_id : typeof b.session_id === "number" ? b.session_id : null,
+    rollCalls: (Array.isArray(b.votes) ? b.votes : []).flatMap(v => typeof v?.roll_call_id === "number" && v.date ? [{ rollCallId: v.roll_call_id, date: v.date.slice(0, 10), desc: (v.desc ?? "").trim(), chamber: lsChamber(v.chamber) }] : []) };
+}
+/** LegiScan's vote words in the Open States vocabulary the site already stores and shows. */
+export const LEGISCAN_OPTION: Record<string, string> = { Yea: "yes", Nay: "no", NV: "not voting", Absent: "absent" };
+export type LegiscanRollCall = { rollCallId: number; billId: number | null; date: string; motion: string; passed: boolean; chamber: "upper" | "lower" | null; counts: Record<string, number>;
+  votes: Array<{ peopleId: number; option: string }> };
+export function parseLegiscanRollCall(data: unknown): LegiscanRollCall | null {
+  const d = data as { status?: string; roll_call?: { roll_call_id?: number; bill_id?: number; date?: string; desc?: string; yea?: number; nay?: number; nv?: number; absent?: number; passed?: number;
+    chamber?: string; votes?: Array<{ people_id?: number; vote_text?: string }> } } | null;
+  const r = d?.status === "OK" ? d.roll_call : null;
+  if (!r || typeof r.roll_call_id !== "number" || !r.date) return null;
+  const c = (v: unknown) => (typeof v === "number" && v >= 0 ? v : 0);
+  return { rollCallId: r.roll_call_id, billId: typeof r.bill_id === "number" ? r.bill_id : null, date: r.date.slice(0, 10), motion: (r.desc ?? "").trim(), passed: r.passed === 1, chamber: lsChamber(r.chamber),
+    counts: { yes: c(r.yea), no: c(r.nay), "not voting": c(r.nv), absent: c(r.absent) },
+    votes: (Array.isArray(r.votes) ? r.votes : []).flatMap(v => typeof v?.people_id === "number" && v.vote_text ? [{ peopleId: v.people_id, option: LEGISCAN_OPTION[v.vote_text] ?? v.vote_text.toLowerCase() }] : []) };
+}
+export type LegiscanPerson = { peopleId: number; name: string; chamber: "upper" | "lower" | null; district: string | null };
+export function parseLegiscanSessionPeople(data: unknown): LegiscanPerson[] {
+  const d = data as { status?: string; sessionpeople?: { people?: Array<{ people_id?: number; name?: string; role?: string; district?: string }> } } | null;
+  const rows = d?.status === "OK" && Array.isArray(d.sessionpeople?.people) ? d.sessionpeople!.people! : [];
+  return rows.flatMap(p => typeof p?.people_id === "number" && p.name ? [{ peopleId: p.people_id, name: p.name.trim(), chamber: p.role === "Sen" ? "upper" as const : p.role === "Rep" ? "lower" as const : null,
+    district: p.district?.match(/(\d+)/)?.[1]?.replace(/^0+/, "") ?? null }] : []);
+}
+/**
+ * One LegiScan roll call as the rows the site stores (tx_votes / tx_member_votes). Null when the bill or session does
+ * not match what was asked for, so a vote is never filed under the wrong bill or session. Members are matched to
+ * tx_people by chamber and district; one LegiScan cannot place keeps its name and no person id.
+ */
+export function legiscanVoteRows(rc: LegiscanRollCall, bill: LegiscanBillVotes, expect: { sessionId: number; number: string; siteBillId: string },
+  people: LegiscanPerson[], members: Array<{ id: string; chamber: string; district: string }>): { vote: TxVote & { billId: string }; mismatch: boolean } | null {
+  if (bill.sessionId !== expect.sessionId || txBillNumber(bill.number) !== txBillNumber(expect.number)) return null;
+  if (rc.billId != null && rc.billId !== bill.billId) return null;
+  const byId = new Map(people.map(p => [p.peopleId, p])), seen = new Set<string>();
+  const votes = rc.votes.flatMap(v => {
+    const p = byId.get(v.peopleId), name = p?.name ?? `LegiScan person ${v.peopleId}`;
+    if (seen.has(name)) return []; seen.add(name);
+    const m = p?.chamber && p.district ? members.find(x => x.chamber === p.chamber && String(x.district) === p.district) : null;
+    return [{ option: v.option, personId: m?.id ?? null, name }];
+  });
+  const vote = { id: `legiscan-${rc.rollCallId}`, billId: expect.siteBillId, motion: rc.motion, date: rc.date, result: rc.passed ? "pass" : "fail", chamber: rc.chamber, counts: rc.counts, votes };
+  return { vote, mismatch: !!txTallyMismatch(vote) };
 }
 /** LegiScan status codes to stages: 1 introduced, 2 engrossed, 3 enrolled, 4 passed, 5 vetoed, 6 failed. */
 export function legiscanStage(status: number | null): TxStage {
