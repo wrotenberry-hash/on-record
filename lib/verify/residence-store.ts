@@ -103,17 +103,17 @@ export async function setResidence(db: Db, i: SetResidenceInput): Promise<SetRes
   }
   // 5c. Repeated address changes.
   if (decision.kind === "change" && await repeatedChanges(db, i.accountId, i.now)) held.push("address_changes");
-  // 5b. A cluster of new accounts in one district right before a vote.
+  // 5b. A burst of new accounts, or of address changes from another district, into one district right before a vote.
   for (const [district, col, soon] of [[i.districts.congressional, accountResidences.congressional, i.voteSoon.federal], [i.districts.stateUpper, accountResidences.stateUpper, i.voteSoon.state],
     [i.districts.stateLower, accountResidences.stateLower, i.voteSoon.state]] as const) {
     if (!district || !soon) continue;
     const c = RESIDENCE.cluster, from = i.now - c.windowMs;
     const arrivals = (since: number, until: number) => db.select({ accountId: accountResidences.accountId }).from(accountResidences).innerJoin(readerAccounts, eq(readerAccounts.id, accountResidences.accountId))
-      .where(and(eq(col, district), gte(accountResidences.setAt, since), lt(accountResidences.setAt, until), sql`${accountResidences.setAt} - ${readerAccounts.createdAt} < ${c.youngMs}`));
+      .where(and(eq(col, district), gte(accountResidences.setAt, since), lt(accountResidences.setAt, until), sql`(${accountResidences.setAt} - ${readerAccounts.createdAt} < ${c.youngMs} or exists (select 1 from residence_changes rc where rc.account_id = ${accountResidences.accountId} and rc.kind = 'change' and rc.at = ${accountResidences.setAt} and rc.from_congressional is not rc.to_congressional))`));
     const [recent, before] = await Promise.all([arrivals(from, i.now + 1), arrivals(from - c.baselineMs, from)]);
     if (!districtClusterSignal({ recent: recent.length, baseline: before.length, voteSoon: soon })) continue;
     const subject = `${district}@${new Date(i.now).toISOString().slice(0, 10)}`;
-    for (const a of recent) await hold(a.accountId, "district_cluster", subject, { district, newAccounts72h: recent.length, previous28d: before.length });
+    for (const a of recent) await hold(a.accountId, "district_cluster", subject, { district, arrivals72h: recent.length, previous28d: before.length });
   }
   return { ok: true, kind: decision.kind, held, heldAccounts: [...heldAccounts] };
 }

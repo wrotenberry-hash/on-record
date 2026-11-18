@@ -18,7 +18,7 @@ const subjectText = (kind: string, subject: string) => kind === "bill_surge" ? <
   : kind === "same_reason" ? `reason #${shortHash(subject)}` : `${kind === "ip_cluster" ? "network" : "device"} #${shortHash(subject)}`;
 
 const HOLD_WORDS: Record<string, string> = { countedAtAddress: "accounts already counted at the address:", cap: "limit:", addresses: "addresses:", accounts: "accounts:", district: "district",
-  newAccounts72h: "new accounts in 72 hours:", previous28d: "in the 28 days before:", changesInYear: "changes this year:", refusedInMonth: "refused tries this month:" };
+  arrivals72h: "new accounts and address changes in 72 hours:", previous28d: "in the 28 days before:", changesInYear: "changes this year:", refusedInMonth: "refused tries this month:" };
 
 /** Round J: flagged answers, one tap to clear (count again) or confirm (keep out). Nothing here deletes an answer. */
 export default async function IntegrityPage() {

@@ -50,5 +50,5 @@ export async function chooseEarlierAnswers(formData: FormData) {
   await countEvent(choice === "count" ? "earlier_answers_counted" : "earlier_answers_private", access.audience);
   const to = /^\/[\w/%.-]*$/.test(back) ? back : "/";
   revalidatePath(to);
-  redirect(`${to}#your-view`);
+  redirect(to.includes("/bills/") ? `${to}#your-view` : to);
 }

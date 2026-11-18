@@ -142,5 +142,5 @@ export const REASON_LABEL: Record<string, string> = {
   same_reason: "Identical reason text across accounts",
   phone_held: "Phone belonged to an account deleted in the last 90 days", household_cap: "More than six accounts at one address",
   device_addresses: "One device set up accounts at several addresses", network_addresses: "One network set up accounts at many addresses",
-  district_cluster: "Many new accounts in one district just before a vote", address_changes: "Repeated address changes",
+  district_cluster: "A burst of new accounts or address changes into one district just before a vote", address_changes: "Repeated address changes",
 };

@@ -149,6 +149,12 @@ export function groupLine(g: ShownGroup): string {
   return g.counts ? `${g.label}, ${g.voters} voters: ${g.counts.support} support · ${g.counts.oppose} oppose · ${g.counts.unsure} unsure` : `${g.label}: fewer than ${MIN_GROUP} voters`;
 }
 
+/** One place's total as a single line, for beside a legislator's vote: the two groups, mail-verified first, or the not-enough line. */
+export function scopeLine(scope: string, t: ScopeTotals | null | undefined, kind: "nation" | "state" | "district" = "district"): string {
+  const s = shownTotals(t, kind);
+  return s.show ? `${scope}, ${s.voters} voters: ${s.groups.map(groupLine).join("; ")}` : `${scope}: ${s.message}`;
+}
+
 /* ───────────────────────────── A legislator's own district ───────────────────────────── */
 
 /**

@@ -11,6 +11,10 @@ import { txSummaryForPage } from "@/lib/texas/summaries";
 import { AnalysisBadge } from "@/components/federal/badges";
 import { TxSummaryRest, TxSummaryTop } from "@/components/texas/summary";
 import { VoteBox } from "@/components/voice/vote-box";
+import { billTotals } from "@/lib/verify/store";
+import { txLegislatorsOnBill } from "@/lib/texas/queries";
+import { NOT_SCIENTIFIC, scopeLine, type ScopeTotals } from "@/lib/constituent/rules";
+import { OpinionBadge } from "@/components/federal/badges";
 import { voteBoxData } from "@/lib/constituent/view";
 import { stanceQuestion } from "@/lib/federal/stance-question";
 import { ContactForTxBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
@@ -39,6 +43,10 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
   // summary is on show; otherwise it names the bill, with the official title beside it.
   const voice = await voteBoxData(bill.id, access).catch(() => null);
   const ask = analysis && !analysis.held ? stanceQuestion({ question: analysis.details?.question ?? null, headline: analysis.summary.headline }) : { question: `Do you support ${bill.identifier}?`, plain: false };
+  // Each of the reader's own state legislators: their recorded vote on this bill beside their district's total, once they have voted.
+  const myDistricts = voice?.place?.state === "TX" ? [voice.place.stateUpper, voice.place.stateLower].filter((x): x is string => !!x) : [];
+  const yourMembers = myDistricts.length ? await txLegislatorsOnBill(bill.id, myDistricts).catch(() => []) : [];
+  const yourTotals = yourMembers.length ? await billTotals(bill.id, yourMembers.map(m => m.scope)).catch(() => new Map<string, ScopeTotals>()) : new Map<string, ScopeTotals>();
   const at = STEPS.indexOf(bill.stage as TxStage), session = TX_SESSIONS.find(s => s.id === bill.session);
   const firstDate = (cls: string, chamber?: string) => actions.find(a => (a.classification as string[] | null)?.includes(cls) && (!chamber || a.chamber === chamber))?.date ?? null;
   return <PublicShell current="/texas" access={access} page="/texas/bills/[id]">
@@ -74,6 +82,12 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
         {rest.length > 0 && <details className="primer"><summary>{rest.length} more {rest.length === 1 ? "decision" : "decisions"}: proposed changes and procedural steps</summary>
           <ul className="vote-list">{rest.map(d => <DecisionRow key={d.key} d={d} terms={terms.get(d.key)} tloUrl={bill.tloUrl} parties={d.vote ? parties.get(d.vote.id) : undefined} />)}</ul></details>}
       </div>
+      {yourMembers.length > 0 && <div className="fed-section" id="your-legislators"><h2>Your legislators on this bill</h2>
+        <ul className="vote-list">{yourMembers.map(m => <li key={m.id} className="vote-row"><div className="vote-main">
+          <b><Link className="tap" href={`/texas/members/${encodeURIComponent(m.id)}`}>{m.name}</Link></b>
+          <span className="vote-position">{m.line} <OfficialBadge /></span>
+          <small className="district-total"><OpinionBadge /> Residents of {scopeLine(m.scope, yourTotals.get(m.scope))} {NOT_SCIENTIFIC}</small></div></li>)}</ul>
+        <p className="meta">A legislator&apos;s vote is shown only where the official record lists each member by name.</p></div>}
       <MemberVoteLists decisions={decisions} members={members} tloUrl={bill.tloUrl} />
       {versions.length > 0 && <div className="fed-section"><h2>Bill text <OfficialBadge /></h2><ul className="analysis-list">{versions.map(v => <li key={v.note}>{v.url ? <a href={v.url} target="_blank" rel="noopener noreferrer">{v.note}</a> : v.note}{v.date ? ` (${shortDate(v.date)})` : ""}</li>)}</ul></div>}
       <div className="fed-section"><h2>Sources</h2><ul className="source-list"><li><a href={bill.tloUrl} target="_blank" rel="noopener noreferrer">Texas Legislature Online (source of record)</a></li>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EarlierAnswers } from "@/components/voice/earlier-answers";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, userFollows } from "@/db/schema";
@@ -33,6 +34,7 @@ export async function PersonalHome({ userId, canAnswer = false }: { userId: stri
     .orderBy(desc(officialRollCalls.votedAt)).limit(8) : [];
   const moving = issues.length ? (await Promise.all(issues.map(i => movingThisWeek(i, now, 4).catch(() => [])))).flat().filter((b, i, a) => a.findIndex(x => x.id === b.id) === i).slice(0, 6) : [];
   return <section className="personal">
+    <EarlierAnswers userId={canAnswer ? userId : null} back="/" />
     {loc && <div className="fed-section"><h2>Your legislators</h2><LegislatorCards loc={loc} next="/" /></div>}
     <ComingUp userId={userId} loc={loc} canAnswer={canAnswer} limit={3} />
     {ids.length > 0 && <div className="fed-section"><h2>This week from your legislators</h2>

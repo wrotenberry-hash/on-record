@@ -152,3 +152,25 @@ export async function txVoteParties(voteIds: string[]) {
   }
   return out;
 }
+
+/**
+ * The reader's own state legislators on one bill (resident voting, 18 Nov 2026): for each district scope given
+ * ("TX-SD-14", "TX-HD-49"), the current member and how the official record lists them on the bill's latest record vote
+ * in their chamber. A member with no recorded vote by name on the bill is left out: nothing is implied for them.
+ */
+export async function txLegislatorsOnBill(billId: string, scopes: readonly string[]): Promise<Array<{ id: string; name: string; scope: string; line: string }>> {
+  const db = getDb(), out: Array<{ id: string; name: string; scope: string; line: string }> = [];
+  for (const scope of scopes) {
+    const m = /^TX-(SD|HD)-(\w+)$/.exec(scope);
+    if (!m) continue;
+    const chamber = m[1] === "SD" ? "upper" : "lower";
+    const person = await db.select({ id: txPeople.id, name: txPeople.name }).from(txPeople).where(and(eq(txPeople.chamber, chamber), eq(txPeople.district, m[2]), eq(txPeople.isCurrent, 1))).get();
+    if (!person) continue;
+    const vote = await db.select({ option: txMemberVotes.option, motion: txVotes.motion, date: txVotes.date }).from(txMemberVotes).innerJoin(txVotes, eq(txVotes.id, txMemberVotes.voteId))
+      .where(and(eq(txVotes.billId, billId), eq(txVotes.chamber, chamber), eq(txMemberVotes.personId, person.id))).orderBy(desc(txVotes.date)).limit(1).get();
+    if (!vote) continue;
+    const how = vote.option === "yes" ? "Voted Yes" : vote.option === "no" ? "Voted No" : `Recorded as “${vote.option}”`;
+    out.push({ id: person.id, name: person.name, scope, line: `${how} on “${vote.motion}”, ${vote.date}` });
+  }
+  return out;
+}

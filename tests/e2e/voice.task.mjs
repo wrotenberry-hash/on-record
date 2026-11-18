@@ -6,6 +6,7 @@
  * The Texas bills are the labelled test bills from texas.task.mjs (ids starting "e2e-"), removed when each task ends.
  */
 import { cleanupTexas, seedTexas } from "./texas.task.mjs";
+import { appUserForInvite, execute, query } from "./seed.mjs";
 
 const SENATE_BILL = "e2e-tx-90-sb9001";
 const CARD_BILL = 'section.personal .flow-cards .flow-card:not(.flow-placeholder) a[href^="/bills/"]';
@@ -16,7 +17,35 @@ const withTexas = run => async t => {
   try { return await run(t); } finally { await cleanupTexas().catch(() => {}); }
 };
 
+/** An answer given under the old promise (the old table), for the reader of this invite. */
+async function earlierAnswer(t) {
+  const user = await appUserForInvite(t.tools.invite.id);
+  const bill = (await query("select id from official_bills order by latest_action_at desc limit 1"))[0]?.id;
+  if (!user || !bill) return null;
+  await execute("delete from voice_legacy_choices where user_id = ?", [user]);
+  await execute("insert or replace into opinion_user_votes (user_id, bill_id, stance, updated_at) values (?, ?, 'support', ?)", [user, bill, Date.now() - 5 * 86400e3]);
+  return bill;
+}
+
 export const tasks = [
+  { id: "voice-earlier", name: "A returning reader is asked once whether to count the answers they gave before", target: { taps: 1, seconds: 30 }, reader: "onboarded",
+    async run(t) {
+      const bill = await earlierAnswer(t);
+      if (!bill) t.blocked("No reader or bill in the local database to give an earlier answer.");
+      await t.start();
+      await t.see("#earlier-answers", "the question about earlier answers, on the first page they open");
+      const ask = await t.text("#earlier-answers");
+      if (!/You answered 1 bill before answers were added into totals\. Those answers were private, and still are\./.test(ask)) t.fail(`The question reads: “${ask.slice(0, 240)}”`);
+      await t.tap('#earlier-answers button[value="private"]', "No, keep them private");
+      await t.page.waitForLoadState("load");
+      if (await t.has("#earlier-answers")) t.fail("The question is asked again after it was answered.");
+      const row = (await query("select counts from voice_votes where user_id = ? and bill_key = ?", [await appUserForInvite(t.tools.invite.id), bill]))[0];
+      if (Number(row?.counts) !== 0) t.fail(`The earlier answer should stay uncounted; its marker is ${row?.counts}.`);
+      await t.page.goto(`/bills/${bill}`, { waitUntil: "load" });
+      if (!(await t.has('#your-view button[name="stance"][value="support"][aria-pressed="true"]'))) t.fail("The earlier answer is no longer shown to the reader as theirs.");
+      return "asked once on the home page; “keep them private” leaves the answer uncounted, still shown to the reader, and the question does not come back";
+    } },
+
   { id: "voice-vote", name: "Vote Unsure on a bill, see the promise, and see the totals for my nation, state and district", target: { taps: 2, seconds: 30 }, reader: "onboarded",
     async run(t) {
       await t.start();
@@ -33,7 +62,11 @@ export const tasks = [
       for (const want of ["Not a scientific poll.", "The nation (the states and DC)", "Texas", "Your district: Congressional district TX-37", "Not enough constituents yet — share this bill."])
         if (!totals.includes(want)) t.fail(`The totals do not say “${want}”: “${totals.slice(0, 300)}”`);
       if (/verified readers|Real people/i.test(totals)) t.fail("The totals use the old names for who is counted.");
-      return "the promise; Unsure saved; totals for the nation, Texas and TX-37, each saying there are not enough voters yet; “Not a scientific poll.”";
+      // Each legislator's actual vote, with their own district's total beside it.
+      const beside = await t.page.locator(".vote-row .district-total").allInnerTexts();
+      if (!beside.length) t.fail("No district total is shown beside a legislator's vote.");
+      if (!beside.every(b => /Residents of [A-Z]{2}(-\d{2}|-AL)?[:,]/.test(b) && b.includes("Not a scientific poll."))) t.fail(`A total beside a vote is not labelled: “${beside[0]}”`);
+      return "the promise; Unsure saved; each legislator's vote with their district's total beside it; totals for the nation, Texas and TX-37, each saying there are not enough voters yet; “Not a scientific poll.”";
     } },
 
   { id: "voice-texas", name: "Vote on a Texas bill: the same box, with totals for Texas and my state districts", target: { taps: 2, seconds: 30 }, reader: "new",
@@ -50,6 +83,8 @@ export const tasks = [
       const totals = await t.text("#totals");
       for (const want of ["Not a scientific poll.", "Texas", "State senate district 14", "State house district 49"]) if (!totals.includes(want)) t.fail(`The Texas totals do not say “${want}”: “${totals.slice(0, 300)}”`);
       if (totals.includes("The nation")) t.fail("A Texas bill shows a national total.");
+      const mine = await t.text("#your-legislators");
+      if (!/Voted Yes on/.test(mine) || !mine.includes("Residents of TX-SD-14: Not enough constituents yet — share this bill.")) t.fail(`The state senator's vote is not shown beside the district's total: “${mine.slice(0, 240)}”`);
       return "Support saved on a Texas bill; totals for Texas, state senate district 14 and state house district 49; no national total";
     }) },
 

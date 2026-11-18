@@ -81,6 +81,52 @@ same pure rule (`voteCounts` in `lib/voice/rules.ts`) is applied each time a bil
 - **Address-matched**: never called "verified" anywhere a reader can see.
 - **Mail-verified**: address-matched plus a code from a mailed postcard.
 
+## What a reader sees
+
+- On every bill, federal or Texas: the promise, the question (plain headline when a summary is on show; the official
+  title one tap away), Support / Oppose / Unsure, an optional private reason, and "Your earlier answers".
+- Outside the bill's jurisdiction: "People who live in Texas can weigh in on this bill. You can still read it and see
+  the totals." in place of the buttons.
+- After answering: totals for the nation (federal bills), the state and the reader's district, each with the number of
+  voters, mail-verified first then address-matched, under "Not a scientific poll." Below 25 counted voters a district
+  says "Not enough constituents yet — share this bill."
+- Beside each of the reader's legislators' votes on the bill: that legislator's own district's total.
+- On every legislator's page, federal and Texas: the district's totals beside the member's votes, for anyone.
+- A returning reader who answered before the change is asked once, on the first page they open, whether to count those
+  answers. "No" keeps them private for good; changing an answer later is a new vote under the new promise.
+
+## Defaults chosen by the builder (say so to change any)
+
+1. **Totals appear after the reader answers**, or at once for someone outside the jurisdiction. They are public on the
+   legislator pages in any case.
+2. **25 applies to every total**, not only districts (the nation and the state say "Not enough voters yet.").
+3. **A group of fewer than 5 voters shows its size only** ("Mail-verified: fewer than 5 voters"), so one or two
+   mail-verified voters' answers cannot be read off the page.
+4. **Territory residents** are counted in a "U.S. territories" total, their territory and its district, and not in the
+   national total of the states and DC.
+5. **Unsure counts as a voter** toward the 25 and is shown as its own number.
+6. **An answer given under the new promise by an account that is not yet address-matched** starts counting when the
+   account becomes address-matched (no second consent is asked).
+7. **An account set aside for review is counted nowhere** until the editor clears it.
+8. **Rate limits and the bot check** still stop an answer from counting when they fail (the answer is saved as a
+   private position and the reader is told to answer again). The place a device or internet address appears to be is
+   never used to decide who may vote on a bill.
+9. **A burst into a district** counts accounts under 7 days old and address changes that cross a congressional
+   district line; the state-district check uses the same test because the change log does not hold state districts.
+
+## Not proven, stated plainly
+
+- **"A real residential address."** The Census Bureau's geocoder confirms that an address exists on a street and gives
+  its districts. It does not say whether the address is a home or a business. The Postal Service's address check does
+  (and can require a unit number), but it is switched off: its terms limit use to mailing. With mailed postcards now
+  part of the product that use fits better; it is still the owner's and the lawyer's call. Until then "address-matched"
+  means "an address the Census Bureau placed, not a PO box", and the household cap of six applies.
+- **No real person has been address-matched.** Verification is off in production (the text-message and bot-check keys
+  are not set). The phone suite runs the whole flow with local stand-ins.
+- **Territories.** The rule is tested; whether the Census geocoder returns districts for every territory address has
+  not been checked against the live service.
+- Office dashboard, mailed postcards and associations are separate parts: see their own sections in `STATUS.md`.
+
 ## Status, open decisions and what is not proven
 
 Kept current in `STATUS.md`, `docs/DECISIONS.md` (from O-147) and Editor → What's next.

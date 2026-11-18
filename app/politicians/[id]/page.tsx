@@ -18,7 +18,7 @@ import { scopeTotals } from "@/lib/verify/store";
 import { MIN_SHOWN, memberDistrictId, totalsLine } from "@/lib/verify/rules";
 import { getDb } from "@/db";
 import { officialPoliticians } from "@/db/schema";
-import { groupLine, NOT_ENOUGH_DISTRICT, shownTotals } from "@/lib/constituent/rules";
+import { NOT_ENOUGH_DISTRICT, scopeLine } from "@/lib/constituent/rules";
 import type { ScopeRow } from "@/lib/verify/store";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { BRAND, brandTitle } from "@/lib/brand";
@@ -26,26 +26,9 @@ import { ContactForMember } from "@/components/contact/contact-section"; // cont
 
 export const dynamic = "force-dynamic";
 
-/** One district's two groups on one bill, mail-verified first. Only called from 25 counted voters up. */
-function DistrictGroups({ scope, row }: { scope: string; row: ScopeRow }) {
-  const shown = shownTotals(row.groups, "district");
-  return shown.show ? <>{scope}, {shown.voters} voters: {shown.groups.map(g => groupLine(g)).join("; ")}</> : <>{scope}: {shown.message}</>;
-}
+/** One district's two groups on one bill, mail-verified first. */
+function DistrictGroups({ scope, row }: { scope: string; row: ScopeRow }) { return <>{scopeLine(scope, row.groups)}</>; }
 
-/** Names reach only viewers allowed to see the page; anyone else gets the site name. */
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  if (!(await viewerAccess()).allowed) return { title: BRAND.name };
-  const p = await getPolitician((await params).id);
-  if (!p) return { title: brandTitle("Not found") };
-  const meta = memberMeta(p), { previewMeta } = await import("@/lib/seo"), { SITE } = await import("@/lib/share");
-  return { ...meta, ...previewMeta(SITE, `/politicians/${p.id}`, meta.title, meta.description, `/api/cards/g?t=member&member=${p.id}&format=link`), alternates: { canonical: `/politicians/${p.id}` } };
-}
-
-/**
- * A member's record: latest votes, the same votes grouped by the 14 issues, and
- * the bills they sponsored or cosponsored. Everything is copied from official
- * records; On Record adds no grade, score or tally of its own.
- */
 export default async function PoliticianPage({ params }: { params: Promise<{ id: string }> }) {
   const access = await viewerAccess();
   const { id } = await params;

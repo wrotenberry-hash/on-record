@@ -204,7 +204,7 @@ export const READER_TOTALS = {
     `A total is never shown below ${MIN_SHOWN} counted voters. Below that a district says “Not enough constituents yet — share this bill.” A group of fewer than 5 voters is shown by its size only, not by answer.`,
     "Answers given before 19 November 2026, when the site said no answer would be added up, stay uncounted unless the person who gave them chooses, once, to count them.",
     "Answers that look like coordinated activity (a sudden surge, many new accounts from one network or device, the same reason text from several accounts) are set aside from the totals until the editor has looked. They are never deleted.",
-    "A whole account is set aside the same way, and never deleted, when one device or network sets up accounts at many addresses, when many new accounts or address changes arrive in one district just before a vote, or when an address is changed again and again.",
+    "A whole account is set aside the same way, and never deleted, when one device or network sets up accounts at many addresses, when a burst of new accounts or address changes arrives in one district just before a vote, or when an address is changed again and again.",
     "No individual vote and no reason is ever shown to anyone but the person who gave it. Legislators' offices and associations see the same totals, never a person.",
     "The place your device or internet address appears to be is used only as a sign of possible fraud for review. It never decides whether you may vote on a bill.",
     "Every total carries the words “Not a scientific poll”.",

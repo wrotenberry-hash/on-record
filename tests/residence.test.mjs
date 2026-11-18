@@ -283,9 +283,17 @@ test("a cluster of new accounts in one district right before a vote is set aside
     assert.deepEqual(r.held, i < 9 ? [] : ["district_cluster"]);
   }
   for (const p of fresh) assert.deepEqual((await liveHolds(db, p.id)).map(h => h.kind), ["district_cluster"]);
-  // Long-standing accounts moving into the district are not "new accounts".
+  // A long-standing account whose FIRST address is in the district is not an arrival from elsewhere.
   const settled = await account();
   assert.deepEqual((await moveIn(settled, "999 MESA ST EL PASO TX 79901", EL_PASO, now + 20, { voteSoon: { federal: true, state: false } })).held, []);
+  // A burst of address changes INTO one district before a vote is set aside too (owner, consolidated build).
+  const LUBBOCK = { congressional: "TX-19", state: "TX", stateUpper: "TX-SD-28", stateLower: "TX-HD-84" }, movers = [];
+  for (let i = 0; i < 10; i++) { const p = await account(); movers.push(p); await moveIn(p, `${700 + i} RIVER ST AUSTIN TX 78701`, AUSTIN, T0 - 100 * DAY + i); }
+  for (const [i, p] of movers.entries()) {
+    const r = await moveIn(p, `${800 + i} AVENUE Q LUBBOCK TX 79401`, LUBBOCK, now + 100 + i, { voteSoon: { federal: i === 9, state: false } });
+    assert.equal(r.ok, true); assert.deepEqual(r.held, i < 9 ? [] : ["district_cluster"]);
+  }
+  for (const p of movers) assert.deepEqual((await liveHolds(db, p.id)).map(h => h.kind), ["district_cluster"]);
 });
 
 test("repeated address changes are set aside for review", async () => {

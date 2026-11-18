@@ -23,7 +23,7 @@ export const RESIDENCE = {
   deviceAddresses: 3, deviceWindowMs: 30 * DAY, networkAddresses: 6, networkWindowMs: 7 * DAY,
   /** The third change of address inside a year, or three refused tries inside 30 days. */
   changesPerYear: 3, changesWindowMs: 365 * DAY, refusedTries: 3, refusedWindowMs: 30 * DAY,
-  /** Accounts under 7 days old arriving in one district within 72 hours: at least 10, and at least 5 times the usual rate, with a vote within 7 days. */
+  /** Arrivals in one district within 72 hours (accounts under 7 days old, or address changes from another district): at least 10, and at least 5 times the usual rate, with a vote within 7 days. */
   cluster: { windowMs: 3 * DAY, floor: 10, multiple: 5, baselineMs: 28 * DAY, youngMs: 7 * DAY, voteWithinMs: 7 * DAY },
 } as const;
 
@@ -141,7 +141,7 @@ export function manyAddressesSignal(kind: "device" | "network", distinctAddresse
 export function addressChangesSignal(input: { changesInYear: number; refusedInMonth: number }): boolean {
   return input.changesInYear >= RESIDENCE.changesPerYear || input.refusedInMonth >= RESIDENCE.refusedTries;
 }
-/** `recent`: new accounts that arrived in the district in the last 72 hours; `baseline`: the same over the 28 days before. */
+/** `recent`: arrivals in the district in the last 72 hours (new accounts, and address changes from another district); `baseline`: the same over the 28 days before. */
 export function districtClusterSignal(input: { recent: number; baseline: number; voteSoon: boolean }): boolean {
   const c = RESIDENCE.cluster, usual = input.baseline / (c.baselineMs / c.windowMs);
   return input.voteSoon && input.recent >= c.floor && input.recent >= c.multiple * usual;
@@ -157,6 +157,6 @@ export function stampFor<T extends Districts>(existing: T | null, current: T | n
 /** Plain words for each reason an account is set aside (editor screen, transparency note, the reader's own account page). */
 export const HOLD_LABEL: Record<HoldKind, string> = {
   household_cap: "More than six accounts at one address", device_addresses: "One device set up accounts at several addresses",
-  network_addresses: "One network set up accounts at many addresses", district_cluster: "Many new accounts in one district just before a vote",
+  network_addresses: "One network set up accounts at many addresses", district_cluster: "A burst of new accounts or address changes into one district just before a vote",
   address_changes: "Repeated address changes",
 };

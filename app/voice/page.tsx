@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicShell } from "@/components/public/public-shell";
 import { AnalysisBadge, OfficialBadge, OpinionBadge, billLabel, shortDate } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
+import { EarlierAnswers } from "@/components/voice/earlier-answers";
 import { currentLocation } from "@/lib/location";
 import { accountForAppUser, currentAccount } from "@/lib/accounts";
 import { verificationConfig } from "@/lib/verify/config";
@@ -43,6 +44,7 @@ export default async function VoicePage() {
       <div className="eyebrow">YOUR VOICE <OpinionBadge /></div>
       <h1>Your voice</h1>
       <p className="lede">The bills you have weighed in on, how your legislators voted on each one, and what counted residents of your district said.</p>
+      <EarlierAnswers userId={userId} back="/voice" />
 
       {!loc && bills.length > 0 && <p className="gate gate-open" role="note">Add your ZIP code on <Link href="/legislators">Your legislators</Link> to see how your senators and representative voted on these bills.</p>}
       {loc && !hasRep && bills.length > 0 && <p className="meta">Only your two senators are shown. <Link href="/legislators">Pick your House district</Link> to add your representative.</p>}

@@ -23,6 +23,8 @@ import { GLOSSARY_URL } from "@/lib/federal/vote-labels";
 import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { verificationConfig } from "@/lib/verify/config";
 import { VoteBox } from "@/components/voice/vote-box";
+import { billTotals } from "@/lib/verify/store";
+import { NOT_SCIENTIFIC, scopeForMember, scopeLine, type ScopeTotals } from "@/lib/constituent/rules";
 import { voteBoxData } from "@/lib/constituent/view";
 import { accountForAppUser, currentAccount } from "@/lib/accounts";
 import { Turnstile } from "@/components/verify/turnstile";
@@ -74,6 +76,10 @@ export default async function BillPage({ params, searchParams }: { params: Promi
     const loc = await currentLocation(await currentAppUserId()); if (!loc) return new Set<string>();
     const f = await federalLegislators(loc.state, loc.congressional); return new Set([...f.senators.map(s => s.id), ...(f.representative ? [f.representative.id] : [])]); })().catch(() => new Set<string>());
   const mine = await followedVotes(votes.map(v => v.id), new Set([...followed, ...yours])).catch(() => []);
+  // Resident voting (18 Nov 2026): beside each legislator's actual vote, the total for their own district (a senator's state,
+  // a representative's district). Shown once they have voted; the same line for every member.
+  const memberScope = (m: { chamber: string; state: string; district: number | null }) => scopeForMember({ level: "federal", chamber: m.chamber === "senate" ? "upper" : "lower", state: m.state, district: m.district });
+  const districtTotals = mine.length ? await billTotals(bill.id, [...new Set(mine.map(memberScope))]).catch(() => new Map<string, ScopeTotals>()) : new Map<string, ScopeTotals>();
   const underReview = await import("@/lib/federal/depth").then(d => d.tallyUnderReview(votes.map(v => v.id))).catch(() => new Set<string>());
   const [timeline, amendments, floor, parties, cosponsors, changes, followingBill] = await Promise.all([
     billTimeline(bill.id, bill.introducedAt).catch(() => null), billAmendments(bill.id).catch(() => []), floorThisWeek(bill.id).catch(() => []),
@@ -208,7 +214,8 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       <div className="fed-section"><h2>How your politicians voted <OfficialBadge /></h2>
         {mine.length ? <ul className="vote-list">{mine.map(m => <li key={`${m.rollCallId}-${m.id}`} className="vote-row"><div className="vote-main">
           <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link>{yours.has(m.id) && <span className="your-tag"> · your legislator</span>}</b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
-            return <><span className="vote-position">{positionLine(m.position, k)}</span><small>{memberLine(m)} · {KIND_LABEL[k]}{rc ? ` · ${rc.question}, ${shortDate(rc.votedAt)}` : ""}</small></>; })()}</div>
+            return <><span className="vote-position">{positionLine(m.position, k)}</span><small>{memberLine(m)} · {KIND_LABEL[k]}{rc ? ` · ${rc.question}, ${shortDate(rc.votedAt)}` : ""}</small>
+              <small className="district-total"><OpinionBadge /> Residents of {scopeLine(memberScope(m), districtTotals.get(memberScope(m)), m.chamber === "senate" ? "state" : "district")} {NOT_SCIENTIFIC}</small></>; })()}</div>
           <PositionPill position={m.position} raw={m.rawPosition} /></li>)}</ul>
           : <p className="meta">{followed.size ? "None of the members you follow has a recorded vote on this bill." : <><Link href="/legislators">Find your legislators</Link> or follow members on the <Link href="/politicians">Politicians</Link> page to see their votes here.</>}</p>}
         <h3 className="subhead">All recorded votes</h3>
