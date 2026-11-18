@@ -42,6 +42,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const note = m === "sent" || m === "fail" ? t : m ? MESSAGES[m] : null;
   const profile = vc.enabled && account ? await profileFor(account.id) : null;
   const tier = profile?.tier ?? 0;
+  // Mail-verified is address-matched plus a code from a postcard mailed to the home on file.
+  const mailTier = vc.enabled && account && tier >= 2 ? await import("@/lib/verify/residence-store").then(async m => m.mailVerified((await import("@/db")).getDb(), account.id)).catch(() => false) : false;
   // One person, one residence: an account set aside for review can read and follow; its answers are saved but not counted.
   const holds = vc.enabled && account ? await import("@/lib/verify/residence-store").then(async m => m.liveHolds((await import("@/db")).getDb(), account.id)).catch(() => []) : [];
   const pendingCode = !!(await cookies()).get(PENDING_PHONE_COOKIE)?.value && !!profile?.pendingPhoneHash;
@@ -62,7 +64,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         {vc.enabled && <div className="fed-section verify-steps" id="verify">
           <h2>Make your answers count</h2>
           <p>Your individual vote is private. Support, Oppose and Unsure answers from address-matched and mail-verified residents are added, <b>without a name</b>, into totals that anyone can see. Answers from accounts with only a phone, and from visitors, stay private and are counted in no total.</p>
-          <p className="gate gate-open" role="status"><b>Your level:</b> {TIER_LABEL[tier]}.{tier >= 1 && countsLater ? ` New accounts count after 24 hours: from ${when(countsFrom(account.createdAt))}.` : ""}{profile?.districtId ? ` District ${profile.districtId}.` : ""}</p>
+          <p className="gate gate-open" role="status"><b>Your level:</b> {mailTier ? "Mail-verified: your answers count in the totals for where you live, in the mail-verified group" : TIER_LABEL[tier]}.{tier >= 1 && countsLater ? ` New accounts count after 24 hours: from ${when(countsFrom(account.createdAt))}.` : ""}{profile?.districtId ? ` District ${profile.districtId}.` : ""}</p>
           {holds.length > 0 && <p className="gate gate-closed" role="status"><b>Waiting for a review.</b> {holds.some(h => h.kind === "household_cap") ? "Six accounts already count at your address." : "Something about how this account was set up needs a person to look at it."} You can read and follow as usual. Your answers are saved and will count once the review clears. Nothing has been deleted.</p>}
           {v && t && <p className={ok === "1" ? "gate gate-open" : "gate gate-closed"} role="status">{t}</p>}
           {!profile?.phoneVerifiedAt && !pendingCode && <form action={sendPhoneCode} className="verify-form">

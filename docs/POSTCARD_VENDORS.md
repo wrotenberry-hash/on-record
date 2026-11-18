@@ -5,16 +5,24 @@ before sending any."
 
 ## The short answer
 
-**No price is confirmed yet. Nothing has been mailed, and nothing can be mailed.**
+**About 91 cents a card, with no monthly fee, from either of two vendors. Nothing has been mailed, and nothing can be
+mailed yet.**
 
-On 18 November 2026 this machine was not allowed to open any of the four vendors' pricing pages. Each try ended the
-same way: the network here does not let those sites through. So this page holds **no dollar figure at all**. Every
-price cell below says "not confirmed", and names the page to read.
+After you allowed the vendors' sites on 18 November 2026, the lead read their pricing pages directly that day:
 
-A web search did run. Its short summaries of those pages gave **different prices for the same card on different
-pages or sites**, for every one of the four vendors. A summary is not the vendor's page, and the summaries did not agree with each
-other, so none of those numbers is written here. That disagreement is the reason to read each page yourself, or to
-let this machine read them (see "To finish this page").
+- **Lob**, plan with no monthly fee ("Developer"): one 4x6 First-Class postcard is **$0.905 or $0.909**. Its pricing
+  page says "Starting at $0.905/piece". Its help page lists $0.905 and, in a second table headed "The pricing below
+  will take effect on 11/01/2026", $0.909. Plan on 91 cents.
+- **PostGrid**, plan with no monthly fee ("Starter", up to 500 mailings a month): **$0.902**, "5-7 Business Days
+  Delivery". A second PostGrid page shows a different free plan ("Essential", $0.65 a postcard); the two pages do not
+  agree, so ask PostGrid which is current before relying on the lower figure.
+- **Stannp** (U.S. page): its price tool offers a 4x6 card by **marketing mail only** ("usually within 7-14 business
+  days"), $0.72 a card at 1,500 cards with a plan at $12 a month. No First-Class price is shown, and the small-volume
+  price was not read. Marketing mail is slower and is meant for advertising, so it is a poor fit for a code that
+  expires in 30 days.
+- **Click2Mail**: its site refused automated reading (a security page), so its price is **not confirmed**.
+
+**What $100 a month buys at 91 cents: 109 cards.** Prices include printing and postage on all three pages read.
 
 The site is safe to leave as it is. Postcards are switched off. If they are switched on today, they run as a
 rehearsal: nothing is mailed and nothing is charged. A real vendor cannot be used until someone writes the code that
@@ -40,15 +48,19 @@ search summary said something that is not a price, it is given in the notes unde
 |---|---|---|---|---|
 | Pages to read (found by search, not opened) | `https://www.lob.com/pricing` and `https://help.lob.com/print-and-mail/ready-to-get-started/pricing-details` | `https://www.postgrid.com/pricing-print-mail/` and `https://www.postgrid.com/plans-and-pricing/` | `https://click2mail.com/by-service` and its postcard sheet `https://click2mail.com/media/downloads/pdf/c2m_postcards_products.pdf` | `https://www.stannp.com/us` and `https://stannp.com/us/solutions` |
 | Page tried from this machine on 18 Nov 2026 | `https://www.lob.com/pricing`: refused, the network here does not allow `www.lob.com` | `https://www.postgrid.com/pricing/`: refused, `www.postgrid.com` not allowed | `https://click2mail.com/pricing`: refused, `click2mail.com` not allowed | `https://www.stannp.com/us/pricing`: refused, `www.stannp.com` not allowed |
-| **Real cost of one 4x6 First-Class postcard, low volume** | **not confirmed** | **not confirmed** | **not confirmed** | **not confirmed** |
-| Date and page the price was read on | none: not read | none: not read | none: not read | none: not read |
-| Monthly minimum or platform fee | not confirmed | not confirmed | not confirmed | not confirmed |
-| Address check included in the price | not confirmed | not confirmed | not confirmed | not confirmed |
-| Delivery time | not confirmed | not confirmed | not confirmed | not confirmed |
-| Sends a tracking or status event | not confirmed | not confirmed | not confirmed | not confirmed |
-| What it keeps, and for how long | not confirmed | not confirmed | not confirmed | not confirmed |
+| **Real cost of one 4x6 First-Class postcard, low volume** | **$0.905 or $0.909** (two tables on its help page; see above) | **$0.902** on the "Starter" plan; another page says $0.65 on an "Essential" plan | First-Class **not shown**; marketing mail $0.72 at 1,500 cards | **not confirmed** (site refused automated reading) |
+| Date and page the price was read on | 18 Nov 2026: `www.lob.com/pricing` and `help.lob.com/print-and-mail/ready-to-get-started/pricing-details` | 18 Nov 2026: `www.postgrid.com/pricing-print-mail/` and `www.postgrid.com/plans-and-pricing/` | 18 Nov 2026: `www.stannp.com/us/pricing` (the price tool) | not read |
+| Monthly minimum or platform fee | $0 a month on "Developer" (up to 6,000 mailings a year, 1 user); next plan up has a monthly fee | $0 a month on "Starter" (up to 500 mailings a month; an overage fee above that) | $12 a month shown with the starter plan | not confirmed |
+| Address check included in the price | No: listed separately, $0.05 for each additional U.S. check on "Developer" | not read | not read | not confirmed |
+| Delivery time | not read | "5-7 Business Days Delivery" for a 4x6 First-Class card | "usually within 7-14 business days" (marketing mail) | not confirmed |
+| Sends a tracking or status event | Yes: "In-transit Mail Tracking" and webhooks (1 on "Developer") | "Standard Mail Tracking" on "Starter" | "Live mail tracking" listed with the starter plan | not confirmed |
+| What it keeps, and for how long | not read | not read | not read | not confirmed |
 
-### What the search summaries said (not prices, and not read on the vendors' pages)
+Everything in the rows above was read on the vendor's own page on 18 November 2026 by the lead. "Not read" means the
+page did not say, or the right page was not opened. Still to read before choosing: each vendor's data-handling terms
+(what it keeps about an address and for how long), and whether it has a test mode that mails nothing.
+
+### What the earlier search summaries said (leads only; superseded by the table above where they differ)
 
 Treat each line as a lead to check, not as a fact.
 
@@ -73,21 +85,17 @@ Treat each line as a lead to check, not as a fact.
 
 ## To finish this page
 
-Either way takes a few minutes.
-
-1. **Read the four pricing pages yourself** and write the numbers into the table with the date. For each vendor,
-   look for: the price of one 4x6 First-Class postcard on the plan with no monthly fee; any monthly fee or minimum
-   spend; whether checking the address costs extra; the stated delivery time; whether it reports "mailed" and
-   "returned"; how long it keeps addresses and how to have them deleted.
-2. **Or allow these sites in this machine's network settings**, and ask for this page to be completed:
-   `www.lob.com`, `help.lob.com`, `www.postgrid.com`, `click2mail.com`, `www.stannp.com`. The numbers will then be
-   read from the pages and written here with the date.
+1. Ask PostGrid which of its two free plans is current ($0.902 or $0.65 a postcard).
+2. Read Lob's and PostGrid's data-handling terms: what they keep about a home address, for how long, and how to have
+   it deleted. Have the lawyer look at the one you choose.
+3. Click2Mail and a First-Class price from Stannp are not confirmed. They are not needed to decide: two vendors with
+   no monthly fee are within half a cent of each other.
 
 The firmest number is a written quote from the vendor, or the price shown inside a signed-up account.
 
 ## What your $100 cap buys
 
-Cards per month = the cap, divided by the real cost of one card, rounded down. The site works this out from the
+Cards per month = the cap, divided by the real cost of one card, rounded down: at 91 cents, 109 cards. The site works this out from the
 number you set, and refuses the card that would cross the cap. It does not guess a price: with no price set, no
 vendor is used.
 
