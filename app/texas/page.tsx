@@ -2,13 +2,11 @@ import Link from "next/link";
 import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge, shortDate } from "@/components/federal/badges";
 import { viewerAccess } from "@/lib/viewer";
-import { txCommitteesByChamber, txOverview } from "@/lib/texas/queries";
+import { txCommitteesByChamber, txFiledBills, txOverview } from "@/lib/texas/queries";
+import { TX_SESSIONS } from "@/lib/texas/parse";
 import { TX_STAGE_LABEL, type TxStage } from "@/lib/texas/parse";
 import { texasConfig } from "@/lib/texas/ingest";
 import { TX_OFFICERS } from "@/lib/texas/dashboard";
-import { getDb } from "@/db";
-import { txPeople } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
 import { brandTitle } from "@/lib/brand";
 import { inDays, txCalendar, txSessionState, txToday } from "@/lib/texas/calendar";
 import { seatLine, TX_SEATS } from "@/lib/texas/coverage";
@@ -25,7 +23,10 @@ export default async function TexasPage() {
   const access = await viewerAccess();
   if (!access.allowed) return <PublicShell current="/texas" access={access} page="/texas">{null}</PublicShell>;
   const now = clock(), today = txToday(now), st = txSessionState(today), cal = txCalendar(today), c = texasConfig();
-  const [o, committees] = await Promise.all([txOverview(now).catch(() => null), txCommitteesByChamber().catch(() => null)]);
+  // The next regular session (2027): its bills filed so far, newest first. In session, the session in progress.
+  const regular = st.inSession && st.current.regular ? st.current : TX_SESSIONS.filter(x => x.regular && x.start > today).sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
+  const [o, committees, filed] = await Promise.all([txOverview(now).catch(() => null), txCommitteesByChamber().catch(() => null), regular ? txFiledBills(regular.id).catch(() => null) : Promise.resolve(null)]);
+  const opensIn = regular && regular.start > today ? inDays(Math.round((Date.parse(`${regular.start}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000)) : null;
   const shown = o?.coverage.shown ?? null;
   return <PublicShell current="/texas" access={access} page="/texas">
     <section className="fed-page">
@@ -46,6 +47,16 @@ export default async function TexasPage() {
           </li>)}
         </ol> : <p className="meta">No key dates are on file for this session yet.</p>}
         <p className="meta">Each date comes from an official record or is worked out from the rule named in its source. Dates marked “expected” can still move: the House sets its rules when the session opens, and the session can end before its last possible day. The last days for House and Senate action near the end of the session are not listed here yet.</p></div>
+
+      {regular && <div className="fed-section" id="filed"><h2>Bills filed so far for the {regular.start.slice(0, 4)} session <OfficialBadge /></h2>
+        <p className="lead-stat"><b>{opensIn ? `The session opens ${longDate(regular.start)}, ${opensIn}.` : `The session opened ${longDate(regular.start)}.`}</b></p>
+        {filed === null ? <p className="meta">The list of filed bills could not be loaded just now.</p>
+          : filed.total > 0 ? <>
+            <p className="meta">{filed.total.toLocaleString("en-US")} {filed.total === 1 ? "bill" : "bills"} on file here for the {regular.name}, newest first.{filed.total > filed.rows.length ? ` Showing the newest ${filed.rows.length}.` : ""} Members can file bills before the session opens; this is called prefiling.</p>
+            <ul className="result-list">{filed.rows.map(b => <li key={b.id}><Link className="block py-2.5" href={`/texas/bills/${b.id}`}><span className="bill-tag">{b.identifier}</span> {b.title}</Link>
+              <span className="meta">{b.filed ? `Filed ${shortDate(b.filed)}` : "Filing date not given"} · {TX_STAGE_LABEL[b.stage as TxStage] ?? b.stage}</span></li>)}</ul></>
+          : <p className="meta">No bills for the {regular.name} are on file here yet.</p>}
+        <p className="meta">Each bill links to its history on Texas Legislature Online, the official record.</p></div>}
 
       {o && shown && o.total > 0 && <div className="fed-section"><h2>{shown.name}: {o.total.toLocaleString("en-US")} bills on file here</h2>
         <ul className="analysis-list">{(["filed", "committee", "passed_first", "passed_both", "governor", "law", "vetoed", "failed"] as TxStage[]).filter(s => o.counts[s]).map(s => <li key={s}>{TX_STAGE_LABEL[s]}: {o.counts[s].toLocaleString("en-US")}</li>)}</ul>
