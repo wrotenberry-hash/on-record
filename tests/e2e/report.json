@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-18T15:27:20.107Z",
+  "startedAt": "2026-11-18T15:53:09.579Z",
   "viewport": {
     "width": 390,
     "height": 844
@@ -8,7 +8,7 @@
   "shotsDir": "/tmp/on-record-e2e",
   "server": {
     "mode": "prod",
-    "base": "http://127.0.0.1:44451"
+    "base": "http://127.0.0.1:45529"
   },
   "tasks": [
     {
@@ -21,29 +21,29 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 1.2,
+      "seconds": 0.7,
       "note": "3 legislators shown after the ZIP, from the welcome screen (typing the ZIP is not a tap)",
       "error": null,
       "status": null,
       "steps": [
         {
-          "step": "open /trial/inv_ht0dugsity.d99ae9c89531e7e6888a7c769640f483",
+          "step": "open /trial/inv_tmdgplc0vp.e68b1cf2603ea2802696e8d3550f8bee",
           "url": "/welcome",
           "at": 0
         },
         {
           "step": "tap “Start: find my legislators”",
           "url": "/",
-          "at": 0.7
+          "at": 0.5
         },
         {
           "step": "type into .place-form input[name=zip]",
-          "at": 0.8
+          "at": 0.5
         },
         {
           "step": "tap “Show my legislators”",
           "url": "/start",
-          "at": 1.1
+          "at": 0.7
         }
       ],
       "sideways": [],
@@ -61,7 +61,7 @@
       "file": "tasks.mjs",
       "taps": 0,
       "swipes": 0,
-      "seconds": 0.2,
+      "seconds": 0.1,
       "note": "on the home page, no taps",
       "error": null,
       "status": null,
@@ -87,7 +87,7 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 1.2,
+      "seconds": 1,
       "note": "plain-language summary shown (stand-in summary in the test copy)",
       "error": null,
       "status": null,
@@ -100,7 +100,7 @@
         {
           "step": "tap “the bill my senator last voted on”",
           "url": "/bills/119-hr-9340",
-          "at": 0.8
+          "at": 0.6
         }
       ],
       "sideways": [],
@@ -118,7 +118,7 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 6.2,
+      "seconds": 5.8,
       "note": "followed from the picker on the home page; kept after a reload",
       "error": null,
       "status": null,
@@ -131,12 +131,12 @@
         {
           "step": "tap “Pick up to 3 issues”",
           "url": "/",
-          "at": 3.1
+          "at": 2.9
         },
         {
           "step": "tap “Taxes”",
           "url": "/",
-          "at": 5.8
+          "at": 5.5
         }
       ],
       "sideways": [],
@@ -154,7 +154,7 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 1.2,
+      "seconds": 1.1,
       "note": "John Cornyn and Ted Cruz",
       "error": null,
       "status": null,
@@ -167,12 +167,12 @@
         {
           "step": "tap “my senator”",
           "url": "/politicians/C001056",
-          "at": 0.7
+          "at": 0.6
         },
         {
           "step": "tap “Compare with the other senator”",
           "url": "/compare?a=C001056&b=C001098",
-          "at": 1.2
+          "at": 1
         }
       ],
       "sideways": [],
@@ -190,7 +190,7 @@
       "file": "tasks.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 1.4,
+      "seconds": 1.1,
       "note": "typing the words is not a tap",
       "error": null,
       "status": null,
@@ -203,16 +203,16 @@
         {
           "step": "tap “Search”",
           "url": "/search",
-          "at": 0.6
+          "at": 0.5
         },
         {
           "step": "type into input[name=\"q\"]",
-          "at": 0.7
+          "at": 0.6
         },
         {
           "step": "tap “Search”",
           "url": "/search?q=hospital",
-          "at": 1.2
+          "at": 1
         }
       ],
       "sideways": [],
@@ -230,7 +230,7 @@
       "file": "tasks.mjs",
       "taps": 3,
       "swipes": 1,
-      "seconds": 3.8,
+      "seconds": 3.6,
       "note": "Account is at the far end of the menu (1 swipe)",
       "error": null,
       "status": null,
@@ -243,17 +243,17 @@
         {
           "step": "tap “Account”",
           "url": "/account",
-          "at": 0.7
+          "at": 0.5
         },
         {
           "step": "tap “When my legislators vote”",
           "url": "/account",
-          "at": 3.3
+          "at": 3.1
         },
         {
           "step": "tap “Save alert choices”",
           "url": "/account?m=saved",
-          "at": 3.6
+          "at": 3.4
         }
       ],
       "sideways": [],
@@ -271,7 +271,7 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 1,
-      "seconds": 0.7,
+      "seconds": 0.5,
       "note": "Texas is off-screen in the menu (1 swipe)",
       "error": null,
       "status": null,
@@ -284,7 +284,7 @@
         {
           "step": "tap “Texas”",
           "url": "/texas",
-          "at": 0.7
+          "at": 0.5
         }
       ],
       "sideways": [],
@@ -302,7 +302,7 @@
       "file": "tasks.mjs",
       "taps": 0,
       "swipes": 0,
-      "seconds": 0.2,
+      "seconds": 0.1,
       "note": "panel shown with its empty-state line",
       "error": null,
       "status": null,
@@ -328,7 +328,7 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 1,
-      "seconds": 1,
+      "seconds": 0.6,
       "note": "Dashboard is off-screen in the menu (1 swipe)",
       "error": null,
       "status": null,
@@ -341,7 +341,7 @@
         {
           "step": "tap “Dashboard”",
           "url": "/dashboard",
-          "at": 0.9
+          "at": 0.6
         }
       ],
       "sideways": [],
@@ -390,7 +390,7 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 1,
-      "seconds": 0.8,
+      "seconds": 0.7,
       "note": "Dashboard is off-screen in the menu (1 swipe)",
       "error": null,
       "status": null,
@@ -403,7 +403,7 @@
         {
           "step": "tap “Dashboard”",
           "url": "/dashboard",
-          "at": 0.7
+          "at": 0.6
         }
       ],
       "sideways": [],
@@ -421,7 +421,7 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 3.5,
+      "seconds": 3.3,
       "note": "one tap on the home page; answer saved and kept",
       "error": null,
       "status": null,
@@ -434,7 +434,7 @@
         {
           "step": "tap “Support (on the home page)”",
           "url": "/",
-          "at": 3.1
+          "at": 3
         }
       ],
       "sideways": [],
@@ -452,7 +452,7 @@
       "file": "tasks.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 0.6,
+      "seconds": 0.7,
       "note": "the state's totals beside the senator's vote, Support / Oppose / Unsure with the number of voters (28 seeded test answers; real totals need the Turnstile and Twilio keys)",
       "error": null,
       "status": null,
@@ -465,7 +465,7 @@
         {
           "step": "tap “my senator”",
           "url": "/politicians/C001056",
-          "at": 0.6
+          "at": 0.7
         }
       ],
       "sideways": [],
@@ -483,7 +483,7 @@
       "file": "tasks.mjs",
       "taps": 8,
       "swipes": 0,
-      "seconds": 14.4,
+      "seconds": 13.5,
       "note": "local stand-ins for the text message, bot check and district lookup; by hand this needs the Turnstile and Twilio keys",
       "error": null,
       "status": null,
@@ -500,82 +500,82 @@
         {
           "step": "tap “consent to one text”",
           "url": "/account",
-          "at": 3
+          "at": 2.9
         },
         {
           "step": "tap “Text me a code”",
-          "url": "/account?v=code&ok=1&t=Code%20sent%20to%20the%20number%20ending%201780.%20It%20works%20for%2010%20minutes.",
-          "at": 11.4
+          "url": "/account?v=code&ok=1&t=Code%20sent%20to%20the%20number%20ending%202572.%20It%20works%20for%2010%20minutes.",
+          "at": 11.1
         },
         {
           "step": "type into #v-code",
-          "at": 11.5
+          "at": 11.2
         },
         {
           "step": "tap “Confirm”",
           "url": "/account?v=address&ok=1&t=Phone%20confirmed.%20Next%2C%20match%20your%20home%20address%20so%20your%20answers%20can%20count%20where%20you%20live.",
-          "at": 11.7
+          "at": 11.4
         },
         {
           "step": "type into #v-street",
-          "at": 11.8
+          "at": 11.4
         },
         {
           "step": "type into #v-city",
-          "at": 11.8
+          "at": 11.4
         },
         {
           "step": "type into #v-state",
-          "at": 11.9
+          "at": 11.4
         },
         {
           "step": "type into #v-zip",
-          "at": 11.9
+          "at": 11.5
         },
         {
           "step": "tap “Match my address”",
           "url": "/account?v=done&ok=1&t=Matched%20to%20TX-37%2C%20TX-SD-14%2C%20TX-HD-49.%20Your%20answers%20now%20count%20there%20as%20well.%20You%20can%20change%20this%20address%20once%20every%2090%20days.",
-          "at": 12.3
+          "at": 11.8
         },
         {
           "step": "tap “This week”",
           "url": "/moving",
-          "at": 12.7
+          "at": 12.1
         },
         {
           "step": "tap “a bill”",
           "url": "/bills/119-s-4410",
-          "at": 13
+          "at": 12.4
         },
         {
           "step": "tap “Support”",
-          "url": "/bills/119-s-4410?c=from-1795102143176",
-          "at": 13.5
+          "url": "/bills/119-s-4410?c=from-1795103722506",
+          "at": 12.8
         },
         {
           "step": "type into #v-street",
-          "at": 13.8
+          "at": 13.1
         },
         {
           "step": "type into #v-unit",
-          "at": 13.9
+          "at": 13.1
         },
         {
           "step": "type into #v-city",
-          "at": 13.9
+          "at": 13.1
         },
         {
           "step": "type into #v-state",
-          "at": 13.9
+          "at": 13.2
         },
         {
           "step": "type into #v-zip",
-          "at": 14
+          "at": 13.2
         },
         {
           "step": "tap “Update address”",
           "url": "/account?v=address&ok=0&t=You%20can%20change%20your%20home%20address%20once%20every%2090%20days.%20Yours%20can%20change%20again%20on%20February%2016%2C%202027.",
-          "at": 14.3
+          "at": 13.5
         }
       ],
       "sideways": [],
@@ -593,7 +593,7 @@
       "file": "tasks.mjs",
       "taps": 3,
       "swipes": 0,
-      "seconds": 3.5,
+      "seconds": 3.6,
       "note": "share sheet opened with constituent-vote-story.png (the phone's share sheet is a local stand-in)",
       "error": null,
       "status": null,
@@ -606,7 +606,7 @@
         {
           "step": "tap “my senator”",
           "url": "/politicians/C001056",
-          "at": 0.5
+          "at": 0.6
         },
         {
           "step": "tap “Share (on the latest vote)”",
@@ -616,7 +616,7 @@
         {
           "step": "tap “Share”",
           "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
-          "at": 3.5
+          "at": 3.6
         }
       ],
       "sideways": [],
@@ -634,7 +634,7 @@
       "file": "tasks.mjs",
       "taps": 3,
       "swipes": 0,
-      "seconds": 3.5,
+      "seconds": 3.4,
       "note": "five slides handed to the share sheet (local stand-in)",
       "error": null,
       "status": null,
@@ -657,7 +657,7 @@
         {
           "step": "tap “Share all 5 slides”",
           "url": "/share/card?t=carousel&bill=119-hr-9340",
-          "at": 3.5
+          "at": 3.4
         }
       ],
       "sideways": [],
@@ -675,7 +675,7 @@
       "file": "tasks.mjs",
       "taps": 3,
       "swipes": 0,
-      "seconds": 6,
+      "seconds": 4.6,
       "note": "short link opens the exact card; preview image 1200×630 (outside previews stay blank while the site is private)",
       "error": null,
       "status": null,
@@ -688,17 +688,17 @@
         {
           "step": "tap “my senator”",
           "url": "/politicians/C001056",
-          "at": 0.6
+          "at": 0.5
         },
         {
           "step": "tap “Share (on the latest vote)”",
           "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
-          "at": 1.1
+          "at": 0.8
         },
         {
           "step": "tap “Copy link”",
           "url": "/share/card?t=vote&member=C001056&roll=senate-119-2-258",
-          "at": 5.1
+          "at": 3.9
         }
       ],
       "sideways": [],
@@ -752,8 +752,8 @@
       "file": "flow.task.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 3.3,
-      "note": "3 legislators in 2.7 s (1 tap), first answer saved at 3.3 s; typed at a person's speed",
+      "seconds": 3,
+      "note": "3 legislators in 2.3 s (1 tap), first answer saved at 3 s; typed at a person's speed",
       "error": null,
       "status": null,
       "steps": [],
@@ -772,8 +772,8 @@
       "file": "flow.task.mjs",
       "taps": 3,
       "swipes": 0,
-      "seconds": 3.7,
-      "note": "3 legislators after choosing the district; first answer at 3.7 s",
+      "seconds": 3.5,
+      "note": "3 legislators after choosing the district; first answer at 3.5 s",
       "error": null,
       "status": null,
       "steps": [],
@@ -792,8 +792,8 @@
       "file": "flow.task.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 5,
-      "note": "5 legislators (John Cornyn, Ted Cruz, Lloyd Doggett, Sarah Eckhardt, Gina Hinojosa); first answer at 5 s; the address lookup is a local stand-in for the Census service",
+      "seconds": 5.2,
+      "note": "5 legislators (John Cornyn, Ted Cruz, Lloyd Doggett, Sarah Eckhardt, Gina Hinojosa); first answer at 5.2 s; the address lookup is a local stand-in for the Census service",
       "error": null,
       "status": null,
       "steps": [],
@@ -852,7 +852,7 @@
       "file": "quality.task.mjs",
       "taps": 0,
       "swipes": 0,
-      "seconds": 1.9,
+      "seconds": 1.8,
       "note": "second day: not asked; the day was counted once",
       "error": null,
       "status": null,
@@ -913,7 +913,7 @@
       "file": "quality.task.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 3.2,
+      "seconds": 3.1,
       "note": "dismissed, nothing stored, not asked again",
       "error": null,
       "status": null,
@@ -926,7 +926,7 @@
         {
           "step": "tap “Not now”",
           "url": "/",
-          "at": 3
+          "at": 2.9
         }
       ],
       "sideways": [],
@@ -944,7 +944,7 @@
       "file": "quality.task.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 1.3,
+      "seconds": 1.2,
       "note": "report filed with the page it was about; also works with JavaScript off",
       "error": null,
       "status": null,
@@ -957,7 +957,7 @@
         {
           "step": "tap “Something wrong? Tell us”",
           "url": "/report?page=%2Fbills%2F%5Bid%5D",
-          "at": 0.5
+          "at": 0.6
         },
         {
           "step": "type into textarea[name=\"details\"]",
@@ -1000,12 +1000,12 @@
         },
         {
           "step": "type into input[name=street]",
-          "at": 0.4
+          "at": 0.3
         },
         {
           "step": "tap “Show my legislators”",
           "url": "/start",
-          "at": 0.7
+          "at": 0.8
         }
       ],
       "sideways": [],
@@ -1023,7 +1023,7 @@
       "file": "texas.task.mjs",
       "taps": 3,
       "swipes": 0,
-      "seconds": 22.4,
+      "seconds": 22.2,
       "note": "SB 9001: “Record vote: 1 yes, 1 no (passed)”; Sarah Eckhardt listed under Yes",
       "error": null,
       "status": null,
@@ -1035,7 +1035,7 @@
         },
         {
           "step": "type into input[name=zip]",
-          "at": 0.3
+          "at": 0.2
         },
         {
           "step": "type into input[name=street]",
@@ -1044,17 +1044,17 @@
         {
           "step": "tap “Show my legislators”",
           "url": "/start",
-          "at": 0.9
+          "at": 0.7
         },
         {
           "step": "tap “SB 9001”",
           "url": "/texas/bills/e2e-tx-90-sb9001",
-          "at": 21.2
+          "at": 21.1
         },
         {
           "step": "tap “See how each member voted”",
           "url": "/texas/bills/e2e-tx-90-sb9001",
-          "at": 21.4
+          "at": 21.2
         }
       ],
       "sideways": [],
@@ -1098,7 +1098,7 @@
       "file": "texas.task.mjs",
       "taps": 0,
       "swipes": 0,
-      "seconds": 0.6,
+      "seconds": 0.5,
       "note": "bill label: “Voice vote: members' individual votes were not recorded”; member page: “Voice vote: members' individual votes were not recorded”",
       "error": null,
       "status": null,
@@ -1111,7 +1111,7 @@
         {
           "step": "member page",
           "url": "/texas/members/ocd-person%2Fhd49",
-          "at": 0.5
+          "at": 0.4
         }
       ],
       "sideways": [],
@@ -1129,7 +1129,7 @@
       "file": "voice.task.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 3.3,
+      "seconds": 3.1,
       "note": "asked once on the home page; “keep them private” leaves the answer uncounted, still shown to the reader, and the question does not come back",
       "error": null,
       "status": null,
@@ -1142,7 +1142,7 @@
         {
           "step": "tap “No, keep them private”",
           "url": "/",
-          "at": 2.9
+          "at": 2.8
         }
       ],
       "sideways": [],
@@ -1160,7 +1160,7 @@
       "file": "voice.task.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 3.5,
+      "seconds": 3.3,
       "note": "the promise; Unsure saved; each legislator's vote with their district's total beside it; totals for the nation, Texas and TX-37, each saying there are not enough voters yet; “Not a scientific poll.”",
       "error": null,
       "status": null,
@@ -1196,7 +1196,7 @@
       "file": "voice.task.mjs",
       "taps": 2,
       "swipes": 0,
-      "seconds": 4.9,
+      "seconds": 3.8,
       "note": "Support saved on a Texas bill; totals for Texas, state senate district 14 and state house district 49; no national total",
       "error": null,
       "status": null,
@@ -1208,21 +1208,21 @@
         },
         {
           "step": "type into input[name=zip]",
-          "at": 0.3
+          "at": 0.2
         },
         {
           "step": "type into input[name=street]",
-          "at": 0.4
+          "at": 0.3
         },
         {
           "step": "tap “Show my legislators”",
           "url": "/start",
-          "at": 1.1
+          "at": 0.6
         },
         {
           "step": "tap “Support”",
           "url": "/texas/bills/e2e-tx-90-sb9001",
-          "at": 4.9
+          "at": 3.7
         }
       ],
       "sideways": [],
@@ -1240,7 +1240,7 @@
       "file": "voice.task.mjs",
       "taps": 1,
       "swipes": 0,
-      "seconds": 1.4,
+      "seconds": 1,
       "note": "an Oklahoma reader sees “People who live in Texas can weigh in on this bill”, no vote buttons, the totals and the rest of the bill",
       "error": null,
       "status": null,
@@ -1252,12 +1252,12 @@
         },
         {
           "step": "type into input[name=zip]",
-          "at": 0.3
+          "at": 0.2
         },
         {
           "step": "tap “Show my legislators”",
           "url": "/start",
-          "at": 0.8
+          "at": 0.6
         }
       ],
       "sideways": [],
@@ -1289,7 +1289,7 @@
         "violations": []
       },
       {
-        "page": "/account?t=Code sent to the number ending 1780. It works for 10 minutes.",
+        "page": "/account?t=Code sent to the number ending 2572. It works for 10 minutes.",
         "seenAs": "task 15",
         "violations": []
       },
@@ -1306,6 +1306,16 @@
       {
         "page": "/account?t=You can change your home address once every 90 days. Yours can change again on February 16, 2027.",
         "seenAs": "task 15",
+        "violations": []
+      },
+      {
+        "page": "/association",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/association/open",
+        "seenAs": "page list",
         "violations": []
       },
       {
@@ -1385,6 +1395,21 @@
       },
       {
         "page": "/no-such-page",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/office",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/office/email-off",
+        "seenAs": "page list",
+        "violations": []
+      },
+      {
+        "page": "/office/verify",
         "seenAs": "page list",
         "violations": []
       },
@@ -1515,12 +1540,12 @@
     "pages": [
       {
         "page": "/",
-        "firstByteMs": 46,
-        "domInteractiveMs": 311,
-        "lastLongTaskEndMs": 261,
-        "longTasks": 1,
-        "interactiveMs": 311,
-        "loadMs": 334,
+        "firstByteMs": 29,
+        "domInteractiveMs": 232,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 232,
+        "loadMs": 241,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 473,
@@ -1529,37 +1554,63 @@
       {
         "page": "/about",
         "firstByteMs": 13,
-        "domInteractiveMs": 148,
+        "domInteractiveMs": 161,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 148,
-        "loadMs": 155,
+        "interactiveMs": 161,
+        "loadMs": 174,
         "jsFiles": 8,
-        "jsTransferredKb": 0,
+        "jsTransferredKb": 4,
         "jsUnpackedKb": 468,
         "ok": true
       },
       {
         "page": "/account",
         "firstByteMs": 19,
-        "domInteractiveMs": 148,
+        "domInteractiveMs": 137,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 148,
-        "loadMs": 163,
+        "interactiveMs": 137,
+        "loadMs": 180,
         "jsFiles": 9,
         "jsTransferredKb": 6,
-        "jsUnpackedKb": 472,
+        "jsUnpackedKb": 473,
+        "ok": true
+      },
+      {
+        "page": "/association",
+        "firstByteMs": 8,
+        "domInteractiveMs": 83,
+        "lastLongTaskEndMs": 183,
+        "longTasks": 1,
+        "interactiveMs": 183,
+        "loadMs": 93,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 467,
+        "ok": true
+      },
+      {
+        "page": "/association/open",
+        "firstByteMs": 11,
+        "domInteractiveMs": 100,
+        "lastLongTaskEndMs": 231,
+        "longTasks": 1,
+        "interactiveMs": 231,
+        "loadMs": 110,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 467,
         "ok": true
       },
       {
         "page": "/briefing",
-        "firstByteMs": 19,
-        "domInteractiveMs": 140,
+        "firstByteMs": 16,
+        "domInteractiveMs": 104,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 140,
-        "loadMs": 148,
+        "interactiveMs": 104,
+        "loadMs": 112,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1567,12 +1618,12 @@
       },
       {
         "page": "/coming",
-        "firstByteMs": 26,
-        "domInteractiveMs": 141,
+        "firstByteMs": 21,
+        "domInteractiveMs": 147,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 141,
-        "loadMs": 153,
+        "interactiveMs": 147,
+        "loadMs": 158,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1580,12 +1631,12 @@
       },
       {
         "page": "/compare",
-        "firstByteMs": 45,
-        "domInteractiveMs": 389,
-        "lastLongTaskEndMs": 387,
-        "longTasks": 1,
-        "interactiveMs": 389,
-        "loadMs": 404,
+        "firstByteMs": 34,
+        "domInteractiveMs": 409,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 409,
+        "loadMs": 422,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1593,12 +1644,12 @@
       },
       {
         "page": "/corrections",
-        "firstByteMs": 38,
-        "domInteractiveMs": 122,
+        "firstByteMs": 15,
+        "domInteractiveMs": 129,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 122,
-        "loadMs": 132,
+        "interactiveMs": 129,
+        "loadMs": 136,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1606,12 +1657,12 @@
       },
       {
         "page": "/dashboard",
-        "firstByteMs": 108,
-        "domInteractiveMs": 204,
+        "firstByteMs": 18,
+        "domInteractiveMs": 170,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 204,
-        "loadMs": 238,
+        "interactiveMs": 170,
+        "loadMs": 177,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1620,11 +1671,11 @@
       {
         "page": "/dashboard/texas",
         "firstByteMs": 25,
-        "domInteractiveMs": 211,
+        "domInteractiveMs": 150,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 211,
-        "loadMs": 221,
+        "interactiveMs": 150,
+        "loadMs": 204,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1632,25 +1683,25 @@
       },
       {
         "page": "/following",
-        "firstByteMs": 19,
-        "domInteractiveMs": 134,
+        "firstByteMs": 14,
+        "domInteractiveMs": 127,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 134,
-        "loadMs": 144,
+        "interactiveMs": 127,
+        "loadMs": 136,
         "jsFiles": 8,
-        "jsTransferredKb": 5,
+        "jsTransferredKb": 0,
         "jsUnpackedKb": 469,
         "ok": true
       },
       {
         "page": "/issues",
-        "firstByteMs": 21,
-        "domInteractiveMs": 133,
+        "firstByteMs": 17,
+        "domInteractiveMs": 132,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 133,
-        "loadMs": 144,
+        "interactiveMs": 132,
+        "loadMs": 141,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1658,12 +1709,12 @@
       },
       {
         "page": "/legislators",
-        "firstByteMs": 34,
-        "domInteractiveMs": 185,
+        "firstByteMs": 40,
+        "domInteractiveMs": 154,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 185,
-        "loadMs": 207,
+        "interactiveMs": 154,
+        "loadMs": 162,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 470,
@@ -1671,25 +1722,25 @@
       },
       {
         "page": "/login",
-        "firstByteMs": 9,
-        "domInteractiveMs": 186,
+        "firstByteMs": 12,
+        "domInteractiveMs": 100,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 186,
-        "loadMs": 201,
+        "interactiveMs": 100,
+        "loadMs": 109,
         "jsFiles": 8,
-        "jsTransferredKb": 4,
+        "jsTransferredKb": 0,
         "jsUnpackedKb": 467,
         "ok": true
       },
       {
         "page": "/method",
-        "firstByteMs": 51,
-        "domInteractiveMs": 190,
+        "firstByteMs": 22,
+        "domInteractiveMs": 211,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 190,
-        "loadMs": 203,
+        "interactiveMs": 211,
+        "loadMs": 230,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1697,163 +1748,59 @@
       },
       {
         "page": "/moving",
-        "firstByteMs": 25,
-        "domInteractiveMs": 189,
+        "firstByteMs": 22,
+        "domInteractiveMs": 166,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 189,
-        "loadMs": 200,
+        "interactiveMs": 166,
+        "loadMs": 177,
         "jsFiles": 8,
-        "jsTransferredKb": 5,
+        "jsTransferredKb": 0,
         "jsUnpackedKb": 469,
         "ok": true
       },
       {
-        "page": "/pledge",
-        "firstByteMs": 27,
-        "domInteractiveMs": 158,
+        "page": "/office",
+        "firstByteMs": 9,
+        "domInteractiveMs": 166,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 158,
-        "loadMs": 169,
+        "interactiveMs": 166,
+        "loadMs": 180,
+        "jsFiles": 8,
+        "jsTransferredKb": 4,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/office/dashboard",
+        "firstByteMs": 17,
+        "domInteractiveMs": 126,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 126,
+        "loadMs": 138,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
         "ok": true
       },
       {
-        "page": "/politicians",
-        "firstByteMs": 74,
-        "domInteractiveMs": 283,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 283,
-        "loadMs": 344,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 468,
-        "ok": true
-      },
-      {
-        "page": "/privacy",
-        "firstByteMs": 41,
-        "domInteractiveMs": 241,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 241,
-        "loadMs": 253,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 468,
-        "ok": true
-      },
-      {
-        "page": "/recap",
-        "firstByteMs": 21,
-        "domInteractiveMs": 104,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 104,
-        "loadMs": 753,
-        "jsFiles": 8,
-        "jsTransferredKb": 6,
-        "jsUnpackedKb": 471,
-        "ok": true
-      },
-      {
-        "page": "/records",
+        "page": "/office/email-off",
         "firstByteMs": 8,
-        "domInteractiveMs": 109,
+        "domInteractiveMs": 108,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 109,
-        "loadMs": 130,
-        "jsFiles": 9,
-        "jsTransferredKb": 17,
-        "jsUnpackedKb": 508,
-        "ok": true
-      },
-      {
-        "page": "/report",
-        "firstByteMs": 18,
-        "domInteractiveMs": 130,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 130,
-        "loadMs": 142,
+        "interactiveMs": 108,
+        "loadMs": 119,
         "jsFiles": 8,
         "jsTransferredKb": 0,
-        "jsUnpackedKb": 468,
+        "jsUnpackedKb": 467,
         "ok": true
       },
       {
-        "page": "/search",
-        "firstByteMs": 27,
-        "domInteractiveMs": 135,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 135,
-        "loadMs": 146,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 468,
-        "ok": true
-      },
-      {
-        "page": "/share/card",
-        "firstByteMs": 15,
-        "domInteractiveMs": 133,
-        "lastLongTaskEndMs": 275,
-        "longTasks": 1,
-        "interactiveMs": 275,
-        "loadMs": 144,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 476,
-        "ok": true
-      },
-      {
-        "page": "/start",
-        "firstByteMs": 74,
-        "domInteractiveMs": 263,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 263,
-        "loadMs": 273,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 473,
-        "ok": true
-      },
-      {
-        "page": "/terms",
-        "firstByteMs": 26,
-        "domInteractiveMs": 201,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 201,
-        "loadMs": 211,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 468,
-        "ok": true
-      },
-      {
-        "page": "/texas",
-        "firstByteMs": 27,
-        "domInteractiveMs": 123,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 123,
-        "loadMs": 130,
-        "jsFiles": 8,
-        "jsTransferredKb": 0,
-        "jsUnpackedKb": 468,
-        "ok": true
-      },
-      {
-        "page": "/transparency",
-        "firstByteMs": 27,
+        "page": "/office/print",
+        "firstByteMs": 33,
         "domInteractiveMs": 145,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
@@ -1865,13 +1812,182 @@
         "ok": true
       },
       {
-        "page": "/trial",
-        "firstByteMs": 6,
-        "domInteractiveMs": 96,
+        "page": "/office/verify",
+        "firstByteMs": 8,
+        "domInteractiveMs": 95,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 96,
-        "loadMs": 109,
+        "interactiveMs": 95,
+        "loadMs": 105,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 467,
+        "ok": true
+      },
+      {
+        "page": "/pledge",
+        "firstByteMs": 12,
+        "domInteractiveMs": 111,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 111,
+        "loadMs": 120,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/politicians",
+        "firstByteMs": 41,
+        "domInteractiveMs": 221,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 221,
+        "loadMs": 233,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/privacy",
+        "firstByteMs": 19,
+        "domInteractiveMs": 242,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 242,
+        "loadMs": 249,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/recap",
+        "firstByteMs": 17,
+        "domInteractiveMs": 206,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 206,
+        "loadMs": 1030,
+        "jsFiles": 8,
+        "jsTransferredKb": 6,
+        "jsUnpackedKb": 471,
+        "ok": true
+      },
+      {
+        "page": "/records",
+        "firstByteMs": 8,
+        "domInteractiveMs": 106,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 106,
+        "loadMs": 116,
+        "jsFiles": 9,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 508,
+        "ok": true
+      },
+      {
+        "page": "/report",
+        "firstByteMs": 15,
+        "domInteractiveMs": 97,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 97,
+        "loadMs": 105,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/search",
+        "firstByteMs": 12,
+        "domInteractiveMs": 178,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 178,
+        "loadMs": 194,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/share/card",
+        "firstByteMs": 10,
+        "domInteractiveMs": 86,
+        "lastLongTaskEndMs": 205,
+        "longTasks": 1,
+        "interactiveMs": 205,
+        "loadMs": 96,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 476,
+        "ok": true
+      },
+      {
+        "page": "/start",
+        "firstByteMs": 34,
+        "domInteractiveMs": 147,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 147,
+        "loadMs": 156,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 473,
+        "ok": true
+      },
+      {
+        "page": "/terms",
+        "firstByteMs": 13,
+        "domInteractiveMs": 143,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 143,
+        "loadMs": 154,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/texas",
+        "firstByteMs": 14,
+        "domInteractiveMs": 301,
+        "lastLongTaskEndMs": 299,
+        "longTasks": 1,
+        "interactiveMs": 301,
+        "loadMs": 326,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/transparency",
+        "firstByteMs": 11,
+        "domInteractiveMs": 121,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 121,
+        "loadMs": 129,
+        "jsFiles": 8,
+        "jsTransferredKb": 0,
+        "jsUnpackedKb": 468,
+        "ok": true
+      },
+      {
+        "page": "/trial",
+        "firstByteMs": 9,
+        "domInteractiveMs": 114,
+        "lastLongTaskEndMs": 0,
+        "longTasks": 0,
+        "interactiveMs": 114,
+        "loadMs": 128,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 467,
@@ -1879,12 +1995,12 @@
       },
       {
         "page": "/voice",
-        "firstByteMs": 28,
-        "domInteractiveMs": 121,
+        "firstByteMs": 15,
+        "domInteractiveMs": 107,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 121,
-        "loadMs": 130,
+        "interactiveMs": 107,
+        "loadMs": 117,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1892,12 +2008,12 @@
       },
       {
         "page": "/welcome",
-        "firstByteMs": 12,
-        "domInteractiveMs": 100,
+        "firstByteMs": 16,
+        "domInteractiveMs": 112,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 100,
-        "loadMs": 107,
+        "interactiveMs": 112,
+        "loadMs": 120,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1905,12 +2021,12 @@
       },
       {
         "page": "/politicians/[id]",
-        "firstByteMs": 43,
-        "domInteractiveMs": 210,
-        "lastLongTaskEndMs": 0,
-        "longTasks": 0,
-        "interactiveMs": 210,
-        "loadMs": 220,
+        "firstByteMs": 62,
+        "domInteractiveMs": 243,
+        "lastLongTaskEndMs": 214,
+        "longTasks": 1,
+        "interactiveMs": 243,
+        "loadMs": 253,
         "jsFiles": 8,
         "jsTransferredKb": 7,
         "jsUnpackedKb": 476,
@@ -1918,12 +2034,12 @@
       },
       {
         "page": "/bills/[id]",
-        "firstByteMs": 41,
-        "domInteractiveMs": 196,
-        "lastLongTaskEndMs": 157,
+        "firstByteMs": 37,
+        "domInteractiveMs": 209,
+        "lastLongTaskEndMs": 153,
         "longTasks": 1,
-        "interactiveMs": 196,
-        "loadMs": 211,
+        "interactiveMs": 209,
+        "loadMs": 221,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 478,
@@ -1931,12 +2047,12 @@
       },
       {
         "page": "/issues/[id]",
-        "firstByteMs": 25,
-        "domInteractiveMs": 159,
+        "firstByteMs": 17,
+        "domInteractiveMs": 166,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 159,
-        "loadMs": 173,
+        "interactiveMs": 166,
+        "loadMs": 205,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1944,12 +2060,12 @@
       },
       {
         "page": "/compare?a&b",
-        "firstByteMs": 49,
-        "domInteractiveMs": 416,
+        "firstByteMs": 27,
+        "domInteractiveMs": 244,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 416,
-        "loadMs": 434,
+        "interactiveMs": 244,
+        "loadMs": 255,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1957,12 +2073,12 @@
       },
       {
         "page": "/search?q",
-        "firstByteMs": 58,
-        "domInteractiveMs": 249,
+        "firstByteMs": 43,
+        "domInteractiveMs": 169,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 249,
-        "loadMs": 260,
+        "interactiveMs": 169,
+        "loadMs": 176,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 468,
@@ -1970,12 +2086,12 @@
       },
       {
         "page": "/start?step=2",
-        "firstByteMs": 68,
-        "domInteractiveMs": 223,
+        "firstByteMs": 28,
+        "domInteractiveMs": 113,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 223,
-        "loadMs": 233,
+        "interactiveMs": 113,
+        "loadMs": 145,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 473,
@@ -1983,12 +2099,12 @@
       },
       {
         "page": "/share/card?t=vote",
-        "firstByteMs": 56,
-        "domInteractiveMs": 167,
+        "firstByteMs": 23,
+        "domInteractiveMs": 132,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 167,
-        "loadMs": 660,
+        "interactiveMs": 132,
+        "loadMs": 534,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 476,
@@ -1996,12 +2112,12 @@
       },
       {
         "page": "/share/card?t=bill",
-        "firstByteMs": 24,
-        "domInteractiveMs": 195,
+        "firstByteMs": 31,
+        "domInteractiveMs": 129,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 195,
-        "loadMs": 398,
+        "interactiveMs": 129,
+        "loadMs": 482,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 476,
@@ -2009,12 +2125,12 @@
       },
       {
         "page": "/texas/bills/[id]",
-        "firstByteMs": 27,
-        "domInteractiveMs": 155,
+        "firstByteMs": 18,
+        "domInteractiveMs": 157,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 155,
-        "loadMs": 166,
+        "interactiveMs": 157,
+        "loadMs": 168,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 477,
@@ -2022,12 +2138,12 @@
       },
       {
         "page": "/texas/members/[id]",
-        "firstByteMs": 30,
-        "domInteractiveMs": 232,
+        "firstByteMs": 16,
+        "domInteractiveMs": 147,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 232,
-        "loadMs": 251,
+        "interactiveMs": 147,
+        "loadMs": 162,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 476,
@@ -2036,11 +2152,11 @@
       {
         "page": "/no-such-page",
         "firstByteMs": 7,
-        "domInteractiveMs": 96,
+        "domInteractiveMs": 107,
         "lastLongTaskEndMs": 0,
         "longTasks": 0,
-        "interactiveMs": 96,
-        "loadMs": 104,
+        "interactiveMs": 107,
+        "loadMs": 116,
         "jsFiles": 8,
         "jsTransferredKb": 0,
         "jsUnpackedKb": 467,
