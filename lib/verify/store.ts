@@ -132,6 +132,10 @@ export async function deleteAccountAndPositions(account: Account) {
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, account.appUserId));
   await db.delete(alertOutbox).where(eq(alertOutbox.userId, account.appUserId));
   await db.delete(reminders).where(eq(reminders.userId, account.appUserId));
+  // Persuasion and retention round: the notices about bills the reader weighed in on, and their set-up row.
+  const { loopNotices, readerSetup } = await import("@/db/schema");
+  await db.delete(loopNotices).where(eq(loopNotices.userId, account.appUserId));
+  await db.delete(readerSetup).where(eq(readerSetup.userId, account.appUserId));
   // One person, one residence: the phone's keyed hash is kept out for 90 days so the number cannot open a new account
   // straight away (it holds no account id); everything else these tables hold about the account goes.
   const { accountHolds, accountResidences, mailCodes, mailVerifications, positionResidences, residenceChanges } = await import("@/db/schema");

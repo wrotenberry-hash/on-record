@@ -637,7 +637,10 @@ test("the office pages are behind the same gate as the reader pages, with their 
 
 test("no table, column or migration was added for office access", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")).entries;
-  assert.equal(journal.at(-1).tag, "0036_constituent_voice", "0036 is still the last migration");
+  // Later rounds add their own migrations (0037 on); none of them may touch the office tables.
+  assert.ok(journal.some(e => e.tag === "0036_constituent_voice"));
+  for (const e of journal.filter(e => e.idx > journal.find(x => x.tag === "0036_constituent_voice").idx))
+    assert.doesNotMatch(read(`drizzle/${e.tag}.sql`), /office_accounts|access_links|office_email_sends/, `${e.tag} leaves the office tables alone`);
   assert.equal(readdirSync(join(ROOT, "drizzle")).filter(f => f.endsWith(".sql")).length, journal.length);
   const sql = read("drizzle/0036_constituent_voice.sql");
   for (const t of ["office_accounts", "access_links", "office_email_sends"]) assert.ok(sql.includes(`CREATE TABLE \`${t}\``), t);

@@ -1054,3 +1054,29 @@ export const associationAdmins = sqliteTable("association_admins", {
   id: text("id").primaryKey(), associationId: text("association_id").references(() => associations.id).notNull(), email: text("email").notNull(), emailHash: text("email_hash").notNull(),
   status: text("status", { enum: ["pending", "active", "revoked"] }).notNull().default("pending"), createdAt: integer("created_at").notNull(), verifiedAt: integer("verified_at"),
 }, t => [uniqueIndex("association_admins_uq").on(t.associationId, t.emailHash), check("association_admins_status", sql`${t.status} IN ('pending', 'active', 'revoked')`)]);
+
+// ── Persuasion and retention round (owner, 18 Nov 2026; docs/PERSUASION_RETENTION.md; migration 0037). New tables only. ──
+// Closing the loop: what happened to a bill a reader answered or follows. One notice per reader, bill and event, sent once.
+// It holds no answer: the reader's own answer is read from voice_votes when the notice is shown.
+export const loopNotices = sqliteTable("loop_notices", {
+  id: text("id").primaryKey(), userId: text("user_id").references(() => appUsers.id).notNull(), billKey: text("bill_key").notNull(),
+  event: text("event", { enum: ["floor_vote", "passed", "failed", "signed", "vetoed"] }).notNull(), eventRef: text("event_ref").notNull(),
+  title: text("title").notNull(), body: text("body").notNull(), url: text("url").notNull(),
+  createdAt: integer("created_at").notNull(), pushedAt: integer("pushed_at"), emailedAt: integer("emailed_at"), seenAt: integer("seen_at"),
+}, t => [uniqueIndex("loop_notices_once_uq").on(t.userId, t.billKey, t.eventRef), index("loop_notices_user_idx").on(t.userId, t.createdAt),
+  check("loop_notices_event", sql`${t.event} IN ('floor_vote', 'passed', 'failed', 'signed', 'vetoed')`)]);
+
+// Counting without naming anyone: a random one-time mark carried by an email's picture or a notice's link. The mark is
+// made when the message is sent and stored nowhere else, so a row here says "one more open" and never who opened.
+export const anonMarks = sqliteTable("anon_marks", {
+  kind: text("kind", { enum: ["weekly_open", "loop_return"] }).notNull(), mark: text("mark").notNull(), period: text("period").notNull(), at: integer("at").notNull(),
+}, t => [primaryKey({ columns: [t.kind, t.mark] }), index("anon_marks_period_idx").on(t.kind, t.period),
+  check("anon_marks_kind", sql`${t.kind} IN ('weekly_open', 'loop_return')`)]);
+
+// A reader's set-up: which place the default follows were made for (so a legislator the reader unfollows is not followed
+// again), when the issues step was shown, and whether they came back in their second week (one time, for the week-two
+// return rate; never which pages or days).
+export const readerSetup = sqliteTable("reader_setup", {
+  userId: text("user_id").primaryKey().references(() => appUsers.id), placeKey: text("place_key"), defaultsAt: integer("defaults_at"),
+  issuesAskedAt: integer("issues_asked_at"), firstSeenAt: integer("first_seen_at").notNull(), weekTwoAt: integer("week_two_at"),
+});
