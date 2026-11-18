@@ -14,6 +14,9 @@ export type FireOutcome = { state: "running" } | { state: "answered"; status: nu
 export function describeFire(label: string, tries: FireOutcome[]): string {
   const last = tries[tries.length - 1], again = tries.length > 1 ? ` (after ${tries.length - 1} failed ${tries.length === 2 ? "try" : "tries"})` : "";
   const what = !last ? "not sent" : last.state === "running" ? "accepted; the next run is under way"
+    // 18 Nov, 19:00 run: the host stops a run that starts the next run after about five in a row (508, "Infinite loop
+    // detected"). That is the host's own safeguard and is not worked around: the rest waits for the next scheduled update.
+    : last.state === "answered" && last.status === 508 ? "stopped by the host's limit on back-to-back runs (508); the rest waits for the next scheduled update"
     : last.state === "answered" ? `answered at once with ${last.status}${last.body ? `: ${last.body.slice(0, 160)}` : ""}`
     : `did not start: ${last.error.slice(0, 160)}`;
   return `${label} | ${what}${again}`;

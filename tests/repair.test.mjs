@@ -114,3 +114,11 @@ test("false alarms from the second run", async () => {
   assert.match("The change starts on the first day of the first month after enactment.", HAS_SPECIFIC);
   assert.deepEqual(unsupportedClaims("The rule covers Medicare.", ["a rule about health plans"], []), ["Medicare"], "the check itself still works");
 });
+
+test("the site's own explanation of a term is not checked against the bill's sources (19:00 run, 18 Nov)", async () => {
+  const { unsupportedClaims } = await import("../lib/analysis/checker.ts");
+  const sources = ["The program is extended through fiscal year 2029."];
+  assert.deepEqual(unsupportedClaims("Today the program ends after fiscal year (the government's budget year, which starts October 1) 2029.", sources, []), [], "the bracketed explanation the repair step adds");
+  assert.deepEqual(unsupportedClaims("Today the program ends in October.", sources, []), ["October"], "a month the writer adds itself is still checked");
+  assert.deepEqual(unsupportedClaims("The program (run by Medicare) ends in 2029.", sources, []), ["Medicare"], "other brackets are still checked");
+});

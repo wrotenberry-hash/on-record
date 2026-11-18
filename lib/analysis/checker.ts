@@ -5,7 +5,7 @@
  * failures as feedback; a second failure holds it for an editor.
  */
 // The ".ts" ending lets the node test runner load this without a bundler (tsconfig: allowImportingTsExtensions).
-import { EVERYDAY_NAMES, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, unquantifiedChanges, vagueChangeRow, type ChangeRow } from "./standard.ts";
+import { EVERYDAY_NAMES, JARGON, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, unquantifiedChanges, vagueChangeRow, type ChangeRow } from "./standard.ts";
 
 export type Section = { num: string; heading: string; text?: string };
 
@@ -544,13 +544,19 @@ function initialsIn(corpus: string): Set<string> {
 }
 
 /** Terms in `claim` that no official source supports, once agency names are masked on both sides. */
+/** The fixed explanations of the jargon list, exactly as the repair step writes them. */
+const OWN_EXPLANATIONS = new Set(JARGON.map(t => t.plain));
 export function unsupportedClaims(claim: string, sources: readonly string[], agencies: readonly string[]): string[] {
   const corpusRaw = maskAgencies(sources.join(" \n "), agencies);
   const corpus = corpusRaw.toLowerCase();
   const inits = initialsIn(corpusRaw);
   // 17 Nov, second run: "the Congressional Research Service (CRS) says …" was refused because the summary it wrote does not name its own author.
   const stated = claim.replace(/\b(?:the )?Congressional (?:Budget Office|Research Service)(?: \((?:CBO|CRS)\))?|\b(?:CBO|CRS)\b/g, " ");
-  return claimTerms(maskAgencies(stated, agencies)).filter(t => {
+  // 18 Nov, 19:00 run: the repair step explains "fiscal year" as "(the government's budget year, which starts October 1)" and
+  // this check then refused "October" three times running (H.R. 2140; twice on S. 307). The site's own fixed explanations,
+  // in the brackets the repair step puts them in, are not claims about the bill and are not checked against its sources.
+  const claimed = stated.replace(/\(([^()]*)\)/g, (whole, inner: string) => (OWN_EXPLANATIONS.has(inner.trim()) ? " " : whole));
+  return claimTerms(maskAgencies(claimed, agencies)).filter(t => {
     if (t === "AGENCYNAME") return false;
     // The name people know is accurate when the source uses the official one ("HealthCare.gov" for a Federally-facilitated Exchange).
     if (EVERYDAY_NAMES.some(n => n.everyday.test(t) && n.official.test(corpusRaw))) return false;

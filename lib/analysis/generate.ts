@@ -144,12 +144,17 @@ const PRIORITY_BILLS = (process.env.ANALYSIS_PRIORITY_BILLS ?? "119-sjres-197").
  */
 // 18 Nov 14:30 UTC: seven false alarms found by reading the morning's 17 summaries against their sources (O-140).
 export const CHECK_FIXED_AT = Date.UTC(2026, 10, 18, 14, 30);
+// 18 Nov 20:45 UTC: the names check refused the site's own explanation of "fiscal year" ("… starts October 1"). Only the held
+// summaries whose stored failures name that false alarm get another try; the rest were held for other reasons and are left.
+export const OCTOBER_FIXED_AT = Date.UTC(2026, 10, 18, 20, 45);
 
 async function staleSummaries() {
   const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? "5");
   const heldBeforeFix = sql`(${analysisBillSummaries.status} = 'held' and coalesce((select max(${analysisChecks.createdAt}) from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id}), 0) < ${CHECK_FIXED_AT})`;
+  const heldByOctober = sql`(${analysisBillSummaries.status} = 'held' and exists (select 1 from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id} and ${analysisChecks.createdAt} < ${OCTOBER_FIXED_AT} and ${analysisChecks.failures} like '%names \\"October\\"%')
+    and not exists (select 1 from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id} and ${analysisChecks.createdAt} >= ${OCTOBER_FIXED_AT}))`;
   const rows = await getDb().select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence })
-    .from(analysisBillSummaries).where(and(sql`(${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION} or ${heldBeforeFix})`, sql`${analysisBillSummaries.status} <> 'rejected'`))
+    .from(analysisBillSummaries).where(and(sql`(${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION} or ${heldBeforeFix} or ${heldByOctober})`, sql`${analysisBillSummaries.status} <> 'rejected'`))
     .orderBy(asc(analysisBillSummaries.sequence)).limit(50);
   const first = (id: string) => (PRIORITY_BILLS.includes(id) ? 0 : 1);
   return rows.sort((a, b) => first(a.billId) - first(b.billId) || a.sequence - b.sequence).slice(0, Number.isInteger(per) && per >= 0 ? per : 5);
