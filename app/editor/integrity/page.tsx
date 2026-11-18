@@ -10,6 +10,7 @@ import { getDb } from "@/db";
 import { holdsForEditor } from "@/lib/verify/residence-store";
 import { HOLD_LABEL, type HoldKind } from "@/lib/verify/residence";
 import { Wordmark } from "@/components/brand/wordmark";
+import { MailVerifyCounts } from "@/components/account/mail-verify-counts";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export default async function IntegrityPage() {
       </li>)}</ul> : <p className="meta">No account is waiting.</p>}
       {decidedHolds.length > 0 && <ul className="analysis-list">{decidedHolds.map(h => <li key={h.id}>{HOLD_LABEL[h.kind as HoldKind] ?? h.kind} · account #{shortHash(h.accountId)} · {h.status === "cleared" ? "cleared (counted)" : "confirmed (kept out)"} {h.decidedAt ? shortDate(h.decidedAt) : ""}
         {h.status === "confirmed" && <form action={decideAccountHold} style={{ display: "inline" }}><input type="hidden" name="holdId" value={h.id} /> <button name="decision" value="clear" className="link-button">Clear instead</button></form>}</li>)}</ul>}
+      <MailVerifyCounts />
       <p className="meta">Monthly counts by reason are on the reader-facing <Link href="/transparency">Transparency</Link> page.</p>
     </main>
   </>;

@@ -5,6 +5,13 @@
  * stand-ins for testing (never set in production).
  */
 export const VERIFICATION_FLAG = "VERIFICATION_ENABLED";
+/**
+ * Mail-verified by postcard (owner, 18 Nov 2026). Off unless MAIL_VERIFICATION_ENABLED is "1" and verification is on.
+ * With no vendor named, postcards are a rehearsal: nothing is mailed and nothing is charged. The settings are read in
+ * one place, lib/mail-verify/sender.ts (`postcardSettings`), from these names.
+ */
+export const MAIL_VERIFICATION_FLAG = "MAIL_VERIFICATION_ENABLED";
+export const POSTCARD_ENV = { vendor: "POSTCARD_VENDOR", key: "POSTCARD_API_KEY", pieceCostUsd: "POSTCARD_PIECE_COST_USD", monthlyCapUsd: "POSTCARD_MONTHLY_CAP_USD" } as const;
 const env = (k: string) => process.env[k]?.trim() || "";
 
 export function verificationConfig() {

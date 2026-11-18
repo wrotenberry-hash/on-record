@@ -16,6 +16,7 @@ import { countsFrom } from "@/lib/verify/rules";
 import { Turnstile } from "@/components/verify/turnstile";
 import { brandTitle } from "@/lib/brand";
 import { AssociationsBlock } from "@/components/associations/account-block";
+import { MailVerifySection } from "@/components/account/mail-verify";
 
 // What the account has confirmed so far. The second level is "address-matched", never "verified" (docs/CONSTITUENT_VOICE.md).
 const TIER_LABEL = ["Visitor: you can read, follow and save a private position; your answers are not counted", "Phone confirmed: you can read, follow and save a private position; your answers are not counted in any total until your home address is matched",
@@ -31,9 +32,9 @@ const MESSAGES: Record<string, string> = { signedin: "You are signed in on this 
   deleted: "Your account, your answers and your follows are deleted.", confirmdelete: "Tick the box to confirm, then tap Delete." };
 
 /** Sign in by email, see what is kept, choose the weekly email. */
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ m?: string; t?: string; v?: string; ok?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ m?: string; t?: string; v?: string; ok?: string; mv?: string; d?: string; mc?: string }> }) {
   const access = await viewerAccess();
-  const { m, t, v, ok } = await searchParams;
+  const { m, t, v, ok, mv, d, mc } = await searchParams;
   const vc = verificationConfig();
   if (!access.allowed) return <PublicShell current="/account" access={access} page="/account">{null}</PublicShell>;
   const appUserId = await currentAppUserId();
@@ -86,6 +87,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
               <span><label htmlFor="v-state">State</label><input id="v-state" name="state" autoComplete="address-level1" maxLength={2} required placeholder="TX" /></span>
               <span><label htmlFor="v-zip">ZIP</label><input id="v-zip" name="zip" autoComplete="postal-code" inputMode="numeric" maxLength={10} required /></span></div>
             <button>{profile.districtId ? "Update address" : "Match my address"}</button></form>}
+          <MailVerifySection accountId={account.id} isEditor={!!access.editor} note={mv} at={d} testCode={mc} />
         </div>}
         <AssociationsBlock accountId={account.id} />
         <div className="fed-section" id="delete"><h2>Delete your account</h2>

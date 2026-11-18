@@ -110,6 +110,8 @@ export const LIMITS = {
   error_device_hour: { max: 10, windowMs: 3600e3 }, error_ip_hour: { max: 60, windowMs: 3600e3 },
   // Associations: tries at a join code per reader account; sign-in links asked for per network range and per address typed.
   assoc_join_account_day: { max: 10, windowMs: 86400e3 }, assoc_link_ip_hour: { max: 10, windowMs: 3600e3 }, assoc_link_email_hour: { max: 3, windowMs: 3600e3 },
+  // Mail-verified by postcard (lib/mail-verify): asking for a postcard, and tries at typing its code.
+  postcard_account_day: { max: 3, windowMs: 86400e3 }, mail_code_account_day: { max: 5, windowMs: 86400e3 }, mail_code_ip_day: { max: 20, windowMs: 86400e3 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 
