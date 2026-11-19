@@ -210,10 +210,12 @@ export async function draftOnce(key: string, model: string, reasoning: string, s
 export type SummaryOutcome = { billId: string; label: string; category: string; status: "visible" | "held"; queue: string | null; attempts: number;
   checkPassed: boolean; confidence: string; costUsd: number; readerTestCostUsd?: number; readerTest?: string; inputTokens: number; outputTokens: number; readingGrade: number; totalWords: number; regenerated?: boolean };
 
-/** Summarise one bill. Returns null when the bill has no published text yet. */
-async function summarise(key: string, c: Candidate, limits: ReturnType<typeof analysisLimits>, deadline: number, spentSoFar: () => number,
-  existing?: { id: string; sequence: number }): Promise<SummaryOutcome | null | { stop: string }> {
-  const db = getDb();
+/**
+ * The official sources for one bill, exactly as the writer and the fact check are given them: the status record, the
+ * newest text, and what lib/analysis/gather.ts collects, with the bill's latest action added. Null when the bill has no
+ * published text yet. Used when a summary is written and when one is read again against its sources.
+ */
+async function gatherFor(c: Candidate) {
   const statusUrl = billStatusUrl(c.congress, c.billType, c.number);
   const statusRes = await get(statusUrl);
   if (!statusRes.ok) return null;
@@ -226,15 +228,41 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   const truncated = parsed.chars > MAX_TEXT_CHARS;
   const gathered = await gatherSources({ title: c.title, billType: c.billType, number: c.number, sponsorName: c.sponsorName, billStatusXml: statusRes.text, status, billText: parsed.text });
   for (const d of gathered.docs) if (d.id === "CRS") d.url = congressUrl(c); else if (d.id === "STATUS") d.url = `${congressUrl(c)}/all-actions`;
-  const now = Date.now();
-  for (const e of status.cbo) await db.insert(officialCostEstimates).values({ billId: c.id, url: e.url, pubDate: e.pubDate, title: e.title, description: e.description, sourceUrl: statusUrl, retrievedAt: now })
-    .onConflictDoUpdate({ target: [officialCostEstimates.billId, officialCostEstimates.url], set: { pubDate: e.pubDate, title: e.title, description: e.description, retrievedAt: now } });
-
   // 17 Nov, second run: "Why now" named the Senate committee from the bill's latest action, which the fact check had never been shown.
   if (c.latestActionText) for (const list of [gathered.docs, gathered.context.docs as Array<{ id: string; text: string }>]) {
     const st = list.find(x => x.id === "STATUS");
     if (st && !st.text.includes(c.latestActionText)) st.text += `\nLatest action${c.latestActionAt ? ` (${c.latestActionAt.slice(0, 10)})` : ""}: ${c.latestActionText}`;
   }
+  return { statusUrl, status, version, parsed, truncated, gathered };
+}
+
+/**
+ * Writes a bill's sources to the function's log again, as REVIEW_PACKET lines, so a summary that is already on show can be
+ * read against them (19 Nov 2026: the lines written when a summary is made are kept by the host for about an hour).
+ * Fetches official pages only: no model call, no cost, nothing changed.
+ */
+export async function relogSources(billIds: string[], budgetMs = 60_000): Promise<{ logged: string[]; missing: string[] }> {
+  const deadline = Date.now() + budgetMs, logged: string[] = [], missing: string[] = [];
+  for (const id of billIds) {
+    if (Date.now() > deadline) { missing.push(id); continue; }
+    const c = await candidateFor(id).catch(() => null), g = c ? await gatherFor(c).catch(() => null) : null;
+    if (!c || !g) { missing.push(id); continue; }
+    for (const line of sourcePacketLines(billLabel(c.billType, c.number), g.gathered)) console.log(line);
+    logged.push(billLabel(c.billType, c.number));
+  }
+  return { logged, missing };
+}
+
+/** Summarise one bill. Returns null when the bill has no published text yet. */
+async function summarise(key: string, c: Candidate, limits: ReturnType<typeof analysisLimits>, deadline: number, spentSoFar: () => number,
+  existing?: { id: string; sequence: number }): Promise<SummaryOutcome | null | { stop: string }> {
+  const db = getDb();
+  const g = await gatherFor(c);
+  if (!g) return null;
+  const { statusUrl, status, version, parsed, truncated, gathered } = g;
+  const now = Date.now();
+  for (const e of status.cbo) await db.insert(officialCostEstimates).values({ billId: c.id, url: e.url, pubDate: e.pubDate, title: e.title, description: e.description, sourceUrl: statusUrl, retrievedAt: now })
+    .onConflictDoUpdate({ target: [officialCostEstimates.billId, officialCostEstimates.url], set: { pubDate: e.pubDate, title: e.title, description: e.description, retrievedAt: now } });
   // Logged after the latest action is added, so the saved sources are what the writer and the fact check were given
   // (18 Nov: a review could not find the Senate step in the saved record because it was logged first).
   for (const line of sourcePacketLines(billLabel(c.billType, c.number), gathered)) console.log(line);
