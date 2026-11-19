@@ -8,6 +8,12 @@ On Record follows them. They sit above the older `/next` loop in
 
 ## 1. Wait for the go-ahead before each major step
 
+**Replaced on 19 Nov 2026** by the owner's standing rule in `CLAUDE.md` ("keep working through the current phase
+without checking in"; stop only for money, production data writes or migrations, anything an outside person sees,
+turning a flag on in production, or a bug that survives two fixes; at most three questions at the end of a phase, each
+with a default; one short report per phase, also posted on the phase's pull request). The text below is kept for the
+record.
+
 (Owner, 16 Nov 2026, replacing "work autonomously through every round".) When the
 owner checks in, recommend what to do next, ranked, then wait. Start the next
 major step (a round, a regeneration, raising a cap, opening the trial, anything
