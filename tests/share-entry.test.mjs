@@ -21,6 +21,8 @@ import { castVote } from "../lib/constituent/store.ts";
 import { MIN_SHOWN, NOT_SCIENTIFIC } from "../lib/constituent/rules.ts";
 import { ISSUE_CATEGORIES } from "../lib/federal/categories.ts";
 import { issueMeta, robotsRules, sitemapPaths, TITLE_MAX, DESCRIPTION_MAX } from "../lib/seo.ts";
+import { toneProblems } from "../lib/analysis/tone.ts";
+import { SHARED_VIEW_NOTE } from "../lib/public-access.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), ".."), DAY = 86400e3;
 const read = p => readFileSync(join(ROOT, p), "utf8");
@@ -113,7 +115,8 @@ test("a district total card: only from 25 counted voters, mail-verified first, a
   const card = totalCard({ ...base, totals: { mail: { support: 2, oppose: 1, unsure: 0 }, address: { support: 14, oppose: 7, unsure: 1 } } });
   assert.equal(card.lines[0].vote, "Mail-verified: fewer than 5 voters; Address-matched, 22 voters: 14 support · 7 oppose · 1 unsure");
   assert.equal(card.lines[0].what, "25 counted residents of TX-37 answered on H.R. 1");
-  assert.ok(card.lines[0].describe.text.includes(NOT_SCIENTIFIC) && card.note === NOT_SCIENTIFIC, "the poll line is on the block and in the note");
+  assert.ok(card.lines[0].describe.text.includes(NOT_SCIENTIFIC), "the poll line is in the block itself");
+  assert.ok(visibleBlocks(card, "link").lines[0].describe.text.includes(NOT_SCIENTIFIC), "so the small link preview carries it too");
   assert.equal(card.lines[0].describe.label, "Readers");
   assert.doesNotMatch(textOf(card).replace(/mail-verified/gi, ""), /verified/i, "address-matched is never called verified");
   assert.doesNotMatch(textOf(card), /%/, "counts, never a percentage");
@@ -167,7 +170,7 @@ test("the three kinds of card read from the database: a roll call, a bill change
   assert.ok(oneFact(total));
   assert.equal(total.lines[0].vote, "Mail-verified, 31 voters: 20 support · 9 oppose · 2 unsure; Address-matched, 12 voters: 8 support · 3 oppose · 1 unsure");
   assert.match(total.lines[0].what, /^43 counted residents of TX-37 answered on H\.R\. \d+$/);
-  assert.equal(total.note, NOT_SCIENTIFIC);
+  assert.ok(total.lines[0].describe.text.endsWith(NOT_SCIENTIFIC));
   assert.equal(await totalCardFor(db, b, "TX-35"), null, "24 counted voters: not made");
   assert.equal(await totalCardFor(db, b, "TX-01"), null, "no total on file: not made");
   assert.equal(await totalCardFor(db, b, "US"), null, "the card is for a district or a state, never the nation");
@@ -467,6 +470,36 @@ test("an issue's month, built from the record: votes and results, bills that pas
   const page = read("app/issues/[slug]/page.tsx");
   for (const piece of ["{MONTH_END}", "<h2>Earlier</h2>", "earlierEnd(data.earlier.length, data.earlierMore)", "nothingThisMonth(slug, category.name, data.label)", "issueHeading(slug, category.name)"]) assert.ok(page.includes(piece), piece);
   assert.doesNotMatch(page, /automated-research|openai/i, "no model call builds this page");
+});
+
+test("tone: the fixed wording on cards, the share screen and the issue pages is calm, and labels no legislator", async () => {
+  const calm = (what, text) => assert.deepEqual(toneProblems(text), [], `${what}: ${text}`);
+  // The tone check itself does find what it is meant to find.
+  assert.equal(toneProblems("The House finally passed it!").length, 2);
+  assert.equal(toneProblems("embattled Sen. Lee voted yes").length, 1);
+  const seat = { name: "Raul Ruiz", seat: "Representative · D-CA-25" };
+  const fact = { ...VOTE, chamber: "senate", question: "On the Cloture Motion", result: "Cloture Motion Rejected", yea: 48, nay: 51, tallyOk: true, kind: "procedural", kindLabel: "Procedural vote" };
+  const cards = [voteCard(seat, VOTE), voteCard(seat, { ...VOTE, kind: "procedural" }), rollCard(fact), rollCard({ ...fact, kind: "passage", result: "Passed", chamber: "house" }),
+    ...changeItems({ added: ["5"], changed: ["2"], removed: ["9"] }).map(item => changeCard({ billLabel: "H.R. 1", billTitle: "A bill", fromType: "Introduced in House", toType: "Engrossed in House", item, at: NOW, sourceUrl: "https://www.govinfo.gov/x" })),
+    changeCard({ billLabel: "H.R. 1", billTitle: "A bill", fromType: "Introduced in House", toType: "Engrossed in House", item: { key: "b1", label: "Analysis", text: "Raises the limit from 10 to 15.", section: "Sec. 2" }, at: NOW, sourceUrl: "https://www.govinfo.gov/x" }),
+    totalCard({ billLabel: "H.R. 1", billTitle: "A bill", scope: "TX-37", kind: "district", totals: { mail: { support: 2, oppose: 1, unsure: 0 }, address: { support: 14, oppose: 7, unsure: 1 } }, updatedAt: NOW }),
+    totalCard({ billLabel: "H.R. 1", billTitle: "A bill", scope: "TX", kind: "state", totals: { mail: { support: 20, oppose: 9, unsure: 2 }, address: null }, updatedAt: NOW }),
+    agreementCard(seat, "Health care", 4, 2, [VOTE]), ...["support", "oppose", "unsure"].map(st => withStance(voteCard(seat, VOTE), st))];
+  for (const c of cards) calm("card", [c.eyebrow, c.title, c.subtitle, c.note ?? "", c.stance ?? "", ...c.lines.flatMap(l => [l.what, l.vote, l.kindLabel, l.describe.text, l.source])].join(". "));
+  calm("stance label", STANCE_LABEL); calm("take part", TAKE_PART_LINE); calm("shared view", SHARED_VIEW_NOTE); calm("month end", MONTH_END);
+  for (const c of ISSUE_CATEGORIES) calm("issue page", [issueHeading(c.slug, c.name), ...issueIntro(c.slug, c.name), nothingThisMonth(c.slug, c.name, "November 2026"), issueMeta(issueHeading(c.slug, c.name), "x", "November 2026").description].join(" "));
+  for (const kind of ["pass", "override", "final_version", "other_chamber", "take_up", "end_debate"]) for (const result of ["Passed", "Failed", null]) for (const chamber of ["house", "senate"])
+    calm("vote line", voteSentence({ chamber, kind, result, yea: 51, nay: 49, tallyOk: true, question: "On the Cloture Motion" }, "the GUARD Act"));
+  for (const stage of ["passed", "law", "vetoed"]) for (const text of ["Passed Senate by Unanimous Consent.", "On passage Passed by voice vote.", "x"]) calm("action line", actionSentence({ stage, chamber: "senate", text }, "the GUARD Act"));
+  for (const n of [1, 3]) calm("other votes", otherVotesLine(n));
+  calm("earlier", `${earlierEnd(5, 7)} ${earlierEnd(1, 0)} ${earlierEnd(3, 0)}`);
+  // The words written straight into the screens this round owns.
+  const { retiredShare } = { retiredShare: read("lib/share-resolve.ts").match(/\? "(This card listed several people[^"]+)"/)[1] };
+  calm("retired card", retiredShare);
+  for (const f of ["components/share/stance-switch.tsx", "components/share/bill-share-menu.tsx", "components/share/take-part.tsx", "components/share/entry-shell.tsx", "app/issues/[slug]/page.tsx", "app/share/card/page.tsx"]) {
+    const words = [...read(f).matchAll(/>([^<>{}]{12,})</g)].map(m => m[1]).join(" ");
+    calm(f, words);
+  }
 });
 
 /* ───────────────────────────── 5. Share rate per bill view ───────────────────────────── */

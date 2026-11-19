@@ -33,6 +33,13 @@ export async function generateMetadata({ searchParams }: { searchParams: Search 
   return { title: brandTitle(r.title), description: r.caption.slice(0, 200), robots: { index: false, follow: true }, ...previewMeta(SITE, `/share/card?${query}`, r.title, r.caption.slice(0, 200), image) };
 }
 
+/** Where the card's fact comes from, in the words of its own badge. */
+function builtFrom(r: Resolved): string {
+  const labels = new Set(r.card ? r.card.lines.map(l => l.describe.label) : r.slides!.map(s => s.badge));
+  if (labels.has("Readers")) return r.type === "total" ? `built from ${BRAND.name}'s anonymous totals of counted residents (labelled Readers)` : "built from the reader's own answers and official records (labelled Readers)";
+  return `built only from official records${labels.has("Analysis") ? ` and reviewed ${BRAND.name} summaries (labelled Analysis)` : ""}`;
+}
+
 const ctype = (l: string) => `ctype ctype-${l === "Readers" ? "opinion" : l.toLowerCase()}`;
 
 /** The video's scenes come from the same record data as the card: nothing new is written for it, and it never carries a reader's answer. */
@@ -87,7 +94,7 @@ export default async function ShareCardPage({ searchParams }: { searchParams: Se
         <Link className="button-link" href="/start">See your own legislators →</Link></div>}
       <div className="eyebrow">SHARE · FROM THE RECORD</div>
       <h1>{r.title}</h1>
-      <p className="meta">{r.slides ? "Each slide carries one fact" : "This card carries one fact"}, with its date and its source, built only from official records{r.officialOnly ? "" : ` and reviewed ${BRAND.name} summaries (labelled Analysis)`}. Your caption goes beside the image, never on it.</p>
+      <p className="meta">{r.slides ? "Each slide carries one fact" : "This card carries one fact"}, with its date and its source, {builtFrom(r)}. Your caption goes beside the image, never on it.</p>
 
       {theirs ? <>
         {/* Someone else's card with their answer on it: shown as it was shared, and never offered for sharing as your own. */}

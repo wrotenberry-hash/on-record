@@ -144,5 +144,5 @@ export function totalCard(f: TotalFact): Card | null {
     lines: [{ what: `${shown.voters} counted residents of ${f.scope} answered on ${f.billLabel}`,
       describe: { label: "Readers", text: `Counted residents are mail-verified or address-matched. ${NOT_SCIENTIFIC}` },
       vote: shown.groups.map(groupLine).join("; "), kindLabel: f.kind === "state" ? "State total" : "District total", date: date(f.updatedAt), source: `${BRAND.name}, anonymous totals of counted residents` }],
-    note: NOT_SCIENTIFIC, footer: BRAND.taglineShort };
+    note: null, footer: BRAND.taglineShort }; // the poll line is in the block itself, so it is on every size of the picture
 }
