@@ -20,6 +20,9 @@ export const READER_HOLDS: Record<string, string> = {
   // before anyone puts them back. Listed here so that approving them in the review queue does not show them.
   "119-hr-1118": "The case for credits the sponsor with the research service's own description; it says no floor statements were found although the House debated the bill for forty minutes; and it gives examples (office equipment, repair services) no source gives.",
   "119-hr-9612": "It says the bill keeps environmental review, hearings and inspections, but the bill strikes the three requirements specific to enrichment plants and keeps only the general law, the right to ask for a hearing and the power to inspect; it also credits the committee report's figures to supporters in the debate.",
+  // 19 Nov 2026, late: found on show and not yet read when the list of what is on show was checked against the list of what had been read.
+  "119-s-307": "It gives no case for the bill and says no statement of reasons was found in the official record, but the House debated it on August 31, 2026 and two members gave reasons; it also adds “reporting” to what the national standards must cover, which the bill does not say.",
+  "119-hr-2140": "The headline and the question say the bill funds the program; the bill only extends the permission to spend $100 million a year through fiscal year 2029, and money would still have to be provided.",
 };
 
 /** The listed bill ids that are well formed (anything else is ignored rather than put into a query). */

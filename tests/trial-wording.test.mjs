@@ -61,7 +61,10 @@ test("a summary that failed a reading against its sources is hidden by the reade
   for (const id of ["119-hr-3276", "119-hr-4219", "119-hr-9500", "119-hr-4646", "119-hr-9497", "119-hr-8884", "119-hjres-213"]) assert.ok(ids.includes(id), id);
   // Late on 19 Nov: two the weekly re-check had taken down, read before anyone approves them, also misstate details.
   for (const id of ["119-hr-1118", "119-hr-9612"]) assert.ok(ids.includes(id), id);
-  assert.equal(ids.length, 11);
+  assert.ok(ids.includes("119-s-307"), "a Senate bill id is well formed too"); assert.ok(ids.includes("119-hr-2140"));
+  assert.equal(ids.length, 13);
+  // Left on show, each read against its sources: seven sound and three with a small point.
+  for (const id of ["119-hr-8823", "119-hr-8483", "119-hjres-210"]) assert.ok(!ids.includes(id), id);
   // The bills read and found sound stay on show.
   for (const id of ["119-hr-2102", "119-hr-1013", "119-hr-7008", "119-hr-3978", "119-hr-8278", "119-hr-9600", "119-hr-9770"]) assert.ok(!ids.includes(id), id);
   assert.deepEqual(heldBillIds(), ids, "every listed id is well formed, so none is silently ignored");
