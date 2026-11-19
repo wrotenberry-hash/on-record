@@ -58,7 +58,11 @@ test("titles and descriptions stay within search limits", () => {
   assert.ok(long.title.length <= TITLE_MAX, long.title);
   assert.ok(long.description.length <= DESCRIPTION_MAX);
   assert.ok(pageTitle("x".repeat(100)).endsWith(" · Constituent"));
-  assert.match(issueMeta("Health care").title, /^Health care: bills in Congress/);
+  // 18 Nov 2026 (owner's point 11): an issue page is titled for someone arriving with no context.
+  const issue = issueMeta("What Congress did on health care this month", "health care", "November 2026");
+  assert.equal(issue.title, "What Congress did on health care this month · Constituent");
+  assert.ok(issue.title.length <= TITLE_MAX && issue.description.length <= DESCRIPTION_MAX);
+  assert.match(issue.description, /health care in November 2026/);
   assert.match(memberMeta({ fullName: "A B", chamber: "house", party: "Democrat", state: "WY", district: 0 }).description, /WY at large/);
 });
 
@@ -174,8 +178,11 @@ test("share cards carry the vote, its kind, date, a labelled summary, the source
   assert.equal(noSummary.lines[0].describe.label, "Official", "without a summary the official title is shown, labelled Official");
   assert.match(noSummary.note, /not a vote on the bill itself/);
   const ag = agreementCard({ name: "A", seat: "B" }, "Health care", 2, 1, [{ ...base, headline: null }, { ...base, headline: null }, { ...base, headline: null }, { ...base, headline: null }]);
-  assert.equal(ag.lines.length, 3, "at most three bills on a card");
-  assert.match(ag.subtitle, /agreed on 2 of 3 bills/);
+  // 18 Nov 2026 (owner's point 10): one fact per card. The comparison is one count, never a list of bills or a percentage.
+  assert.equal(ag.lines.length, 1, "one count on the card");
+  assert.equal(ag.lines[0].vote, "Voted the way I did on 2 of 3 bills");
+  assert.match(ag.lines[0].describe.text, /My own comparison\. Not a grade or score of the legislator\./);
+  assert.doesNotMatch(JSON.stringify(ag), /%/);
   assert.match(ag.note, /Not a rating by Constituent/);
   assert.deepEqual(CARD_FORMATS.story, { width: 1080, height: 1920 });
   assert.deepEqual(CARD_FORMATS.feed, { width: 1080, height: 1350 });

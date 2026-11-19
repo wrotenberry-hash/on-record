@@ -2,28 +2,39 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { READER_S, readerVisible } from "@/lib/analysis/publish-gate";
 import { adjudications, analysisBillSummaries, officialBillIndex, officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, people, publications,
-  representations, sourceCaptures, sourceCommunications } from "@/db/schema";
+  representations, sourceCaptures, sourceCommunications, txBills } from "@/db/schema";
 import { voteLine, type Card, type CardVote } from "@/lib/card-content";
 import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { billLabel, memberLine } from "@/components/federal/badges";
 import { partyCode } from "@/lib/federal/bill-depth";
 import { withPartyMajority } from "@/lib/federal/member-stats-rules";
-import { memberDistrictId, MIN_SHOWN, totalsLine } from "@/lib/verify/rules";
-import { scopeTotals } from "@/lib/verify/store";
+import { scopeForMember } from "@/lib/constituent/rules";
 import { isQuietKill, saidAboutBill, saidVsDid } from "@/lib/said-did-rules";
 import type { Slide } from "@/components/cards/card-image";
 import { congressDashboard } from "@/lib/federal/dashboard";
-import { FUNNEL_LABEL, FUNNEL_ORDER } from "@/lib/federal/dashboard-rules";
+import { changeCardFor, rollCardFor, totalCardFor } from "@/lib/entry/cards";
+import type { HeadlineLoader } from "@/lib/entry/store";
 import { BRAND } from "@/lib/brand";
 
 /**
- * Round G card builders. Every card is built only from record data and approved
- * (visible) summaries; nothing a reader typed ever appears on an image. Each
- * returns null when the data does not support the card (for example, district
- * totals under 25), so a card is never shown with thin or missing evidence.
+ * Round G card builders, brought to ONE SOURCED FACT PER CARD on 18 Nov 2026 (owner's point 10). Every card is built
+ * only from record data and approved (visible) summaries; nothing a reader typed ever appears on an image. Each
+ * returns null when the data does not support the card (for example, district totals under 25), so a card is never
+ * shown with thin or missing evidence. The three kinds the owner named (a vote, a bill change, a district total) are
+ * read in lib/entry/cards.ts, which the tests run against a temporary database; this file adds the request-side
+ * pieces (the summary gate, the database handle) and the older cards, each cut down to one fact.
  */
 const date = (ms: number | string) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" });
-const PARTY = { D: "Democrats", R: "Republicans", I: "Independents", Other: "others" } as Record<string, string>;
+
+/** The plain headline of each bill whose summary a reader may see (the publish gate decides; never a held summary). */
+export const visibleHeadlines: HeadlineLoader = async billIds => {
+  if (!billIds.length) return new Map();
+  const rows = await getDb().select({ billId: analysisBillSummaries.billId, headline: analysisBillSummaries.headline }).from(analysisBillSummaries)
+    .where(and(inArray(analysisBillSummaries.billId, billIds), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt));
+  const out = new Map<string, string>();
+  for (const r of rows) if (!out.has(r.billId)) out.set(r.billId, r.headline);
+  return out;
+};
 
 async function roll(id: string) {
   return getDb().select({ id: officialRollCalls.id, chamber: officialRollCalls.chamber, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question, title: officialRollCalls.title,
@@ -37,52 +48,33 @@ const cardVote = (r: NonNullable<Awaited<ReturnType<typeof roll>>>, voteText: st
   return { billLabel: r.billType ? billLabel(r.billType, r.number!) : r.question, billTitle: r.billTitle ?? r.title ?? r.question, headline: r.headline, voteText, kind, kindLabel: KIND_LABEL[kind], votedAt: r.votedAt, sourceUrl: r.sourceUrl };
 };
 
-/** Quiet kill: a bill stopped by a procedural vote (cloture or a motion to proceed failed, or a motion to table or recommit carried). */
+/** A VOTE: one roll call's result (the official wording and the count). */
+export async function rollResultCard(rollId: string) { return rollCardFor(getDb(), rollId, { headlines: visibleHeadlines }); }
+
+/** Quiet kill: a bill stopped by a procedural vote (cloture or a motion to proceed failed, or a motion to table or recommit carried). One fact: that roll call's result. */
 export async function quietKillCard(rollId: string): Promise<Card | null> {
   const r = await roll(rollId);
   if (!r?.billId || voteKind(r.question, r.billTitle ?? r.title) !== "procedural") return null;
   if (!isQuietKill("procedural", r.question, r.result)) return null;
-  return { eyebrow: "STOPPED BY A PROCEDURAL VOTE", title: r.billType ? `${billLabel(r.billType, r.number!)}` : "A bill", subtitle: (r.billTitle ?? r.title ?? "").slice(0, 110),
-    lines: [voteLine(cardVote(r, `${r.question}: ${r.result} ${r.yea}–${r.nay}`))], note: "A procedural vote decides whether or how the chamber moves to a final vote. It is not a vote on the bill itself.", footer: BRAND.taglineShort };
+  return (await rollCardFor(getDb(), rollId, { headlines: visibleHeadlines, eyebrow: "STOPPED BY A PROCEDURAL VOTE" }))?.card ?? null;
 }
 
-/** Breaking ranks: a member voted against most of their own party on a roll call. */
-export async function breakingRanksCard(memberId: string, rollId: string): Promise<Card | null> {
-  const db = getDb(), r = await roll(rollId);
-  const m = await db.select().from(officialPoliticians).where(eq(officialPoliticians.id, memberId)).get();
-  const mine = await db.select({ position: officialMemberVotes.position }).from(officialMemberVotes).where(and(eq(officialMemberVotes.rollCallId, rollId), eq(officialMemberVotes.politicianId, memberId))).get();
-  if (!r || !m || !mine || (mine.position !== "Yea" && mine.position !== "Nay")) return null;
-  const counts = await db.select({ party: officialPoliticians.party, position: officialMemberVotes.position, n: sql<number>`count(*)` }).from(officialMemberVotes)
-    .innerJoin(officialPoliticians, eq(officialPoliticians.id, officialMemberVotes.politicianId)).where(eq(officialMemberVotes.rollCallId, rollId)).groupBy(officialPoliticians.party, officialMemberVotes.position);
-  const code = partyCode(m.party), own: { Yea?: number; Nay?: number } = {};
-  for (const c of counts) if (partyCode(c.party) === code && (c.position === "Yea" || c.position === "Nay")) own[c.position] = (own[c.position] ?? 0) + Number(c.n);
-  if (withPartyMajority(mine.position, own) !== false) return null;
-  const kind = voteKind(r.question, r.billTitle ?? r.title);
-  return { eyebrow: "BREAKING RANKS", title: m.fullName, subtitle: memberLine(m),
-    lines: [voteLine(cardVote(r, positionLine(mine.position, kind)))], note: `Most ${PARTY[code]} voted ${mine.position === "Yea" ? "no" : "yes"} (${PARTY[code]}: ${own.Yea ?? 0} yes, ${own.Nay ?? 0} no).`, footer: BRAND.taglineShort };
+/** A BILL CHANGE: one change between a bill's two latest text versions. */
+export async function billChangeCard(billId: string, key: string) { return changeCardFor(getDb(), billId, key); }
+
+/** A DISTRICT TOTAL: counted residents of one district (or state) on one bill, from 25 counted voters. */
+export async function districtTotalCard(billId: string, scope: string) { return totalCardFor(getDb(), billId, scope); }
+/** The district a member answers to: a senator's state, a representative's district. For older links that name the member. */
+export async function scopeOfMember(memberId: string): Promise<string | null> {
+  const m = await getDb().select().from(officialPoliticians).where(eq(officialPoliticians.id, memberId)).get();
+  return m ? scopeForMember({ level: "federal", chamber: m.chamber === "senate" ? "upper" : "lower", state: m.state, district: m.district }) : null;
 }
 
-/** My district vs my legislator: the member's recorded vote beside district-matched totals (n >= 25 only). */
-export async function districtVsLegislatorCard(memberId: string, billId: string): Promise<Card | null> {
-  const db = getDb();
-  const m = await db.select().from(officialPoliticians).where(eq(officialPoliticians.id, memberId)).get();
-  if (!m) return null;
-  const scope = m.chamber === "senate" ? m.state : memberDistrictId(m.state, m.district);
-  const t = (await scopeTotals(scope, [billId]).catch(() => []))[0];
-  if (!t || t.voters < MIN_SHOWN) return null;
-  const v = await db.select({ id: officialRollCalls.id, position: officialMemberVotes.position, question: officialRollCalls.question, title: officialRollCalls.title })
-    .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
-    .where(and(eq(officialMemberVotes.politicianId, memberId), eq(officialRollCalls.billId, billId))).orderBy(desc(officialRollCalls.votedAt));
-  const pick = v.find(x => voteKind(x.question, x.title) === "passage") ?? v[0];
-  const r = pick ? await roll(pick.id) : null;
-  if (!r || !pick) return null;
-  const line = voteLine(cardVote(r, `${m.fullName}: ${positionLine(pick.position, voteKind(r.question, r.billTitle ?? r.title))}`));
-  return { eyebrow: `MY DISTRICT VS MY LEGISLATOR · ${scope}`, title: r.billType ? billLabel(r.billType, r.number!) : "This bill", subtitle: (r.billTitle ?? "").slice(0, 110),
-    lines: [line, { ...line, vote: totalsLine(`Counted residents of ${scope}`, t), describe: { label: "Readers", text: "Address-matched and mail-verified residents of this district. Not a scientific poll." }, kindLabel: "Readers", source: `${BRAND.name}, aggregate counts only` }],
-    note: null, footer: BRAND.taglineShort };
-}
-
-/** Said vs. Did: a published, human-reviewed statement that names a bill and states a position, beside the speaker's passage vote. */
+/**
+ * Said vs. Did: a published, human-reviewed statement that names a bill and states a position, beside the speaker's passage vote.
+ * The member page lists these. The share card that paired the two was taken off on 18 Nov 2026 (two facts on one card);
+ * an old link to it now opens the vote alone (lib/share-resolve.ts).
+ */
 export async function saidVsDidPairs(limit = 20) {
   const db = getDb();
   const rows = await db.select({ publicationId: publications.id, representationId: representations.id, publishedAt: publications.publishedAt, text: representations.exactText, speaker: people.displayName, url: sourceCommunications.canonicalUrl })
@@ -110,67 +102,68 @@ export async function saidVsDidPairs(limit = 20) {
   }
   return out;
 }
-export async function saidVsDidCard(publicationId: string): Promise<Card | null> {
-  const p = (await saidVsDidPairs(200)).find(x => x.publicationId === publicationId);
-  if (!p) return null;
-  const r = await roll(p.rollId);
-  if (!r) return null;
-  const said = p.said.length > 220 ? `${p.said.slice(0, 218)}…` : p.said;
-  return { eyebrow: p.result === "match" ? "SAID AND DID: A MATCH" : "SAID VS. DID: A CONTRADICTION", title: p.speaker, subtitle: `Said: “${said}”`,
-    lines: [voteLine(cardVote(r, `Did: ${positionLine(p.position, "passage")}`))], note: `Rule: a statement that names the bill and says the speaker supports or opposes it, compared with their vote on passing it. Same rule for every party.${p.url ? ` Statement: ${p.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}` : ""}`, footer: BRAND.taglineShort };
-}
-
-/** The 5-slide explainer for a bill with a visible (approved or unflagged) summary. */
+/**
+ * The 5-slide explainer for a bill with a visible (approved or unflagged) summary. One sourced fact per slide:
+ * the plain headline, the first thing it does, the first group it affects, the latest recorded vote, and where it
+ * stands. The case for and against is left to the bill page: an argument is a view, and a fair slide would need two.
+ */
 export async function carouselSlides(billId: string): Promise<Slide[] | null> {
   const db = getDb();
   const bill = await db.select().from(officialBills).where(eq(officialBills.id, billId)).get();
   const s = await db.select().from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
   if (!bill || !s) return null;
   const idx = await db.select().from(officialBillIndex).where(eq(officialBillIndex.billId, billId)).get();
-  const votes = await db.select().from(officialRollCalls).where(eq(officialRollCalls.billId, billId)).orderBy(desc(officialRollCalls.votedAt)).limit(2);
-  const label = billLabel(bill.billType, bill.number), src = "congress.gov", d = date(s.createdAt);
-  const pts = (x: unknown) => ((x as Array<{ text: string; section: string }>) ?? []).slice(0, 4).map(p => `${p.text} (${p.section})`);
-  const args = (x: unknown) => ((x as Array<{ argument: string; attribution: string }>) ?? []).slice(0, 2).map(a => `${a.argument} (${a.attribution})`);
+  const vote = await db.select().from(officialRollCalls).where(eq(officialRollCalls.billId, billId)).orderBy(desc(officialRollCalls.votedAt)).limit(1).get();
+  // The count is left off while the member votes on file do not add up to the official totals.
+  const underReview = vote ? (await import("@/lib/federal/depth").then(m => m.tallyUnderReview([vote.id])).catch(() => new Set<string>())).has(vote.id) : false;
+  const label = billLabel(bill.billType, bill.number), src = "congress.gov", d = date(s.createdAt), today = date(Date.now());
+  const first = (x: unknown) => { const p = ((x as Array<{ text: string; section: string }>) ?? [])[0]; return p ? [`${p.text} (${p.section})`] : ["The summary lists nothing here."]; };
   const base = { total: 5, eyebrow: label, source: src, date: d };
   return [
-    { ...base, index: 1, heading: s.headline, badge: "Analysis", points: [`Official title: ${bill.title.slice(0, 160)}`], source: src },
-    { ...base, index: 2, heading: "What it does", badge: "Analysis", points: pts(s.whatItDoes) },
-    { ...base, index: 3, heading: "Who it affects", badge: "Analysis", points: pts(s.whoItAffects) },
-    { ...base, index: 4, heading: "The case for and against", badge: "Analysis", points: [...args(s.caseFor).map(a => `For: ${a}`), ...args(s.caseAgainst).map(a => `Against: ${a}`)] },
-    { ...base, index: 5, heading: "Where it stands", badge: "Official", points: [bill.latestActionText ? `${bill.latestActionText} (${bill.latestActionAt})` : "No action recorded yet.",
-      ...votes.map(v => `${v.chamber === "senate" ? "Senate" : "House"}, ${date(v.votedAt)}: ${v.question}, ${v.result ?? ""} ${v.yea}–${v.nay}`), ...(idx ? [`Stage: ${idx.stage.replace("_", " ")}`] : [])].slice(0, 4), date: date(Date.now()) },
+    { ...base, index: 1, heading: "In one line", badge: "Analysis", points: [s.headline] },
+    { ...base, index: 2, heading: "What it does", badge: "Analysis", points: first(s.whatItDoes) },
+    { ...base, index: 3, heading: "Who it affects", badge: "Analysis", points: first(s.whoItAffects) },
+    { ...base, index: 4, heading: "The latest recorded vote", badge: "Official", points: [vote ? `${vote.chamber === "senate" ? "Senate" : "House"}, ${date(vote.votedAt)}: ${vote.question}. ${vote.result ?? "Result not stated"}${underReview ? "" : `, ${vote.yea}–${vote.nay}`}.` : "No recorded vote on this bill yet."],
+      source: vote ? vote.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] : src, date: vote ? date(vote.votedAt) : today },
+    { ...base, index: 5, heading: "Where it stands", badge: "Official", points: [bill.latestActionText ? `${bill.latestActionText} (${bill.latestActionAt})` : idx ? `Stage: ${idx.stage.replace("_", " ")}` : "No action recorded yet."], date: today },
   ];
 }
 
-/** Dashboard cards: the funnel or control of this Congress, from the stored snapshot. */
-export async function dashboardCard(kind: "funnel" | "control" | "players"): Promise<Card | null> {
+/**
+ * Dashboard cards, one fact each, from the stored snapshot: how many bills filed in this Congress became law
+ * ("funnel"), and the seats each party holds in one chamber ("house", "senate"; the older "control" is the House).
+ * The "players" card listed several people on one card and was taken off the share menu on 18 Nov 2026.
+ */
+export type DashKind = "funnel" | "house" | "senate";
+export async function dashboardCard(kind: DashKind): Promise<Card | null> {
   const d = await congressDashboard();
   if (!d) return null;
-  const today = date(d.generatedAt), src = "congress.gov";
+  const today = date(d.generatedAt);
   if (kind === "funnel") {
     const f = d.funnels[0].all;
-    return { eyebrow: `${d.current}TH CONGRESS · THE BILL FUNNEL`, title: `${f.reach.law} of ${f.reach.filed.toLocaleString("en-US")} became law`, subtitle: d.funnels[0].takeaway.replace(/^[^:]+: /, ""),
-      lines: FUNNEL_ORDER.slice(1).map(s => ({ what: FUNNEL_LABEL[s], describe: { label: "Official" as const, text: `${f.pct[s]}% of bills filed` }, vote: f.reach[s].toLocaleString("en-US"), kindLabel: "Bills", date: today, source: src })).slice(0, 3),
-      note: "Stage read from each bill's latest official action.", footer: BRAND.taglineShort };
+    return { eyebrow: `${d.current}TH CONGRESS · BILLS THAT BECAME LAW`, title: `${f.reach.law} of ${f.reach.filed.toLocaleString("en-US")} became law`, subtitle: `Bills and joint resolutions filed in the ${d.current}th Congress`,
+      lines: [{ what: `Of ${f.reach.filed.toLocaleString("en-US")} filed`, describe: { label: "Official", text: "Stage read from each bill's latest official action." }, vote: `${f.reach.law.toLocaleString("en-US")} became law`, kindLabel: "Bills", date: today, source: "congress.gov" }],
+      note: null, footer: BRAND.taglineShort };
   }
-  if (kind === "players") {
-    if (!d.leaders.length) return null;
-    const by = (c: string) => d.leaders.filter(l => l.chamber === c).slice(0, 4).map(l => `${l.title}: ${l.name}`).join(" · ");
-    return { eyebrow: `${d.current}TH CONGRESS · KEY PLAYERS`, title: "Who runs Congress", subtitle: `Leadership roles as of ${today}`,
-      lines: (["house", "senate"] as const).filter(c => by(c)).map(c => ({ what: c === "house" ? "House" : "Senate", describe: { label: "Official" as const, text: by(c) }, vote: c === "house" ? "House leadership" : "Senate leadership", kindLabel: "Roles", date: today, source: "congress-legislators" })),
-      note: "Roles as listed in the congress-legislators data. A role is not a measure of influence.", footer: BRAND.taglineShort };
-  }
-  const seats = (c: string) => d.seats.filter(s => s.chamber === c).map(s => `${s.party} ${s.n}`).join(" · ");
-  return { eyebrow: `${d.current}TH CONGRESS · WHO CONTROLS IT`, title: "Control of Congress", subtitle: `Data as of ${today}`,
-    lines: [{ what: "House", describe: { label: "Official", text: "435 voting seats; delegates are not counted" }, vote: seats("house"), kindLabel: "House seats", date: today, source: "congress-legislators" },
-      { what: "Senate", describe: { label: "Official", text: "100 seats" }, vote: seats("senate"), kindLabel: "Senate seats", date: today, source: "congress-legislators" }],
-    note: d.leaders.slice(0, 3).map(l => `${l.title}: ${l.name}`).join(" · ") || null, footer: BRAND.taglineShort };
+  const seats = d.seats.filter(s => s.chamber === kind).map(s => `${s.party} ${s.n}`).join(" · ");
+  if (!seats) return null;
+  const name = kind === "house" ? "House" : "Senate";
+  return { eyebrow: `${d.current}TH CONGRESS · SEATS IN THE ${name.toUpperCase()}`, title: `Seats in the ${name}`, subtitle: `Data as of ${today}`,
+    lines: [{ what: name, describe: { label: "Official", text: kind === "house" ? "435 voting seats; delegates are not counted" : "100 seats" }, vote: seats, kindLabel: `${name} seats`, date: today, source: "congress-legislators" }],
+    note: null, footer: BRAND.taglineShort };
 }
 
-/** Link-preview card for a bill page: official title, the Analysis headline when one is visible, and the latest official action. */
+/** Link-preview card for a bill page, federal or Texas. One fact: its latest official action, with the date and the source. */
 export async function billCard(billId: string): Promise<Card | null> {
   const db = getDb(), bill = await db.select().from(officialBills).where(eq(officialBills.id, billId)).get();
-  if (!bill) return null;
+  if (!bill) {
+    const tx = await db.select().from(txBills).where(eq(txBills.id, billId)).get();
+    if (!tx) return null;
+    return { eyebrow: `TEXAS LEGISLATURE · ${tx.identifier}`, title: tx.title.length > 110 ? `${tx.title.slice(0, 108)}…` : tx.title, subtitle: "",
+      lines: [{ what: "Where it stands", describe: { label: "Official", text: tx.title.slice(0, 140) }, vote: (tx.latestActionDescription ?? "No action recorded yet.").slice(0, 120), kindLabel: "Latest action",
+        date: tx.latestActionDate ? date(`${tx.latestActionDate.slice(0, 10)}T17:00:00Z`) : date(tx.retrievedAt), source: "capitol.texas.gov" }],
+      note: null, footer: BRAND.taglineShort };
+  }
   const s = await db.select({ headline: analysisBillSummaries.headline }).from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
   const label = billLabel(bill.billType, bill.number), when = bill.latestActionAt ? date(bill.latestActionAt) : date(Date.now());
   return { eyebrow: `${bill.congress}TH CONGRESS · ${label}`, title: bill.title.length > 110 ? `${bill.title.slice(0, 108)}…` : bill.title, subtitle: "",
@@ -178,18 +171,24 @@ export async function billCard(billId: string): Promise<Card | null> {
     note: null, footer: BRAND.taglineShort };
 }
 
-/** Link-preview card for a member page: their two most recent recorded votes. */
+/** Link-preview card for a member page. One fact: their most recent recorded vote. Null when there is none on file. */
 export async function memberCard(memberId: string): Promise<Card | null> {
   const db = getDb(), m = await db.select().from(officialPoliticians).where(eq(officialPoliticians.id, memberId)).get();
   if (!m) return null;
-  const v = await db.select({ id: officialRollCalls.id, position: officialMemberVotes.position }).from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
-    .where(eq(officialMemberVotes.politicianId, memberId)).orderBy(desc(officialRollCalls.votedAt)).limit(2);
-  const lines = [];
-  for (const x of v) { const r = await roll(x.id); if (r) lines.push(voteLine(cardVote(r, positionLine(x.position, voteKind(r.question, r.billTitle ?? r.title))))); }
-  return { eyebrow: "HOW THEY VOTED", title: m.fullName, subtitle: memberLine(m), lines, note: lines.length ? null : "No recorded votes yet.", footer: BRAND.taglineShort };
+  const x = await db.select({ id: officialRollCalls.id, position: officialMemberVotes.position }).from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
+    .where(eq(officialMemberVotes.politicianId, memberId)).orderBy(desc(officialRollCalls.votedAt)).limit(1).get();
+  const r = x ? await roll(x.id) : null;
+  if (!x || !r) return null;
+  const kind = voteKind(r.question, r.billTitle ?? r.title);
+  return { eyebrow: "HOW THEY VOTED", title: m.fullName, subtitle: memberLine(m), lines: [voteLine(cardVote(r, positionLine(x.position, kind)))],
+    note: kind === "procedural" ? "A procedural vote decides how the chamber proceeds. It is not a vote on the bill itself." : null, footer: BRAND.taglineShort };
 }
 
-/** A member's recent recorded votes against most of their own party (yes/no votes only). Same rule for every member. */
+/**
+ * A member's recent recorded votes against most of their own party (yes/no votes only). Same rule for every member.
+ * The member page lists these. The "breaking ranks" share card put the member's vote and the party's count on one
+ * card; it was taken off on 18 Nov 2026 and an old link to it now opens the vote alone.
+ */
 export async function breakingRanksFor(memberId: string, limit = 5) {
   const db = getDb(), m = await db.select({ party: officialPoliticians.party }).from(officialPoliticians).where(eq(officialPoliticians.id, memberId)).get();
   if (!m) return [];

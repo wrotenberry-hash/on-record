@@ -1,10 +1,13 @@
-import { visibleBlocks, type Card, type CardFormat } from "@/lib/card-content";
+import { STANCE_LABEL, visibleBlocks, type Card, type CardFormat } from "@/lib/card-content";
 import { BRAND } from "@/lib/brand";
 
 /**
  * The card drawn as an image (next/og). Plain flex layout, On Record's colours,
  * every vote line badged; sizes scale with the format so the text stays legible
  * in a Story, a feed post and a link preview.
+ *
+ * One fact per card (18 Nov 2026). When the reader chose to add their own answer, it is drawn in its own box with a
+ * dashed border and a line saying who added it, below the fact and never inside it: it is not part of the record.
  */
 export function CardImage({ card, format }: { card: Card; format: CardFormat }) {
   const s = format === "story" ? 1.25 : format === "link" ? 0.72 : 1;
@@ -23,9 +26,14 @@ export function CardImage({ card, format }: { card: Card; format: CardFormat }) 
         <div style={{ display: "flex", fontSize: px(38), fontWeight: 700, marginTop: px(10), lineHeight: 1.2 }}>{l.vote}</div>
         <div style={{ display: "flex", fontSize: px(24), color: "#3d5353", marginTop: px(12) }}>{l.what}</div>
         <div style={{ display: "flex", alignItems: "center", marginTop: px(14), flexWrap: "wrap" }}>{badge(l.describe.label)}<span style={{ fontSize: px(28), lineHeight: 1.3 }}>{l.describe.text}</span></div>
-        <div style={{ display: "flex", fontSize: px(20), color: "#4f6b68", marginTop: px(14) }}>{`${l.describe.label === "Readers" ? "Counted by" : "Official source"}: ${l.source}`}</div>
+        <div style={{ display: "flex", fontSize: px(20), color: "#4f6b68", marginTop: px(14) }}>{`${l.describe.label === "Readers" ? "From" : "Official source"}: ${l.source}`}</div>
       </div>)}
       {note && <div style={{ display: "flex", fontSize: px(24), color: "#3d5353", lineHeight: 1.35 }}>{note}</div>}
+      {card.stance && <div style={{ display: "flex", flexDirection: format === "link" ? "row" : "column", alignItems: format === "link" ? "center" : "flex-start", gap: px(format === "link" ? 18 : 8),
+        border: "3px dashed #8a6d3b", borderRadius: 8, background: "#fffaf0", padding: `${px(format === "link" ? 12 : 22)}px ${px(26)}px` }}>
+        <span style={{ fontSize: px(18), fontWeight: 700, letterSpacing: 2, color: "#6b4a1e" }}>{STANCE_LABEL}</span>
+        <span style={{ fontSize: px(format === "link" ? 30 : 36), fontWeight: 700, color: "#3d2c10" }}>{card.stance}</span>
+      </div>}
     </div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "3px solid #163b3c", paddingTop: px(24), marginTop: px(24) }}>
       <span style={{ fontSize: px(40), fontWeight: 700 }}>{card.footer}</span>
@@ -34,7 +42,7 @@ export function CardImage({ card, format }: { card: Card; format: CardFormat }) 
   </div>;
 }
 
-/** One slide of the 5-slide bill explainer carousel (1080x1350): a heading, up to four points, the badge, source and footer. */
+/** One slide of the 5-slide bill explainer carousel (1080x1350): a heading, one sourced fact, the badge, source and footer. */
 export type Slide = { index: number; total: number; eyebrow: string; heading: string; badge: "Official" | "Analysis"; points: string[]; source: string; date: string };
 export function SlideImage({ slide }: { slide: Slide }) {
   const badge = slide.badge === "Analysis" ? { bg: "#eae6f4", fg: "#45366e" } : { bg: "#e3efe6", fg: "#245236" };

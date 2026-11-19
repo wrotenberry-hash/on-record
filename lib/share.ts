@@ -5,6 +5,10 @@ import { shareLinks } from "@/db/schema";
 import { countEvent } from "@/lib/events";
 import { requestContext, withinLimit } from "@/lib/verify/store";
 import { captionWith, shareableTarget } from "@/lib/share-rules";
+import { SHARED_PAGES_FLAG, sharedPagesEnabled } from "@/lib/public-access";
+import { SHARE_START_EVENT, sharedBillAddress } from "@/lib/entry/rules";
+import { shareGrant } from "@/lib/entry/store";
+import { viewerAccess } from "@/lib/viewer";
 export { captionWith, shareableTarget };
 
 /**
@@ -40,6 +44,24 @@ export async function openShareLink(code: string) {
   (await cookies()).set(SHARE_COOKIE, code, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 7 * 24 * 3600 });
   return row.target;
 }
+
+/**
+ * Where a short link sends its visitor. Today, and always for an invited reader or the editor: the exact card.
+ * Only with SHARED_PAGES_PUBLIC on (lib/public-access.ts; off by default), a visitor with no invite is sent to the
+ * page of the bill the card is about, with the link's code in the address; that code opens that one bill and nothing
+ * else. A link about no bill, or with the switch off, lands where it always did (the private notice, for that visitor).
+ */
+export async function shareLanding(code: string): Promise<string> {
+  const target = await openShareLink(code);
+  if (!target) return "/";
+  const card = `${target}${target.includes("?") ? "&" : "?"}from=share`;
+  if (!sharedPagesEnabled(process.env[SHARED_PAGES_FLAG]) || (await viewerAccess()).allowed) return card;
+  const grant = await shareGrant(getDb(), code).catch(() => null);
+  return grant?.billKey && grant.level ? sharedBillAddress(grant.billKey, grant.level, code) : card;
+}
+
+/** One share started from a bill page's share menu (aggregate only; the dimension is "bill:<card kind>", never which bill). */
+export async function countShareStart(kind: string) { await countEvent(SHARE_START_EVENT, `bill:${kind.replace(/[^a-z]/g, "").slice(0, 20)}`); }
 
 /** Called when a reader finishes onboarding: counts visit→signup once, then forgets the code. */
 export async function noteShareSignup() {
