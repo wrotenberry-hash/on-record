@@ -1,4 +1,5 @@
 import { BRAND } from "./brand.ts";
+import { readerEmailReady } from "./reader-email.ts";
 /**
  * Email to a reader through Resend (the account already used for alerts). Until a
  * sending domain is verified in Resend, its shared test sender delivers only to
@@ -35,7 +36,7 @@ export async function sendTo(to: string, subject: string, text: string, html?: s
  * nothing is sent at all, and the caller is told why. Readers still get the notice on the site and by phone
  * notification. 18 Nov 2026.
  */
-export function readerEmailReady(env: Record<string, string | undefined> = process.env): boolean { return !!env.READER_FROM_EMAIL?.trim(); }
+export { readerEmailReady } from "./reader-email.ts";
 export async function sendToReader(to: string, subject: string, text: string, html?: string): Promise<SendResult> {
   if (!readerEmailReady()) return { ok: false, error: "Emails to readers are off until a sending address on the site's own domain is set (READER_FROM_EMAIL)", domainNeeded: true };
   return sendTo(to, subject, text, html);

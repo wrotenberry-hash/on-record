@@ -151,14 +151,16 @@ export function followSummary(i: { total: number; followed: number; alertsOn: bo
  * shows notifications, and email needs an address. Each line says which is the case today, and `links` are the
  * places to change it (the Following page and the Account page, which already exist).
  */
-export function deliveryLines(i: { devices: number; hasEmail: boolean; alertsOn: boolean }): { push: string; email: string; links: { href: string; label: string }[] } {
+export function deliveryLines(i: { devices: number; hasEmail: boolean; alertsOn: boolean; emailOpen?: boolean }): { push: string; email: string; links: { href: string; label: string }[] } {
+  // 19 Nov: until the site has its own sending address it emails no reader, so the line must not offer email.
+  const emailOpen = i.emailOpen !== false;
   return {
     push: i.devices > 0 ? `Notifications are on for ${numberWord(i.devices)} device${i.devices === 1 ? "" : "s"}.`
       : "To get them on this phone or computer, turn on notifications on your Account page. Your device will ask for your permission first.",
-    email: i.hasEmail ? "They also go to the email address on your account." : "To get them by email, add your email address on your Account page.",
+    email: !emailOpen ? "Alerts by email are not switched on yet." : i.hasEmail ? "They also go to the email address on your account." : "To get them by email, add your email address on your Account page.",
     links: [{ href: "/following", label: "Change who you follow" },
       { href: "/account#alerts", label: !i.alertsOn ? "Turn on vote alerts" : i.devices > 0 ? "Change or turn off alerts" : "Turn on notifications, or turn alerts off" },
-      ...(i.hasEmail ? [] : [{ href: "/account", label: "Add your email address" }])],
+      ...(i.hasEmail || !emailOpen ? [] : [{ href: "/account", label: "Add your email address" }])],
   };
 }
 

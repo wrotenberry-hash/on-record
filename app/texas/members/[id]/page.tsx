@@ -13,6 +13,7 @@ import { totalsForScope } from "@/lib/constituent/store";
 import { MIN_SHOWN, NOT_ENOUGH_DISTRICT, NOT_SCIENTIFIC, scopeForMember, scopeLine, shownTotals, type ScopeTotals } from "@/lib/constituent/rules";
 import { ContactForTxMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 import { FollowMember } from "@/components/federal/follow-button"; // follow a Texas legislator (persuasion and retention round, point 2)
+import { verificationConfig } from "@/lib/verify/config";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +40,13 @@ export default async function TexasMemberPage({ params }: { params: Promise<{ id
       {/* BEGIN contact-your-legislator (test-ready build): official phone, email and an editable message for this member. */}
       <ContactForTxMember person={person} />
       {/* END contact-your-legislator */}
-      <div className="fed-section sentiment" id="constituents"><h2>What residents of {scope} say <OpinionBadge /></h2>
+      {/* Only while counting is on (19 Nov): in the trial build nothing can be counted, so the section is left out, as on a member of Congress's page. */}
+      {verificationConfig().enabled && <div className="fed-section sentiment" id="constituents"><h2>What residents of {scope} say <OpinionBadge /></h2>
         {withTotals.length ? <ul className="analysis-list">{withTotals.map(r => <li key={r.id}><Link href={`/texas/bills/${encodeURIComponent(r.id)}`}>{r.row.bill.identifier}: {r.row.bill.title}</Link><br />
           <span className="lead">{scopeLine(scope, r.t)}</span><br /><span><b>{person.name}:</b> {r.row.member.line} <OfficialBadge /></span></li>)}</ul>
           : <p className="meta">{NOT_ENOUGH_DISTRICT} Totals for {scope} show from {MIN_SHOWN} counted voters on a bill.</p>}
         <p className="not-poll">{NOT_SCIENTIFIC}</p>
-        <p className="meta">Counted residents are address-matched or mail-verified at a home in this district; mail-verified are listed first. Shown beside the member&apos;s recorded vote, never as a score. No individual vote is ever shown.</p></div>
+        <p className="meta">Counted residents are address-matched or mail-verified at a home in this district; mail-verified are listed first. Shown beside the member&apos;s recorded vote, never as a score. No individual vote is ever shown.</p></div>}
       <h2>Latest decisions in the Texas {chamber} <OfficialBadge /></h2>
       <p className="meta">How {person.name} voted is shown only for record votes, where the official record lists each member by name. For a voice vote, or any vote the record does not list member by member, this page says so and shows no position.</p>
       {decisions.length ? <ul className="vote-list">{decisions.map(x => <MemberDecisionRow key={x.d.key} d={x.d} member={x.member} bill={x.bill} terms={terms.get(x.d.key)} />)}</ul>

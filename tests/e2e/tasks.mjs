@@ -96,19 +96,23 @@ export const tasks = [
       return `${t.swipes ? "menu needed a swipe; " : ""}typing the words is not a tap`;
     } },
 
-  { id: "7", name: "Turn on alerts", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
+  { id: "7", name: "Vote alerts are on from the start, and I can turn them off", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",
     async run(t) {
+      // Owner, 18 Nov 2026 (point 2): a new reader follows their own legislators with vote alerts on. The choice is theirs to undo, and it stays undone.
       await t.start();
       await t.tap(menu("Account"));
       const box = t.page.locator('input[name="instantVotes"]');
       await t.see(box, "the alert choices");
-      if (await box.isChecked()) t.fail("Vote alerts were already on for a new reader.");
-      await t.tap('label.consent:has(input[name="instantVotes"])', "When my legislators vote");
+      if (!(await box.isChecked())) t.fail("Vote alerts were not on for a new reader who has entered an address.");
+      await t.tap('label.consent:has(input[name="instantVotes"])', "When a legislator I follow votes on a bill");
       await t.tap('button:has-text("Save alert choices")');
       await t.page.waitForLoadState("load");
       await t.page.reload({ waitUntil: "load" });
-      if (!(await t.page.locator('input[name="instantVotes"]').isChecked())) t.fail("The alert choice was not kept after saving.");
-      return t.swipes ? "Account is at the far end of the menu (1 swipe)" : "";
+      if (await t.page.locator('input[name="instantVotes"]').isChecked()) t.fail("Turning vote alerts off was not kept after saving.");
+      // Going back to the home screen must not switch them on again.
+      await t.page.goto("/", { waitUntil: "load" }); await t.page.goto("/account", { waitUntil: "load" });
+      if (await t.page.locator('input[name="instantVotes"]').isChecked()) t.fail("Vote alerts came back on by themselves.");
+      return t.swipes ? "Account is at the far end of the menu (1 swipe)" : "on from the start; off after two taps, and they stay off";
     } },
 
   { id: "8", name: "Texas Legislature this week", target: { taps: 3, seconds: SECONDS }, reader: "onboarded",

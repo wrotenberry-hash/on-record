@@ -17,6 +17,7 @@ import { Turnstile } from "@/components/verify/turnstile";
 import { brandTitle } from "@/lib/brand";
 import { AssociationsBlock } from "@/components/associations/account-block";
 import { MailVerifySection } from "@/components/account/mail-verify";
+import { readerEmailReady } from "@/lib/reader-email";
 
 // What the account has confirmed so far. The second level is "address-matched", never "verified" (docs/CONSTITUENT_VOICE.md).
 const TIER_LABEL = ["Visitor: you can read, follow and save a private position; your answers are not counted", "Phone confirmed: you can read, follow and save a private position; your answers are not counted in any total until your home address is matched",
@@ -53,7 +54,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   return <PublicShell current="/account" access={access} page="/account">
     <section className="fed-page">
       <div className="eyebrow">YOUR ACCOUNT</div>
-      <h1>{account ? "Your account" : "Keep your follows on every device"}</h1>
+      <h1>{account ? "Your account" : readerEmailReady() || access.editor || vc.enabled ? "Keep your follows on every device" : "Your account"}</h1>
       {note && <p className={m === "fail" || m === "expired" ? "gate gate-closed" : "gate gate-open"} role="status">{note}</p>}
       {account ? <>
         <p>Signed in as <b>{maskEmail(account.email)}</b>. Your follows and your own Support/Oppose answers are kept with this account and shown to no one else.</p>
@@ -95,6 +96,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <div className="fed-section" id="delete"><h2>Delete your account</h2>
           <p className="meta">Deletes your account, every Support/Oppose answer (private and counted), your follows{vc.enabled ? ", and your verification record" : ""}. Totals are recalculated without you. This cannot be undone.</p>
           <form action={deleteMyAccount} className="review-actions"><label className="consent"><input type="checkbox" name="confirm" value="yes" /> <span>Yes, delete everything</span></label><button className="secondary">Delete my account</button></form></div>
+      </> : !readerEmailReady() && !access.editor && !vc.enabled ? <>
+        {/* 19 Nov: until the site has its own sending address its emails reach no reader, so the form is not offered to a trial reader. */}
+        <p>Signing in by email is not open during this trial. Your invite link keeps your place, your follows and your answers on this device.</p>
       </> : <>
         <p>Enter your email and we will send a one-time link. No password. We keep your address only to send that link and, if you want it, a Monday email of how your legislators voted.</p>
         <form action={requestLink} className="review-actions"><input type="email" name="email" id="account-email" required autoComplete="email" placeholder="you@example.com" aria-label="Email" />
@@ -108,7 +112,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <button>Save alert choices</button></form>
         <p className="meta">The first time you enter your address, the site follows your own legislators for you and switches vote alerts on. Untick the first box to stop them. <Link href="/following">See or change who you follow</Link>.</p>
         <PushToggle />
-        <p className="meta">Alerts arrive by email (with a signed-in account) and on devices where you turn them on; your phone or browser asks for your permission first. They are sent after each scheduled update, twice a day.</p></div>}
+        <p className="meta">{readerEmailReady() ? "Alerts arrive by email (with a signed-in account) and on devices where you turn them on" : "Alerts arrive on devices where you turn them on; alerts by email are not switched on yet"}; your phone or browser asks for your permission first. They are sent after each scheduled update, twice a day.</p></div>}
       <p className="meta"><Link href="/following">Following</Link> · <Link href="/politicians">Find a member</Link></p>
     </section>
   </PublicShell>;

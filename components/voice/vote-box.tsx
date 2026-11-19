@@ -12,7 +12,7 @@ import { Turnstile } from "@/components/verify/turnstile";
 import { verificationConfig } from "@/lib/verify/config";
 import { countedNote } from "@/lib/verify/flow";
 import { castBillVote, chooseEarlierAnswers } from "@/app/voice/actions";
-import { groupLine, legacyPrompt, NOT_SCIENTIFIC, PROMISE, REASON_MAX, TIER_MEANS, TIER_NAME, whoCanWeighIn } from "@/lib/constituent/rules";
+import { COUNTING_OFF, groupLine, legacyPrompt, NOT_SCIENTIFIC, PROMISE, REASON_MAX, TIER_MEANS, TIER_NAME, whoCanWeighIn } from "@/lib/constituent/rules";
 import type { TotalsBlock, VoteBoxData } from "@/lib/constituent/view";
 import { MailVerifyOffer } from "@/components/account/mail-verify-offer";
 
@@ -53,10 +53,13 @@ export function VoteBox({ billKey, question, plain, officialTitle, data, code, b
       {data.history.length > 1 && <details className="method"><summary>Your earlier answers</summary><ul className="analysis-list">{data.history.map(h => <li key={h.id}>{shortDate(h.at)}: {ANSWER_WORD[h.stance as keyof typeof ANSWER_WORD] ?? h.stance}{h.reason ? ` — “${h.reason}”` : ""}</li>)}</ul></details>}
     </div>}
 
+    {/* While counting is switched off (the trial build) nothing is or can be counted, so the page says only that. */}
+    {!data.verificationOn ? <div className="fed-section sentiment" id="totals"><h2>What residents say <OpinionBadge /></h2>
+      <p className="meta">{COUNTING_OFF}</p></div> : <>
     <div className="fed-section sentiment" id="totals"><h2>What residents say <OpinionBadge /></h2>
       <p className="not-poll">{NOT_SCIENTIFIC}</p>
       {data.showTotals || !data.canAnswer ? <TotalsList totals={data.totals} />
         : <p className="meta">Totals for the {data.jurisdiction.level === "federal" ? "nation, your state and your district" : "state and your district"} appear here after you answer.</p>}
-      <p className="meta">Totals count address-matched and mail-verified residents only, mail-verified first. Address-matched means a text-message code and a home address the Census Bureau&apos;s geocoder placed; mail-verified adds a code from a postcard mailed to that address. Accounts with only a phone are not counted. New accounts count after 24 hours, a district shows from 25 voters, and answers under review are left out. No individual vote or reason is ever shown. <Link href="/transparency">Transparency</Link></p></div>
+      <p className="meta">Totals count address-matched and mail-verified residents only, mail-verified first. Address-matched means a text-message code and a home address the Census Bureau&apos;s geocoder placed; mail-verified adds a code from a postcard mailed to that address. Accounts with only a phone are not counted. New accounts count after 24 hours, a district shows from 25 voters, and answers under review are left out. No individual vote or reason is ever shown. <Link href="/transparency">Transparency</Link></p></div></>}
   </>;
 }

@@ -1,6 +1,8 @@
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, notInArray, sql, type SQL } from "drizzle-orm";
 import { analysisBillSummaries } from "@/db/schema";
 import { generatorNumber, generatorNumberSql } from "./prompt-order";
+import { heldBillIds, READER_HOLDS } from "./reader-holds.ts";
+export { READER_HOLDS };
 
 /**
  * Owner instruction, 16 Nov 2026: summaries restated titles and S.J.Res. 197's headline was wrong, so no more
@@ -31,11 +33,16 @@ export function texasSummariesPaused(): boolean { return process.env.TEXAS_SUMMA
 /** The gate's generator number; null while the gate is closed or its value cannot be read (closed is the safe side). */
 const MIN_GENERATOR = generatorNumber(PUBLIC_MIN_PROMPT);
 
+// The list of summaries hidden after a reading against their sources, and why: lib/analysis/reader-holds.ts.
+const HELD_IDS = heldBillIds();
+const heldList = HELD_IDS.map(id => `'${id}'`).join(", ");
+
 export function readerVisible(): SQL {
   if (MIN_GENERATOR === null) return sql`0 = 1`;
-  return and(eq(analysisBillSummaries.status, "visible"), sql`cast(substr(${analysisBillSummaries.promptVersion}, 2) as integer) >= ${MIN_GENERATOR}`)!;
+  return and(eq(analysisBillSummaries.status, "visible"), sql`cast(substr(${analysisBillSummaries.promptVersion}, 2) as integer) >= ${MIN_GENERATOR}`,
+    ...(HELD_IDS.length ? [notInArray(analysisBillSummaries.billId, HELD_IDS)] : []))!;
 }
 
 /** The same gate for raw subqueries that alias analysis_bill_summaries as "s". */
 export const READER_S = MIN_GENERATOR === null ? sql.raw("0 = 1")
-  : sql.raw(`s.status = 'visible' and ${generatorNumberSql("s.prompt_version")} >= ${MIN_GENERATOR}`);
+  : sql.raw(`s.status = 'visible' and ${generatorNumberSql("s.prompt_version")} >= ${MIN_GENERATOR}${HELD_IDS.length ? ` and s.bill_id not in (${heldList})` : ""}`);

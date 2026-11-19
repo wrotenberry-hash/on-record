@@ -26,7 +26,7 @@ Taps = taps on links and buttons from the home page (typing a ZIP or search word
 | 4 | Follow an issue | Not possible outside onboarding | **0–2 taps** | "Follow this issue" on every issue page; limit of 3 explained |
 | 5 | Compare two members | 4 taps | **2 taps** | "Compare with {other senator}" one-tap link |
 | 6 | Find a bill by keyword | 2 taps + swipe | **2 taps** + words | Search moved to the second menu item |
-| 7 | Turn on alerts | 3 taps + swipe | 3 taps + swipe | Account is the 10th menu item |
+| 7 | Vote alerts are on from the start, and I can turn them off (owner, 18 Nov: new readers follow their legislators with alerts on) | 3 taps + swipe | 3 taps + swipe | Account is the 10th menu item |
 | 8 | Texas Legislature this week | 1 tap | 1 tap + swipe | |
 | 9 | What changed since my last visit | Failed: first page of a visit showed nothing | **0 taps** | Bug fixed (see O-95), regression test added |
 | 10 | Bills that became law this Congress | 1 tap + swipe | 1 tap + swipe | |

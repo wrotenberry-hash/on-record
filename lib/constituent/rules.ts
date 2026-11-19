@@ -16,6 +16,11 @@ export const REASON_MAX = 280;
 /** Owner's wording, 18 Nov 2026. It replaces "Only you see this. It is never shown to anyone else or added up into a poll." */
 export const PROMISE = "Your individual vote is private. Counted votes are added into anonymous totals.";
 export const NOT_SCIENTIFIC = "Not a scientific poll.";
+/**
+ * What a page says about totals while counting is switched off (the trial build, 19 Nov 2026). Nothing can be counted
+ * then, so no page may say "not enough yet", "share this bill" or describe steps a reader cannot take.
+ */
+export const COUNTING_OFF = "Counting has not started. During this trial your answer is saved for you alone: it is not added to any total, and no totals are shown. When counting opens, this page will say so before any answer is counted.";
 export const NOT_ENOUGH_DISTRICT = "Not enough constituents yet — share this bill.";
 export const NOT_ENOUGH = "Not enough voters yet.";
 

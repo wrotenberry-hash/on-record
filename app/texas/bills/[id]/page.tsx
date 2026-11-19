@@ -90,7 +90,7 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
         <ul className="vote-list">{yourMembers.map(m => <li key={m.id} className="vote-row"><div className="vote-main">
           <b><Link className="tap" href={`/texas/members/${encodeURIComponent(m.id)}`}>{m.name}</Link></b>
           <span className="vote-position">{m.line} <OfficialBadge /></span>
-          <small className="district-total"><OpinionBadge /> Residents of {scopeLine(m.scope, yourTotals.get(m.scope))} {NOT_SCIENTIFIC}</small></div></li>)}</ul>
+          {voice?.verificationOn && <small className="district-total"><OpinionBadge /> Residents of {scopeLine(m.scope, yourTotals.get(m.scope))} {NOT_SCIENTIFIC}</small>}</div></li>)}</ul>
         <p className="meta">A legislator&apos;s vote is shown only where the official record lists each member by name.</p></div>}
       <MemberVoteLists decisions={decisions} members={members} tloUrl={bill.tloUrl} />
       {versions.length > 0 && <div className="fed-section"><h2>Bill text <OfficialBadge /></h2><ul className="analysis-list">{versions.map(v => <li key={v.note}>{v.url ? <a href={v.url} target="_blank" rel="noopener noreferrer">{v.note}</a> : v.note}{v.date ? ` (${shortDate(v.date)})` : ""}</li>)}</ul></div>}

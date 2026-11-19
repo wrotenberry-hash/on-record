@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { followAllMine } from "@/app/start/actions";
 import { followState } from "@/lib/follow-defaults";
 import { deliveryLines, followSummary } from "@/lib/flow/cards";
+import { readerEmailReady } from "@/lib/reader-email";
 
 /**
  * Under the cards (owner, 18 Nov 2026, points 1 and 2): what the reader follows and whether vote alerts are on, in
@@ -17,7 +18,7 @@ export async function FollowStatus({ userId, memberIds }: { userId: string | nul
   const state = await followState(getDb(), userId, memberIds).catch(() => null);
   const summary = state ? followSummary({ total: state.total, followed: state.followed, alertsOn: state.alertsOn }) : null;
   if (!state || !summary) return null;
-  const how = deliveryLines({ devices: state.devices, hasEmail: state.hasEmail, alertsOn: state.alertsOn });
+  const how = deliveryLines({ devices: state.devices, hasEmail: state.hasEmail, alertsOn: state.alertsOn, emailOpen: readerEmailReady() });
   return <div className="follow-status" id="follows" role="group" aria-label="Following your legislators">
     <p className="follow-line"><b>{summary.line}</b> {summary.alerts}</p>
     {summary.button && <form action={followAllMine} className="follow-all">

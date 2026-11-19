@@ -28,6 +28,7 @@ import { NOT_SCIENTIFIC, scopeForMember, scopeLine, type ScopeTotals } from "@/l
 import { voteBoxData } from "@/lib/constituent/view";
 import { BRAND, brandTitle } from "@/lib/brand";
 import { ContactForBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
+import { READER_HOLDS } from "@/lib/analysis/publish-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +102,9 @@ export default async function BillPage({ params, searchParams }: { params: Promi
   // Resident voting (18 Nov 2026): the same voting box as every other bill, federal or state.
   const voice = shared ? null : await voteBoxData(bill.id, access).catch(() => null);
   const s = analysis?.summary;
-  const held = s?.status === "held";
+  // Hidden from readers by the gate after a reading against its sources (lib/analysis/publish-gate.ts READER_HOLDS): the editor sees it, with the reason.
+  const heldByReading = s ? READER_HOLDS[bill.id] ?? null : null;
+  const held = s?.status === "held" || !!heldByReading;
   const latestCheck = analysis?.checks[0];
   const docs = analysis?.details?.sourceDocs ?? [];
   // A citation names a bill section ("Sec. 2", "Full text") or an official source by id ("RULE", "REPORT", "CRS", "USC 10 §1413a").
@@ -159,7 +162,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       {s && analysis?.details?.plainEnglish && <div className="fed-section plain-english"><h2>In plain English <AnalysisBadge /></h2><p>{analysis.details.plainEnglish}</p></div>}
 
-      {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until an editor approves it{analysis?.queue ? ` (${queueReason(analysis.queue.reason)})` : ""}. <Link href="/editor/analysis">Review it</Link></div>}
+      {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until {heldByReading ? "it is rewritten" : "an editor approves it"}{heldByReading ? `: it was read against its sources and misstates a detail. ${heldByReading}` : analysis?.queue ? ` (${queueReason(analysis.queue.reason)}).` : "."} <Link href="/editor/analysis">Review it</Link></div>}
 
       {st && <>
         {/* Owner review, 17 Nov: the old rule, the new rule and what this bill would do come first; background follows. */}
@@ -227,7 +230,8 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         {shared ? null : mine.length ? <ul className="vote-list">{mine.map(m => <li key={`${m.rollCallId}-${m.id}`} className="vote-row"><div className="vote-main">
           <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link>{yours.has(m.id) && <span className="your-tag"> · your legislator</span>}</b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
             return <><span className="vote-position">{positionLine(m.position, k)}</span><small>{memberLine(m)} · {KIND_LABEL[k]}{rc ? ` · ${rc.question}, ${shortDate(rc.votedAt)}` : ""}</small>
-              <small className="district-total"><OpinionBadge /> Residents of {scopeLine(memberScope(m), districtTotals.get(memberScope(m)), m.chamber === "senate" ? "state" : "district")} {NOT_SCIENTIFIC}</small></>; })()}</div>
+              {/* Only while counting is on: with it off nothing can be counted, and "not enough yet" would mislead (19 Nov). */}
+              {voice?.verificationOn && <small className="district-total"><OpinionBadge /> Residents of {scopeLine(memberScope(m), districtTotals.get(memberScope(m)), m.chamber === "senate" ? "state" : "district")} {NOT_SCIENTIFIC}</small>}</>; })()}</div>
           <PositionPill position={m.position} raw={m.rawPosition} /></li>)}</ul>
           : <p className="meta">{followed.size ? "None of the members you follow has a recorded vote on this bill." : <><Link href="/legislators">Find your legislators</Link> or follow members on the <Link href="/politicians">Politicians</Link> page to see their votes here.</>}</p>}
         {!shared && <h3 className="subhead">All recorded votes</h3>}
