@@ -5,24 +5,21 @@ import { STAGE_LABEL, type StageKey } from "@/lib/federal/depth-parse";
 import { billLabel } from "@/components/federal/badges";
 import { sendTo } from "@/lib/mailer";
 import { BRAND } from "@/lib/brand";
+import { followBill, isFollowing, LOOP_STAGES, unfollowBill } from "@/lib/loop/follows";
 
-/** Round B: a reader follows a bill and gets one email when its stage changes. Follows are the reader's own; never shown to others. */
-export async function isFollowingBill(userId: string | null, billId: string) {
-  if (!userId) return false;
-  return !!(await getDb().select({ b: billFollows.billId }).from(billFollows).where(and(eq(billFollows.userId, userId), eq(billFollows.billId, billId))).get());
-}
+/** Round B: a reader follows a bill and hears when it moves. Follows are the reader's own; never shown to others. The database side is lib/loop/follows.ts. */
+export async function isFollowingBill(userId: string | null, billId: string) { return isFollowing(getDb(), userId, billId); }
 
 export async function toggleBillFollowFor(userId: string, billId: string) {
   const db = getDb();
-  if (await isFollowingBill(userId, billId)) { await db.delete(billFollows).where(and(eq(billFollows.userId, userId), eq(billFollows.billId, billId))); return false; }
-  const stage = (await db.select({ s: officialBillDepth.stage }).from(officialBillDepth).where(eq(officialBillDepth.billId, billId)).get())?.s ?? null;
-  await db.insert(billFollows).values({ userId, billId, createdAt: Date.now(), lastStage: stage }).onConflictDoNothing();
+  if (await isFollowing(db, userId, billId)) { await unfollowBill(db, userId, billId); return false; }
+  await followBill(db, userId, billId);
   return true;
 }
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 
-/** After each federal update: one email per followed bill whose stage moved, to readers with a verified email. */
+/** After each federal update: one email per followed bill whose stage moved, to readers with a verified email. Stages a closing-the-loop notice covers are left to that notice. */
 export async function runBillAlerts() {
   const db = getDb();
   const moved = await db.select({ userId: billFollows.userId, billId: billFollows.billId, lastStage: billFollows.lastStage, stage: officialBillDepth.stage, stageDate: officialBillDepth.stageDate,
@@ -37,6 +34,9 @@ export async function runBillAlerts() {
     // Round D: an in-app / push alert for every follower whose bill moved (push only where they turned it on), unless they switched bill alerts off.
     const pref = await db.select({ on: alertPrefs.instantBills }).from(alertPrefs).where(eq(alertPrefs.userId, m.userId)).get();
     if (pref && !pref.on) { await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); skipped++; continue; }
+    // 18 Nov 2026: a passage, a failed vote, a law or a veto is told by the closing-the-loop notice (lib/loop/notices.ts), with the numbers and
+    // how the reader's legislators voted. This email keeps the steps in between (committee, the two versions being settled, sent to the President).
+    if (m.stage && LOOP_STAGES.has(m.stage)) { await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); skipped++; continue; }
     if (m.lastStage) await import("@/lib/push").then(p => p.notifyUser(m.userId, { title: `${label}: ${stage}`, body: m.title, url: `/bills/${m.billId}` })).catch(() => null);
     if (!m.lastStage || !m.email || !m.verifiedAt) { skipped++; await db.update(billFollows).set({ lastStage: m.stage }).where(and(eq(billFollows.userId, m.userId), eq(billFollows.billId, m.billId))); continue; }
     const r = await sendTo(m.email, `${label}: ${stage}`, [`A bill you follow moved.`, "", `${label}, ${m.title}`, `Now: ${stage}${m.stageDate ? ` (${m.stageDate})` : ""}.`, "",

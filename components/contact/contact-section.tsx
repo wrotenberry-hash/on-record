@@ -13,6 +13,7 @@ import { txVoteKind } from "@/lib/texas/parse";
 import { LEGISLATORS_URL } from "@/lib/federal/parse";
 import { answerFor } from "@/lib/opinions";
 import { contactsFor, type ContactRow } from "@/lib/contacts";
+import { isFollowingBill } from "@/lib/bill-follows";
 import { federalAnswer, formLink, txAnswer, type ContactStance } from "@/lib/contact-message";
 import { ContactTool, type ContactPerson } from "./contact-tool";
 
@@ -58,11 +59,12 @@ export async function ContactForBill({ bill, votes }: { bill: { id: string; bill
   const mine = fed ? [...fed.senators, ...(fed.representative ? [fed.representative] : [])] : [];
   if (!mine.length) return <Section heading={heading}><p className="meta">No sitting member of Congress is on file for your saved place. <Link href="/legislators">Check your legislators</Link></p></Section>;
   const ids = mine.map(m => m.id);
-  const [contacts, cast, stance] = await Promise.all([
+  const [contacts, cast, stance, following] = await Promise.all([
     contactsFor("federal", ids).catch(() => new Map<string, ContactRow>()),
     votes.length ? getDb().select({ rollId: officialMemberVotes.rollCallId, memberId: officialMemberVotes.politicianId, position: officialMemberVotes.position }).from(officialMemberVotes)
       .where(and(inArray(officialMemberVotes.rollCallId, votes.map(v => v.id)), inArray(officialMemberVotes.politicianId, ids))).catch(() => []) : [],
     answerFor(userId, bill.id).catch(() => null) as Promise<ContactStance>,
+    isFollowingBill(userId, bill.id).catch(() => false),
   ]);
   const kindOf = (v: FederalVote) => voteKind(v.question, v.title ?? bill.title);
   const people: ContactPerson[] = mine.map(m => ({ id: m.id, name: m.fullName, title: m.chamber === "senate" ? "Senator" : "Representative", seat: m.role, href: `/politicians/${m.id}`, constituent: true,
@@ -71,7 +73,8 @@ export async function ContactForBill({ bill, votes }: { bill: { id: string; bill
   const voteChoices = votes.map(v => ({ id: v.id, label: `${v.chamber === "senate" ? "Senate" : "House"}, ${shortDate(v.votedAt)}, ${v.question} (${KIND_LABEL[kindOf(v)].toLowerCase()})` }));
   return <Section heading={heading}>
     {how}
-    <Suspense fallback={null}><ContactTool dim="bill" people={people} bill={{ label: billLabel(bill.billType, bill.number), title: bill.title }} stance={stance} voteChoices={voteChoices} billHref={`/bills/${bill.id}`} /></Suspense>
+    <Suspense fallback={null}><ContactTool dim="bill" people={people} bill={{ label: billLabel(bill.billType, bill.number), title: bill.title }} stance={stance} voteChoices={voteChoices} billHref={`/bills/${bill.id}`}
+      follow={{ billId: bill.id, following }} /></Suspense>
     {!fed?.representative && <p className="meta">Your U.S. representative is not listed because a ZIP code can cross districts. <Link href="/legislators">Pick your House district</Link></p>}
   </Section>;
 }
@@ -81,23 +84,25 @@ export async function ContactForBill({ bill, votes }: { bill: { id: string; bill
 /** On a Texas bill page: the reader's state senator and state representative, when a street address has placed them. */
 export async function ContactForTxBill({ bill, votes }: { bill: { id: string; identifier: string; title: string }; votes: TxVoteRow[] }) {
   const heading = "Contact your Texas legislators about this bill";
-  const { loc } = await reader();
+  const { userId, loc } = await reader();
   if (!loc) return <Section heading={heading}>{noPlace}</Section>;
   if (loc.state !== "TX") return <Section heading={heading}><p className="meta">Your saved place is outside Texas, so no Texas legislator represents you. <Link href="/legislators">Change your place</Link></p></Section>;
   const tx = await txLegislatorsFor(loc.stateUpper, loc.stateLower).catch(() => null);
   const mine = [tx?.senator, tx?.representative].filter((t): t is NonNullable<typeof t> => !!t);
   if (!mine.length) return <Section heading={heading}><p className="meta">{loc.stateUpper || loc.stateLower ? "Your Texas districts are saved, but their members are not on file yet." : "Add your street address to find your Texas state senator and state representative."} <Link href="/legislators">Your legislators</Link></p></Section>;
   const ids = mine.map(m => m.id);
-  const [contacts, cast] = await Promise.all([
+  const [contacts, cast, following] = await Promise.all([
     contactsFor("texas", ids).catch(() => new Map<string, ContactRow>()),
     votes.length ? getDb().select({ voteId: txMemberVotes.voteId, personId: txMemberVotes.personId, option: txMemberVotes.option }).from(txMemberVotes)
       .where(and(inArray(txMemberVotes.voteId, votes.map(v => v.id)), inArray(txMemberVotes.personId, ids))).catch(() => []) : [],
+    isFollowingBill(userId, bill.id).catch(() => false),
   ]);
   const people: ContactPerson[] = mine.map(m => ({ ...txPersonBase(m, contacts.get(m.id)), constituent: true,
     votes: cast.filter(c => c.personId === m.id).flatMap(c => { const v = votes.find(x => x.id === c.voteId); return v ? [{ rollId: v.id, answer: txAnswer(c.option), kind: txVoteKind(v.motion), date: shortDate(v.date), at: Date.parse(v.date) || 0 }] : []; }) }));
   return <Section heading={heading}>
     {how}
-    <Suspense fallback={null}><ContactTool dim="tx_bill" people={people} bill={{ label: bill.identifier, title: bill.title }} stance={null} /></Suspense>
+    <Suspense fallback={null}><ContactTool dim="tx_bill" people={people} bill={{ label: bill.identifier, title: bill.title }} stance={null}
+      follow={{ billId: bill.id, following }} /></Suspense>
     {mine.length < 2 && <p className="meta">Only one of your two Texas legislators is on file so far.</p>}
   </Section>;
 }

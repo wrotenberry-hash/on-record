@@ -184,17 +184,19 @@ test("share cards carry the vote, its kind, date, a labelled summary, the source
   assert.equal(sourceText("https://www.senate.gov/x.xml"), "senate.gov/x.xml");
 });
 
-test("the weekly email lists only members with votes, labels each vote's kind and has a one-tap unsubscribe", async () => {
+// 18 Nov 2026: the weekly email was rebuilt (owner's point 3: votes, one bill that moved, one thing coming up, "You're caught up.").
+// It lists votes on a bill itself only, so there is no longer a "kind" label to print. The full tests are in tests/loop.test.mjs.
+test("the weekly email names the official record for each vote, labels Analysis apart, and has a one-tap unsubscribe", async () => {
   const { formatDigest, isDigestDay, isoWeek } = await import("../lib/digest-format.ts");
-  const v = { date: "Nov 12", kindLabel: "Procedural vote", voteText: "Voted yes on a procedural step (not a vote on the bill itself)", billLabel: "S. 1", billTitle: "A bill", headline: "Would do a thing.", sourceUrl: "https://www.senate.gov/v.xml", billUrl: "https://site.test/bills/119-s-1" };
-  assert.equal(formatDigest([{ name: "A", seat: "B", votes: [] }], { site: "https://site.test", unsubscribe: "https://site.test/u" }), null, "no votes, no email");
-  const m = formatDigest([{ name: "Sen. A", seat: "Senator · R-TX", votes: [v] }, { name: "Sen. B", seat: "x", votes: [] }], { site: "https://site.test", unsubscribe: "https://site.test/u?t=1" });
+  const v = { result: "The Senate passed S. 1 (a bill), 60–38, on 12 November 2026.", members: ["Sen. A voted Yes."], headline: "Would do a thing.", sourceUrl: "https://www.senate.gov/v.xml", billUrl: "https://site.test/bills/119-s-1" };
+  assert.equal(formatDigest({ votes: [], moved: null, coming: null }, { site: "https://site.test", unsubscribe: "https://site.test/u" }), null, "nothing happened, no email");
+  const m = formatDigest({ votes: [v], moved: null, coming: null }, { site: "https://site.test", unsubscribe: "https://site.test/u?t=1" });
   assert.equal(m.items, 1);
-  assert.match(m.text, /Procedural vote: Voted yes on a procedural step \(not a vote on the bill itself\)/);
+  assert.match(m.text, /1\. The Senate passed S\. 1 \(a bill\), 60–38, on 12 November 2026\.\n   Sen\. A voted Yes\./);
   assert.match(m.text, /\[Analysis\] Would do a thing\./);
-  assert.match(m.text, /Official source: https:\/\/www\.senate\.gov\/v\.xml/);
+  assert.match(m.text, /Official record: https:\/\/www\.senate\.gov\/v\.xml/);
   assert.match(m.text, /Stop these emails: https:\/\/site\.test\/u\?t=1/);
-  assert.doesNotMatch(m.text, /Sen\. B/);
+  assert.match(m.text, /You're caught up\./);
   assert.ok(isDigestDay(Date.parse("2026-11-16T19:00:00Z")));
   assert.equal(isoWeek(Date.parse("2026-11-16T19:00:00Z")), "2026-W47");
 });
