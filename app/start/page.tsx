@@ -39,7 +39,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
       {synced && <IssuesStep userId={userId} />}
       <ComingUp userId={userId} loc={loc} canAnswer={synced} />
       <DistrictCompare userId={userId} loc={loc} />
-      <p className="flow-finish"><Link href="/voice">See your voice</Link> · <Link href="/">Go to your home page</Link></p>
+      <p className="flow-finish"><Link href="/voice">See your record</Link> · <Link href="/">Go to your home page</Link></p>
     </section>
   </PublicShell>;
 }

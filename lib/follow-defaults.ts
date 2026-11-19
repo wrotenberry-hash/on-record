@@ -14,7 +14,7 @@
  * tests/first-screen.test.mjs runs them against a temporary database built from the real migrations.
  */
 import { and, eq, isNotNull, sql } from "drizzle-orm";
-import { alertPrefs, officialPoliticians, pushSubscriptions, readerAccounts, readerSetup, txPeople, userFollows } from "../db/schema.ts";
+import { alertPrefs, appUsers, officialPoliticians, pushSubscriptions, readerAccounts, readerSetup, txPeople, userFollows } from "../db/schema.ts";
 import type { Db } from "./verify/residence-store.ts";
 
 /* ------------------------------------------------------------------- the place --- */
@@ -105,8 +105,18 @@ async function alertsOnIfUnset(db: Db, userId: string, now: number): Promise<boo
   await db.insert(alertPrefs).values({ userId, instantVotes: 1, instantBills: 1, push: 0, updatedAt: now }).onConflictDoNothing();
   return true;
 }
+/**
+ * reader_setup is shared with the week-two return measure (lib/week-two.ts), which owns first_seen_at and week_two_at.
+ * A row made here gets the same first-visit time that file would give it (the reader's id was made on their first
+ * visit), and an existing row keeps both: only the columns this file owns are ever updated.
+ */
+async function firstSeen(db: Db, userId: string, now: number): Promise<number> {
+  const user = await db.select({ createdAt: appUsers.createdAt }).from(appUsers).where(eq(appUsers.id, userId)).get();
+  return Math.min(user?.createdAt ?? now, now);
+}
 async function recordPlace(db: Db, userId: string, key: string, now: number) {
-  await db.insert(readerSetup).values({ userId, placeKey: key, defaultsAt: now, firstSeenAt: now }).onConflictDoUpdate({ target: readerSetup.userId, set: { placeKey: key, defaultsAt: now } });
+  await db.insert(readerSetup).values({ userId, placeKey: key, defaultsAt: now, firstSeenAt: await firstSeen(db, userId, now) })
+    .onConflictDoUpdate({ target: readerSetup.userId, set: { placeKey: key, defaultsAt: now } });
 }
 
 export type DefaultsResult = { first: boolean; followed: string[]; alertsTurnedOn: boolean };
@@ -167,6 +177,23 @@ export async function issuesAsked(db: Db, userId: string): Promise<boolean> {
 }
 /** Records that the step was put to the reader and answered, so it is not asked again. The first time stands. */
 export async function markIssuesAsked(db: Db, userId: string, now = Date.now()) {
-  await db.insert(readerSetup).values({ userId, issuesAskedAt: now, firstSeenAt: now })
+  await db.insert(readerSetup).values({ userId, issuesAskedAt: now, firstSeenAt: await firstSeen(db, userId, now) })
     .onConflictDoUpdate({ target: readerSetup.userId, set: { issuesAskedAt: sql`coalesce(${readerSetup.issuesAskedAt}, ${now})` } });
+}
+
+/* ------------------------------------------------------------ numbers for the editor --- */
+
+/**
+ * Totals for the editor's pages (the lead places them): how many readers have had the default follows applied, how
+ * many have vote alerts on, how many have off, and how many answered the issues step. Counts only; no reader is named.
+ */
+export async function firstScreenMeasures(db: Db): Promise<{ defaultsApplied: number; voteAlertsOn: number; voteAlertsOff: number; issuesStepAnswered: number }> {
+  const n = async (q: Promise<{ n: number } | undefined>) => Number((await q)?.n ?? 0);
+  const [defaultsApplied, issuesStepAnswered, voteAlertsOn, voteAlertsOff] = await Promise.all([
+    n(db.select({ n: sql<number>`count(*)` }).from(readerSetup).where(isNotNull(readerSetup.defaultsAt)).get()),
+    n(db.select({ n: sql<number>`count(*)` }).from(readerSetup).where(isNotNull(readerSetup.issuesAskedAt)).get()),
+    n(db.select({ n: sql<number>`count(*)` }).from(alertPrefs).where(eq(alertPrefs.instantVotes, 1)).get()),
+    n(db.select({ n: sql<number>`count(*)` }).from(alertPrefs).where(eq(alertPrefs.instantVotes, 0)).get()),
+  ]);
+  return { defaultsApplied, voteAlertsOn, voteAlertsOff, issuesStepAnswered };
 }

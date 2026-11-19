@@ -52,6 +52,6 @@ export async function ComingUp({ userId, loc, canAnswer, limit = 5 }: { userId: 
     {data.texas.length > 0 && <><h3>Texas Legislature</h3><ul className="result-list">{data.texas.map(e => <li key={e.id}><Link href="/texas">{e.name}</Link>
       <span className="meta">{e.when} · hearing{e.bills.length ? ` · ${e.bills.join(", ")}` : ""}</span></li>)}</ul>
       <p className="list-end">{data.texas.length === 1 ? "That is the next hearing on the calendar." : `Those are the next ${numberWord(data.texas.length)} hearings on the calendar.`} <Link className="more-link" href="/texas">The Texas page has the rest</Link></p></>}
-    {canAnswer && list.some(b => b.answerable) && <p className="flow-small">{answerPrivacyLine(verificationOn)}{verificationOn ? <> <Link href="/account#verify">Verify on your Account page</Link>.</> : null}</p>}
+    {canAnswer && list.some(b => b.answerable) && <p className="flow-small">{answerPrivacyLine(verificationOn)}{verificationOn ? <> <Link href="/account#verify">Match your home address on your Account page</Link>.</> : null}</p>}
   </section>;
 }

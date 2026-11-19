@@ -12,14 +12,15 @@ const ANSWER = { support: "Support", oppose: "Oppose", unsure: "Not sure" } as c
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
- * "See how your district compares": for the bills the reader has answered, the district's total once 25 verified
- * people have answered, and otherwise why there is no number yet. It shows even while verification is switched off
+ * "See how your district compares": for the bills the reader has answered, the district's total once 25 counted
+ * residents have answered, and otherwise why there is no number yet. It shows even while counting is switched off
  * (then nothing is being counted, and it says so). A total below 25 is never shown.
+ * A counted resident is address-matched or mail-verified; address matching is never called "verifying" here.
  */
 export async function DistrictCompare({ userId, loc }: { userId: string | null; loc: Location | null }) {
   const enabled = verificationConfig().enabled;
   const bills = await answeredBills(userId, 5).catch(() => []);
-  // A verified reader's answers count in the district their address matched; otherwise the district found from the ZIP or address.
+  // An address-matched reader's answers count in the district their address matched; otherwise the district found from the ZIP or address.
   const account = enabled && userId ? (await currentAccount().catch(() => null)) ?? (await accountForAppUser(userId).catch(() => null)) : null;
   const profile = account ? await profileFor(account.id).catch(() => null) : null;
   const district = profile?.districtId ?? loc?.congressional ?? null;
@@ -37,7 +38,7 @@ export async function DistrictCompare({ userId, loc }: { userId: string | null; 
     {anyHidden && <p className="flow-threshold" role="note">{general.text}</p>}
     {anyShown && <p className="meta">Not a scientific poll. Totals count address-matched and mail-verified residents only.</p>}
     <p className="flow-small">{enabled
-      ? <>To be counted: sign in with your email on your <Link href="/account#verify">Account page</Link>, then verify a mobile number and your address. Answers you have already saved join the totals with your first counted answer.</>
-      : <>When counting opens, you will verify on your <Link href="/account">Account page</Link>. Your answers are saved and stay private until then.</>}</p>
+      ? <>To be counted: sign in with your email on your <Link href="/account#verify">Account page</Link>, then confirm a mobile number and match your home address. Answers you have already saved join the totals with your first counted answer.</>
+      : <>When counting opens, you will match your home address on your <Link href="/account">Account page</Link>. Your answers are saved and stay private until then.</>}</p>
   </section>;
 }

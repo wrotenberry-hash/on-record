@@ -369,7 +369,7 @@ export const LEGAL_REVIEW = {
   noAccountDelete: "a reader who never signed in by email has no delete button; their answers and follows are tied to the invite link. Decide how such a reader asks for deletion and how fast it is done",
   databaseAccess: "the person who runs the site can read the database directly, including which invite gave which answers; say who has access and under what rule",
   keyRotation: "phone hashes and stored addresses are protected by keys derived from one site secret; decide whether separate keys or a key-change plan are required",
-  emailDefault: "the weekly email and bill alerts are switched on by default for a signed-in reader; decide whether they must be off until the reader chooses them",
+  emailDefault: "the weekly email and bill alerts are switched on by default for a signed-in reader, and vote alerts are switched on the first time a reader enters an address (they reach a reader only by email once signed in, or on a device where the reader allowed notifications); decide whether they must be off until the reader chooses them",
   requests: "how a reader asks for a copy of their data or a correction, and the time limit for answering",
   breach: "the duty to tell readers about a data breach, and how",
   age: "the minimum age to use the site (13, 16 or 18) and the wording. The code does not ask for or check age",

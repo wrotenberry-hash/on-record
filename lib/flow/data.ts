@@ -23,9 +23,6 @@ import { allowedPhotoUrl, photoPath, TEXAS_PHOTO_HOSTS } from "@/lib/photos";
  * facts only. The words and the rules are in lib/flow/cards.ts and lib/flow/votes.ts; the queries in lib/flow/card-store.ts.
  */
 
-const PARTY: Record<string, string> = { Democrat: "D", Democratic: "D", Republican: "R", Independent: "I", Libertarian: "L" };
-const letter = (party: string) => PARTY[party] ?? party.slice(0, 1).toUpperCase();
-
 /** The newest reader-visible summary for each bill: its headline and its own question. Empty while the gate is shut. */
 export async function visibleSummaries(billIds: readonly string[]) {
   const out = new Map<string, { headline: string; question: string | null }>(), ids = [...new Set(billIds)];
@@ -69,11 +66,11 @@ async function meaningfulVotesOf(politicianId: string, now: number): Promise<{ v
 export async function houseChoicesFor(state: string, zip: string | null, all: Legislator[]): Promise<DistrictChoice[]> {
   const idOf = (m: Legislator) => `${m.state}-${m.district ? String(m.district).padStart(2, "0") : "AL"}`;
   const place = zip ? await zipPlace(zip).catch(() => null) : null;
-  if (!place?.choices.length || !place.choices.some(d => d.startsWith(`${state}-`))) return all.map(m => ({ id: idOf(m), label: `District ${m.district || "at large"} · ${m.fullName} (${letter(m.party)})` }));
+  if (!place?.choices.length || !place.choices.some(d => d.startsWith(`${state}-`))) return all.map(m => ({ id: idOf(m), label: `District ${m.district || "at large"} · ${m.fullName} (${partyWord(m.party)})` }));
   const states = [...new Set(place.choices.map(d => d.split("-")[0]))];
   const members = [...all, ...(await Promise.all(states.filter(s => s !== state).map(s => federalLegislators(s, null).then(f => f.houseChoices).catch(() => [] as Legislator[])))).flat()];
   return place.choices.map(id => { const m = members.find(x => idOf(x) === id), n = id.split("-")[1];
-    return { id, label: `${states.length > 1 ? id : `District ${n === "AL" ? "at large" : Number(n)}`} · ${m ? `${m.fullName} (${letter(m.party)})` : "seat vacant"}` }; });
+    return { id, label: `${states.length > 1 ? id : `District ${n === "AL" ? "at large" : Number(n)}`} · ${m ? `${m.fullName} (${partyWord(m.party)})` : "seat vacant"}` }; });
 }
 
 /**

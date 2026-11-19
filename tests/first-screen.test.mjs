@@ -16,7 +16,7 @@ import * as schema from "../db/schema.ts";
 import { CAUGHT_UP, cardVotesNote, caughtUp, deliveryLines, endOfList, fedCardVote, followSummary, initials, legislatorsHeading, meaningfulFed, meaningfulTx, noPhotoLabel, NO_PARTY, notFoundLine,
   numberWord, partyWord, photoAlt, seatLine, txCardVote, VOTES_PER_CARD } from "../lib/flow/cards.ts";
 import { fedVoteRows, followedBillsMovedSince, followedMemberIds, memberVotesSince, texasBillsMovedSince, texasMembersByIds, txVoteRows } from "../lib/flow/card-store.ts";
-import { applyFollowDefaults, followAllAt, followPlan, followState, issuesAsked, markIssuesAsked, memberKind, placeFromKey, placeKey, placeMemberIds, toggleMemberFollow } from "../lib/follow-defaults.ts";
+import { applyFollowDefaults, firstScreenMeasures, followAllAt, followPlan, followState, issuesAsked, markIssuesAsked, memberKind, placeFromKey, placeKey, placeMemberIds, toggleMemberFollow } from "../lib/follow-defaults.ts";
 import { allowedPhotoUrl, FEDERAL_PHOTO_HOSTS, federalPhotoUrl, loadPhoto, MAX_PHOTO_BYTES, PHOTO_HOSTS, photoPath, photoTarget, TEXAS_PHOTO_HOSTS } from "../lib/photos.ts";
 import { LEGAL_REVIEW, PROCESSORS, STORED } from "../lib/trust.ts";
 import { ISSUE_CATEGORIES } from "../lib/federal/categories.ts";
@@ -53,9 +53,9 @@ await db.insert(schema.txPeople).values([
 const AUSTIN_FIVE = ["C001056", "C001098", "D000399", "ocd-person/sd14", "ocd-person/hd49"];
 
 let seq = 0;
-async function reader() {
+async function reader(createdAt = T0) {
   const userId = `user-${++seq}`;
-  await db.insert(schema.appUsers).values({ id: userId, kind: "public", externalKey: `invite:${seq}`, createdAt: T0 });
+  await db.insert(schema.appUsers).values({ id: userId, kind: "public", externalKey: `invite:${seq}`, createdAt });
   return userId;
 }
 const follows = async userId => (await followedMemberIds(db, userId)).sort();
@@ -347,6 +347,18 @@ test("push devices and a verified email are read for the reader only", async () 
   assert.deepEqual(s, { followed: 0, total: 5, alertsOn: false, alertsChosen: false, devices: 1, hasEmail: true }, "another reader's follows and devices are not counted");
 });
 
+test("numbers for the editor are totals, never a reader", async () => {
+  const before = await firstScreenMeasures(db);
+  const u = await reader();
+  await applyFollowDefaults(db, { userId: u, place: AUSTIN, previous: null, now: T0 });
+  await markIssuesAsked(db, u, T0);
+  const after = await firstScreenMeasures(db);
+  assert.deepEqual(Object.keys(after).sort(), ["defaultsApplied", "issuesStepAnswered", "voteAlertsOff", "voteAlertsOn"]);
+  assert.equal(after.defaultsApplied, before.defaultsApplied + 1); assert.equal(after.voteAlertsOn, before.voteAlertsOn + 1);
+  assert.equal(after.issuesStepAnswered, before.issuesStepAnswered + 1); assert.equal(after.voteAlertsOff, before.voteAlertsOff);
+  for (const v of Object.values(after)) assert.equal(typeof v, "number");
+});
+
 /* ------------------------------------------------------------- the issues step --- */
 
 test("issues are a second step, put to a reader once", async () => {
@@ -364,6 +376,22 @@ test("issues are a second step, put to a reader once", async () => {
   await applyFollowDefaults(db, { userId: v, place: AUSTIN, previous: null, now: T0 });
   await markIssuesAsked(db, v, T0 + 5);
   assert.equal((await setup(v)).placeKey, placeKey(AUSTIN)); assert.equal((await setup(v)).issuesAskedAt, T0 + 5);
+  // reader_setup is shared with the week-two return measure, which owns first_seen_at and week_two_at. A row made here
+  // gets the reader's first-visit time (when their id was made), and an existing row keeps both columns.
+  const old = await reader(T0 - 40 * DAY);
+  await applyFollowDefaults(db, { userId: old, place: AUSTIN, previous: null, now: T0 });
+  assert.equal((await setup(old)).firstSeenAt, T0 - 40 * DAY, "a reader from before is not made to look new");
+  const older = await reader(T0 - 40 * DAY);
+  await markIssuesAsked(db, older, T0);
+  assert.equal((await setup(older)).firstSeenAt, T0 - 40 * DAY);
+  const seen = await reader(T0 - 9 * DAY);
+  await db.insert(schema.readerSetup).values({ userId: seen, firstSeenAt: T0 - 9 * DAY, weekTwoAt: T0 - DAY }); // what lib/week-two.ts writes
+  await applyFollowDefaults(db, { userId: seen, place: AUSTIN, previous: null, now: T0 });
+  await markIssuesAsked(db, seen, T0 + 1); await followAllAt(db, { userId: seen, place: AUSTIN, now: T0 + 2 });
+  const kept = await setup(seen);
+  assert.equal(kept.firstSeenAt, T0 - 9 * DAY); assert.equal(kept.weekTwoAt, T0 - DAY, "the week-two mark is never touched");
+  assert.equal(kept.placeKey, placeKey(AUSTIN)); assert.equal(kept.issuesAskedAt, T0 + 1);
+  assert.deepEqual(await follows(seen), sorted(AUSTIN_FIVE), "a set-up row with no defaults yet still counts as a first save");
   // The step itself: up to three of the 14, with "Skip for now", after the legislators on both screens.
   assert.equal(ISSUE_CATEGORIES.length, 14);
   const step = read("components/home/issues-step.tsx"), actions = read("app/start/actions.ts");
@@ -548,6 +576,15 @@ test("“You're caught up.” is said once, near the top, only when nothing is n
 });
 
 /* ------------------------------------------------------------------------ tone --- */
+
+test("honest names: the first screen never calls address matching verifying", () => {
+  for (const f of ["components/home/district-compare.tsx", "components/home/coming-up.tsx", "components/home/follow-status.tsx", "components/home/personal.tsx", "app/start/page.tsx", "lib/flow/cards.ts"]) {
+    const text = read(f).replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, "").replace(/mail-verified|Mail-verified|#verify|verif\w*(Config|On)\b|lib\/verify[\w\/-]*/g, "");
+    assert.doesNotMatch(text, />[^<{]*\bverif\w*/i, `${f}: no reader-facing "verify" for address matching`);
+  }
+  assert.ok(read("components/home/district-compare.tsx").includes("you will match your home address on your <Link href=\"/account\">Account page</Link>"));
+  assert.ok(read("app/start/page.tsx").includes(">See your record</Link>"), "the page at /voice is called Your record");
+});
 
 test("calm and specific: no outrage wording, no exclamation marks, no urgency tricks, no streaks or points", () => {
   const lines = [
