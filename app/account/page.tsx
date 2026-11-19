@@ -103,11 +103,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       </>}
       {(access.invite || access.editor) && <div className="fed-section" id="alerts"><h2>Alerts</h2>
         <form action={setAlerts} className="verify-form">
-          <label className="consent"><input type="checkbox" name="instantVotes" value="1" defaultChecked={!!prefs?.instantVotes} /> <span>When my legislators or members I follow vote on a bill in my issues</span></label>
+          <label className="consent"><input type="checkbox" name="instantVotes" value="1" defaultChecked={!!prefs?.instantVotes} /> <span>When a legislator I follow votes on a bill</span></label>
           <label className="consent"><input type="checkbox" name="instantBills" value="1" defaultChecked={prefs ? !!prefs.instantBills : true} /> <span>When a bill I follow moves</span></label>
           <button>Save alert choices</button></form>
+        <p className="meta">The first time you enter your address, the site follows your own legislators for you and switches vote alerts on. Untick the first box to stop them. <Link href="/following">See or change who you follow</Link>.</p>
         <PushToggle />
-        <p className="meta">Alerts arrive by email (with a signed-in account) and on devices where you turn them on. They are sent after each scheduled update, twice a day.</p></div>}
+        <p className="meta">Alerts arrive by email (with a signed-in account) and on devices where you turn them on; your phone or browser asks for your permission first. They are sent after each scheduled update, twice a day.</p></div>}
       <p className="meta"><Link href="/following">Following</Link> · <Link href="/politicians">Find a member</Link></p>
     </section>
   </PublicShell>;

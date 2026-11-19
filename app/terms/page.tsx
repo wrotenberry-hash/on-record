@@ -99,6 +99,7 @@ export default async function TermsPage() {
           <li><b>Sharing.</b> The share cards and links are made to be shared as they are, with their source line.</li>
         </ul>
         <p><Legal k="ownership" /></p>
+        <p><Legal k="photoRights" /></p>
       </section>
 
       <section id="warranty">

@@ -322,6 +322,9 @@ export const PROCESSORS: Processor[] = [
     receives: "Its script runs in your browser on those forms, so Cloudflare sees your browser and internet address. The site also sends Cloudflare your internet address with the result of the check." },
   { id: "openai", name: "OpenAI", url: "https://openai.com/", role: "Drafts and tests bill summaries, sorts bills into issues, and suggests research leads on officials' public statements.", when: "always", readerData: false, hosts: ["api.openai.com"],
     receives: "Nothing about readers. It receives bill text, official documents and public statements by officials." },
+  { id: "photos", name: "The Biographical Directory of the U.S. Congress, and the Texas House and Senate sites", url: "https://bioguide.congress.gov/", role: "Where legislators' official portraits come from. The pictures are fetched by the site's server, not by your device.", when: "always", readerData: false,
+    hosts: ["bioguide.congress.gov", "house.texas.gov", "www.house.texas.gov", "senate.texas.gov", "www.senate.texas.gov"],
+    receives: "Nothing about readers. The site's server asks for a member's portrait and passes it on to you, so these sites never see your device or your internet address." },
   { id: "social", name: "Bluesky and Threads", url: "https://bsky.app/", role: "Where the site's own accounts would post once the site is public. Switched off while the site is private.", when: "always", readerData: false, hosts: ["bsky.social", "graph.threads.net"],
     receives: "Nothing about readers. Only the site's own posts, built from the official record." },
 ];
@@ -332,7 +335,7 @@ export type Stored = { what: string; detail: string; when: "everyone" | "account
 
 export const STORED: Stored[] = [
   { when: "everyone", what: "Your place", detail: "Your state and district codes, kept in a cookie and, for an invited reader, in the database so they follow you to another device. The site does not keep your street address from a legislator lookup, and it does not save your ZIP code in its database: the ZIP stays in a cookie in your browser." },
-  { when: "everyone", what: "Your issues and follows", detail: "Up to three issues you picked, and the members and bills you follow." },
+  { when: "everyone", what: "Your issues and follows", detail: "Up to three issues you picked, and the members and bills you follow. The first time you enter your address, the site follows your own legislators for you and switches vote alerts on; you can undo both. To avoid following someone again after you unfollow them, and to ask about issues only once, the site keeps the district codes those follows were made for and the time you answered the issues step." },
   { when: "everyone", what: "Your answers", detail: "Support, Oppose or Unsure on a bill; each change you make to an answer, with the time; and the reason you may add, up to 280 characters. Your individual answer and your reason are shown only to you. If your account is address-matched or mail-verified and you live inside the bill's jurisdiction, the answer is also added, without your name, into totals anyone can see. Answers you gave before 19 November 2026 are not added unless you choose that." },
   { when: "everyone", what: "Visit times", detail: "The time of your last visit and the one before, to show what is new. For an invite link: the first and last day it was used and on how many days. Never which pages you opened. One more fact is kept per reader: whether you came back during your second week, noted once, so the site can tell how many people return." },
   { when: "everyone", what: "Notices about bills you weighed in on", detail: "When a bill you answered or follow gets a floor vote, passes, fails, is signed or is vetoed, the site writes you one notice saying what happened and how your legislators voted. The notice is kept so you can read it later, and is deleted with your account. When a notice or the weekly email is opened, the site adds one to a count using a random one-time mark that is not linked to you." },
@@ -376,6 +379,7 @@ export const LEGAL_REVIEW = {
   termsAge: "the minimum age and whether a parent's consent is needed",
   conduct: "whether the list of things a reader may not do is complete, and the right to end access",
   ownership: "who owns the site's own summaries and explainers, and what a reader may copy or share. Official records are public documents",
+  photoRights: "rights to members' official photos: the cards show portraits fetched from the Biographical Directory of the U.S. Congress and, for Texas legislators, from the Texas House and Senate sites. Confirm that each may be shown, and whether a credit line is required",
   aiNotice: "whether the notice that summaries are drafted by an AI model is enough where the site will operate",
   warranty: "the no-warranty wording",
   liability: "the limit of liability, and whether it is allowed for consumers in every state served",

@@ -28,7 +28,11 @@ export async function setDigest(formData: FormData) {
   redirect("/account?m=saved");
 }
 
-/** Round D alert choices: instant votes on your issues, bill moves. Push is turned on per device on the page. */
+/**
+ * Alert choices: votes by the legislators the reader follows, and moves of bills they follow. Push is turned on per
+ * device on the page. For a new reader the row already exists with vote alerts on (lib/follow-defaults.ts); this is
+ * where they change it, and a choice made here is never overwritten by a default.
+ */
 export async function setAlerts(formData: FormData) {
   const access = await viewerAccess();
   if (!access.allowed || (!access.invite && !access.editor)) redirect("/account");

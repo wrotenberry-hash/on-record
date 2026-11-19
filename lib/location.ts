@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { getDb } from "@/db";
 import { readerLocations } from "@/db/schema";
+import { applyFollowDefaults } from "@/lib/follow-defaults";
 
 /**
  * Round C: where a reader is, as district ids only ("TX", "TX-37", "TX-SD-14", "TX-HD-49"). Kept in a first-party
@@ -28,11 +29,18 @@ export async function currentLocation(userId: string | null): Promise<Location |
   return decodeLocation((await cookies()).get(LOCATION_COOKIE)?.value);
 }
 
-/** Server actions only. */
+/**
+ * Server actions only. For a reader with an id, saving a place also applies the new-reader defaults
+ * (lib/follow-defaults.ts): the first save follows the reader's own legislators and turns vote alerts on; a later
+ * save follows only the legislators who are new with the new place. A fault there never stops the place from saving.
+ */
 export async function saveLocation(userId: string | null, l: Location) {
   (await cookies()).set(LOCATION_COOKIE, encodeLocation(l), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 400 * 24 * 3600 });
-  if (userId) await getDb().insert(readerLocations).values({ userId, ...l, updatedAt: Date.now() })
-    .onConflictDoUpdate({ target: readerLocations.userId, set: { ...l, updatedAt: Date.now() } });
+  if (!userId) return;
+  const db = getDb(), now = Date.now();
+  const before = await db.select().from(readerLocations).where(eq(readerLocations.userId, userId)).get().catch(() => null);
+  await db.insert(readerLocations).values({ userId, ...l, updatedAt: now }).onConflictDoUpdate({ target: readerLocations.userId, set: { ...l, updatedAt: now } });
+  await applyFollowDefaults(db, { userId, place: l, previous: before ?? null, now }).catch(() => null);
 }
 
 export async function clearLocation(userId: string | null) {

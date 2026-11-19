@@ -239,7 +239,7 @@ test("outside services: who gets reader data, and when", () => {
   assert.match(postcard.receives, /your home address and the code printed on the card/);
   // The Postal Service's address check is listed because the code can call it, and says plainly that it is switched off.
   assert.match(PROCESSORS.find(p => p.id === "usps").role, /Switched off/); assert.match(read("lib/verify/config.ts"), /ADDRESS_AUTHORITY/);
-  assert.deepEqual(PROCESSORS.filter(p => !p.readerData).map(p => p.id).sort(), ["openai", "social"]);
+  assert.deepEqual(PROCESSORS.filter(p => !p.readerData).map(p => p.id).sort(), ["openai", "photos", "social"]);
   for (const p of PROCESSORS) { assert.match(p.url, /^https:\/\//); assert.ok(p.receives.length > 20 && p.role.length > 10); }
 });
 
