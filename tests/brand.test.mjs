@@ -28,7 +28,7 @@ function loadWith(name) {
       BRAND: b.BRAND, title: b.brandTitle("Bills"), menu: b.recordSectionLabel("Politicians"),
       siteName: seo.SITE_NAME, pageTitle: seo.pageTitle("John Cornyn: votes"), preview: seo.previewMeta("https://example.test", "/x", "T", "D", "/i.png").openGraph.siteName,
       alert: mon.formatAlertEmail({ kind: "TEST", subject: "test alert", detail: "d" }, {}, "https://example.test", 0),
-      digest: digest.formatDigest([{ name: "Sen. A", seat: "Senator", votes: [vote] }], { site: "https://site.test", unsubscribe: "https://site.test/u" }),
+      digest: digest.formatDigest({ votes: [{ result: "The Senate passed S. 1 (a bill), 60–38, on 12 November 2026.", members: ["Sen. A voted Yes."], billUrl: vote.billUrl, sourceUrl: vote.sourceUrl }], moved: null, coming: null }, { site: "https://site.test", unsubscribe: "https://site.test/u" }),
       report: report.formatSummariesEmail([], "https://example.test").subject,
       card: cards.agreementCard({ name: "A", seat: "B" }, "Health care", 1, 0, [cardVote]),
       question: fb.FEEDBACK_QUESTION, closed: access.PUBLIC_READ_DISABLED_MESSAGE,
@@ -55,7 +55,7 @@ test("set to On Record, the product looks exactly as it did before the rename", 
   assert.equal(d.alert.subject, "[On Record] test alert");
   assert.match(d.alert.text, /^On Record alert: test alert\./);
   assert.equal(d.question, "What one thing would make On Record more useful to you?");
-  assert.equal(d.digest.subject, "[On Record] How your members voted: 1 vote");
+  assert.equal(d.digest.subject, "[On Record] How your legislators voted this week: 1 vote");
   assert.equal(d.report, "[On Record] 0 bill summaries are ready to read");
   assert.equal(d.card.footer, "Talk is cheap.");
   assert.match(d.card.note, /Not a rating by On Record\.$/);
@@ -89,7 +89,7 @@ test("the product is Constituent with nothing set; On Record is the voting-recor
   assert.match(d.alert.text, /^Constituent alert: test alert\./);
   assert.equal(d.question, "What one thing would make Constituent more useful to you?");
   assert.match(d.closed, /^Constituent is in private review/);
-  assert.equal(d.digest.subject, "[Constituent] How your members voted: 1 vote");
+  assert.equal(d.digest.subject, "[Constituent] How your legislators voted this week: 1 vote");
   assert.match(d.digest.text, /Constituent shows what officials did\. It does not grade them\.$/);
   assert.equal(d.report, "[Constituent] 0 bill summaries are ready to read");
   assert.equal(d.card.footer, "Talk is cheap.", "the card footer keeps the tagline");
