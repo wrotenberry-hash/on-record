@@ -117,26 +117,38 @@ test("the wording is the same whichever way a member voted and whoever they are"
   assert.equal(yes.text.replace("yes", "no"), no.text);
 });
 
+// A district's counted answers, as the totals table holds them: two groups, mail-verified and address-matched.
+const split = (support, oppose, unsure = 0) => ({ support, oppose, unsure });
+
 test("a district total is never shown below the threshold", () => {
   assert.equal(MIN_SHOWN, 25);
   assert.equal(DISTRICT_THRESHOLD_MESSAGE, "Not enough constituents yet — share this bill."); // owner's wording, 18 Nov 2026
-  for (const totals of [null, undefined, { support: 0, oppose: 0 }, { support: 24, oppose: 0 }, { support: 12, oppose: 12 }]) {
+  for (const totals of [null, undefined, { mail: null, address: null }, { mail: null, address: split(24, 0) }, { mail: split(6, 6), address: split(6, 6) }]) {
     const d = districtView({ enabled: true, districtId: "TX-07", totals });
     assert.equal(d.kind, "below");
     assert.equal(d.text, DISTRICT_THRESHOLD_MESSAGE);
     assert.doesNotMatch(d.text, /\d/, "no count appears below the threshold");
+    assert.equal(d.groups, undefined);
   }
-  const shown = districtView({ enabled: true, districtId: "TX-07", totals: { support: 13, oppose: 12 } });
+  const shown = districtView({ enabled: true, districtId: "TX-07", totals: { mail: null, address: split(13, 12) } });
   assert.equal(shown.kind, "total");
-  assert.equal(shown.text, "Counted residents of TX-07: 13 support · 12 oppose · 0 unsure (25 voters)");
+  assert.equal(shown.text, "25 counted residents of TX-07 answered.");
+  assert.deepEqual(shown.groups, ["Address-matched, 25 voters: 13 support · 12 oppose · 0 unsure"]);
+});
+
+test("a district total goes through the same rule as every other total: mail-verified first, a group under 5 by size only", () => {
+  const d = districtView({ enabled: true, districtId: "TX-37", totals: { address: split(20, 9, 2), mail: split(2, 1) } });
+  assert.equal(d.voters, 34);
+  assert.deepEqual(d.groups, ["Mail-verified: fewer than 5 voters", "Address-matched, 31 voters: 20 support · 9 oppose · 2 unsure"]);
+  assert.doesNotMatch(JSON.stringify(d), /verified residents|\bverified total/i, "address-matched is never called verified");
 });
 
 test("with verification off or no district, the page says so and shows no number", () => {
-  const off = districtView({ enabled: false, districtId: "TX-07", totals: { support: 900, oppose: 100 } });
+  const off = districtView({ enabled: false, districtId: "TX-07", totals: { mail: split(900, 100), address: null } });
   assert.equal(off.kind, "off");
   assert.equal(off.text, DISTRICT_OFF_MESSAGE);
   assert.doesNotMatch(off.text, /\d/);
-  const unknown = districtView({ enabled: true, districtId: null, totals: { support: 900, oppose: 100 } });
+  const unknown = districtView({ enabled: true, districtId: null, totals: { mail: split(900, 100), address: null } });
   assert.equal(unknown.kind, "unknown");
   assert.doesNotMatch(unknown.text, /\d/);
 });

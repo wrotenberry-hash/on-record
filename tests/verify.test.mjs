@@ -92,4 +92,14 @@ test("totals show only from 25 answers", () => {
   assert.equal(totalsLine("Real people", { support: 20, oppose: 5 }), "Real people: 20 support · 5 oppose · 0 unsure (25 voters)");
   assert.equal(totalsLine("TX-37", { support: 12, oppose: 6, unsure: 7 }), "TX-37: 12 support · 6 oppose · 7 unsure (25 voters)", "Unsure is a counted answer");
   assert.equal(totalsLine("District-matched", null), `District-matched: fewer than ${MIN_SHOWN} so far`);
+  // The same under-5 rule as groupLine: when the sum hides a group of fewer than 5, the summed split is not printed
+  // (the larger group's numbers taken away from it would give the small group's answers away).
+  const small = { support: 22, oppose: 10, unsure: 2, groups: { mail: { support: 2, oppose: 1, unsure: 0 }, address: { support: 20, oppose: 9, unsure: 2 } } };
+  assert.equal(totalsLine("TX-37", small), "TX-37, 34 voters: Mail-verified: fewer than 5 voters; Address-matched, 31 voters: 20 support · 9 oppose · 2 unsure");
+  assert.doesNotMatch(totalsLine("TX-37", small), /22 support|10 oppose/, "the summed split is not shown");
+  const five = { support: 25, oppose: 10, unsure: 2, groups: { mail: { support: 5, oppose: 1, unsure: 0 }, address: { support: 20, oppose: 9, unsure: 2 } } };
+  assert.equal(totalsLine("TX-37", five), "TX-37: 25 support · 10 oppose · 2 unsure (37 voters)", "two groups of 5 or more: the sum, as before");
+  const one = { support: 20, oppose: 9, unsure: 2, groups: { mail: null, address: { support: 20, oppose: 9, unsure: 2 } } };
+  assert.equal(totalsLine("TX-37", one), "TX-37: 20 support · 9 oppose · 2 unsure (31 voters)", "one group only: nothing to give away");
+  assert.equal(totalsLine("TX-37", { support: 3, oppose: 1, groups: { mail: { support: 3, oppose: 1, unsure: 0 }, address: null } }), `TX-37: fewer than ${MIN_SHOWN} so far`, "under 25 there is still no number");
 });

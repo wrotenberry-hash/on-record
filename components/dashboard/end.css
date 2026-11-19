@@ -1,0 +1,4 @@
+/* The line that ends a list, and the line that closes a page (finite design, 18 Nov 2026). */
+.list-end { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid #d9ded9; color: #3d5353; font-size: 14px; }
+.caught-up { margin: 24px 0 0; padding: 12px 14px; background: #fff; border: 1px solid #d9ded9; font-size: 15px; line-height: 1.5; }
+.caught-up b { display: block; font-size: 17px; }
