@@ -224,7 +224,9 @@ export type MemberVote = { voteId: string; memberId: string; position: string; c
  * name; or how they voted when their own chamber voted earlier; or that they have not voted on the bill.
  * Never a guess: a line says "voted" only when the record lists that member's vote.
  */
-export function memberLines(members: readonly LoopMember[], e: Pick<LoopEvent, "voteId" | "chamber" | "date">, votes: readonly MemberVote[], opts: { unrecorded?: ReadonlySet<Chamber>; unlisted?: ReadonlySet<string> } = {}): string[] {
+export function memberLines(members: readonly LoopMember[], e: Pick<LoopEvent, "voteId" | "chamber" | "date">, votes: readonly MemberVote[], opts: {
+  /** Chambers that have already decided the bill with no vote by name: true when it passed there, false when it failed. */ unrecorded?: ReadonlyMap<Chamber, boolean>;
+  /** Record votes this site's copy has no member list for. */ unlisted?: ReadonlySet<string> } = {}): string[] {
   if (!members.length) return ["Your legislators are not on file, so their votes are not listed. Add your address on the home screen to see them."];
   return members.map(m => {
     const mine = votes.filter(v => v.memberId === m.id && v.date <= e.date).sort((x, y) => y.date.localeCompare(x.date));
@@ -233,7 +235,7 @@ export function memberLines(members: readonly LoopMember[], e: Pick<LoopEvent, "
     if (e.voteId && e.chamber === m.chamber) return opts.unlisted?.has(e.voteId) ? `${m.short}: this site’s copy of the vote does not list each member.` : `${m.short} is not listed in this recorded vote.`;
     if (!e.voteId && e.chamber === m.chamber) return `${m.short}: the vote was not recorded by name.`;
     if (mine[0]) return `${m.short} ${did(mine[0].position)} when ${CHAMBER[mine[0].chamber]} voted on ${longDate(mine[0].date)}.`;
-    if (opts.unrecorded?.has(m.chamber)) return `${m.short}: ${CHAMBER[m.chamber]} decided this with no vote recorded by name.`;
+    if (opts.unrecorded?.has(m.chamber)) return opts.unrecorded.get(m.chamber) ? `${m.short}: ${CHAMBER[m.chamber]} passed it with no vote recorded by name.` : `${m.short}: it failed in ${CHAMBER[m.chamber]} with no vote recorded by name.`;
     return `${m.short} has not voted on this bill.`;
   });
 }

@@ -328,8 +328,9 @@ test("loop notices: each legislator's line, the same form for everyone, and neve
     ["Sen. John Cornyn: the vote was not recorded by name.", "Sen. Ted Cruz: the vote was not recorded by name.", "Rep. Lloyd Doggett did not vote when the House voted on 12 November 2026."]);
   // Signed: no chamber acted. One senator voted earlier; the House passed it without names.
   const signed = { voteId: null, chamber: null, date: "2026-11-14" };
-  assert.deepEqual(memberLines(members, signed, [{ voteId: "rc9", memberId: "S1", position: "Yea", chamber: "senate", date: "2026-11-10" }], { unrecorded: new Set(["house"]) }),
-    ["Sen. John Cornyn voted Yes when the Senate voted on 10 November 2026.", "Sen. Ted Cruz has not voted on this bill.", "Rep. Lloyd Doggett: the House decided this with no vote recorded by name."]);
+  assert.deepEqual(memberLines(members, signed, [{ voteId: "rc9", memberId: "S1", position: "Yea", chamber: "senate", date: "2026-11-10" }], { unrecorded: new Map([["house", true]]) }),
+    ["Sen. John Cornyn voted Yes when the Senate voted on 10 November 2026.", "Sen. Ted Cruz has not voted on this bill.", "Rep. Lloyd Doggett: the House passed it with no vote recorded by name."]);
+  assert.equal(memberLines(members, signed, [], { unrecorded: new Map([["senate", false]]) })[0], "Sen. John Cornyn: it failed in the Senate with no vote recorded by name.");
   assert.match(memberLines([], houseVote, [])[0], /^Your legislators are not on file/);
   assert.equal(memberLines([{ id: "T1", short: "State Rep. Gina Hinojosa", chamber: "lower" }], { voteId: "tv1", chamber: "lower", date: "2026-11-13" }, [], { unlisted: new Set(["tv1"]) })[0],
     "State Rep. Gina Hinojosa: this site’s copy of the vote does not list each member.");
@@ -432,6 +433,7 @@ test("loop notices: written once per reader, bill and event, for answered and fo
   // On the site: newest first, capped, the answer read now, "New" once.
   const list = await listNotices(db, answered.userId, { limit: 2, now: NOV12 + 2 * DAY });
   assert.deepEqual([list.items.length, list.total, list.more], [2, 3, 1]);
+  assert.deepEqual((await listNotices(db, answered.userId, { limit: 30 })).items.map(n => n.title), ["H.R. 2102 became law", "H.R. 2102 passed the Senate", "H.R. 2102 passed the House, 392–18"], "the newest event first");
   assert.ok(list.items.every(n => n.isNew && n.answer === "You said Support."));
   assert.equal((await listNotices(db, follower.userId, { limit: 30 })).items[0].answer, "You follow this bill.");
   await db.update(schema.voiceVotes).set({ answer: "oppose" }).where(and(eq(schema.voiceVotes.userId, answered.userId), eq(schema.voiceVotes.billKey, bill)));

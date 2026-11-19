@@ -134,14 +134,15 @@ export async function runLoopNotices(db: Db, now = Date.now(), deps: LoopDeps = 
       if (!people.has(placeKey)) people.set(placeKey, await ownLegislators(db, place));
       const mine = people.get(placeKey)!.filter(m => m.level === data.bill.level), who = mine.map(m => m.id).join(",");
       if (!votesFor.has(who)) votesFor.set(who, await memberVotes(db, data, mine));
-      for (const e of todo) {
+      for (const [i, e] of todo.entries()) {
         const scope = districtScope(data.bill.level, place, e.chamber);
         if (scope && !totals.has(scope)) totals.set(scope, (await totalsForBill(db, billKey, [scope])).get(scope) ?? null);
         // A chamber that decided with no vote by name counts only once it has decided: not in a notice about something earlier.
-        const unrecorded = new Set(data.events.filter(x => !x.voteId && x.chamber && x.date <= e.date).map(x => x.chamber!));
+        const unrecorded = new Map(data.events.filter(x => !x.voteId && x.chamber && x.date <= e.date).map(x => [x.chamber!, x.advanced === true] as const));
         const body = noticeBody(e.result, memberLines(mine, e, votesFor.get(who)!, { unrecorded, unlisted: data.unlisted }), districtLine(scope, scope ? totals.get(scope) : null, e.advanced));
+        // Events are oldest first; a millisecond apart keeps that order, so the newest event heads the reader's list.
         const id = crypto.randomUUID(), path = billPath(data.bill);
-        const made = await db.insert(loopNotices).values({ id, userId, billKey, event: e.event, eventRef: e.ref, title: e.title.slice(0, 200), body, url: path, createdAt: now }).onConflictDoNothing().returning({ id: loopNotices.id });
+        const made = await db.insert(loopNotices).values({ id, userId, billKey, event: e.event, eventRef: e.ref, title: e.title.slice(0, 200), body, url: path, createdAt: now + i }).onConflictDoNothing().returning({ id: loopNotices.id });
         if (!made.length) continue; // another run wrote it first
         out.written++;
         fresh.set(userId, [...(fresh.get(userId) ?? []), { id, billKey, title: e.title, body, path, answer: null }]);

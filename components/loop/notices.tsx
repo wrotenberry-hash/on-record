@@ -19,7 +19,7 @@ const when = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "
 function Notice({ n }: { n: NoticeView }) {
   const [result, ...rest] = n.lines, district = rest.length ? rest[rest.length - 1] : null, members = rest.slice(0, -1);
   return <li className={styles.notice}>
-    <h3>{n.isNew && <span className={styles.new}>New</span>}{n.title}</h3>
+    <h3>{n.isNew && <><span className={styles.new}>New</span>{" "}</>}{n.title}</h3>
     <p>{result}</p>
     {members.length > 0 && <ul className={styles.members}>{members.map((m, i) => <li key={i}>{m}</li>)}</ul>}
     {n.answer && <p className={styles.answer}>{n.answer}</p>}
