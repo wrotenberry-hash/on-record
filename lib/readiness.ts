@@ -63,7 +63,7 @@ export function readiness(i: ReadinessInput): Check[] {
   add("influence.hearings", 3, "Hearings and town halls calendar", i.influence.hearingsStepLive && i.influence.townHallsLine
     ? { state: "pass", detail: `${i.influence.hearingsStored} upcoming committee meetings on record, filtered to the reader's legislators. No official source lists town halls, and the page says so.` }
     : { state: "fail", detail: "Committee hearings are not loading yet." });
-  add("influence.voice", 3, "\"Your voice\" page", ran(i.influence.voicePage, "Lists the reader's answers, how their legislators voted on each bill, and the district's view.", "Not built yet."));
+  add("influence.voice", 3, "\"Your record\" page", ran(i.influence.voicePage, "Lists the reader's answers, how their legislators voted on each bill, and the district's view.", "Not built yet."));
 
   // 4. Content coverage
   const cov = i.content;
