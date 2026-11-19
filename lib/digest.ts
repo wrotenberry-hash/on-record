@@ -1,47 +1,32 @@
-import { READER_S } from "@/lib/analysis/publish-gate";
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { digestSends, officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, readerAccounts, userFollows } from "@/db/schema";
-import { billLabel, memberLine } from "@/components/federal/badges";
-import { KIND_LABEL, positionLine, voteKind } from "@/lib/federal/vote-kinds";
-import { formatDigest, isoWeek, type DigestMember } from "@/lib/digest-format";
+import { analysisBillSummaries, digestSends, readerAccounts } from "@/db/schema";
+import { readerVisible } from "@/lib/analysis/publish-gate";
 import { sendTo } from "@/lib/mailer";
 import { unsubscribeToken } from "@/lib/accounts";
 import { countEvent } from "@/lib/events";
+import { runWeekly } from "@/lib/loop/weekly";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
-const WEEK_MS = 7 * 24 * 3600 * 1000;
 
-/** Monday's email for every signed-in reader who follows someone and has not opted out. One per reader per week. */
+/** The newest summary headline a reader may see for each bill (the same gate as the bill page). Empty while the gate is shut. */
+async function visibleHeadlines(billIds: string[]) {
+  const out = new Map<string, string>();
+  if (!billIds.length) return out;
+  const rows = await getDb().select({ billId: analysisBillSummaries.billId, headline: analysisBillSummaries.headline }).from(analysisBillSummaries)
+    .where(and(inArray(analysisBillSummaries.billId, billIds), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt));
+  for (const r of rows) if (!out.has(r.billId)) out.set(r.billId, r.headline);
+  return out;
+}
+
+/**
+ * Monday's email (owner's point 3, 18 Nov 2026): one per reader per week. What goes in it and the once-a-week rule
+ * are lib/loop/weekly.ts; the words and the order are lib/digest-format.ts. This file only hands over the things
+ * that need the running site: the database, the mailer, the secret for the open mark and the unsubscribe link.
+ */
 export async function runDigests(now = Date.now()) {
-  const db = getDb(), week = isoWeek(now);
-  const accounts = await db.select().from(readerAccounts).where(and(isNotNull(readerAccounts.verifiedAt), eq(readerAccounts.digestOptIn, 1)));
-  const out = { accounts: accounts.length, sent: 0, empty: 0, failed: 0, domainNeeded: false };
-  for (const a of accounts) {
-    if (await db.select({ id: digestSends.id }).from(digestSends).where(and(eq(digestSends.accountId, a.id), eq(digestSends.week, week))).get()) continue;
-    const follows = (await db.select({ id: userFollows.politicianId }).from(userFollows).where(eq(userFollows.userId, a.appUserId))).map(r => r.id);
-    if (!follows.length) { out.empty++; continue; }
-    const since = Math.max(a.lastDigestAt ?? 0, now - WEEK_MS);
-    const rows = await db.select({ pid: officialMemberVotes.politicianId, position: officialMemberVotes.position, rc: officialRollCalls, billTitle: officialBills.title,
-      billType: officialBills.billType, number: officialBills.number,
-      headline: sql<string | null>`(select s.headline from analysis_bill_summaries s where s.bill_id = ${officialRollCalls.billId} and ${READER_S} order by s.created_at desc limit 1)` })
-      .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
-      .where(and(inArray(officialMemberVotes.politicianId, follows), gte(officialRollCalls.votedAt, since))).orderBy(desc(officialRollCalls.votedAt)).limit(200);
-    const people = await db.select().from(officialPoliticians).where(inArray(officialPoliticians.id, follows));
-    const members: DigestMember[] = people.map(p => ({ name: p.fullName, seat: memberLine(p), votes: rows.filter(r => r.pid === p.id).map(r => {
-      const kind = voteKind(r.rc.question, r.billTitle ?? r.rc.title);
-      return { date: new Date(r.rc.votedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" }), kindLabel: KIND_LABEL[kind],
-        voteText: positionLine(r.position, kind), billLabel: r.billType && r.number ? billLabel(r.billType, r.number) : (r.rc.documentLabel ?? "Recorded vote"),
-        billTitle: r.billTitle ?? r.rc.title ?? r.rc.question, headline: r.headline, sourceUrl: r.rc.sourceUrl, billUrl: r.rc.billId ? `${SITE_URL}/bills/${r.rc.billId}` : null };
-    }) }));
-    const mail = formatDigest(members, { site: SITE_URL, unsubscribe: `${SITE_URL}/account/unsubscribe?t=${encodeURIComponent(await unsubscribeToken(a.id))}` });
-    if (!mail) { out.empty++; continue; }
-    const sent = await sendTo(a.email, mail.subject, mail.text);
-    await db.insert(digestSends).values({ id: crypto.randomUUID(), accountId: a.id, week, sentAt: now, items: mail.items, ok: sent.ok ? 1 : 0, error: sent.ok ? null : sent.error })
-      .onConflictDoNothing();
-    if (sent.ok) { out.sent++; await db.update(readerAccounts).set({ lastDigestAt: now }).where(eq(readerAccounts.id, a.id)); }
-    else { out.failed++; if (sent.domainNeeded) out.domainNeeded = true; }
-  }
+  const out = await runWeekly(getDb(), now, { site: SITE_URL, secret: process.env.EDITOR_ACCESS_KEY?.trim() || "", send: sendTo, headlines: visibleHeadlines,
+    unsubscribe: async accountId => `${SITE_URL}/account/unsubscribe?t=${encodeURIComponent(await unsubscribeToken(accountId))}` });
   if (out.sent) await countEvent("digest_sent", "", { skipBotCheck: true }).catch(() => undefined);
   return out;
 }

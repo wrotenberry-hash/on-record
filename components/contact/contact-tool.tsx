@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { buildContactMessage, contactSubject, defaultVote, mailtoHref, telHref, type ContactDim, type ContactEvent, type ContactStance, type ContactVote } from "@/lib/contact-message";
+import { followAfterContact, stopFollowing } from "./actions";
 import styles from "./contact.module.css";
 
 /** One legislator as the tool needs them. `id` is used only for element ids on the page; it is never sent anywhere. */
@@ -31,19 +32,30 @@ function tap(event: ContactEvent, dim: ContactDim) {
  * the reader edits. Everything happens on the reader's device: the call opens their phone, the form opens in a
  * new tab, the email opens their mail app. The message is never sent to or stored by the site.
  */
-export function ContactTool({ dim, people, bill, stance, voteChoices = [], billHref }: { dim: ContactDim; people: ContactPerson[]; bill: { label: string; title: string | null } | null;
-  stance: ContactStance; voteChoices?: Array<{ id: string; label: string }>; billHref?: string }) {
+export function ContactTool({ dim, people, bill, stance, voteChoices = [], billHref, follow }: { dim: ContactDim; people: ContactPerson[]; bill: { label: string; title: string | null } | null;
+  stance: ContactStance; voteChoices?: Array<{ id: string; label: string }>; billHref?: string;
+  /** On a bill page, for an invited reader: the bill's id and whether they follow it already. Absent on member pages. */
+  follow?: { billId: string; following: boolean } }) {
   const [place, setPlace] = useState("");
+  const [following, setFollowing] = useState(!!follow?.following);
+  const [stopped, setStopped] = useState(false);
+  // Using a contact button on a bill adds the bill to the reader's followed bills, once, so the site can tell them
+  // what happens to it. Only the bill's id is sent: not the member, not the button, not the message. "Stop" undoes it,
+  // and after Stop the buttons do not follow the bill again on this visit.
+  const used = follow ? () => { if (!following && !stopped) void followAfterContact(follow.billId).then(r => setFollowing(r.following)).catch(() => undefined); } : undefined;
   const picked = useSearchParams().get("vote");
   const chosen = voteChoices.find(v => v.id === picked) ?? null;
   return <div className={styles.tool}>
     {chosen && <p className={styles.chosen} role="status">Your message will mention one vote: <b>{chosen.label}</b>.{billHref && <> <Link href={`${billHref}#contact`} scroll={false}>Write about the whole bill instead</Link></>}</p>}
-    <div className="issue-groups">{people.map(p => <Person key={p.id} p={p} dim={dim} bill={bill} stance={stance} place={place} setPlace={setPlace} voteId={chosen?.id ?? null} />)}</div>
+    <div className="issue-groups">{people.map(p => <Person key={p.id} p={p} dim={dim} bill={bill} stance={stance} place={place} setPlace={setPlace} voteId={chosen?.id ?? null} used={used} />)}</div>
+    {follow && following && <p className={styles.follow} role="status">We&rsquo;ll tell you what happens to this bill.{" "}
+      <button type="button" className="link-button" onClick={() => { setStopped(true); setFollowing(false); void stopFollowing(follow.billId).catch(() => undefined); }}>Stop</button></p>}
+    {follow && stopped && !following && <p className={styles.follow} role="status">You no longer follow this bill. We will not send you news about it.</p>}
   </div>;
 }
 
-function Person({ p, dim, bill, stance, place, setPlace, voteId }: { p: ContactPerson; dim: ContactDim; bill: { label: string; title: string | null } | null; stance: ContactStance;
-  place: string; setPlace: (v: string) => void; voteId: string | null }) {
+function Person({ p, dim, bill, stance, place, setPlace, voteId, used }: { p: ContactPerson; dim: ContactDim; bill: { label: string; title: string | null } | null; stance: ContactStance;
+  place: string; setPlace: (v: string) => void; voteId: string | null; used?: () => void }) {
   const [open, setOpen] = useState(false);
   const [counted, setCounted] = useState(false);
   const [edited, setEdited] = useState<string | null>(null);
@@ -55,7 +67,7 @@ function Person({ p, dim, bill, stance, place, setPlace, voteId }: { p: ContactP
   const tel = telHref(p.phone), districtTel = telHref(p.districtPhone);
   const nothing = !tel && !districtTel && !p.web?.isForm && !p.email;
   async function copy() {
-    try { await navigator.clipboard.writeText(message); setNote("Message copied. Paste it into the official form, an email or a letter."); tap("contact_copy", dim); }
+    try { await navigator.clipboard.writeText(message); setNote("Message copied. Paste it into the official form, an email or a letter."); tap("contact_copy", dim); used?.(); }
     catch { setNote("Copying is blocked here. Press and hold the text to copy it."); }
   }
   return <details className={`issue-group ${styles.person}`} open={open} onToggle={e => { const now = e.currentTarget.open; setOpen(now); if (now && !counted) { setCounted(true); tap("contact_open", dim); } }}>
@@ -63,8 +75,8 @@ function Person({ p, dim, bill, stance, place, setPlace, voteId }: { p: ContactP
     <div className={styles.body}>
       {nothing && <p className={styles.none}>No official contact details on record yet.{p.web && <> <a href={p.web.url} target="_blank" rel="noopener noreferrer">Official website</a></>}</p>}
       {(tel || districtTel) && <div className={styles.calls}>
-        {tel && <a className={styles.btn} href={tel} onClick={() => tap("contact_call", dim)}>Call {p.phone}<small>{p.officeLabel}</small></a>}
-        {districtTel && <a className={`${styles.btn} ${styles.second}`} href={districtTel} onClick={() => tap("contact_call", dim)}>Call {p.districtPhone}<small>District office</small></a>}
+        {tel && <a className={styles.btn} href={tel} onClick={() => { tap("contact_call", dim); used?.(); }}>Call {p.phone}<small>{p.officeLabel}</small></a>}
+        {districtTel && <a className={`${styles.btn} ${styles.second}`} href={districtTel} onClick={() => { tap("contact_call", dim); used?.(); }}>Call {p.districtPhone}<small>District office</small></a>}
       </div>}
       <label className="share-caption" htmlFor={`contact-message-${dom}`}>Your message to {p.title} {p.name} (change anything before you use it)
         <textarea id={`contact-message-${dom}`} className={styles.message} value={message} rows={14} maxLength={3000} onChange={e => { setEdited(e.target.value); setNote(""); }} /></label>
@@ -75,8 +87,8 @@ function Person({ p, dim, bill, stance, place, setPlace, voteId }: { p: ContactP
       {!p.constituent && <p className="meta">This message does not say you are a constituent, because we cannot tell from your saved place that {p.name} represents you. Offices mostly answer the people they represent. <Link href="/legislators">Find your own legislators</Link></p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={() => void copy()}>Copy message</button>
-        {p.web && !nothing && <a className={`${styles.btn} ${styles.second}`} href={p.web.url} target="_blank" rel="noopener noreferrer" onClick={() => tap("contact_form", dim)}>{p.web.label}<span className="visually-hidden"> (opens in a new tab)</span></a>}
-        {p.email && <a className={`${styles.btn} ${styles.second}`} href={mailtoHref(p.email, contactSubject({ bill, constituent: p.constituent }), message)} onClick={() => tap("contact_email", dim)}>Email<small>{p.email}</small></a>}
+        {p.web && !nothing && <a className={`${styles.btn} ${styles.second}`} href={p.web.url} target="_blank" rel="noopener noreferrer" onClick={() => { tap("contact_form", dim); used?.(); }}>{p.web.label}<span className="visually-hidden"> (opens in a new tab)</span></a>}
+        {p.email && <a className={`${styles.btn} ${styles.second}`} href={mailtoHref(p.email, contactSubject({ bill, constituent: p.constituent }), message)} onClick={() => { tap("contact_email", dim); used?.(); }}>Email<small>{p.email}</small></a>}
       </div>
       {note && <p className="meta" role="status">{note}</p>}
       <p className="meta">{p.web && !nothing ? (p.web.isForm ? "Paste your message there. " : "Find the contact page there and paste your message. ") : ""}We never send anything for you, and your message never leaves this device unless you send it.</p>
