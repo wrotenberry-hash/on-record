@@ -3,6 +3,7 @@ import { PublicShell } from "@/components/public/public-shell";
 import { BRAND, brandTitle } from "@/lib/brand";
 import { bookingUrl, TRY_FIRST } from "@/lib/trial-welcome";
 import { viewerAccess } from "@/lib/viewer";
+import { MIN_SHOWN } from "@/lib/constituent/rules";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: brandTitle("Welcome"), description: "What to try first, and how to tell us what you think." };
@@ -35,7 +36,7 @@ export default async function WelcomePage() {
       <h2>What you should know</h2>
       <ul>
         <li>You do not need an account. We ask for an email only if you want to follow someone, get alerts or have your answers counted.</li>
-        <li>Your answers are private. Totals for a district are shown only once 25 verified people have answered.</li>
+        <li>Your answers are private. Totals for a district are shown only once {MIN_SHOWN} counted residents of that district have answered. Counted residents are people whose home address has been matched.</li>
         <li>Facts marked Official come from government records. Text marked Analysis is written by us from those records and checked before you see it. <Link href="/method">How this works</Link>.</li>
         <li>This is a trial: please do not share your invite link. It works on your devices for 60 days.</li>
       </ul>

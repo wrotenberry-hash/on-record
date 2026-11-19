@@ -7,7 +7,7 @@
 export const TRY_FIRST: ReadonlyArray<{ title: string; what: string; href: string; cta: string }> = [
   { title: "See who represents you", what: "Type your ZIP code. You get your senators and representative, and what each one last voted on, in one plain line.", href: "/", cta: "Find my legislators" },
   { title: "Say where you stand", what: "Pick a bill that is coming up for a vote and tap Support, Oppose or Not sure. Your answer is private.", href: "/coming", cta: "See what's coming up" },
-  { title: "Make yourself heard", what: "Open any bill and use Contact your legislators: their office phone, their official contact form and a short message you can edit.", href: "/voice", cta: "Open Your voice" },
+  { title: "Make yourself heard", what: "Open any bill and use Contact your legislators: their office phone, their official contact form and a short message you can edit.", href: "/voice", cta: "Open Your record" },
 ];
 
 /**

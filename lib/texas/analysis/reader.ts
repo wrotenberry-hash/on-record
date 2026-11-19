@@ -21,6 +21,7 @@ import { explainedInNote, pageTestResult, readerTestResult, type JudgeResult, ty
 import type { SummaryDraft } from "../../analysis/checker.ts";
 import { callCost, type Price, type Usage } from "../../model-cost.ts";
 import { TX_JARGON, txEverydayFlag } from "./standard.ts";
+import { TONE_JUDGE_ADDITION } from "../../analysis/tone.ts";
 
 export type TxModelCall = { purpose: "tx_analysis" | "tx_reader_test"; model: string; refId: string; schemaName: string; schema: unknown; instructions: string; input: string;
   maxOutputTokens: number; timeoutMs: number; reasoning?: string };
@@ -60,8 +61,9 @@ const readerSchema = { type: "object", additionalProperties: false, required: ["
 const pageReaderSchema = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatChanges", "whoIsAffected"],
   properties: { howItWorksToday: { type: "string" }, whatChanges: { type: "string" }, whoIsAffected: { type: "string" } } };
 const pageVerdicts = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatChanges", "whoIsAffected"], properties: { howItWorksToday: verdict, whatChanges: verdict, whoIsAffected: verdict } };
-const judgeSchema = { type: "object", additionalProperties: false, required: ["whatItDoes", "whoIsAffected", "dailyLifeChange", "page", "arguments"],
-  properties: { whatItDoes: verdict, whoIsAffected: verdict, dailyLifeChange: verdict, page: pageVerdicts,
+const toneVerdict = { type: "object", additionalProperties: false, required: ["calm", "words", "why"], properties: { calm: { type: "boolean" }, words: { type: "array", items: { type: "string" } }, why: { type: "string" } } };
+const judgeSchema = { type: "object", additionalProperties: false, required: ["whatItDoes", "whoIsAffected", "dailyLifeChange", "page", "arguments", "tone"],
+  properties: { whatItDoes: verdict, whoIsAffected: verdict, dailyLifeChange: verdict, page: pageVerdicts, tone: toneVerdict,
     arguments: { type: "array", items: { type: "object", additionalProperties: false, required: ["side", "index", "supported", "why"],
       properties: { side: { type: "string", enum: ["for", "against"] }, index: { type: "integer" }, supported: { type: "boolean" }, why: { type: "string" } } } } } };
 
@@ -89,14 +91,18 @@ export async function runTxReaderTest(client: TxModelClient, model: string, summ
   const reader = await ask<ReaderAnswers>("tx_average_reader", TX_READER_INSTRUCTIONS, `The note:\n\n${txReaderNote(draft)}`, readerSchema);
   const page = (draft.howItWorksToday?.length ?? 0) > 0 ? await ask<PageAnswers>("tx_page_reader", TX_PAGE_READER_INSTRUCTIONS, `The page:\n\n${txReaderPage(draft)}`, pageReaderSchema) : null;
   const args = [...draft.caseFor.map((a, i) => ({ side: "for", index: i, ...a })), ...draft.caseAgainst.map((a, i) => ({ side: "against", index: i, ...a }))];
+  // Everything a reader sees, for the tone check (owner, 18 Nov 2026, point 7): the same rule as the federal test.
+  const seen = [txReaderPage(draft), `The case for\n${draft.caseFor.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`, `The case against\n${draft.caseAgainst.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`,
+    `What changes for you\n${draft.whatChangesForYou ?? ""}`, `What we don't know\n${draft.unknowns.map(u => `- ${u}`).join("\n")}`].join("\n\n");
   const judgeInput = [`OFFICIAL SOURCES:\n${sourcesText}`, `THE READER'S ANSWERS:\n${JSON.stringify({ whatItDoes: reader.whatItDoes, whoIsAffected: reader.whoIsAffected, dailyLifeChange: reader.dailyLifeChange })}`,
     `THE SECOND READER'S "PAGE" ANSWERS:\n${JSON.stringify(page ?? { howItWorksToday: "", whatChanges: "", whoIsAffected: "" })}`,
-    `ARGUMENTS TO CHECK (each has side, index, the reason, the credit line, and the id of the source it cites):\n${JSON.stringify(args)}`].join("\n\n");
-  const judge = await ask<JudgeResult & { page: PageVerdicts }>("tx_reader_check", TX_JUDGE_INSTRUCTIONS, judgeInput, judgeSchema);
+    `ARGUMENTS TO CHECK (each has side, index, the reason, the credit line, and the id of the source it cites):\n${JSON.stringify(args)}`,
+    `THE PAGE (for the tone check only):\n${seen}`].join("\n\n");
+  const judge = await ask<JudgeResult & { page: PageVerdicts }>("tx_reader_check", `${TX_JUDGE_INSTRUCTIONS}\n${TONE_JUDGE_ADDITION}`, judgeInput, judgeSchema);
   judge.arguments = (judge.arguments ?? []).filter(a => args.some(x => x.side === a.side && x.index === a.index)); // only verdicts for arguments that exist count
   // Everyday Texas words ("Legislature", "homeowner", "school district") are not jargon; everything else goes to the federal rule.
   const flags = (reader.wordsNotUnderstood ?? []).filter(w => !txEverydayFlag(w));
-  const note = readerTestResult({ ...reader, wordsNotUnderstood: flags }, judge, txReaderNote(draft));
+  const note = readerTestResult({ ...reader, wordsNotUnderstood: flags }, judge, txReaderNote(draft), seen);
   // The federal rule counts a flag as jargon when it is on the federal list, an abbreviation or a code. A term on the Texas list counts the same way.
   const texan = [...new Set(flags.map(w => w.trim()))].filter(w => TX_JARGON.some(t => t.re.test(w)) && !explainedInNote(w, txReaderNote(draft)) && !note.reasons.some(r => r.includes(`"${w}"`)));
   if (texan.length) note.reasons.push(`A reader did not understand: ${texan.slice(0, 8).map(w => `"${w}"`).join(", ")}. Replace each with everyday words or explain it in parentheses.`);

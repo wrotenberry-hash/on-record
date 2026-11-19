@@ -13,6 +13,7 @@ import { liveHolds, mailVerified, residenceOf } from "@/lib/verify/residence-sto
 import { answerFor, answerHistory } from "@/lib/opinions";
 import { importLegacy, jurisdictionOf, totalsForBill } from "@/lib/constituent/store";
 import { isTerritory, placeName, shownTotals, standing, TERRITORIES_SCOPE, tierOf, type Jurisdiction, type ScopeTotals, type Shown, type Standing, type Tier } from "@/lib/constituent/rules";
+import { socialProof } from "@/lib/constituent/proof";
 
 export type TotalsBlock = { scope: string; title: string; kind: "nation" | "state" | "district"; shown: Shown };
 export type VoteBoxData = {
@@ -23,6 +24,12 @@ export type VoteBoxData = {
   /** Where this person's totals are read from: their home on file, or the district they looked up. */
   place: { state: string; congressional: string | null; stateUpper: string | null; stateLower: string | null; fromHome: boolean } | null;
   totals: TotalsBlock[]; showTotals: boolean;
+  /**
+   * Before the reader answers: only how many counted residents of their district and state have weighed in, and only
+   * for a place with 25 or more (lib/constituent/proof.ts). Never a split. Empty once they have answered, because the
+   * totals themselves are then on the page.
+   */
+  proof: string[];
 };
 
 const districtName = (scope: string) => (/-SD-/.test(scope) ? `State senate district ${scope.split("-SD-")[1]}` : /-HD-/.test(scope) ? `State house district ${scope.split("-HD-")[1]}`
@@ -44,6 +51,16 @@ export function scopesToRead(j: Jurisdiction, place: VoteBoxData["place"]): stri
   return [...new Set([j.level === "federal" ? "US" : j.code, TERRITORIES_SCOPE, place?.state, ...(j.level === "federal" ? [place?.congressional] : [place?.stateUpper, place?.stateLower])].filter((x): x is string => !!x))];
 }
 
+/**
+ * Where a reader's totals are read from: the home on their account when there is one, else the district they looked
+ * up. The looked-up place only chooses which totals to show; it never makes an answer count.
+ */
+export async function readerPlace(userId: string | null, accountId: string | null, verificationOn: boolean): Promise<VoteBoxData["place"]> {
+  const [home, looked] = await Promise.all([verificationOn && accountId ? residenceOf(getDb(), accountId).catch(() => null) : null, currentLocation(userId).catch(() => null)]);
+  return home ? { state: home.stateCode, congressional: home.congressional, stateUpper: home.stateUpper, stateLower: home.stateLower, fromHome: true }
+    : looked ? { state: looked.state, congressional: looked.congressional, stateUpper: looked.stateUpper, stateLower: looked.stateLower, fromHome: false } : null;
+}
+
 export async function voteBoxData(billKey: string, access: ViewerAccess): Promise<VoteBoxData | null> {
   const db = getDb(), jurisdiction = await jurisdictionOf(db, billKey).catch(() => null);
   if (!jurisdiction) return null;
@@ -62,7 +79,8 @@ export async function voteBoxData(billKey: string, access: ViewerAccess): Promis
     : looked ? { state: looked.state, congressional: looked.congressional, stateUpper: looked.stateUpper, stateLower: looked.stateLower, fromHome: false } : null;
   const st = standing(jurisdiction, place?.state ?? null);
   const totals = await totalsForBill(db, billKey, scopesToRead(jurisdiction, place)).catch(() => new Map<string, ScopeTotals>());
+  const showTotals = !!answer || st === "outside";
   return { jurisdiction, canAnswer, userId, answer, history, tier, standing: st, held: holds.length > 0, verificationOn: vc.enabled,
     needsChallenge: vc.enabled && vc.turnstileReady && (tier === "address" || tier === "mail") && !profile?.firstVoteChallengeAt, legacy: legacy as VoteBoxData["legacy"], place,
-    totals: totalsBlocks(jurisdiction, place, totals), showTotals: !!answer || st === "outside" };
+    totals: totalsBlocks(jurisdiction, place, totals), showTotals, proof: canAnswer && !showTotals ? socialProof(jurisdiction, place, totals) : [] };
 }

@@ -1,3 +1,4 @@
+import { toneFinding, type ToneVerdict } from "./tone.ts";
 /**
  * The writing standard for every Analysis section (owner instruction, 17 Nov 2026), as rules a machine can check.
  * Pure: no database, no network, no model. Tested in tests/standard.test.mjs.
@@ -223,7 +224,7 @@ export const NO_REASONS_FOUND = "No public statement of reasons found.";
 export type ReaderAnswers = { whatItDoes: string; whoIsAffected: string; dailyLifeChange: string; wordsNotUnderstood: string[] };
 export type Verdict = { verdict: "correct" | "wrong" | "vague"; why: string };
 export type ArgumentVerdict = { side: "for" | "against"; index: number; supported: boolean; why: string };
-export type JudgeResult = { whatItDoes: Verdict; whoIsAffected: Verdict; dailyLifeChange: Verdict; arguments: ArgumentVerdict[] };
+export type JudgeResult = { whatItDoes: Verdict; whoIsAffected: Verdict; dailyLifeChange: Verdict; arguments: ArgumentVerdict[]; tone?: ToneVerdict };
 
 /** An answer so general it could describe many bills, or an admission the note did not say. */
 export const VAGUE_ANSWER = /\b(?:it|this|the bill|the note) (?:changes|updates|affects|is about|deals with|has to do with) (?:some|certain|various|the|a few)? ?(?:rules|things|stuff|laws|policies|regulations|standards)\b\.?$|\b(?:doesn'?t|does not|didn'?t|did not) say\b|\bnot (?:sure|clear)\b|\bunclear\b|\bi (?:don'?t|do not) know\b|\bno idea\b|\bhard to (?:say|tell)\b|\bsomething (?:about|to do with)\b/i;
@@ -287,7 +288,7 @@ export function countedFlags(flags: readonly string[], note: string, allCorrect:
     .filter(w => !/\.(?:gov|com|org)$/i.test(w) && !explainedInNote(w, note) && (looksLikeJargon(w) || !allCorrect));
 }
 
-export function readerTestResult(reader: ReaderAnswers, judge: JudgeResult, note = ""): { passed: boolean; reasons: string[] } {
+export function readerTestResult(reader: ReaderAnswers, judge: JudgeResult, note = "", page = ""): { passed: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const q: Array<[string, string, Verdict]> = [["What does this bill do?", reader.whatItDoes, judge.whatItDoes], ["Who is affected and how?", reader.whoIsAffected, judge.whoIsAffected],
     ["What would change in daily life?", reader.dailyLifeChange, judge.dailyLifeChange]];
@@ -301,6 +302,9 @@ export function readerTestResult(reader: ReaderAnswers, judge: JudgeResult, note
   const words = countedFlags(reader.wordsNotUnderstood, note, q.every(([, , v]) => v.verdict === "correct"));
   if (words.length) reasons.push(`A reader did not understand: ${words.slice(0, 8).map(w => `"${w}"`).join(", ")}. Replace each with everyday words or explain it in parentheses.`);
   for (const a of judge.arguments) if (!a.supported) reasons.push(`The case ${a.side} argument ${a.index + 1} is not supported by the source it cites: ${a.why.slice(0, 220)} Use a reason that person or body actually gave, or leave the side empty.`);
+  // Owner, 18 Nov 2026 (point 7): tone is part of the average-reader test. `page` is everything the readers saw.
+  const tone = toneFinding(judge.tone, page || note);
+  if (tone) reasons.push(tone);
   return { passed: reasons.length === 0, reasons };
 }
 

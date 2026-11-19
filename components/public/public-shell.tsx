@@ -15,7 +15,7 @@ import { SomethingWrong } from "@/components/public/something-wrong";
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
   { href: "/legislators", label: "Your legislators" },
-  { href: "/voice", label: "Your voice" },
+  { href: "/voice", label: "Your record" },
   { href: "/search", label: "Search" },
   { href: "/moving", label: "This week" },
   { href: "/dashboard", label: "Dashboard" },

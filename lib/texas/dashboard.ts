@@ -9,6 +9,7 @@ import { chamberPassage, figureCell, officialGap, readStoredCounts, reconcileFil
 import { lastTexasHistoryRun } from "@/lib/texas/history";
 import { ISSUE_WORDS } from "@/lib/search-rank";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
+import { latestTime } from "@/lib/dashboard-end";
 
 /**
  * Texas dashboard, measure for measure with the Congress dashboard where Texas has an equivalent. The session in
@@ -73,7 +74,8 @@ export async function texasDashboard(now = Date.now()) {
     if (pos) { const w = withPartyMajority(pos, pt.get(r.voteId)?.[partyCode(r.party)] ?? {}); if (w !== null) { e.counted++; if (!w) e.against++; } }
     per.set(r.personId, e);
   }
-  const top = (k: "against" | "missed") => [...per].map(([id, v]) => ({ id, ...v, value: v[k] })).filter(x => x.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name)).slice(0, 10);
+  const ranked = (k: "against" | "missed") => [...per].map(([id, v]) => ({ id, ...v, value: v[k] })).filter(x => x.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+  const against = ranked("against"), missed = ranked("missed");
 
   // Control: seats by party (Open States people list), officers, chairs.
   const seats = await db.select({ chamber: txPeople.chamber, party: txPeople.party, n: sql<number>`count(*)`, readAt: sql<number>`max(${txPeople.retrievedAt})` }).from(txPeople).where(eq(txPeople.isCurrent, 1)).groupBy(txPeople.chamber, txPeople.party);
@@ -82,7 +84,7 @@ export async function texasDashboard(now = Date.now()) {
     .then(rows => rows.filter(r => isCommitteeChair(r.role))); // chairs only: "Vice Chair" is not listed here
   const committeesReadAt = Number((await db.select({ t: sql<number>`max(${txCommittees.retrievedAt})` }).from(txCommittees).get())?.t ?? 0) || null;
   const advanced = await db.select({ personId: txBillSponsors.personId, name: txBillSponsors.name, n: sql<number>`count(*)` }).from(txBillSponsors).innerJoin(txBills, eq(txBills.id, txBillSponsors.billId))
-    .where(and(eq(txBills.session, focus), billsOnly, eq(txBillSponsors.primary, 1), inArray(txBills.stage, ADVANCED))).groupBy(txBillSponsors.name).orderBy(desc(sql`count(*)`)).limit(10);
+    .where(and(eq(txBills.session, focus), billsOnly, eq(txBillSponsors.primary, 1), inArray(txBills.stage, ADVANCED))).groupBy(txBillSponsors.name).orderBy(desc(sql`count(*)`));
 
   // Where bills stall: "Referred to X" actions, and whether a committee report followed (bills on file only).
   const acts = await db.select({ billId: txBillActions.billId, description: txBillActions.description, classification: txBillActions.classification, seq: txBillActions.seq })
@@ -101,11 +103,18 @@ export async function texasDashboard(now = Date.now()) {
   });
   const withSubjects = subjects.filter(b => ((b.subjects as string[] | null) ?? []).length > 0).length;
 
-  return { generatedAt: now, session, inSession, upcoming, focus, current, history, rules: TX_DASH_RULES, historyRun: await lastTexasHistoryRun(db).catch(() => null),
+  const stalled = [...stall].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.referred - a.referred);
+  const seatsReadAt = seats.length ? Math.max(...seats.map(s => Number(s.readAt))) : null, historyRun = await lastTexasHistoryRun(db).catch(() => null);
+  // When the figures on this page were last read from their sources: the latest of the bills, the members, the committees and the official statistics.
+  const figuresAt = latestTime(current.readAt, seatsReadAt, committeesReadAt, historyRun?.at, ...statRows.map(r => Number(r.retrievedAt)));
+  // How long each capped list would be in full, so its last line can say "the 10 highest of 34" (finite design, 18 Nov 2026).
+  const listTotals = { advanced: advanced.length, againstParty: against.length, missed: missed.length, stall: stalled.length };
+
+  return { generatedAt: now, figuresAt, listTotals, session, inSession, upcoming, focus, current, history, rules: TX_DASH_RULES, historyRun,
     rollStats: { total: votes.length, proceduralPct: votes.length ? Math.round(1000 * proc / votes.length) / 10 : null, partyLinePct: pt.size ? Math.round(1000 * pl / pt.size) / 10 : null, withMemberVotes: pt.size },
-    seats: seats.map(s => ({ chamber: s.chamber, party: s.party, n: Number(s.n) })), seatsReadAt: seats.length ? Math.max(...seats.map(s => Number(s.readAt))) : null,
-    officers: TX_OFFICERS, chairs, committeesReadAt, advanced: advanced.map(a => ({ ...a, n: Number(a.n) })), againstParty: top("against"), missed: top("missed"),
-    stall: [...stall].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.referred - a.referred).slice(0, 15), billsWithActions: new Set(acts.map(a => a.billId)).size,
+    seats: seats.map(s => ({ chamber: s.chamber, party: s.party, n: Number(s.n) })), seatsReadAt,
+    officers: TX_OFFICERS, chairs, committeesReadAt, advanced: advanced.slice(0, 10).map(a => ({ ...a, n: Number(a.n) })), againstParty: against.slice(0, 10), missed: missed.slice(0, 10),
+    stall: stalled.slice(0, 15), billsWithActions: new Set(acts.map(a => a.billId)).size,
     byIssue, withSubjects };
 }
 export type TexasDashboard = Awaited<ReturnType<typeof texasDashboard>>;

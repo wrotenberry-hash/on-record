@@ -1,7 +1,7 @@
 /**
  * The one-time question about answers given before answers were added into totals (owner, 18 Nov 2026): they stay
  * uncounted unless the reader chooses, on their next visit, to count them. Shown at the top of the home page, the
- * "Your voice" page and every bill's voting box until the reader has answered it once.
+ * "Your record" page and every bill's voting box until the reader has answered it once.
  */
 import { getDb } from "@/db";
 import { importLegacy } from "@/lib/constituent/store";

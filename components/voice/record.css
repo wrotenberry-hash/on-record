@@ -1,0 +1,13 @@
+/* "Your record" (/voice) and the count line in the voting box. Loaded by the pages that use them. The line that ends a list is components/dashboard/end.css. */
+.voice-proof { margin: 8px 0; padding: 8px 12px; border-left: 3px solid #163b3c; background: #f3f6f4; font-size: 15px; line-height: 1.45; }
+.voice-proof .not-poll { display: block; font-size: 13px; }
+.record-outcome { margin: 2px 0 6px; font-size: 16px; line-height: 1.45; }
+.record-pages { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 0; }
+.record-pages a { display: inline-flex; align-items: center; min-height: 44px; }
+.record-counts { list-style: none; margin: 0; padding: 0; }
+.record-counts li { display: grid; gap: 2px; padding: 8px 0 10px; border-top: 1px solid #e3e8e4; }
+.record-counts li:first-child { border-top: 0; }
+.record-counts .record-count { font-size: 17px; }
+.record-counts small { color: #5d6b69; font-size: 13px; }
+.record-jump a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 2px; }
+.voice-district ul { margin: 2px 0 0; }

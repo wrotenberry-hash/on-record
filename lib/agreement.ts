@@ -42,3 +42,36 @@ export function agreementLine(row: Pick<AgreementRow, "agreed" | "differed">) {
   const total = row.agreed + row.differed;
   return `Agreed on ${row.agreed} of ${total} bill${total === 1 ? "" : "s"}`;
 }
+
+/* ───────────── "Your record": one plain count per legislator (owner, 18 Nov 2026, point 5) ───────────── */
+
+export type SameWay = { same: number; compared: number };
+/**
+ * How often one legislator voted the way the reader answered: the reader's Support or Oppose answers against that
+ * legislator's latest Yes or No vote on passing each bill (`latestPassageVotes`, the rule the member page already uses).
+ * Left out, always: procedural votes, amendments and nominations; bills with no recorded vote by that legislator;
+ * Present and Not Voting; and every Unsure answer. It is a count of the reader's own answers. It is never turned into
+ * a percentage, a rank or an order, and it says nothing about the legislator beyond those bills.
+ */
+export function sameWayCount(answers: ReadonlyMap<string, string>, votes: readonly MemberVote[]): SameWay {
+  const passage = latestPassageVotes(votes);
+  let same = 0, compared = 0;
+  for (const [billId, answer] of answers) {
+    if (answer !== "support" && answer !== "oppose") continue; // Unsure is never compared
+    const v = passage.get(billId);
+    if (!v) continue;
+    compared++;
+    if ((answer === "support") === (v.position === "Yea")) same++;
+  }
+  return { same, compared };
+}
+
+/** "Voted the way you did on 4 of 6 bills." With nothing to compare it says so, never "0 of 0". */
+export function sameWayLine(c: SameWay): string {
+  if (!c.compared) return "No bills to compare yet.";
+  return `Voted the way you did on ${c.same} of ${c.compared} bill${c.compared === 1 ? "" : "s"}.`;
+}
+/** Said beside every count, every time. */
+export const OWN_COMPARISON = "Your own comparison, not a grade or score of the legislator.";
+/** What the count leaves out, in the reader's words. */
+export const COMPARISON_LEFT_OUT = "Only votes on passing a bill are counted, and only bills where you answered Support or Oppose. Left out: votes on procedure and on amendments, bills that passed or stopped without a recorded vote, votes where the legislator was absent or voted present, and your Unsure answers.";

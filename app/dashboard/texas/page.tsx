@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { PublicShell } from "@/components/public/public-shell";
 import { AnalysisBadge, OfficialBadge, shortDate } from "@/components/federal/badges";
-import { viewerAccess } from "@/lib/viewer";
+import { viewerAccess, currentAppUserId } from "@/lib/viewer";
+import { previousVisit } from "@/lib/visits";
+import { capList, DASH_CAPS } from "@/lib/dashboard-end";
+import { CaughtUp, ListEnd } from "@/components/dashboard/list-end";
 import { texasDashboard, type TexasDashboard } from "@/lib/texas/dashboard";
 import { ROLE_NOTE } from "@/lib/federal/dashboard-rules";
 import { FunnelChart, RowBars, SeatBar } from "@/components/charts/charts";
@@ -14,6 +17,7 @@ export const metadata = { title: brandTitle("Texas dashboard"), robots: { index:
 const TAP = "inline-flex min-h-11 items-center underline underline-offset-2";
 const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
 const num = (n: number) => n.toLocaleString("en-US");
+const when = (ms: number) => `${new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })} Austin time`;
 const COUNTED = "Counted by the site from a data feed, not copied from a government page";
 
 /** A history figure: the number, or the plain reason it is missing. */
@@ -32,17 +36,18 @@ function Sources({ cells }: { cells: FigureCell[] }) {
 }
 
 function History({ d }: { d: TexasDashboard }) {
-  const any = d.history.some(h => h.anyLoaded);
+  const any = d.history.some(h => h.anyLoaded), sessions = capList(d.history, DASH_CAPS.sessions);
   const col = (h: TexasDashboard["history"][number], k: string) => h.cells.find(c => c.key === k)!;
   return <div className="fed-section"><h2>Compared with earlier sessions <OfficialBadge title="Figures from Texas Legislature Online unless marked counted" /></h2>
     {!any && <p className="lead-stat" role="status">The figures for earlier sessions are not loaded yet. They are read from the official statistics on Texas Legislature Online by the scheduled update; nothing below is a zero.</p>}
     <table className="chart history" tabIndex={0}><caption>House and Senate bills in each session, 2021 to 2027</caption>
       <thead><tr><th scope="col">Session</th><th scope="col">Filed</th><th scope="col">Sent to the Governor</th><th scope="col">Became law</th><th scope="col">Vetoed</th></tr></thead>
-      <tbody>{d.history.map(h => <tr key={h.id}><th scope="row"><b>{h.name.replace(" Legislature,", ",")}</b><br /><span className="meta">{h.regular ? h.year : `Special session · ${h.year}`}{h.isFocus ? " · this session" : ""}</span></th>
+      <tbody>{sessions.rows.map(h => <tr key={h.id}><th scope="row"><b>{h.name.replace(" Legislature,", ",")}</b><br /><span className="meta">{h.regular ? h.year : `Special session · ${h.year}`}{h.isFocus ? " · this session" : ""}</span></th>
         <td><Cell c={col(h, "filed")} /></td><td><Cell c={col(h, "passedBoth")} /></td><td><Cell c={col(h, "becameLaw")} /></td><td><Cell c={col(h, "vetoed")} /></td></tr>)}</tbody></table>
     <p className="meta">Bills only: House bills and Senate bills, the measures that can become law. A regular session meets every two years; a called (special) session is one the Governor calls, on the subjects the Governor names. “Sent to the Governor” means the bill passed both the House and the Senate. “Became law” adds the bills the Governor signed and the bills that became law without a signature. “Not loaded” means the figure has not been read yet, not that it is zero.</p>
+    <ListEnd shown={sessions.shown} total={sessions.total} what="sessions" />
     <details className="method"><summary className="py-3">Every figure, with its source and the date it was read</summary>
-      {d.history.map(h => <div key={h.id} className="mt-3"><h3 className="text-base font-bold">{h.name} <span className="meta">({h.kind.toLowerCase()}, {h.year})</span></h3>
+      {sessions.rows.map(h => <div key={h.id} className="mt-3"><h3 className="text-base font-bold">{h.name} <span className="meta">({h.kind.toLowerCase()}, {h.year})</span></h3>
         {h.anyLoaded ? <ul className="analysis-list">{h.cells.map(c => <li key={c.key}>{c.label}: {c.n === null ? <span className="meta">{c.missing}</span> : <><b>{num(c.n)}</b>{c.basis === "counted" ? " (counted)" : ""}{c.basis === "sum" ? " (signed plus unsigned)" : ""}</>}</li>)}</ul>
           : <p className="meta">Not loaded yet.</p>}
         {h.gap !== null && h.gap !== 0 && <p className="meta">The official pages do not add up for this session yet: {num(Math.abs(h.gap))} {h.gap > 0 ? "bills sent to the Governor are on none of the signed, unsigned or vetoed lists (the Governor may still be acting on them)" : "more bills are on the Governor's lists than passed both chambers"}. The official record is Texas Legislature Online.</p>}
@@ -50,6 +55,7 @@ function History({ d }: { d: TexasDashboard }) {
         {h.onFile && <p className="meta">On file here from Open States (read {shortDate(h.onFile.readAt)}): {num(h.onFile.filed)} bills, {num(h.onFile.passedHouse)} passed the House, {num(h.onFile.passedSenate)} passed the Senate, {num(h.votes.total)} recorded {h.votes.total === 1 ? "vote" : "votes"}{h.votes.proceduralPct !== null ? ` (${h.votes.proceduralPct}% on procedure)` : ""}.</p>}
       </div>)}
       {d.historyRun && <p className="meta">Last read of the official pages: {shortDate(d.historyRun.at)}, {d.historyRun.requests} requests{d.historyRun.stoppedBy ? `; stopped: ${d.historyRun.stoppedBy}` : ""}{d.historyRun.left ? `; ${d.historyRun.left} pages still to read` : ""}.</p>}
+      <ListEnd shown={sessions.shown} total={sessions.total} what="sessions" />
     </details></div>;
 }
 
@@ -59,11 +65,16 @@ export default async function TexasDashboardPage() {
   const d = await texasDashboard().catch(() => null);
   if (!d) return <PublicShell current="/dashboard" access={access} page="/dashboard/texas"><section className="fed-page"><h1>Texas dashboard</h1><p className="meta">The Texas figures could not be read right now. Check back after the next scheduled update.</p></section></PublicShell>;
   const c = d.current, R = d.rules, has = c.all.reach.filed > 0;
+  // Each list, capped, with how many rows there are in all (for its last line).
+  const officers = capList(d.officers, DASH_CAPS.leaders), chairs = capList(d.chairs, DASH_CAPS.chairs), byIssue = capList(d.byIssue, DASH_CAPS.issues);
+  const advanced = capList(d.advanced, DASH_CAPS.top), againstParty = capList(d.againstParty, DASH_CAPS.top), missed = capList(d.missed, DASH_CAPS.top), stall = capList(d.stall, DASH_CAPS.stall);
+  // When this reader was last here (a time only, never a page): the closing line says whether the figures are newer than that.
+  const lastVisit = await previousVisit(access.invite || access.editor ? await currentAppUserId().catch(() => null) : null).catch(() => null);
   return <PublicShell current="/dashboard" access={access} page="/dashboard/texas">
     <section className="fed-page">
       <div className="eyebrow">TEXAS DASHBOARD <OfficialBadge /></div>
       <h1>Texas Legislature at a glance</h1>
-      <p className="as-of">Page built {new Date(d.generatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })} Austin time · {d.inSession ? `${d.session.name} in session` : d.upcoming ? `${d.upcoming.name} convenes ${shortDate(d.upcoming.start)}` : "Not in session"} · <Link className={TAP} href="/dashboard">Congress dashboard</Link></p>
+      <p className="as-of">Page built {when(d.generatedAt)} · {d.inSession ? `${d.session.name} in session` : d.upcoming ? `${d.upcoming.name} convenes ${shortDate(d.upcoming.start)}` : "Not in session"} · <Link className={TAP} href="/dashboard">Congress dashboard</Link></p>
 
       <div className="fed-section"><h2>How the Texas Legislature meets <OfficialBadge title="Quoted from the Texas Constitution and Government Code" /></h2>
         <ul className="analysis-list">
@@ -89,30 +100,39 @@ export default async function TexasDashboardPage() {
       <div className="fed-section"><h2>Who controls the Legislature</h2>
         {d.seats.length ? <><SeatBar chamber="Texas House" seats={d.seats.filter(s => s.chamber === "lower")} total={150} /><SeatBar chamber="Texas Senate" seats={d.seats.filter(s => s.chamber === "upper")} total={31} /></>
           : <p className="meta" role="status">The member list is not loaded yet, so seats by party are not shown.</p>}
-        <ul className="result-list">{d.officers.map(o => <li key={o.title}><span><b>{o.title}</b>: {o.name} ({o.party})</span><span className="meta">{ROLE_NOTE[o.title]}{o.title === "Governor" ? ` Vetoes this session: ${c.officialVetoed.n !== null ? `${num(c.officialVetoed.n)} (Texas Legislature Online, read ${shortDate(c.officialVetoed.readAt)})` : has ? `${num(c.passage.vetoed)} among the bills on file` : "not loaded yet"}.` : ""} As of the {o.asOf}; <a className="tap" href={o.source} {...ext}>source</a>.</span></li>)}</ul>
+        <ul className="result-list">{officers.rows.map(o => <li key={o.title}><span><b>{o.title}</b>: {o.name} ({o.party})</span><span className="meta">{ROLE_NOTE[o.title]}{o.title === "Governor" ? ` Vetoes this session: ${c.officialVetoed.n !== null ? `${num(c.officialVetoed.n)} (Texas Legislature Online, read ${shortDate(c.officialVetoed.readAt)})` : has ? `${num(c.passage.vetoed)} among the bills on file` : "not loaded yet"}.` : ""} As of the {o.asOf}; <a className="tap" href={o.source} {...ext}>source</a>.</span></li>)}</ul>
+        <ListEnd shown={officers.shown} total={officers.total} />
         <p className="meta">Seats: current members from Open States{d.seatsReadAt ? `, read ${shortDate(d.seatsReadAt)}` : ""}; empty seats are the gap to 150 and 31. The Lieutenant Governor is elected statewide and presides over the Senate; the Speaker is elected by House members when each regular session opens.</p></div>
 
       <div className="fed-section"><h2>Key players <OfficialBadge /></h2>
         <p className="meta">Counts, not grades. Same method for every member. From the bills and recorded votes on file for the {c.name}.</p>
-        {d.advanced.length ? <RowBars caption="Most bills authored that passed at least one chamber" unit="bills" rows={d.advanced.map(a => ({ label: a.personId ? <Link className={TAP} href={`/texas/members/${encodeURIComponent(a.personId)}`}>{a.name}</Link> : a.name, value: a.n }))} /> : <p className="meta">No bill on file for this session has passed a chamber yet.</p>}
-        {d.againstParty.length > 0 ? <RowBars caption="Most votes against their own party's majority (recorded votes on file)" unit="votes" rows={d.againstParty.map(a => ({ label: <Link className={TAP} href={`/texas/members/${encodeURIComponent(a.id)}`}>{a.name}</Link>, value: a.value, note: `of ${a.counted}` }))} />
+        {advanced.shown ? <><RowBars caption="Most bills authored that passed at least one chamber" unit="bills" rows={advanced.rows.map(a => ({ label: a.personId ? <Link className={TAP} href={`/texas/members/${encodeURIComponent(a.personId)}`}>{a.name}</Link> : a.name, value: a.n }))} />
+          <ListEnd shown={advanced.shown} total={d.listTotals.advanced} top={advanced.shown === DASH_CAPS.top} /></> : <p className="meta">No bill on file for this session has passed a chamber yet.</p>}
+        {againstParty.shown > 0 ? <><RowBars caption="Most votes against their own party's majority (recorded votes on file)" unit="votes" rows={againstParty.rows.map(a => ({ label: <Link className={TAP} href={`/texas/members/${encodeURIComponent(a.id)}`}>{a.name}</Link>, value: a.value, note: `of ${a.counted}` }))} />
+          <ListEnd shown={againstParty.shown} total={d.listTotals.againstParty} top={againstParty.shown === DASH_CAPS.top} /></>
           : <p className="meta">No recorded vote with each member listed is on file for this session yet. Many Texas votes are voice votes, which do not list how each member voted.</p>}
-        {d.missed.length > 0 && <RowBars caption="Most missed votes (recorded votes on file)" unit="missed" rows={d.missed.map(a => ({ label: <Link className={TAP} href={`/texas/members/${encodeURIComponent(a.id)}`}>{a.name}</Link>, value: a.value, note: `of ${a.total}` }))} />}
+        {missed.shown > 0 && <><RowBars caption="Most missed votes (recorded votes on file)" unit="missed" rows={missed.rows.map(a => ({ label: <Link className={TAP} href={`/texas/members/${encodeURIComponent(a.id)}`}>{a.name}</Link>, value: a.value, note: `of ${a.total}` }))} />
+          <ListEnd shown={missed.shown} total={d.listTotals.missed} top={missed.shown === DASH_CAPS.top} /></>}
         {d.rollStats.total > 0 && <p className="meta">{num(d.rollStats.total)} recorded votes on file{d.rollStats.proceduralPct !== null ? `; ${d.rollStats.proceduralPct}% on procedure` : ""}{d.rollStats.partyLinePct !== null ? `; ${d.rollStats.partyLinePct}% party-line (most voting Democrats and most voting Republicans on opposite sides), of the ${num(d.rollStats.withMemberVotes)} that list each member` : ""}.</p>}
-        {d.chairs.length > 0 ? <details className="method"><summary className="py-3">Committee chairs ({d.chairs.length})</summary><ul className="analysis-list">{d.chairs.map((x, i) => <li key={i}>{x.committee}: {x.personId ? <Link className={TAP} href={`/texas/members/${encodeURIComponent(x.personId)}`}>{x.name}</Link> : x.name} ({x.role})</li>)}</ul>
+        {chairs.shown > 0 ? <details className="method"><summary className="py-3">Committee chairs ({chairs.total})</summary><ul className="analysis-list">{chairs.rows.map((x, i) => <li key={i}>{x.committee}: {x.personId ? <Link className={TAP} href={`/texas/members/${encodeURIComponent(x.personId)}`}>{x.name}</Link> : x.name} ({x.role})</li>)}</ul>
+          <ListEnd shown={chairs.shown} total={chairs.total} />
           <p className="meta">From Open States{d.committeesReadAt ? `, read ${shortDate(d.committeesReadAt)}` : ""}. In Texas the Speaker names House committee chairs and the Lieutenant Governor names Senate committee chairs.</p></details>
           : <p className="meta">Committee chairs are not loaded yet.</p>}</div>
 
       <div className="fed-section"><h2>Where bills stall</h2>
-        {d.stall.length ? <><RowBars caption="Committees by bills referred, with how many they reported" unit="referred" rows={d.stall.map(s => ({ label: s.name, value: s.referred, note: `· ${s.reported} reported` }))} />
-          <p className="meta">From the {num(d.billsWithActions)} bills {BRAND.name} holds with their actions for this session (Open States), not every bill filed. A bill “reported” was sent on by the committee.</p></>
+        {stall.shown ? <><RowBars caption="Committees by bills referred, with how many they reported" unit="referred" rows={stall.rows.map(s => ({ label: s.name, value: s.referred, note: `· ${s.reported} reported` }))} />
+          <p className="meta">From the {num(d.billsWithActions)} bills {BRAND.name} holds with their actions for this session (Open States), not every bill filed. A bill “reported” was sent on by the committee.</p>
+          <ListEnd shown={stall.shown} total={d.listTotals.stall} top={stall.shown === DASH_CAPS.stall} /></>
           : <p className="meta" role="status">No committee referrals are on file for this session yet.</p>}</div>
 
       <div className="fed-section"><h2>By issue</h2>
         {d.withSubjects ? <><table className="chart history" tabIndex={0}><caption>Bills sorted into each issue: filed, passed at least one chamber, became law</caption><thead><tr><th scope="col">Issue</th><th scope="col">Filed</th><th scope="col">Advanced</th><th scope="col">Enacted</th></tr></thead>
-          <tbody>{d.byIssue.map(b => <tr key={b.slug}><th scope="row">{b.name}</th><td>{b.filed}</td><td>{b.advanced}</td><td>{b.enacted}</td></tr>)}</tbody></table>
-          <p className="meta">Covers the {num(d.withSubjects)} bills on file that Open States lists subjects for, matched to issues by their words; not every bill.</p></>
+          <tbody>{byIssue.rows.map(b => <tr key={b.slug}><th scope="row">{b.name}</th><td>{b.filed}</td><td>{b.advanced}</td><td>{b.enacted}</td></tr>)}</tbody></table>
+          <p className="meta">Covers the {num(d.withSubjects)} bills on file that Open States lists subjects for, matched to issues by their words; not every bill.</p>
+          <ListEnd shown={byIssue.shown} total={byIssue.total} what="issues" /></>
           : <p className="meta" role="status">No bill on file for this session has subjects listed yet, so bills by issue are not shown.</p>}</div>
+
+      <CaughtUp updated={d.figuresAt ? when(d.figuresAt) : null} updatedAt={d.figuresAt} previousVisit={lastVisit} />
     </section>
   </PublicShell>;
 }

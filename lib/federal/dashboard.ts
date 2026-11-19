@@ -138,11 +138,19 @@ export async function computeCongressDashboard(db = getDb(), now = Date.now()) {
     if (r.position === "Yea" || r.position === "Nay") { const w = withPartyMajority(r.position, pt.get(r.id)?.[partyCode(r.party)] ?? {}); if (w !== null) { e.counted++; if (!w) e.against++; } }
     per.set(r.member, e);
   }
-  const top = (f: (x: typeof per extends Map<string, infer V> ? V : never) => number) => [...per].map(([id, v]) => ({ id, ...v, value: f(v) })).filter(x => x.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name)).slice(0, 10);
+  const ranked = (f: (x: typeof per extends Map<string, infer V> ? V : never) => number) => [...per].map(([id, v]) => ({ id, ...v, value: f(v) })).filter(x => x.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+  const against = ranked(v => v.against), missed = ranked(v => v.missed);
   // Where bills stall: committees by bills referred vs reported (bills with full action records).
   const stall = await db.select({ committeeId: officialBillCommittees.committeeId, name: officialCommittees.name, chamber: officialCommittees.chamber, referred: sql<number>`count(*)`, reported: sql<number>`sum(case when ${officialBillCommittees.reportedAt} is not null then 1 else 0 end)` })
     .from(officialBillCommittees).leftJoin(officialCommittees, eq(officialCommittees.id, officialBillCommittees.committeeId)).groupBy(officialBillCommittees.committeeId).orderBy(sql`count(*) desc`).limit(15);
   const fullRecords = Number((await db.select({ n: sql<number>`count(distinct ${officialBillCommittees.billId})` }).from(officialBillCommittees).get())?.n ?? 0);
+  // How long each capped list would be in full, so its last line can say "the 10 highest of 34" (finite design, 18 Nov 2026).
+  const [sponsorsAdvanced, committeesReferred] = await Promise.all([
+    db.select({ n: sql<number>`count(distinct ${officialBills.sponsorId})` }).from(officialBills).innerJoin(officialBillIndex, eq(officialBillIndex.billId, officialBills.id)).innerJoin(officialPoliticians, eq(officialPoliticians.id, officialBills.sponsorId))
+      .where(and(eq(officialBillIndex.congress, current), inArray(officialBillIndex.stage, ["passed_one", "passed_both", "law", "vetoed"]))).get(),
+    db.select({ n: sql<number>`count(distinct ${officialBillCommittees.committeeId})` }).from(officialBillCommittees).get(),
+  ]);
+  const listTotals = { advanced: Number(sponsorsAdvanced?.n ?? 0), againstParty: against.length, missed: missed.length, stall: Number(committeesReferred?.n ?? 0) };
   // By issue: filed vs advanced vs enacted (bills sorted into an issue).
   const byIssue = await db.select({ slug: issueCategories.slug, name: issueCategories.name, filed: sql<number>`count(distinct ${billCategories.billId})`,
     advanced: sql<number>`count(distinct case when ${officialBillIndex.stage} in ('passed_one','passed_both','law','vetoed') then ${billCategories.billId} end)`,
@@ -155,7 +163,7 @@ export async function computeCongressDashboard(db = getDb(), now = Date.now()) {
     billsMatch: counts.bills !== null && Number(idxAll?.n ?? 0) === counts.bills, lawsMatch: counts.laws !== null && funnels[0].all.reach.law === counts.laws, at: counts.at } : null;
   return { generatedAt: now, current, funnels, rollStats, seats: seats.map(s => ({ ...s, n: Number(s.n) })), leaders, vetoes, changes,
     chairs: chairs.filter(c => c.politicianId), advanced: advanced.map(a => ({ ...a, n: Number(a.n) })),
-    againstParty: top(v => v.against), missed: top(v => v.missed), stall: stall.map(s => ({ ...s, referred: Number(s.referred), reported: Number(s.reported ?? 0) })), fullRecords,
+    againstParty: against.slice(0, 10), missed: missed.slice(0, 10), listTotals, stall: stall.map(s => ({ ...s, referred: Number(s.referred), reported: Number(s.reported ?? 0) })), fullRecords,
     byIssue: byIssue.map(b => ({ ...b, filed: Number(b.filed), advanced: Number(b.advanced), enacted: Number(b.enacted) })), reconcile, lawmakingOnly: idxCurrent };
 }
 
@@ -168,9 +176,11 @@ export async function refreshDashboards(db: Db): Promise<Step> {
   await setCursor(db, "dash:computedAt", String(Date.now()));
   return { ok: true, congress: d.current, indexed: d.funnels[0].all.reach.filed, rollCalls: d.rollStats[0].total };
 }
-export async function congressDashboard(db = getDb()): Promise<CongressDashboard | null> {
+/** The stored snapshot. One computed before 18 Nov 2026 has no `listTotals`; the page then ends those lists without a total. */
+export type StoredCongressDashboard = Omit<CongressDashboard, "listTotals"> & { listTotals?: CongressDashboard["listTotals"] };
+export async function congressDashboard(db = getDb()): Promise<StoredCongressDashboard | null> {
   const v = await getCursor(db, "dash:congress");
-  return v ? JSON.parse(v) as CongressDashboard : null;
+  return v ? JSON.parse(v) as StoredCongressDashboard : null;
 }
 
 /** Senate roll-call counts and procedural share for earlier Congresses, from the Senate's own vote lists (questions included). */

@@ -6,6 +6,7 @@
  */
 // The ".ts" ending lets the node test runner load this without a bundler (tsconfig: allowImportingTsExtensions).
 import { EVERYDAY_NAMES, JARGON, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, unquantifiedChanges, vagueChangeRow, type ChangeRow } from "./standard.ts";
+import { toneLine, toneProblems } from "./tone.ts";
 
 export type Section = { num: string; heading: string; text?: string };
 
@@ -295,6 +296,8 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
   const banned = bannedWordsIn(all);
   if (banned.length) fail(`Loaded words: ${banned.join(", ")}. Even in a reason credited to a member, restate it in neutral words: say what the member says would happen, without the label.`);
   for (const [re, label] of OPINION_PATTERNS) if (re.test(all)) fail(`Contains ${label}.`);
+  // Owner, 18 Nov 2026 (point 7): calm, specific, no outrage wording, no adjectives about legislators.
+  for (const p of toneProblems([...prose, ...d.caseFor.map(a => a.argument), ...d.caseAgainst.map(a => a.argument)].join(" "))) fail(toneLine(p));
 
   // The bill's own text is a source too: a fact in "What would change" may come straight from it.
   if (sources) checkB5(d, { ...sources, docs: [...sources.docs, { id: "BILL", text: opts.fullText ?? sectionsIn.map(x => `${x.heading} ${x.text ?? ""}`).join(" ") }] }, fail, warn);
