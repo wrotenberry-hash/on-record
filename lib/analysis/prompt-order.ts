@@ -15,3 +15,10 @@ export function atOrAfter(version: string | null | undefined, min: string | null
 
 /** The same comparison in SQLite: the digits after the first letter, as a number. "b11-2026-11-17" casts to 11. */
 export function generatorNumberSql(column: string): string { return `cast(substr(${column}, 2) as integer)`; }
+
+/**
+ * True when a summary was written in the format used since generator 5: a headline that starts with a clear verb, up
+ * to two reasons a side taken from the official record, and points that may cite a source (REPORT, CRS, FLOOR, ...).
+ * The weekly re-check asks this to choose which rules apply. Compared by number, never as text (19 Nov 2026).
+ */
+export function currentShape(version: string | null | undefined): boolean { return atOrAfter(version, "b5"); }

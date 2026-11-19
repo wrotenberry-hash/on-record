@@ -57,6 +57,11 @@ test("a summary that failed a reading against its sources is hidden by the reade
   const { READER_HOLDS, heldBillIds } = await import("../lib/analysis/reader-holds.ts");
   const ids = Object.keys(READER_HOLDS);
   assert.ok(ids.includes("119-hr-1181") && ids.includes("119-hr-9640"));
+  // Owner, 19 Nov 2026 ("Yes to all"): the seven whose reading found a detail stated wrongly are hidden too.
+  for (const id of ["119-hr-3276", "119-hr-4219", "119-hr-9500", "119-hr-4646", "119-hr-9497", "119-hr-8884", "119-hjres-213"]) assert.ok(ids.includes(id), id);
+  assert.equal(ids.length, 9);
+  // The bills read and found sound stay on show.
+  for (const id of ["119-hr-2102", "119-hr-1013", "119-hr-7008", "119-hr-3978", "119-hr-8278", "119-hr-9600", "119-hr-9770"]) assert.ok(!ids.includes(id), id);
   assert.deepEqual(heldBillIds(), ids, "every listed id is well formed, so none is silently ignored");
   for (const [id, why] of Object.entries(READER_HOLDS)) { assert.match(id, /^[0-9]+-[a-z]+-[0-9]+$/, id); assert.ok(why.length > 40 && /\.$/.test(why), "each hold says why, in a sentence"); }
   // Both forms of the gate leave the listed bills out: the query-builder form and the raw form used in subqueries.

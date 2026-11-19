@@ -8,6 +8,14 @@
 export const READER_HOLDS: Record<string, string> = {
   "119-hr-1181": "The case against credits Rep. Thompson with a point Rep. Frost made (that financial institutions already use store codes to detect crimes).",
   "119-hr-9640": "The headline, the plain-English part and the question say the bill funds or gives $84 million; the bill only authorizes that amount, and money would still have to be provided.",
+  // Owner, 19 Nov 2026 ("Yes to all"): the seven of the twenty on show whose reading against the sources found a detail stated wrongly.
+  "119-hr-3276": "The headline says the bill funds the program; the bill only authorizes $200,000 a year, and money would still have to be provided.",
+  "119-hr-4219": "A point is credited to the committee report that was made in floor debate, not in the report.",
+  "119-hr-9500": "The summary says “declared emergency” where the law it describes says a declared disaster.",
+  "119-hr-4646": "The sponsor's figure of thousands of workers is stated as a fact rather than as what the sponsor said.",
+  "119-hr-9497": "The summary gives 14 projects as settled where another member said 10 in the same debate.",
+  "119-hr-8884": "It says Congress rejected a proposal that only a committee voted down, and gives 2022 where the last day to start was in 2021.",
+  "119-hjres-213": "It calls Rep. Rivas “he” with no source for that, and credits the research service with a list that came from a floor statement.",
 };
 
 /** The listed bill ids that are well formed (anything else is ignored rather than put into a query). */

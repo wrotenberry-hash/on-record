@@ -56,7 +56,7 @@ export default async function CorrectionsPage() {
 
       <h2>Bill summaries withdrawn after a re-check</h2>
       {summaryFixes && summaryFixes.length ? <ol className="corrections-list">{summaryFixes.map((f, i) => <li key={i}>
-        <div className="eyebrow">SUMMARY · {new Date(f.at).toLocaleDateString()}</div><p><Link href={`/bills/${f.billId}`}>{f.label}</Link>: {f.nowShowing}.</p><p className="meta">Rule it broke: {f.reason}</p></li>)}</ol>
+        <div className="eyebrow">SUMMARY · {new Date(f.at).toLocaleDateString()}</div><p><Link href={`/bills/${f.billId}`}>{f.label}</Link>: {f.nowShowing}.</p><p className="meta">{f.mistake ? f.reason : <>Rule it broke: {f.reason}</>}</p></li>)}</ol>
         : <p>None. Every week a random 20% of bill summaries are checked again against the bill text; any that fail are withdrawn and listed here.</p>}
 
       <h2>Fixes after a reader reported a problem</h2>

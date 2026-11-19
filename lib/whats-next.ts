@@ -45,7 +45,9 @@ export function flags(p: Probe, now = Date.now()): Flag[] {
   const tm = Number(p.federal?.depth?.tally?.mismatches ?? 0) + Number(p.texas?.tallyMismatches ?? 0);
   if (tm > 0) out.push({ level: "info", text: `${tm} roll-call tall${tm === 1 ? "y is" : "ies are"} shown as “under review” because the member votes do not add up to the official totals.` });
   for (const f of p.quality?.parity?.findings ?? []) out.push({ level: "soon", text: `Fairness check: ${f}`, href: "/editor/quality" });
-  if (Number(p.quality?.rereview90d?.held) > 0) out.push({ level: "info", text: `${p.quality.rereview90d.held} summar${p.quality.rereview90d.held === 1 ? "y was" : "ies were"} withdrawn by the weekly re-check.`, href: "/editor/quality" });
+  const wrong = Number(p.quality?.rereview90d?.heldByWrongRules) || 0, rightly = (Number(p.quality?.rereview90d?.held) || 0) - wrong;
+  if (rightly > 0) out.push({ level: "info", text: `${rightly} summar${rightly === 1 ? "y was" : "ies were"} withdrawn by the weekly re-check.`, href: "/editor/quality" });
+  if (wrong > 0) out.push({ level: "soon", text: `${wrong} summar${wrong === 1 ? "y was" : "ies were"} taken down by the weekly re-check using the wrong rules (fixed 19 Nov). ${wrong === 1 ? "It stays" : "They stay"} down until read against the sources and approved in the review queue.`, href: "/editor/analysis" });
   if (Number(p.sharing?.problems?.open) > 0) out.push({ level: "soon", text: `${p.sharing.problems.open} reader problem report${p.sharing.problems.open === 1 ? "" : "s"} to look at.`, href: "/editor/problems" });
   if (Number(p.sharing?.postQueue?.draft) > 0) out.push({ level: "info", text: `${p.sharing.postQueue.draft} drafted post${p.sharing.postQueue.draft === 1 ? "" : "s"} in the queue (nothing posts while the site is private).`, href: "/editor/social" });
   if (Number(p.verification?.flags?.open) > 0) out.push({ level: "soon", text: `${p.verification.flags.open} flagged answer pattern${p.verification.flags.open === 1 ? "" : "s"} to clear or confirm.`, href: "/editor/integrity" });

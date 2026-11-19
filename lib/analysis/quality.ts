@@ -4,6 +4,8 @@ import { analysisBillSummaries, analysisRereviews, analysisReviewQueue, official
 import { checkSummary, proseOf, type SummaryDraft } from "@/lib/analysis/checker";
 import { MAX_TEXT_CHARS, parseBillTextHtml } from "@/lib/analysis/billtext";
 import { parityDrift, parityStats, patternOf, sampleFraction } from "@/lib/analysis/parity-rules";
+import { currentShape } from "@/lib/analysis/prompt-order";
+import { judgedByWrongRules, RECHECK_MISTAKE } from "@/lib/analysis/recheck-rules";
 import { billLabel } from "@/components/federal/badges";
 import { BRAND } from "@/lib/brand";
 
@@ -44,7 +46,10 @@ export async function runRereview(now = Date.now(), budgetMs = 60_000, maxPerRun
       const parsed = parseBillTextHtml(await res.text());
       const subject = (await db.select({ title: officialBills.title }).from(officialBills).where(eq(officialBills.id, s.billId)).get())?.title ?? "";
       // b5 summaries may have 0–2 arguments a side (only actors in the record); the sources are not re-fetched here.
-      failures = checkSummary(draftOf(s), parsed.sections, { truncated: parsed.chars > MAX_TEXT_CHARS || !!s.truncated, subject, fullText: parsed.text, b5Shape: s.promptVersion >= "b5" }).failures;
+      // 19 Nov 2026: this read `s.promptVersion >= "b5"`, a comparison of text, under which "b11" sorts below "b5". Every
+      // summary from generator 10 on was therefore checked by the rules for the oldest format (a headline starting
+      // "Would", exactly two arguments a side, no source citations) and 4 of the first 5 sampled were taken off the page.
+      failures = checkSummary(draftOf(s), parsed.sections, { truncated: parsed.chars > MAX_TEXT_CHARS || !!s.truncated, subject, fullText: parsed.text, b5Shape: currentShape(s.promptVersion) }).failures;
     } catch (e) { error = (e instanceof Error ? e.message : "fetch failed").slice(0, 200); }
     const passed = !error && !failures.length;
     await db.insert(analysisRereviews).values({ id: crypto.randomUUID(), summaryId: s.id, at: Date.now(), passed: passed ? 1 : 0, failures, promptVersion: s.promptVersion, action: error || passed ? "none" : "held", error });
@@ -64,6 +69,8 @@ export async function rereviewSummary(days = 90, now = Date.now()) {
   const patterns = new Map<string, number>();
   for (const r of rows) for (const f of r.failures) patterns.set(patternOf(f), (patterns.get(patternOf(f)) ?? 0) + 1);
   return { checked: rows.length, passed: rows.filter(r => r.passed).length, held: rows.filter(r => r.action === "held").length, errors: rows.filter(r => r.error).length,
+    // Taken down before 19 Nov 2026 by rules that did not apply to them (lib/analysis/recheck-rules.ts).
+    heldByWrongRules: rows.filter(r => r.action === "held" && judgedByWrongRules(r.at, r.promptVersion)).length,
     patterns: [...patterns].map(([pattern, n]) => ({ pattern, n })).sort((a, b) => b.n - a.n).slice(0, 15), recent: rows.slice(0, 20) };
 }
 
@@ -81,8 +88,19 @@ export async function parityReport() {
 /** Public corrections log entries for summaries taken down after a re-review (the bill, the date, the rule it broke). */
 export async function summaryCorrections(limit = 50) {
   const db = getDb();
-  const rows = await db.select({ at: analysisRereviews.at, failures: analysisRereviews.failures, billId: analysisBillSummaries.billId, billType: officialBills.billType, number: officialBills.number, status: analysisBillSummaries.status })
+  const rows = await db.select({ at: analysisRereviews.at, failures: analysisRereviews.failures, promptVersion: analysisRereviews.promptVersion, billId: analysisBillSummaries.billId, billType: officialBills.billType, number: officialBills.number, status: analysisBillSummaries.status })
     .from(analysisRereviews).innerJoin(analysisBillSummaries, eq(analysisBillSummaries.id, analysisRereviews.summaryId)).innerJoin(officialBills, eq(officialBills.id, analysisBillSummaries.billId))
     .where(eq(analysisRereviews.action, "held")).orderBy(desc(analysisRereviews.at)).limit(limit);
-  return rows.map(r => ({ at: r.at, billId: r.billId, label: billLabel(r.billType, r.number), reason: r.failures[0] ?? "failed a rule check", nowShowing: r.status === "visible" ? "rewritten and shown again" : "withdrawn while it is fixed" }));
+  // A takedown made by the wrong rules (before 19 Nov 2026) is listed as the check's mistake, never as a rule the summary broke.
+  return rows.map(r => { const mistake = judgedByWrongRules(r.at, r.promptVersion);
+    return { at: r.at, billId: r.billId, label: billLabel(r.billType, r.number), mistake, reason: mistake ? RECHECK_MISTAKE : r.failures[0] ?? "failed a rule check",
+      nowShowing: mistake ? (r.status === "visible" ? "taken down by mistake and shown again" : "taken down by mistake; not yet shown again") : r.status === "visible" ? "rewritten and shown again" : "withdrawn while it is fixed" }; });
+}
+
+/** The bills whose summaries the re-check took down by the wrong rules and that are still down: to be read against their sources. */
+export async function wronglyHeldBillIds(limit = 12): Promise<string[]> {
+  const rows = await getDb().select({ at: analysisRereviews.at, promptVersion: analysisRereviews.promptVersion, billId: analysisBillSummaries.billId })
+    .from(analysisRereviews).innerJoin(analysisBillSummaries, eq(analysisBillSummaries.id, analysisRereviews.summaryId))
+    .where(sql`${analysisRereviews.action} = 'held' and ${analysisBillSummaries.status} = 'held'`).orderBy(desc(analysisRereviews.at));
+  return [...new Set(rows.filter(r => judgedByWrongRules(r.at, r.promptVersion)).map(r => r.billId))].slice(0, limit);
 }

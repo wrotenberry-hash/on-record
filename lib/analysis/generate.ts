@@ -35,7 +35,7 @@ export function analysisLimits() {
   // Master plan (16 Nov): summaries are capped by money, $25 a month (ANALYSIS_SPEND_CAP_USD), alert at 75%.
   // Owner, 17 Nov ("Go coverage", after 4 of the 5 test summaries passed): the limit rises from 5 to 40, enough for every bill
   // voted on in the last 90 days (31 that day) with room for new votes. The monthly spend cap is unchanged.
-  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 40),
+  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 50), // owner, 19 Nov 2026: 40 to 50 for the one-time catch-up (about $2, inside the $25 monthly cap)
     model: process.env.OPENAI_SUMMARY_MODEL?.trim() || process.env.OPENAI_EXTRACT_MODEL?.trim() || "gpt-5.4-mini",
     // Owner decision, 17 Nov ("Try the stronger model"): after two real runs in which the low-cost model passed nothing and misread
     // the rule behind S.J.Res. 197, the WRITER is the stronger model, as a trial on the five test summaries (the cap stays 5).

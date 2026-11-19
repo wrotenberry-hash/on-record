@@ -214,6 +214,9 @@ export type SourceContext = { title: string; docs: ReadonlyArray<{ id: string; t
   /** What each named member said on the floor: a reason credited to a speaker must come from that speaker's own words. */
   speakers?: ReadonlyArray<{ name: string; text: string }> };
 
+/** A citation of one of the official sources rather than a section of the bill. Without the sources in hand it cannot be checked. */
+export const SOURCE_CITE = /^(RULE|REPORT|CRS|CBO|BILL|PRIMER|FLOOR\d?|STATUS|USC )/i;
+
 export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], opts: { truncated?: boolean; subject?: string; fullText?: string; sources?: SourceContext; b5Shape?: boolean } = {}): CheckResult {
   const failures: string[] = [], warnings: string[] = [];
   const fail = (m: string) => failures.push(m), warn = (m: string) => warnings.push(m);
@@ -236,7 +239,7 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
     list.forEach((p, i) => {
       if (wc(p.text) > LIMITS.pointWords) fail(`${label} point ${i + 1} is ${wc(p.text)} words; the limit is ${LIMITS.pointWords}.`);
       if (!p.section.trim()) fail(`${label} point ${i + 1} cites no section.`);
-      else if (opts.b5Shape && !sources && /^(RULE|REPORT|CRS|CBO|FLOOR|STATUS|USC )/i.test(p.section.trim())) { /* a source citation; sources are not re-fetched on re-review */ }
+      else if (opts.b5Shape && !sources && SOURCE_CITE.test(p.section.trim())) { /* a source citation; sources are not re-fetched on re-review */ }
       else if (!citeExists(cite(p.section), sections)) fail(`${label} point ${i + 1} cites "${p.section}", which is not a section of this text or one of the sources.`);
       else if (citeSupports(p.text, cite(p.section), sections) === false) fail(`${label} point ${i + 1} shares no key words with ${p.section}; cite the section or source that says it.`);
       else { const share = citeOverlap(p.text, cite(p.section), sections); if (share !== null && share < 0.34) warn(`${label} point ${i + 1} uses mostly words that are not in ${p.section}; check it adds no group or effect the section does not state.`); }
