@@ -19,6 +19,20 @@ Owner instruction, 18 Nov 2026. Verbatim, as received.
 >
 > Hard stops unchanged. Report what already exists before building.
 
-## What already exists, and what is built in this round
+## What already existed, what was built, and what is still open
 
-Recorded below once the inventory is complete (see `docs/DECISIONS.md` from O-160).
+The inventory was reported to the owner before building (18 Nov). What was built, the defaults chosen where a point met a
+standing rule, what is not proven, and the owner's open decisions are in `docs/DECISIONS.md`, O-160 to O-164.
+
+| Point | Where it lives |
+|---|---|
+| 1, 2, 6 (home) | `components/home/*`, `lib/flow/cards.ts`, `lib/flow/card-store.ts`, `lib/follow-defaults.ts`, `lib/photos.ts`, `app/api/photo/[id]/route.ts` |
+| 3, 4 | `lib/loop/*` (weekly email, notices, vote alerts, the one-time marks), `components/loop/notices.tsx`, `app/notices`, `app/o/[mark]`, `app/n/[mark]` |
+| 5, 9, 6 (dashboards) | `app/voice/page.tsx`, `lib/record/store.ts`, `lib/voice-rules.ts`, `lib/agreement.ts`, `lib/constituent/proof.ts`, `lib/dashboard-end.ts` |
+| 7 | `lib/analysis/tone.ts` (written check, writer prompts, reader test) |
+| 8 | `tests/week-two.test.mjs` (guard) |
+| 10, 11 | `lib/card-content.ts`, `lib/entry/*`, `components/share/*`, `app/issues/[slug]/page.tsx`, `lib/public-access.ts` (`SHARED_PAGES_PUBLIC`, off) |
+| 12 | `lib/week-two.ts`, `lib/loop/marks.ts`, `lib/entry/store.ts`, `lib/habit-lines.ts`, Editor → What's next |
+
+Switches, all off in production: `SHARED_PAGES_PUBLIC` (shared bill pages, shared card pictures, issue pages without sign-in);
+`READER_FROM_EMAIL` unset (no automatic email to readers).
