@@ -622,3 +622,14 @@ test("weeklyInput: nothing that is not the reader's own", async () => {
   const r = await reader(db, { place: false });
   assert.deepEqual(await weeklyInput(db, r.userId, MON - 7 * DAY, MON, { site: SITE }), { votes: [], moved: null, coming: null, hasIssues: false, nobody: true });
 });
+
+test("the site emails readers on its own initiative only once it has its own sending address (lead, 18 Nov)", async () => {
+  const { readerEmailReady } = await import("../lib/mailer.ts");
+  assert.equal(readerEmailReady({}), false); assert.equal(readerEmailReady({ READER_FROM_EMAIL: "  " }), false);
+  assert.equal(readerEmailReady({ READER_FROM_EMAIL: "News <news@example.org>" }), true);
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["lib/loop/run.ts", "lib/digest.ts", "lib/instant-alerts.ts"]) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+    assert.match(src, /send: sendToReader/, `${f} sends through the guarded sender`); assert.doesNotMatch(src, /send: sendTo\b(?!Reader)/);
+  }
+});

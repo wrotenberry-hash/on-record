@@ -25,3 +25,18 @@ export async function sendTo(to: string, subject: string, text: string, html?: s
     return { ok: false, error: `Resend ${response.status}: ${message}`.slice(0, 200), domainNeeded: response.status === 403 || /verify a domain|testing emails/i.test(message) };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message.slice(0, 200) : "send failed", domainNeeded: false }; }
 }
+
+/**
+ * Email that the site sends to readers on its own initiative: the weekly email, vote alerts, notices about bills.
+ * (A sign-in link the reader just asked for goes through `sendTo` above.)
+ *
+ * Until a sending address on the site's own verified domain is set (`READER_FROM_EMAIL`), the only inbox the shared
+ * test sender can reach is the account owner's, and the owner has said no automatic emails. So without that address
+ * nothing is sent at all, and the caller is told why. Readers still get the notice on the site and by phone
+ * notification. 18 Nov 2026.
+ */
+export function readerEmailReady(env: Record<string, string | undefined> = process.env): boolean { return !!env.READER_FROM_EMAIL?.trim(); }
+export async function sendToReader(to: string, subject: string, text: string, html?: string): Promise<SendResult> {
+  if (!readerEmailReady()) return { ok: false, error: "Emails to readers are off until a sending address on the site's own domain is set (READER_FROM_EMAIL)", domainNeeded: true };
+  return sendTo(to, subject, text, html);
+}

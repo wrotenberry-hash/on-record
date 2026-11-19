@@ -171,7 +171,7 @@ async function researchOneWaitingCase(): Promise<{ status: string; representatio
   return { status: draft.status ?? "COMPLETE", representationId: pending.id };
 }
 
-async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown }> {
+async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown; loop?: unknown }> {
   let federal: IngestSummary | { status: "FAILED"; error: string };
   const started = Date.now(), fedBudget = Math.max(20_000, Math.round(budgetMs * 0.75));
   try { federal = await runFederalIngest({ budgetMs: fedBudget, trigger: "scheduled" }); }
@@ -183,7 +183,10 @@ async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { statu
   // 18 Nov: the first try started a new chain, found the lock kept for this run's own chain, and stopped. The hand-over is link 2 of the same chain.
   const txRun = texas as { continues?: boolean; chain?: string; startUsed?: number };
   if (txRun.continues && txRun.chain) await import("@/lib/texas/chain").then(m => m.fireTexasChain(origin, 2, { chain: txRun.chain, start: "chain", startUsed: txRun.startUsed ?? 0 })).catch(() => false);
-  return { ...federal, texas };
+  // Persuasion and retention round (18 Nov): tell readers what happened to the bills they answered or follow. Safe on every
+  // update: one notice per reader, bill and event, and only the run that writes a notice sends it.
+  const loop = await import("@/lib/loop/run").then(m => m.runLoop()).catch(error => ({ error: (error instanceof Error ? error.message : "loop notices failed").slice(0, 200) }));
+  return { ...federal, texas, loop };
 }
 
 /**

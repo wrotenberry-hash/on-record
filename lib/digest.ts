@@ -2,7 +2,7 @@ import { and, desc, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { analysisBillSummaries, digestSends, readerAccounts } from "@/db/schema";
 import { readerVisible } from "@/lib/analysis/publish-gate";
-import { sendTo } from "@/lib/mailer";
+import { sendToReader } from "@/lib/mailer";
 import { unsubscribeToken } from "@/lib/accounts";
 import { countEvent } from "@/lib/events";
 import { runWeekly } from "@/lib/loop/weekly";
@@ -25,7 +25,7 @@ async function visibleHeadlines(billIds: string[]) {
  * that need the running site: the database, the mailer, the secret for the open mark and the unsubscribe link.
  */
 export async function runDigests(now = Date.now()) {
-  const out = await runWeekly(getDb(), now, { site: SITE_URL, secret: process.env.EDITOR_ACCESS_KEY?.trim() || "", send: sendTo, headlines: visibleHeadlines,
+  const out = await runWeekly(getDb(), now, { site: SITE_URL, secret: process.env.EDITOR_ACCESS_KEY?.trim() || "", send: sendToReader, headlines: visibleHeadlines,
     unsubscribe: async accountId => `${SITE_URL}/account/unsubscribe?t=${encodeURIComponent(await unsubscribeToken(accountId))}` });
   if (out.sent) await countEvent("digest_sent", "", { skipBotCheck: true }).catch(() => undefined);
   return out;

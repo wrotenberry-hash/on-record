@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
 import { notifyUser } from "@/lib/push";
-import { sendTo } from "@/lib/mailer";
+import { sendToReader } from "@/lib/mailer";
 import { runLoopNotices } from "@/lib/loop/notices";
 import { loopMeasures } from "@/lib/loop/marks";
 
@@ -14,7 +14,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrot
 export const markSecret = () => process.env.EDITOR_ACCESS_KEY?.trim() || "";
 
 export async function runLoop(now = Date.now()) {
-  return runLoopNotices(getDb(), now, { notify: notifyUser, send: sendTo, site: SITE, secret: markSecret() });
+  return runLoopNotices(getDb(), now, { notify: notifyUser, send: sendToReader, site: SITE, secret: markSecret() });
 }
 
 /** The weekly email's open rate and the return rate after a notice, for the What's next page. Totals only. */

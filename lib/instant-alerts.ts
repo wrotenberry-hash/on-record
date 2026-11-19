@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
 import { notifyUser } from "@/lib/push";
-import { sendTo } from "@/lib/mailer";
+import { sendToReader } from "@/lib/mailer";
 import { runVoteAlerts } from "@/lib/loop/alerts";
 
 /**
@@ -10,5 +10,5 @@ import { runVoteAlerts } from "@/lib/loop/alerts";
  */
 const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 export async function runInstantAlerts(now = Date.now()) {
-  return runVoteAlerts(getDb(), now, { notify: notifyUser, send: sendTo, site: SITE });
+  return runVoteAlerts(getDb(), now, { notify: notifyUser, send: sendToReader, site: SITE });
 }
