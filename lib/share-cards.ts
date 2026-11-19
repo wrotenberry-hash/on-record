@@ -114,6 +114,8 @@ export async function carouselSlides(billId: string): Promise<Slide[] | null> {
   if (!bill || !s) return null;
   const idx = await db.select().from(officialBillIndex).where(eq(officialBillIndex.billId, billId)).get();
   const vote = await db.select().from(officialRollCalls).where(eq(officialRollCalls.billId, billId)).orderBy(desc(officialRollCalls.votedAt)).limit(1).get();
+  // The count is left off while the member votes on file do not add up to the official totals.
+  const underReview = vote ? (await import("@/lib/federal/depth").then(m => m.tallyUnderReview([vote.id])).catch(() => new Set<string>())).has(vote.id) : false;
   const label = billLabel(bill.billType, bill.number), src = "congress.gov", d = date(s.createdAt), today = date(Date.now());
   const first = (x: unknown) => { const p = ((x as Array<{ text: string; section: string }>) ?? [])[0]; return p ? [`${p.text} (${p.section})`] : ["The summary lists nothing here."]; };
   const base = { total: 5, eyebrow: label, source: src, date: d };
@@ -121,7 +123,7 @@ export async function carouselSlides(billId: string): Promise<Slide[] | null> {
     { ...base, index: 1, heading: "In one line", badge: "Analysis", points: [s.headline] },
     { ...base, index: 2, heading: "What it does", badge: "Analysis", points: first(s.whatItDoes) },
     { ...base, index: 3, heading: "Who it affects", badge: "Analysis", points: first(s.whoItAffects) },
-    { ...base, index: 4, heading: "The latest recorded vote", badge: "Official", points: [vote ? `${vote.chamber === "senate" ? "Senate" : "House"}, ${date(vote.votedAt)}: ${vote.question}. ${vote.result ?? "Result not stated"}, ${vote.yea}–${vote.nay}.` : "No recorded vote on this bill yet."],
+    { ...base, index: 4, heading: "The latest recorded vote", badge: "Official", points: [vote ? `${vote.chamber === "senate" ? "Senate" : "House"}, ${date(vote.votedAt)}: ${vote.question}. ${vote.result ?? "Result not stated"}${underReview ? "" : `, ${vote.yea}–${vote.nay}`}.` : "No recorded vote on this bill yet."],
       source: vote ? vote.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] : src, date: vote ? date(vote.votedAt) : today },
     { ...base, index: 5, heading: "Where it stands", badge: "Official", points: [bill.latestActionText ? `${bill.latestActionText} (${bill.latestActionAt})` : idx ? `Stage: ${idx.stage.replace("_", " ")}` : "No action recorded yet."], date: today },
   ];
