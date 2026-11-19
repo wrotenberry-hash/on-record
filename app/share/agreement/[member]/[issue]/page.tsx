@@ -21,9 +21,9 @@ export default async function ShareAgreementPage({ params }: { params: Promise<{
   return <PublicShell current="/politicians" access={access} page="/share/agreement">
     <section className="fed-page">
       <p className="crumbs"><Link href={`/politicians/${member}`}>← {data.member}</Link></p>
-      <div className="eyebrow">SHARE MY AGREEMENT</div>
+      <div className="eyebrow">SHARE MY OWN COMPARISON</div>
       <h1>Share how your views compare with {data.member}&apos;s votes</h1>
-      <p className="meta">This is private until you share it. The card shows up to three bills: their recorded vote on passing each, the date, the bill&apos;s summary labelled Analysis, and the official source.</p>
+      <p className="meta">This is private until you share it. The card carries one count: on how many bills they voted the way you answered. It is your own comparison, not a grade or score of the legislator. Left out: procedural votes, bills with no recorded vote on passing, and your Unsure answers.</p>
       <SharePanel imageBase={`/api/cards/agreement?member=${member}&issue=${issue}`} filename={`${BRAND.fileSlug}-${member}-${issue}`} defaultCaption="" />
     </section>
   </PublicShell>;

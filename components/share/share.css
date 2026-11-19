@@ -1,0 +1,21 @@
+/* Share cards and entry pages (18 Nov 2026). Kept in its own file so app/globals.css is not touched. */
+.stance-switch{display:flex;align-items:center;gap:12px;margin:14px 0 4px;padding:12px 14px;background:#fff;border:1px solid #d9ded9;text-decoration:none;color:#172224;min-height:48px}
+.stance-switch .track{flex:none;width:46px;height:26px;border-radius:999px;background:#c8d6ce;position:relative}
+.stance-switch .track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.stance-switch[aria-checked=true] .track{background:#163b3c}.stance-switch[aria-checked=true] .track::after{left:23px}
+.stance-switch b{font-size:16px}.stance-switch small{display:block;color:#5d6b69;font-size:13px;font-weight:400;margin-top:2px}
+.stance-note{margin:4px 0 12px;font-size:14px;line-height:1.5;color:#5a3d16;background:#fffaf0;border:1px dashed #8a6d3b;padding:10px 14px}
+.stance-text{color:#5a3d16}
+.share-menu{display:grid;gap:14px;margin-top:8px}.share-menu h3{font:700 15px Arial,sans-serif;margin:0 0 6px;color:#39514b}
+.share-menu ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}.share-menu li a{display:inline-flex;align-items:center;min-height:44px;color:#163b3c}
+.share-menu .end-line,.entry-page .end-line{color:#5d6b69;font-size:14px;margin:6px 0 0}
+.entry-shell-note{margin:16px auto 0;max-width:860px;background:#e8f1ec;border:1px solid #c8d6ce;color:#1d4029;padding:10px 14px;font-size:14px;line-height:1.45}
+.entry-foot{border-top:1px solid #d9ded9;margin:40px 0 30px;padding-top:18px;color:#5d6b69;font-size:14px;line-height:1.5}
+.entry-list{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}
+.entry-list li{background:#fff;border:1px solid #d9ded9;padding:12px 14px;display:grid;gap:6px}
+.entry-list .entry-date{font:700 13px Arial,sans-serif;letter-spacing:.04em;color:#4f6b68;text-transform:uppercase}
+.entry-list .entry-fact{font-size:17px;line-height:1.45;margin:0}.entry-list .entry-fact a{display:inline-block;padding:10px 0;color:#163b3c}
+.entry-list .entry-src{font-size:14px;color:#5d6b69;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.entry-list .entry-src a{display:inline-flex;align-items:center;min-height:44px;color:#163b3c}
+.entry-page h2{margin-top:30px}.entry-page .issue-follow{margin:14px 0}
+.take-part{background:#fff;border:1px solid #d9ded9;padding:14px 16px;margin-top:22px}.take-part h2{margin:0 0 6px}.take-part p{margin:0;line-height:1.5}

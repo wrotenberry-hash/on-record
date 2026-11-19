@@ -27,7 +27,11 @@ export async function voteCardFor(memberId: string, rollCallId: string): Promise
   return { card: voteCard({ name: row.p.fullName, seat: memberLine(row.p) }, v), member: row.p.fullName };
 }
 
-/** The reader's own agreement card for one member and issue. Null when there is nothing to show. */
+/**
+ * The reader's own comparison card for one member and issue: ONE count ("Voted the way I did on 4 of 6 bills"),
+ * labelled as the reader's own comparison. The bills themselves are not listed on the card (one fact per card);
+ * they give it its date (the most recent vote counted) and its sources. Null when there is nothing to show.
+ */
 export async function agreementCardFor(userId: string, memberId: string, issueSlug: string): Promise<{ card: Card; member: string } | null> {
   const db = getDb();
   const p = await db.select().from(officialPoliticians).where(eq(officialPoliticians.id, memberId)).get();
@@ -35,13 +39,8 @@ export async function agreementCardFor(userId: string, memberId: string, issueSl
   const a = await agreementWith(userId, memberId);
   const row = a.rows.find(r => r.issueSlug === issueSlug);
   if (!row) return null;
-  const bills = await Promise.all(row.bills.slice(0, 3).map(async b => {
-    const bill = await db.select({ title: officialBills.title, billType: officialBills.billType, number: officialBills.number, headline: headlineOf(officialBills.id) })
-      .from(officialBills).where(eq(officialBills.id, b.billId)).get();
-    const vote = a.votes?.find(v => v.billId === b.billId && v.votedAt === b.votedAt);
-    return { billLabel: bill ? billLabel(bill.billType, bill.number) : b.billId, billTitle: bill?.title ?? b.billId, headline: bill?.headline ?? null,
-      voteText: positionLine(b.position, "passage"), kind: "passage", kindLabel: KIND_LABEL.passage, votedAt: b.votedAt, sourceUrl: vote?.sourceUrl ?? "" } satisfies CardVote;
-  }));
+  const votes = row.bills.map(b => ({ billLabel: b.billId, billTitle: b.billId, headline: null, voteText: positionLine(b.position, "passage"), kind: "passage", kindLabel: KIND_LABEL.passage, votedAt: b.votedAt,
+    sourceUrl: a.votes?.find(v => v.billId === b.billId && v.votedAt === b.votedAt)?.sourceUrl ?? "" } satisfies CardVote));
   const issueName = ISSUE_CATEGORIES.find(c => c.slug === issueSlug)?.name ?? "Other bills";
-  return { card: agreementCard({ name: p.fullName, seat: memberLine(p) }, issueName, row.agreed, row.differed, bills), member: p.fullName };
+  return { card: agreementCard({ name: p.fullName, seat: memberLine(p) }, issueName, row.agreed, row.differed, votes), member: p.fullName };
 }

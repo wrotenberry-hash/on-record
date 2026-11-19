@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
-import { openShareLink } from "@/lib/share";
+import { shareLanding } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
-/** A short share link: counts the visit (aggregate only) and lands on the exact item. */
+/**
+ * A short share link: counts the visit (aggregate only) and lands on the exact item. With SHARED_PAGES_PUBLIC on
+ * (off by default), a visitor with no invite lands on the bill the card is about instead (lib/share.ts, shareLanding).
+ */
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
-  const target = await openShareLink((await params).code);
-  redirect(target ? `${target}${target.includes("?") ? "&" : "?"}from=share` : "/");
+  redirect(await shareLanding((await params).code));
 }

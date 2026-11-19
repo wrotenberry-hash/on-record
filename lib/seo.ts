@@ -31,15 +31,33 @@ export function billMeta(b: { label: string; title: string }, headline?: string 
       : `${b.title}. Status, recorded votes and sources from official records.`, DESCRIPTION_MAX) };
 }
 
-export function issueMeta(name: string) {
-  return { title: pageTitle(`${name}: bills in Congress`), description: clamp(`Bills in Congress about ${name.toLowerCase()}, most recent action first, sorted by fixed published rules.`, DESCRIPTION_MAX) };
+/**
+ * An issue's entry page (owner's point 11): "What Congress did on health care this month". `heading` and `phrase`
+ * come from lib/entry/rules.ts (issueHeading, issuePhrase); `month` is the calendar month, "November 2026".
+ */
+export function issueMeta(heading: string, phrase: string, month: string) {
+  return { title: pageTitle(heading), description: clamp(`Votes in Congress on ${phrase} in ${month} and how each came out, and the bills that passed, became law or were vetoed. From official records, with sources.`, DESCRIPTION_MAX) };
 }
 
-/** What crawlers may read. Everything is closed while public reading is off. */
-export function robotsRules(publicRead: boolean, siteUrl: string) {
+/**
+ * What crawlers may read. Everything is closed while public reading is off, with one exception: when the narrower
+ * switch SHARED_PAGES_PUBLIC is on (lib/public-access.ts; off by default), the 14 issue pages may be read and
+ * indexed, and a link preview may fetch a share link, the bill it opens and the card picture. Those bill pages carry
+ * "noindex" themselves, and without a share code they show the private notice.
+ */
+export function robotsRules(publicRead: boolean, siteUrl: string, sharedPages = false) {
   return publicRead
     ? { rules: [{ userAgent: "*", allow: "/", disallow: ["/editor", "/api/", "/login", "/skip", "/trial", "/following"] }], sitemap: `${siteUrl}/sitemap.xml` }
+    : sharedPages ? { rules: [{ userAgent: "*", allow: ["/issues/", "/s/", "/bills/", "/texas/bills/", "/api/cards/g"], disallow: "/" }], sitemap: `${siteUrl}/sitemap.xml` }
     : { rules: [{ userAgent: "*", disallow: "/" }] };
+}
+
+/**
+ * The paths the sitemap lists for the issue pages. None while both switches are off; the issue pages when either is on.
+ * (With public reading on, app/sitemap.ts adds every other public page.)
+ */
+export function sitemapPaths(publicRead: boolean, sharedPages: boolean, issueSlugs: readonly string[]): string[] {
+  return publicRead || sharedPages ? issueSlugs.map(slug => `/issues/${slug}`) : [];
 }
 
 /** Round G: per-item link previews (X, Facebook, Threads, Bluesky, LinkedIn, iMessage all read Open Graph; X also reads twitter:*). */

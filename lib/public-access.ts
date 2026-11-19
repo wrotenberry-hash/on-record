@@ -12,6 +12,52 @@ export function publicReadEnabled(value: string | undefined | null): boolean {
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
+/**
+ * SHARED_PAGES_PUBLIC (owner's points 10 and 11, 18 Nov 2026). A second, narrower switch. OFF by default, and it
+ * stays off until the owner turns it on: the hard stop is "nothing public beyond trial invites".
+ *
+ * Off (today): nothing changes. A visitor with no invite gets the private notice on every page and no card picture.
+ *
+ * On: three things open to a visitor with no invite, and nothing else.
+ *   1. A bill's page, for a visitor who arrives through a share link (/s/<code>) about that bill. The link's code
+ *      rides in the address (?s=<code>); it opens that one bill and no other. The page shows the record and the
+ *      summary a trial reader would see. It has no vote box (a plain line says how to take part) and no reader's data.
+ *   2. The picture of a card a reader has shared, so a link preview can show it.
+ *   3. The 14 issue pages (/issues/<slug>), which then also appear in the sitemap.
+ * Every other page, the issues index and every reader's own card stay private.
+ *
+ * It does not change PUBLIC_READ_ENABLED, which still means what it meant: everything readable by everyone.
+ */
+export const SHARED_PAGES_FLAG = "SHARED_PAGES_PUBLIC";
+export function sharedPagesEnabled(value: string | undefined | null): boolean { return publicReadEnabled(value); }
+
+/** What a visitor is asking for, as far as the narrower switch cares. */
+export type EntryPage =
+  | { kind: "bill"; billKey: string }
+  | { kind: "issue" }
+  /** `shared`: a reader has made a share link for exactly this card (lib/entry/store.ts, pictureShared). */
+  | { kind: "picture"; shared: boolean }
+  | { kind: "other" };
+
+/**
+ * May this page be shown, and is it the narrow "shared" view?
+ * `base`: the present rule (lib/viewer.ts): public reading on, the signed-in editor, or a genuine trial invite.
+ * `grant`: the bill the share link in the address is about, or null (lib/entry/store.ts, shareGrant).
+ * A viewer the present rule lets in is never given the narrow view. With the switch off the answer is the present rule.
+ */
+export function entryAccess(input: { base: boolean; sharedPages: boolean; page: EntryPage; grant?: string | null }): { allowed: boolean; shared: boolean } {
+  if (input.base) return { allowed: true, shared: false };
+  if (!input.sharedPages) return { allowed: false, shared: false };
+  const p = input.page;
+  const open = p.kind === "issue" || (p.kind === "bill" && !!input.grant && input.grant === p.billKey) || (p.kind === "picture" && p.shared);
+  return { allowed: open, shared: open };
+}
+
+/** The line that stands where the vote box would be, for a visitor reading one shared bill. */
+export const TAKE_PART_LINE = "Residents answer Support, Oppose or Unsure on each bill, and counted answers are added into anonymous totals for their district. Taking part is by invitation for now.";
+/** The note at the top of a page opened through a share link or from search. */
+export const SHARED_VIEW_NOTE = `You are reading one page of ${BRAND.name}. The rest of the site is open by invitation for now.`;
+
 /** Representations a human has rejected never appear in the public inventory. */
 export const PUBLIC_INVENTORY_STATUSES = ["CANDIDATE", "APPROVED"] as const;
 
