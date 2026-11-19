@@ -12,6 +12,7 @@ import { OpinionBadge } from "@/components/federal/badges";
 import { totalsForScope } from "@/lib/constituent/store";
 import { MIN_SHOWN, NOT_ENOUGH_DISTRICT, NOT_SCIENTIFIC, scopeForMember, scopeLine, shownTotals, type ScopeTotals } from "@/lib/constituent/rules";
 import { ContactForTxMember } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
+import { FollowMember } from "@/components/federal/follow-button"; // follow a Texas legislator (persuasion and retention round, point 2)
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function TexasMemberPage({ params }: { params: Promise<{ id
     <section className="fed-page">
       <p className="crumbs"><Link href="/texas">← Texas Legislature</Link></p>
       <div className="eyebrow">TEXAS {person.chamber === "upper" ? "SENATE" : "HOUSE"} · DISTRICT {person.district} · {person.party.toUpperCase()}</div>
-      <h1>{person.name}</h1>
+      <div className="member-head"><h1>{person.name}</h1><FollowMember id={person.id} /></div>
       {/* BEGIN contact-your-legislator (test-ready build): official phone, email and an editable message for this member. */}
       <ContactForTxMember person={person} />
       {/* END contact-your-legislator */}

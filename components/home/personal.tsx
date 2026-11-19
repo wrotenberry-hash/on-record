@@ -1,8 +1,7 @@
+import "./flow.css";
 import Link from "next/link";
 import { EarlierAnswers } from "@/components/voice/earlier-answers";
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, userFollows } from "@/db/schema";
 import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
 import { pickedIssues } from "@/lib/reader-issues";
@@ -10,41 +9,50 @@ import { movingThisWeek } from "@/lib/federal/bill-depth";
 import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { shortDate, billLabel } from "@/components/federal/badges";
-import { LegislatorCards } from "@/components/home/legislator-cards";
+import { YourLegislatorsBlock } from "@/components/home/legislator-cards";
+import { IssuesStep } from "@/components/home/issues-step";
 import { ComingUp } from "@/components/home/coming-up";
+import { followedMemberIds, memberVotesSince } from "@/lib/flow/card-store";
+import { endOfList } from "@/lib/flow/cards";
 
 const clock = () => Date.now();
+const WEEK_VOTES = 8, MOVING = 6, MOVING_READ = 40;
 
 /**
  * Personalized home (Round D): this week from your legislators, and bills moving on your issues. From official data.
- * Owner, 17 Nov 2026: it opens with the reader's legislators (each one's most recent meaningful vote in a plain line,
- * the same cards as the first-minute flow) and, right under them, what is coming up with one-tap answers.
+ * Owner, 17 Nov 2026: it opens with the reader's legislators and, right under them, what is coming up with one-tap
+ * answers. Owner, 18 Nov 2026: the heading counts the legislators ("Your five legislators"), each card has the last
+ * three votes, the follows and the alert setting are stated under the cards, issues are asked for once as a second
+ * step, and every list is capped and ends with a line that says how many more there are and where they are.
  */
 export async function PersonalHome({ userId, canAnswer = false }: { userId: string | null; canAnswer?: boolean }) {
   const db = getDb(), now = clock();
   const [loc, issues] = await Promise.all([currentLocation(userId).catch(() => null), pickedIssues(userId).catch(() => [])]);
-  if (!loc && !issues.length) return <section className="start-cta"><b>Make this page yours in under a minute.</b> <Link className="cta" href="/start">Add your ZIP and three issues</Link></section>;
+  if (!loc && !issues.length) return <section className="start-cta"><b>Make this page yours in under a minute.</b> <Link className="cta" href="/start">Add your address and three issues</Link></section>;
   const fed = loc ? await federalLegislators(loc.state, loc.congressional).catch(() => null) : null;
-  const follows = userId ? (await db.select({ id: userFollows.politicianId }).from(userFollows).where(eq(userFollows.userId, userId))).map(r => r.id) : [];
+  const follows = await followedMemberIds(db, userId).catch(() => [] as string[]);
   const ids = [...new Set([...(fed?.senators.map(s => s.id) ?? []), ...(fed?.representative ? [fed.representative.id] : []), ...follows])];
-  const votes = ids.length ? await db.select({ rollCallId: officialRollCalls.id, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question, title: officialRollCalls.title, billId: officialRollCalls.billId,
-    billTitle: officialBills.title, billType: officialBills.billType, number: officialBills.number, name: officialPoliticians.fullName, memberId: officialPoliticians.id, position: officialMemberVotes.position })
-    .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).innerJoin(officialPoliticians, eq(officialPoliticians.id, officialMemberVotes.politicianId))
-    .leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId)).where(and(inArray(officialMemberVotes.politicianId, ids), gte(officialRollCalls.votedAt, now - 7 * 86400e3)))
-    .orderBy(desc(officialRollCalls.votedAt)).limit(8) : [];
-  const moving = issues.length ? (await Promise.all(issues.map(i => movingThisWeek(i, now, 4).catch(() => [])))).flat().filter((b, i, a) => a.findIndex(x => x.id === b.id) === i).slice(0, 6) : [];
+  const week = await memberVotesSince(db, ids, now - 7 * 86400e3, WEEK_VOTES).catch(() => ({ rows: [], total: 0 }));
+  const weekEnd = endOfList(week.rows.length, week.total, { one: "vote", many: "votes" });
+  const lists = issues.length ? await Promise.all(issues.map(i => movingThisWeek(i, now, MOVING_READ).catch(() => []))) : [];
+  const allMoving = lists.flat().filter((b, i, a) => a.findIndex(x => x.id === b.id) === i), moving = allMoving.slice(0, MOVING);
+  const movingEnd = endOfList(moving.length, allMoving.length, { one: "bill", many: "bills" }, lists.some(l => l.length >= MOVING_READ));
+  const mine = issues.flatMap(i => { const c = ISSUE_CATEGORIES.find(x => x.slug === i); return c ? [c] : []; });
   return <section className="personal">
     <EarlierAnswers userId={canAnswer ? userId : null} back="/" />
-    {loc && <div className="fed-section"><h2>Your legislators</h2><LegislatorCards loc={loc} next="/" /></div>}
+    {loc && <div className="fed-section"><YourLegislatorsBlock loc={loc} userId={userId} next="/" canFollow={canAnswer}><Link href="/start?change=1">Change address or ZIP</Link></YourLegislatorsBlock></div>}
+    {loc && canAnswer && <IssuesStep userId={userId} />}
     <ComingUp userId={userId} loc={loc} canAnswer={canAnswer} limit={3} />
     {ids.length > 0 && <div className="fed-section"><h2>This week from your legislators</h2>
-      {votes.length ? <ul className="result-list">{votes.map(v => <li key={`${v.rollCallId}-${v.memberId}`}><span><Link href={`/politicians/${v.memberId}`}><b>{v.name}</b></Link> · {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
+      {week.rows.length ? <><ul className="result-list">{week.rows.map(v => <li key={v.key}><span><Link href={`/politicians/${v.memberId}`}><b>{v.name}</b></Link> · {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
         {v.billId ? <Link href={`/bills/${v.billId}`}>{v.billType ? `${billLabel(v.billType, v.number!)}: ` : ""}{v.billTitle ?? v.title}</Link> : <span>{v.title ?? v.question}</span>}<span className="meta">{shortDate(v.votedAt)}</span></li>)}</ul>
+        <p className="list-end">{weekEnd.text}{weekEnd.more > 0 ? <> <Link className="more-link" href="/following">The rest are on your Following page</Link></> : null}</p></>
         : <p className="meta">No recorded votes by your legislators in the last 7 days.</p>}
       <p className="meta"><Link href="/legislators">Your legislators</Link> · <Link href="/recap">This week&apos;s recap card</Link></p></div>}
     {issues.length > 0 && <div className="fed-section"><h2>Moving on your issues</h2>
-      <p className="meta">{issues.map(i => ISSUE_CATEGORIES.find(c => c.slug === i)?.name).filter(Boolean).join(" · ")} · <Link href="/start#coming-up">change</Link></p>
-      {moving.length ? <ul className="result-list">{moving.map(b => <li key={b.id}><Link href={`/bills/${b.id}`}><span className="bill-tag">{billLabel(b.billType, b.number)}</span> {b.title}</Link><span className="meta">{b.latestActionText ?? ""}{b.latestActionAt ? ` (${shortDate(b.latestActionAt)})` : ""}</span></li>)}</ul>
+      <p className="meta">{mine.map(c => c.name).join(" · ")} · <Link href="/start#coming-up">change</Link></p>
+      {moving.length ? <><ul className="result-list">{moving.map(b => <li key={b.id}><Link href={`/bills/${b.id}`}><span className="bill-tag">{billLabel(b.billType, b.number)}</span> {b.title}</Link><span className="meta">{b.latestActionText ?? ""}{b.latestActionAt ? ` (${shortDate(b.latestActionAt)})` : ""}</span></li>)}</ul>
+        <p className="list-end">{movingEnd.text}{movingEnd.more > 0 ? <> The rest are on each issue’s page: {mine.map((c, i) => <span key={c.slug}>{i > 0 ? ", " : ""}<Link className="more-link" href={`/issues/${c.slug}`}>{c.name}</Link></span>)}</> : null}</p></>
         : <p className="meta">Nothing moved on these issues this week.</p>}</div>}
   </section>;
 }

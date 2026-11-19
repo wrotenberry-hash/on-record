@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { analysisBillSummaries, analysisSummaryDetails, billCategories, officialBills, officialFloorSchedule, officialMemberVotes, officialRollCalls,
-  txBills, txEvents, txMemberVotes, txVotes } from "@/db/schema";
+import { analysisBillSummaries, analysisSummaryDetails, billCategories, officialBills, officialFloorSchedule, txEvents } from "@/db/schema";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { federalLegislators, type Legislator } from "@/lib/federal/legislators";
 import { tallyUnderReview } from "@/lib/federal/depth";
@@ -12,18 +11,17 @@ import { currentTxSession, TX_SESSIONS } from "@/lib/texas/parse";
 import type { Location } from "@/lib/location";
 import { zipPlace } from "@/lib/flow/zip";
 import { floorBillStub, orderByIssues } from "@/lib/flow/rules";
-import { meaningfulVote, NO_RECENT_VOTE, plainBillName, RECENT_VOTE_MS, txMeaningfulVote, TX_NO_MEMBER_ON_FILE, txNoRecordedVoteLine, txVoteLine, voteLine, type BillName } from "@/lib/flow/votes";
+import { NO_RECENT_VOTE, plainBillName, RECENT_VOTE_MS, TX_NO_MEMBER_ON_FILE, txNoRecordedVoteLine, type BillName } from "@/lib/flow/votes";
+import { billLabel, cardVotesNote, fedCardVote, initials, meaningfulFed, meaningfulTx, partyWord, seatLine, txCardVote, VOTES_PER_CARD, type CardVote, type MeaningfulFed } from "@/lib/flow/cards";
+import { FED_ROWS, fedVoteRows, TX_ROWS, txVoteRows } from "@/lib/flow/card-store";
+import { allowedPhotoUrl, photoPath, TEXAS_PHOTO_HOSTS } from "@/lib/photos";
 
 /**
- * Reads for the first-60-seconds flow (owner, 17 Nov 2026): the reader's legislators with one plain line each, the
- * coming floor votes, and the bills the reader has answered. Official data, plus the Analysis headline only where a
- * summary is visible to readers (lib/analysis/publish-gate.ts); otherwise official facts only.
+ * Reads for the first screen (owner, 17 and 18 Nov 2026): the reader's legislators, each with their last three
+ * meaningful votes in plain lines, the coming floor votes, and the bills the reader has answered. Official data, plus
+ * the Analysis headline only where a summary is visible to readers (lib/analysis/publish-gate.ts); otherwise official
+ * facts only. The words and the rules are in lib/flow/cards.ts and lib/flow/votes.ts; the queries in lib/flow/card-store.ts.
  */
-
-const LABELS: Record<string, string> = { hr: "H.R.", s: "S.", hres: "H.Res.", sres: "S.Res.", hjres: "H.J.Res.", sjres: "S.J.Res.", hconres: "H.Con.Res.", sconres: "S.Con.Res." };
-const billLabel = (billType: string, number: number) => `${LABELS[billType] ?? billType.toUpperCase()} ${number}`;
-const PARTY: Record<string, string> = { Democrat: "D", Democratic: "D", Republican: "R", Independent: "I", Libertarian: "L" };
-const letter = (party: string) => PARTY[party] ?? party.slice(0, 1).toUpperCase();
 
 /** The newest reader-visible summary for each bill: its headline and its own question. Empty while the gate is shut. */
 export async function visibleSummaries(billIds: readonly string[]) {
@@ -41,29 +39,23 @@ export async function visibleSummaries(billIds: readonly string[]) {
 
 /* ------------------------------------------------------------ your legislators --- */
 
-export type CardVote = { line: string; label: BillName["label"]; when: number | string; billHref: string; billLabel: string; billId: string | null };
-export type LegislatorCard = { key: string; slot: "U.S. senator" | "U.S. representative" | "State senator" | "State representative"; name: string; seat: string; href: string | null;
-  vote: CardVote | null; none: string | null };
+export type { CardVote };
+/**
+ * One card. Every member's card has the same parts: the name, the picture (or the initials when there is none), the
+ * party as a word, the seat, and up to three votes. `memberId` is the id a follow is kept under (null for a seat with
+ * no member on file). `photo` is the site's own address for the portrait, or null when no official picture is known.
+ */
+export type LegislatorCard = { key: string; slot: "U.S. senator" | "U.S. representative" | "State senator" | "State representative"; name: string; seat: string; party: string | null;
+  href: string | null; memberId: string | null; photo: string | null; initials: string; votes: CardVote[]; votesNote: string | null; none: string | null };
 export type DistrictChoice = { id: string; label: string };
 /** `zipSplit`: the choices are the ZIP's own districts (it crosses a line); false when the ZIP is not in the Census table and the whole state is offered. */
-export type YourLegislators = { state: string; cards: LegislatorCard[]; houseChoices: DistrictChoice[]; zipSplit: boolean; needsAddress: boolean; texas: boolean; stateNote: string | null };
+export type YourLegislators = { state: string; cards: LegislatorCard[]; houseChoices: DistrictChoice[]; zipSplit: boolean; needsAddress: boolean; texas: boolean; stateNote: string | null;
+  counts: { senators: number; representative: number; state: number } };
 
-type FedVote = { rollCallId: string; votedAt: number; question: string; title: string | null; result: string | null; yea: number; nay: number; chamber: string;
-  billId: string; billTitle: string; billType: string; number: number; position: string };
-type Meaningful = FedVote & { kind: NonNullable<ReturnType<typeof meaningfulVote>> };
-
-/** A member's meaningful votes in the last 12 months, newest first (lib/flow/votes.ts decides what counts). */
-async function meaningfulVotesOf(politicianId: string, now: number): Promise<Meaningful[]> {
-  const rows = await getDb().select({ rollCallId: officialRollCalls.id, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question, title: officialRollCalls.title,
-    result: officialRollCalls.result, yea: officialRollCalls.yea, nay: officialRollCalls.nay, chamber: officialRollCalls.chamber, billId: officialBills.id, billTitle: officialBills.title,
-    billType: officialBills.billType, number: officialBills.number, position: officialMemberVotes.position })
-    .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId)).innerJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
-    .where(and(eq(officialMemberVotes.politicianId, politicianId), gte(officialRollCalls.votedAt, now - RECENT_VOTE_MS))).orderBy(desc(officialRollCalls.votedAt)).limit(150);
-  return rows.flatMap(v => { const kind = meaningfulVote({ question: v.question, result: v.result, title: v.title, billTitle: v.billTitle, hasBill: true }); return kind ? [{ ...v, kind }] : []; });
-}
-
-function fedSeat(m: Legislator) {
-  return m.chamber === "senate" ? `U.S. Senator · ${letter(m.party)}-${m.state}` : `U.S. Representative · ${letter(m.party)}-${m.state}${m.district ? `-${m.district}` : " (at large)"}`;
+/** A member's meaningful votes in the last 12 months, newest first (lib/flow/votes.ts decides what counts). `full` is false when only the latest recorded votes were read. */
+async function meaningfulVotesOf(politicianId: string, now: number): Promise<{ votes: MeaningfulFed[]; full: boolean }> {
+  const rows = await fedVoteRows(getDb(), politicianId, now - RECENT_VOTE_MS);
+  return { votes: meaningfulFed(rows), full: rows.length < FED_ROWS };
 }
 
 /**
@@ -74,61 +66,57 @@ function fedSeat(m: Legislator) {
 export async function houseChoicesFor(state: string, zip: string | null, all: Legislator[]): Promise<DistrictChoice[]> {
   const idOf = (m: Legislator) => `${m.state}-${m.district ? String(m.district).padStart(2, "0") : "AL"}`;
   const place = zip ? await zipPlace(zip).catch(() => null) : null;
-  if (!place?.choices.length || !place.choices.some(d => d.startsWith(`${state}-`))) return all.map(m => ({ id: idOf(m), label: `District ${m.district || "at large"} · ${m.fullName} (${letter(m.party)})` }));
+  if (!place?.choices.length || !place.choices.some(d => d.startsWith(`${state}-`))) return all.map(m => ({ id: idOf(m), label: `District ${m.district || "at large"} · ${m.fullName} (${partyWord(m.party)})` }));
   const states = [...new Set(place.choices.map(d => d.split("-")[0]))];
   const members = [...all, ...(await Promise.all(states.filter(s => s !== state).map(s => federalLegislators(s, null).then(f => f.houseChoices).catch(() => [] as Legislator[])))).flat()];
   return place.choices.map(id => { const m = members.find(x => idOf(x) === id), n = id.split("-")[1];
-    return { id, label: `${states.length > 1 ? id : `District ${n === "AL" ? "at large" : Number(n)}`} · ${m ? `${m.fullName} (${letter(m.party)})` : "seat vacant"}` }; });
+    return { id, label: `${states.length > 1 ? id : `District ${n === "AL" ? "at large" : Number(n)}`} · ${m ? `${m.fullName} (${partyWord(m.party)})` : "seat vacant"}` }; });
 }
 
 /**
  * Up to five cards in a fixed order: U.S. senator, U.S. senator, U.S. representative, state senator, state
- * representative. Each has the member's most recent meaningful vote in one plain line, or says there is none.
+ * representative. Each has the member's last three meaningful votes, one plain line each with its date and bill, or
+ * says how many there are when there are fewer.
  */
 export async function yourLegislators(loc: Location, zip: string | null, now = Date.now()): Promise<YourLegislators> {
   const db = getDb(), today = new Date(now).toISOString().slice(0, 10);
   const fed = await federalLegislators(loc.state, loc.congressional);
   const members = [...fed.senators, ...(fed.representative ? [fed.representative] : [])];
-  const votes = await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).then(v => v[0] ?? null).catch(() => null)));
-  const chosen = votes.filter((v): v is Meaningful => !!v);
+  const found = await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).catch(() => ({ votes: [] as MeaningfulFed[], full: true }))));
+  const shown = found.map(f => f.votes.slice(0, VOTES_PER_CARD)), chosen = shown.flat();
   const [summaries, review] = await Promise.all([visibleSummaries(chosen.map(v => v.billId)).catch(() => new Map<string, { headline: string; question: string | null }>()),
     tallyUnderReview(chosen.map(v => v.rollCallId)).catch(() => new Set<string>())]);
   const cards: LegislatorCard[] = members.map((m, i) => {
-    const v = votes[i];
-    const name = v ? plainBillName({ title: v.billTitle, billType: v.billType, headline: summaries.get(v.billId)?.headline, label: billLabel(v.billType, v.number) }) : null;
-    return { key: m.id, slot: m.chamber === "senate" ? "U.S. senator" : "U.S. representative", name: m.fullName, seat: fedSeat(m), href: `/politicians/${m.id}`,
-      vote: v && name ? { line: voteLine({ position: v.position, kind: v.kind, name: name.text, result: v.result, yea: v.yea, nay: v.nay, question: v.question, chamber: v.chamber, billType: v.billType,
-        tallyUnderReview: review.has(v.rollCallId) }), label: name.label, when: v.votedAt, billHref: `/bills/${v.billId}`, billLabel: billLabel(v.billType, v.number), billId: v.billId } : null,
-      none: v ? null : NO_RECENT_VOTE };
+    const votes = shown[i].map(v => fedCardVote(v, { headline: summaries.get(v.billId)?.headline, tallyUnderReview: review.has(v.rollCallId) }));
+    return { key: m.id, slot: m.chamber === "senate" ? "U.S. senator" : "U.S. representative", name: m.fullName, seat: seatLine({ level: "federal", chamber: m.chamber, state: m.state, district: m.district }),
+      party: partyWord(m.party), href: `/politicians/${m.id}`, memberId: m.id, photo: photoPath(m.id), initials: initials(m.fullName),
+      votes, votesNote: cardVotesNote(votes.length, found[i].votes.length, !found[i].full), none: votes.length ? null : NO_RECENT_VOTE };
   });
-  if (loc.congressional && !fed.representative) cards.push({ key: `vacant-${loc.congressional}`, slot: "U.S. representative", name: `U.S. House, ${loc.congressional}`, seat: "U.S. Representative", href: null, vote: null,
-    none: "No current member is on file for this district. The seat may be vacant." });
+  const vacantRep = !!loc.congressional && !fed.representative;
+  if (vacantRep) cards.push({ key: `vacant-${loc.congressional}`, slot: "U.S. representative", name: `U.S. House, ${loc.congressional}`, seat: "U.S. Representative", party: null, href: null, memberId: null,
+    photo: null, initials: "", votes: [], votesNote: null, none: "No current member is on file for this district. The seat may be vacant." });
   const texas = loc.state === "TX";
+  let stateMembers = 0;
   if (texas && (loc.stateUpper || loc.stateLower)) {
     const tx = await txLegislatorsFor(loc.stateUpper, loc.stateLower).catch(() => ({ senator: null, representative: null }));
     const since = new Date(now - RECENT_VOTE_MS).toISOString().slice(0, 10), none = txNoRecordedVoteLine(today, TX_SESSIONS);
-    const slots = [{ p: tx.senator, slot: "State senator" as const, district: loc.stateUpper, chamber: "Senate" }, { p: tx.representative, slot: "State representative" as const, district: loc.stateLower, chamber: "House" }];
+    const slots = [{ p: tx.senator, slot: "State senator" as const, district: loc.stateUpper, chamber: "upper" as const }, { p: tx.representative, slot: "State representative" as const, district: loc.stateLower, chamber: "lower" as const }];
     for (const s of slots) {
       const n = s.district?.split("-").pop() ?? "";
-      if (!s.p) { if (s.district) cards.push({ key: `tx-${s.slot}`, slot: s.slot, name: `Texas ${s.chamber} District ${n}`, seat: `Texas State ${s.slot === "State senator" ? "Senator" : "Representative"}`, href: null, vote: null,
-        none: TX_NO_MEMBER_ON_FILE }); continue; }
-      const rows = await db.select({ motion: txVotes.motion, date: txVotes.date, result: txVotes.result, counts: txVotes.counts, tallyOk: txVotes.tallyOk, option: txMemberVotes.option,
-        billId: txBills.id, identifier: txBills.identifier, title: txBills.title })
-        .from(txMemberVotes).innerJoin(txVotes, eq(txVotes.id, txMemberVotes.voteId)).innerJoin(txBills, eq(txBills.id, txVotes.billId))
-        .where(and(eq(txMemberVotes.personId, s.p.id), gte(txVotes.date, since))).orderBy(desc(txVotes.date)).limit(80).catch(() => []);
-      const hit = rows.map(r => ({ r, kind: txMeaningfulVote(r.motion) })).find(x => x.kind);
-      const counts = (hit?.r.counts ?? null) as Record<string, number> | null;
-      const name = hit ? plainBillName({ title: hit.r.title, billType: "hb", label: hit.r.identifier }) : null;
-      cards.push({ key: s.p.id, slot: s.slot, name: s.p.name, seat: `Texas State ${s.slot === "State senator" ? "Senator" : "Representative"} · ${letter(s.p.party)} · District ${s.p.district}`,
-        href: `/texas/members/${encodeURIComponent(s.p.id)}`,
-        vote: hit && name ? { line: txVoteLine({ option: hit.r.option, kind: hit.kind!, name: name.text, result: hit.r.result, yes: counts?.yes, no: counts?.no, tallyOk: hit.r.tallyOk === 1 }), label: name.label,
-          when: hit.r.date, billHref: `/texas/bills/${hit.r.billId}`, billLabel: hit.r.identifier, billId: null } : null,
-        none: hit ? null : none });
+      if (!s.p) { if (s.district) cards.push({ key: `tx-${s.slot}`, slot: s.slot, name: `Texas ${s.chamber === "upper" ? "Senate" : "House"} District ${n}`, seat: `Texas State ${s.slot === "State senator" ? "Senator" : "Representative"}`,
+        party: null, href: null, memberId: null, photo: null, initials: "", votes: [], votesNote: null, none: TX_NO_MEMBER_ON_FILE }); continue; }
+      const rows = await txVoteRows(db, s.p.id, since).catch(() => []);
+      const all = meaningfulTx(rows), votes = all.slice(0, VOTES_PER_CARD).map(txCardVote);
+      stateMembers++;
+      cards.push({ key: s.p.id, slot: s.slot, name: s.p.name, seat: seatLine({ level: "state", chamber: s.chamber, district: s.p.district }), party: partyWord(s.p.party),
+        href: `/texas/members/${encodeURIComponent(s.p.id)}`, memberId: s.p.id, photo: allowedPhotoUrl(s.p.image, TEXAS_PHOTO_HOSTS) ? photoPath(s.p.id) : null, initials: initials(s.p.name),
+        votes, votesNote: cardVotesNote(votes.length, all.length, rows.length >= TX_ROWS), none: votes.length ? null : none });
     }
   }
   const houseChoices = fed.representative || loc.congressional ? [] : await houseChoicesFor(loc.state, zip, fed.houseChoices);
   return { state: loc.state, cards, texas, needsAddress: texas && !loc.stateUpper && !loc.stateLower, houseChoices, zipSplit: houseChoices.length > 0 && houseChoices.length < fed.houseChoices.length,
-    stateNote: texas ? null : "State legislators are covered for Texas only for now." };
+    stateNote: texas ? null : "State legislators are covered for Texas only for now.",
+    counts: { senators: fed.senators.length, representative: fed.representative ? 1 : 0, state: stateMembers } };
 }
 
 /* ------------------------------------------------------------------ coming up --- */
@@ -188,7 +176,7 @@ export async function comingUp(input: { userId: string | null; issues: readonly 
   if (!scheduled.length && input.loc) {
     const fed = await federalLegislators(input.loc.state, input.loc.congressional).catch(() => null);
     const members = fed ? [...fed.senators, ...(fed.representative ? [fed.representative] : [])] : [];
-    const all = (await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).catch(() => [])))).flat().sort((a, b) => b.votedAt - a.votedAt);
+    const all = (await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).then(f => f.votes).catch(() => [] as MeaningfulFed[])))).flat().sort((a, b) => b.votedAt - a.votedAt);
     const three = all.filter((v, i, a) => a.findIndex(x => x.billId === v.billId) === i).slice(0, 3);
     recent = await build(three.map(v => ({ billId: v.billId, title: v.billTitle, billType: v.billType, number: v.number, where: v.chamber === "senate" ? "Senate" : "House", when: `voted ${dayLabel(v.votedAt)}`, answerable: true })));
     recent.sort((a, b) => three.findIndex(v => v.billId === a.billId) - three.findIndex(v => v.billId === b.billId)); // newest first; these are few

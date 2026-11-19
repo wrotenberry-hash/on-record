@@ -23,8 +23,13 @@ export const dynamic = "force-dynamic";
  * checking instrument, as before (the editor sees the same first-minute flow at /start).
  *
  * Owner, 17 Nov 2026: a newcomer (no place saved yet) gets one screen: the tagline, one sentence and one form
- * (ZIP, optional street address). The form leads straight to /start: their legislators, what is coming up, and how
- * their district compares. A returning reader gets their personal home, with what is coming up near the top.
+ * (street address and ZIP; a ZIP alone works). The form leads straight to /start: their legislators, what is coming
+ * up, and how their district compares. A returning reader gets their personal home.
+ *
+ * Owner, 18 Nov 2026 (docs/PERSUASION_RETENTION.md, points 1, 2 and 6): for a reader with a place the screen opens
+ * with what is new since their last visit, or "You're caught up." when nothing is; then "Your five legislators" with
+ * each one's last three votes, what the reader follows, and what is coming up. Every list is capped and ends with a
+ * line.
  */
 export default async function Home() {
   const publicRead = publicReadEnabled(process.env[PUBLIC_READ_FLAG]);
@@ -49,8 +54,10 @@ export default async function Home() {
       <RightNow />
       <section className="landing">{about}{note}</section>
     </> : <>
-      <PersonalHome userId={userId} canAnswer={canAnswer} />
+      {/* LOOP NOTICES GO HERE (Task B, components/loop/notices.tsx): the reader's notices about bills they answered or
+          follow, newest first, above everything else on the home screen. Lead: render that component on this line. */}
       <SincePanel userId={userId} />
+      <PersonalHome userId={userId} canAnswer={canAnswer} />
       <RightNow />
       <section className="landing">
         <div className="eyebrow">THE CONGRESSIONAL RECORD, IN PLAIN WORDS</div>

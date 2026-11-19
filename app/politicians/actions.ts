@@ -1,24 +1,23 @@
 "use server";
-import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { officialPoliticians, userFollows } from "@/db/schema";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { countEvent } from "@/lib/events";
+import { toggleMemberFollow } from "@/lib/follow-defaults";
 
-/** Follow or unfollow a member: the signed-in editor or a trial reader. Phase C opens this to public accounts. */
+/**
+ * Follow or unfollow a member: the signed-in editor or a trial reader. A member of Congress (by Biographical
+ * Directory id) or a Texas legislator (by the id in tx_people); any other id is ignored (lib/follow-defaults.ts).
+ */
 export async function toggleFollow(formData: FormData) {
   const politicianId = String(formData.get("politicianId") ?? "");
   const access = await viewerAccess();
-  if (!access.allowed || !/^[A-Z]\d{6}$/.test(politicianId)) return;
+  if (!access.allowed || (!access.invite && !access.editor)) return;
   const userId = await currentAppUserId(true);
   if (!userId) return;
-  const db = getDb();
-  const exists = await db.select({ id: officialPoliticians.id }).from(officialPoliticians).where(eq(officialPoliticians.id, politicianId)).get();
-  if (!exists) return;
-  const following = await db.select().from(userFollows).where(and(eq(userFollows.userId, userId), eq(userFollows.politicianId, politicianId))).get();
-  if (following) await db.delete(userFollows).where(and(eq(userFollows.userId, userId), eq(userFollows.politicianId, politicianId)));
-  else await db.insert(userFollows).values({ userId, politicianId, createdAt: Date.now() }).onConflictDoNothing();
-  await countEvent(following ? "follow_remove" : "follow_add", access.audience);
-  revalidatePath(`/politicians/${politicianId}`); revalidatePath("/politicians"); revalidatePath("/following");
+  const done = await toggleMemberFollow(getDb(), userId, politicianId);
+  if (!done) return;
+  await countEvent(done.following ? "follow_add" : "follow_remove", access.audience);
+  revalidatePath(done.kind === "texas" ? `/texas/members/${encodeURIComponent(politicianId)}` : `/politicians/${politicianId}`);
+  revalidatePath("/politicians"); revalidatePath("/following"); revalidatePath("/"); revalidatePath("/start");
 }

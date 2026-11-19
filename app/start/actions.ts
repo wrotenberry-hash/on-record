@@ -11,6 +11,8 @@ import { countEvent } from "@/lib/events";
 import { rememberZip, rememberedZip, zipPlace } from "@/lib/flow/zip";
 import { answerBucket, cleanZip, FIRST_VISIT_COOKIE, PLACE_ERRORS, type PlaceError } from "@/lib/flow/rules";
 import { saveReaderAnswer } from "@/lib/flow/answer";
+import { getDb } from "@/db";
+import { followAllAt, markIssuesAsked } from "@/lib/follow-defaults";
 
 /**
  * The first 60 seconds (owner, 17 Nov 2026): ZIP or address → your legislators → one-tap answers. Every action checks
@@ -93,6 +95,41 @@ export async function saveFlowIssues(formData: FormData) {
   const userId = access.invite || access.editor ? await currentAppUserId(true) : null;
   await savePickedIssues(userId, formData.getAll("issue").map(String));
   await countEvent("flow_issues", access.audience);
+}
+
+/**
+ * The second step of the first screen (owner, 18 Nov 2026): "Pick up to three issues", or "Skip for now". Either
+ * answer is recorded (reader_setup.issues_asked_at) so the step is put to a reader once; the small picker over the
+ * coming votes stays for changing issues later. "Skip for now" changes no issue the reader already has.
+ * Counts, as daily totals: flow_issues (saved with at least one issue) and flow_issues_skip.
+ */
+export async function answerIssuesStep(formData: FormData) {
+  const access = await viewerAccess();
+  if (!access.allowed || (!access.invite && !access.editor)) return;
+  const userId = await currentAppUserId(true);
+  if (!userId) return;
+  const picked = formData.get("choice") === "skip" ? [] : await savePickedIssues(userId, formData.getAll("issue").map(String));
+  await markIssuesAsked(getDb(), userId);
+  await countEvent(picked.length ? "flow_issues" : "flow_issues_skip", access.audience);
+  refresh(); // the step leaves the page and the coming votes re-sort, in place
+}
+
+/**
+ * "Follow all five": one tap follows every one of the reader's own legislators (members of Congress and, in Texas,
+ * the two state legislators). It turns vote alerts on only for a reader who has never chosen, and the screen says so
+ * beside the button. Nothing is sent from here: a phone asks permission before it shows notifications, and email
+ * needs an address. Counts, as a daily total: follow_all.
+ */
+export async function followAllMine() {
+  const access = await viewerAccess();
+  if (!access.allowed || (!access.invite && !access.editor)) return;
+  const userId = await currentAppUserId(true);
+  const loc = await currentLocation(userId).catch(() => null);
+  if (!userId || !loc) return;
+  await followAllAt(getDb(), { userId, place: loc });
+  await countEvent("follow_all", access.audience);
+  revalidatePath("/following");
+  refresh();
 }
 
 export type AnswerState = { billId: string; answer: "support" | "oppose" | "unsure" | null; saved: boolean; note: string | null; error: string | null };
