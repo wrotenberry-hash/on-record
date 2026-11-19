@@ -86,3 +86,27 @@ test("a reader's own words are never shown to another reader", () => {
   assert.ok(touch.length >= 2);
   for (const f of touch) assert.ok(/^lib\/opinions\.ts$|^lib\/constituent\/|^lib\/verify\/|^lib\/flow\/|^lib\/voice\.ts$|^components\/voice\/|^app\/voice\/|^app\/bills\/|^app\/texas\/bills\//.test(f), `${f} reads a reader's reason or answer history`);
 });
+
+test("the four measures read as plain sentences, with and without data", async () => {
+  const { habitLines } = await import("../lib/habit-lines.ts");
+  const empty = habitLines({ weekTwo: weekTwoRate([], T0), loop: { week: "2026-W47", weeklyEmailsSent: 0, weeklyOpens: 0, weeklyOpenRate: null, noticeDays: 28, noticesSent: 0, noticeReturns: 0, noticeReturnRate: null },
+    share: { last7: { billViews: 0, sharesStarted: 0, rate: null }, last28: { billViews: 0, sharesStarted: 0, rate: null } }, readerEmailReady: false });
+  assert.deepEqual(empty.map(l => l.key), ["weekTwo", "emailOpens", "shareRate", "noticeReturn"]);
+  assert.equal(empty[0].value, "No reader has visited yet.");
+  assert.equal(empty[1].value, "No weekly email has been sent yet: emails to readers wait for the site's own sending address.");
+  assert.equal(empty[2].value, "No reader has opened a bill page in the last 7 days; no reader has opened a bill page in the last 28 days.");
+  assert.match(empty[3].value, /^No notice has been sent in the last 28 days\./);
+  const full = habitLines({ weekTwo: weekTwoRate([{ firstSeenAt: T0, weekTwoAt: T0 + 9 * DAY }, { firstSeenAt: T0, weekTwoAt: null }], T0 + 30 * DAY),
+    loop: { week: "2026-W47", weeklyEmailsSent: 8, weeklyOpens: 6, weeklyOpenRate: 0.75, noticeDays: 28, noticesSent: 11, noticeReturns: 2, noticeReturnRate: 0.182 },
+    share: { last7: { billViews: 40, sharesStarted: 3, rate: 0.075 }, last28: { billViews: 900, sharesStarted: 1, rate: 0.001 } }, readerEmailReady: true });
+  assert.equal(full[0].value, "1 of 2 readers came back in their second week (50%).");
+  assert.equal(full[1].value, "6 of 8 weekly emails were opened in week 2026-W47 (75%).");
+  assert.equal(full[2].value, "3 shares started from 40 bill-page views in the last 7 days (8%); 1 share started from 900 bill-page views in the last 28 days (under 1%).");
+  assert.equal(full[3].value, "2 of 11 notices sent in the last 28 days were followed back to the site (18%).");
+  const broken = habitLines({ weekTwo: null, loop: null, share: null, readerEmailReady: false });
+  assert.ok(broken.every(l => l.value === "Could not be read just now."));
+  for (const l of [...empty, ...full]) assert.match(l.note, /\.$/);
+  // On the What's next page and the probe.
+  assert.match(readFileSync(join(ROOT, "app/editor/next/page.tsx"), "utf8"), /Do people come back and share\?/);
+  assert.match(readFileSync(join(ROOT, "app/api/automation/health/route.ts"), "utf8"), /habit: await import\("@\/lib\/habit"\)/);
+});

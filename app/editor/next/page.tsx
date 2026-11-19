@@ -29,6 +29,7 @@ export default async function WhatsNextPage({ searchParams }: { searchParams: Pr
   const now = new Date().toISOString(), sp = await searchParams;
   const ready = await readinessNow().catch(() => null);
   const texas = await texasReadinessNow().catch(() => null);
+  const habit = await import("@/lib/habit").then(m => m.habitNow()).catch(() => null);
   const fl = probe ? flags(probe) : [], recent = ((probe?.recentAlerts ?? []) as { kind: string; sentAt: string }[]).filter(a => Date.parse(now) - Date.parse(a.sentAt) < 7 * 86400e3 && a.kind !== "DAILY_CASE" && a.kind !== "DAILY_NUDGE").slice(0, 8);
   const steps = OWNER_STEPS.map(s => ({ ...s, done: probe ? ownerStepDone(s, probe) : null }));
   const open = steps.filter(s => s.done !== true), minutes = open.filter(s => s.key !== "threads").reduce((a, s) => a + s.minutes, 0);
@@ -62,6 +63,11 @@ export default async function WhatsNextPage({ searchParams }: { searchParams: Pr
       <h2>Where things stand</h2>
       <p><b>Claude&apos;s note, {fmt(PLAN_UPDATED)} CT:</b> {PLAN_NOTE}</p>
       {probe && <ul className="analysis-list">{standing(probe).map((l, i) => <li key={i}>{l}</li>)}</ul>}
+
+      <h2 id="habit">Do people come back and share?</h2>
+      <p className="meta">Four measures from your persuasion and retention round, read from the database as this page loads. Totals only: none of them follows a person.</p>
+      {habit ? <ul className="analysis-list">{habit.lines.map(l => <li key={l.key}><b>{l.label}:</b> {l.value} <span className="meta">{l.note}</span></li>)}</ul>
+        : <p className="gate gate-closed" role="status">The four measures could not be loaded. Reload in a minute.</p>}
 
       <h2>Recommended next, in order</h2>
       <ol className="analysis-list next-ranked">{RECOMMENDED.map(r => <li key={r.title}><b>{r.title}</b> <span className="next-needs">{r.needs === "you" ? "Only you can do this" : r.needs === "your go-ahead" ? "Waits for your go-ahead" : "In progress"}</span><br />{r.why}</li>)}</ol>

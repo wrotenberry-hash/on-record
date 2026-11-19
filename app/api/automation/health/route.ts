@@ -212,6 +212,8 @@ export async function GET(request: Request) {
     // numbers (aggregate counts, lib/trial-analytics.ts) and the hours in which this probe answered (lib/uptime.ts).
     errors: await import("@/lib/error-events").then(m => m.errorsReport()).catch(() => "unavailable" as const),
     trialAnalytics: await import("@/lib/trial-analytics-data").then(m => m.trialAnalyticsNow()).catch(() => "unavailable" as const),
+    // Persuasion and retention round (18 Nov): week-two return, weekly email opens, share rate per bill view, return after a notice. Totals only.
+    habit: await import("@/lib/habit").then(m => m.habitNow()).then(h => Object.fromEntries(h.lines.map(l => [l.key, l.value]))).catch(() => "unavailable" as const),
     uptime: await import("@/lib/uptime-data").then(async m => { await m.noteProbeAnswered(); return m.uptimeNow(Date.now(), 7); }).catch(() => "unavailable" as const),
     texas: await texasCounts().catch(() => "unavailable" as const),
     retention: await retentionCounts().catch(() => "unavailable" as const),
