@@ -32,7 +32,8 @@ function Notice({ n }: { n: NoticeView }) {
  * For the top of the home screen. Shows a reader's notices they have not seen yet, or from the last 14 days, at
  * most three. Renders nothing when there are none, so a reader with no news sees no empty box.
  */
-export async function LoopNotices({ userId, limit = NOTICES_SHOWN }: { userId: string | null; limit?: number }) {
+/** `end={false}` on the home screen, where the panel below says "You're caught up." once for the whole screen. */
+export async function LoopNotices({ userId, limit = NOTICES_SHOWN, end = true }: { userId: string | null; limit?: number; end?: boolean }) {
   if (!userId) return null;
   const db = getDb();
   const list = await listNotices(db, userId, { limit, recentOnly: true }).catch(() => null);
@@ -42,8 +43,9 @@ export async function LoopNotices({ userId, limit = NOTICES_SHOWN }: { userId: s
   return <section className={styles.panel} aria-label="What happened to bills you weighed in on">
     <h2>What happened to bills you weighed in on</h2>
     <ul className={styles.list}>{list.items.map(n => <Notice key={n.id} n={n} />)}</ul>
-    {list.more > 0 && <p className={styles.more}><Link href="/notices">{list.more} earlier {list.more === 1 ? "notice" : "notices"}</Link></p>}
-    <p className={styles.end}>You&rsquo;re caught up.</p>
+    {list.more > 0 ? <p className={styles.more}><Link href="/notices">{list.more} earlier {list.more === 1 ? "notice" : "notices"}</Link></p>
+      : <p className={styles.more}>{list.items.length === 1 ? "That is the only notice." : `Those are all ${list.items.length} notices.`} <Link href="/notices">Earlier notices</Link></p>}
+    {end && <p className={styles.end}>You&rsquo;re caught up.</p>}
   </section>;
 }
 

@@ -8,7 +8,7 @@
  * tokens are never stored with a report.
  */
 const KEEP_QUERY: Record<string, readonly string[]> = {
-  "/share/card": ["t", "member", "roll", "bill", "kind", "pub", "issue"],
+  "/share/card": ["t", "member", "roll", "bill", "kind", "pub", "issue", "c", "scope"],
   "/compare": ["a", "b"],
   "/moving": ["issue"],
 };

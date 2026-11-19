@@ -30,7 +30,7 @@ export function socialConfig() {
 }
 export const QUEUE_ONLY = ["X", "Instagram", "TikTok"] as const;
 
-const DASH = ["funnel", "control", "players"] as const;
+const DASH = ["funnel", "house", "senate"] as const; // one figure a card (18 Nov): "control" is two cards now and "players" is retired
 async function draft(day: string, type: ShareType, p: ShareParams, subject: string, now: number) {
   const r = await resolveShare(type, p);
   if (!r) return false;

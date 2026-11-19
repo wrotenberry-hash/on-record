@@ -572,7 +572,8 @@ test("“You're caught up.” is said once, near the top, only when nothing is n
   assert.equal(since.split("{CAUGHT_UP}").length - 1, 1);
   const returning = home.slice(home.indexOf("</> : <>"));
   assert.ok(returning.indexOf("<SincePanel") > 0 && returning.indexOf("<SincePanel") < returning.indexOf("<PersonalHome"), "the panel is the first thing a returning reader sees");
-  assert.ok(returning.indexOf("LOOP NOTICES GO HERE") > 0 && returning.indexOf("LOOP NOTICES GO HERE") < returning.indexOf("<SincePanel"), "the marked place for the loop notices is above it");
+  // The notices about bills the reader weighed in on sit above it and leave the closing sentence to the panel (end={false}).
+  assert.ok(returning.indexOf("<LoopNotices userId={userId} end={false} />") > 0 && returning.indexOf("<LoopNotices") < returning.indexOf("<SincePanel"), "the loop notices are above it and do not say the sentence a second time");
 });
 
 /* ------------------------------------------------------------------------ tone --- */

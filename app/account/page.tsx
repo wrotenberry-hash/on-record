@@ -58,7 +58,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       {account ? <>
         <p>Signed in as <b>{maskEmail(account.email)}</b>. Your follows and your own Support/Oppose answers are kept with this account and shown to no one else.</p>
         <form action={setDigest} className="review-actions"><input type="hidden" name="on" value={account.digestOptIn ? "0" : "1"} />
-          <span>Weekly email of how the members you follow voted: <b>{account.digestOptIn ? "on" : "off"}</b></span>
+          <span>Weekly email of how your legislators and the members you follow voted: <b>{account.digestOptIn ? "on" : "off"}</b></span>
           <button className="secondary">{account.digestOptIn ? "Turn off" : "Turn on"}</button></form>
         <form action={signOut}><button className="link-button">Sign out on this device</button></form>
         {vc.enabled && <div className="fed-section verify-steps" id="verify">
@@ -96,7 +96,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <p className="meta">Deletes your account, every Support/Oppose answer (private and counted), your follows{vc.enabled ? ", and your verification record" : ""}. Totals are recalculated without you. This cannot be undone.</p>
           <form action={deleteMyAccount} className="review-actions"><label className="consent"><input type="checkbox" name="confirm" value="yes" /> <span>Yes, delete everything</span></label><button className="secondary">Delete my account</button></form></div>
       </> : <>
-        <p>Enter your email and we will send a one-time link. No password. We keep your address only to send that link and, if you want it, a Monday email of how the members you follow voted.</p>
+        <p>Enter your email and we will send a one-time link. No password. We keep your address only to send that link and, if you want it, a Monday email of how your legislators voted.</p>
         <form action={requestLink} className="review-actions"><input type="email" name="email" id="account-email" required autoComplete="email" placeholder="you@example.com" aria-label="Email" />
           {vc.enabled && vc.turnstileReady && <Turnstile siteKey={vc.turnstile.siteKey} scriptUrl={vc.turnstile.scriptUrl} action="signup" />}
           <button>Email me a link</button></form>

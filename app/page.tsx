@@ -13,6 +13,7 @@ import { pickedIssues } from "@/lib/reader-issues";
 import { countEvent } from "@/lib/events";
 import { isActionRerender } from "@/lib/flow/zip";
 import { BRAND } from "@/lib/brand";
+import { LoopNotices } from "@/components/loop/notices";
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +55,8 @@ export default async function Home() {
       <RightNow />
       <section className="landing">{about}{note}</section>
     </> : <>
-      {/* LOOP NOTICES GO HERE (Task B, components/loop/notices.tsx): the reader's notices about bills they answered or
-          follow, newest first, above everything else on the home screen. Lead: render that component on this line. */}
+      {/* What happened to bills the reader answered or follows (lib/loop). The closing line is the panel's below. */}
+      <LoopNotices userId={userId} end={false} />
       <SincePanel userId={userId} />
       <PersonalHome userId={userId} canAnswer={canAnswer} />
       <RightNow />

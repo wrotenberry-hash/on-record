@@ -62,7 +62,7 @@ export default async function DashboardPage() {
         {changes.shown > 0 && <p className="meta">Recent leadership changes: {changes.rows.map(c => `${c.title}: ${c.fromName ?? "vacant"} → ${c.toName} (${shortDate(c.at)})`).join("; ")}. {changes.shown === DASH_CAPS.changes ? `Only the ${DASH_CAPS.changes} most recent are listed.` : changes.shown === 1 ? "That is the only one on file." : `That is all ${changes.shown} on file.`}</p>}
         <p className="meta">Seats from congress-legislators (current members; vacancies are the gap to 435 and 100). Leaders from the same file, checked daily.</p></div>
 
-      <div className="fed-section"><h2>Key players <OfficialBadge />{d.leaders.length > 0 && <> <Link className="src-link" href="/share/card?t=dash&kind=players">Share</Link></>}</h2>
+      <div className="fed-section"><h2>Key players <OfficialBadge /></h2>
         <p className="meta">Counts, not grades. Same method for every member.</p>
         {advanced.shown > 0 && <><RowBars caption="Most bills sponsored that passed at least one chamber" unit="bills" rows={advanced.rows.map(a => ({ label: <Link href={`/politicians/${a.id}`}>{a.name} ({a.party.slice(0, 1)}-{a.state})</Link>, value: a.n }))} />
           <ListEnd shown={advanced.shown} total={d.listTotals?.advanced} top={advanced.shown === DASH_CAPS.top} /></>}
