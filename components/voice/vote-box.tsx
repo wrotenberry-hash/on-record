@@ -1,8 +1,11 @@
 /**
  * The voting box on every bill page, federal and state (docs/CONSTITUENT_VOICE.md). One component, so every bill and
  * every reader gets the same words: the promise, Support / Oppose / Unsure with an optional private reason, who may
- * weigh in, and, after an answer, the totals for the nation, the state and the reader's district.
+ * weigh in, and, after an answer, the totals for the nation, the state and the reader's district. Before an answer it
+ * may say how many counted residents of the reader's district and state have weighed in (owner, 18 Nov 2026, point 9):
+ * a number only, from 25, never the split.
  */
+import "./record.css";
 import Link from "next/link";
 import { OfficialBadge, OpinionBadge, shortDate } from "@/components/federal/badges";
 import { Turnstile } from "@/components/verify/turnstile";
@@ -37,6 +40,8 @@ export function VoteBox({ billKey, question, plain, officialTitle, data, code, b
         <button name="choice" value="count">Yes, count them</button> <button name="choice" value="private" className="secondary">No, keep them private</button></form>}
       {note && <p className="gate gate-open" role="status">{note}</p>}
       <MailVerifyOffer userId={data.userId} tier={data.tier} back={back} />
+      {/* Before an answer: only how many counted residents of the reader's district and state have weighed in (25 or more), never how they answered. */}
+      {data.proof.length > 0 && <p className="voice-proof" role="note">{data.proof.map(l => <span key={l}>{l} </span>)}<span className="not-poll">{NOT_SCIENTIFIC}</span></p>}
       {data.standing === "outside" ? <p className="gate gate-closed" role="note">{whoCanWeighIn(data.jurisdiction)}</p>
         : <form action={castBillVote} className="stance-row"><input type="hidden" name="billId" value={billKey} />
           <label className="reason-field" htmlFor="stance-reason">Why? (optional, private to you, {REASON_MAX} characters)<input id="stance-reason" name="reason" maxLength={REASON_MAX} /></label>

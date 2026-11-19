@@ -47,7 +47,7 @@ export default async function TermsPage() {
           <li><b>Not legal advice.</b> A summary explains what a bill would do. It does not tell you what the law requires of you. For that, read the law itself or ask a lawyer.</li>
           <li><b>Not voting advice.</b> The site does not endorse anyone and does not tell you how to vote. For how, when and where to vote, use your state or county election office.</li>
           <li><b>Not a government site.</b> {BRAND.name} is not affiliated with Congress, the Texas Legislature, any agency, any party or any campaign. The official record is the one each page links to.</li>
-          <li><b>Not a scientific poll.</b> Reader totals show what verified readers of this site answered. They do not measure public opinion.</li>
+          <li><b>Not a scientific poll.</b> Reader totals show what counted residents who use this site answered: people whose home address has been matched. They do not measure public opinion.</li>
         </ul>
         <p>Analysis is drafted by an AI model and checked as described on <Link href="/method#summaries">How this works</Link>. It can still contain mistakes. Where a summary and the official record differ, the official record is right.</p>
         <p><Legal k="aiNotice" /></p>
@@ -77,7 +77,7 @@ export default async function TermsPage() {
       <section id="answers">
         <h2>5. Your answers</h2>
         <Answer>Your answers are yours and are private.</Answer>
-        <p>Support, Oppose and Unsure answers, and any reason you add, are shown only to you. If you verify that you are a real person, your Support and Oppose answers are added, without your name, to the totals. The <Link href="/privacy">privacy policy</Link> says exactly what is kept and how to delete it.</p>
+        <p>Support, Oppose and Unsure answers, and any reason you add, are shown only to you. If your home address is matched on your account, your Support, Oppose and Unsure answers are added, without your name, to the totals for where you live. The <Link href="/privacy">privacy policy</Link> says exactly what is kept and how to delete it.</p>
       </section>
 
       <section id="accuracy">

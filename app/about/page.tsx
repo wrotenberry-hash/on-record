@@ -32,7 +32,7 @@ export default async function AboutPage() {
       <ul>
         <li><b>See what your legislators did.</b> Enter your ZIP code or street address to find your two U.S. senators and your U.S. representative. In Texas, a street address also finds your state senator and state representative. Each vote is copied from the official record and explained in one plain line.</li>
         <li><b>Read a bill in plain words.</b> What it would change, who it affects, the case for and the case against, and what is not known yet. These summaries are labelled Analysis and link to every document they used.</li>
-        <li><b>Weigh in.</b> Mark Support, Oppose or Unsure on a bill. Your answer is private. Only totals are ever shown, and only once enough verified readers have answered.</li>
+        <li><b>Weigh in.</b> Mark Support, Oppose or Unsure on a bill. Your answer is private. Only totals are ever shown, and only once enough counted residents have answered. Counted residents are people whose home address has been matched.</li>
         <li><b>Follow.</b> Follow a member, a bill or up to three issues, and choose whether to get an email or an alert when something moves.</li>
       </ul>
 

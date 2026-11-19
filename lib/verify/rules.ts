@@ -1,7 +1,7 @@
 /**
- * Round J: real-person verification rules. Pure (no imports), tested in
- * tests/verify.test.mjs. Everything that decides whether a position counts
- * lives here so the rules can be read in one place.
+ * Round J: real-person verification rules. Pure (its one import is the resident-vote
+ * rules, also pure), tested in tests/verify.test.mjs. Everything that decides whether
+ * a position counts lives here so the rules can be read in one place.
  *
  * Tier 0 visitor: private Support/Oppose only, never counted.
  * Tier 1 real person: verified email, bot challenge at sign-up, SMS code on a
@@ -10,6 +10,8 @@
  *   in a congressional district.
  * Tier 3 verified constituent (mailed postcard): designed, not built.
  */
+
+import { groupLine, shownTotals, type ScopeTotals } from "../constituent/rules.ts";
 
 export type Tier = 0 | 1 | 2;
 export const ACCOUNT_MIN_AGE_MS = 24 * 3600 * 1000;
@@ -131,10 +133,20 @@ export function isSurge(lastHour: number, baselineCount: number, floor: number) 
   return lastHour >= floor && lastHour >= ANOMALY.surgeMultiple * hourlyBaseline;
 }
 
-/** "TX-37: 31 support · 12 oppose · 4 unsure (47 voters)" or the not-enough line. Unsure is a counted answer since 18 Nov 2026. */
-export function totalsLine(label: string, t: { support: number; oppose: number; unsure?: number } | null | undefined) {
+/**
+ * "TX-37: 31 support · 12 oppose · 4 unsure (47 voters)" or the not-enough line. Unsure is a counted answer since 18 Nov 2026.
+ *
+ * The same under-5 rule as `groupLine` (lib/constituent/rules.ts): when the caller passes the two groups the sum was
+ * made from (`groups`: mail-verified and address-matched) and one of them has fewer than 5 voters, the summed split is
+ * not printed, because taking the larger group's numbers away from it would give the small group's answers away. The
+ * line then lists the groups the way every other total does: mail-verified first, the small group by its size only.
+ */
+export function totalsLine(label: string, t: { support: number; oppose: number; unsure?: number; groups?: ScopeTotals | null } | null | undefined) {
   const n = (t?.support ?? 0) + (t?.oppose ?? 0) + (t?.unsure ?? 0);
-  return n >= MIN_SHOWN ? `${label}: ${t!.support} support · ${t!.oppose} oppose · ${t!.unsure ?? 0} unsure (${n} voters)` : `${label}: fewer than ${MIN_SHOWN} so far`;
+  if (n < MIN_SHOWN) return `${label}: fewer than ${MIN_SHOWN} so far`;
+  const shown = t?.groups ? shownTotals(t.groups, "state") : null;
+  if (shown?.show && shown.groups.some(g => !g.counts)) return `${label}, ${shown.voters} voters: ${shown.groups.map(groupLine).join("; ")}`;
+  return `${label}: ${t!.support} support · ${t!.oppose} oppose · ${t!.unsure ?? 0} unsure (${n} voters)`;
 }
 
 /** Verification costs (O-34): Twilio US list prices, Oct 2026: Verify $0.05 per success + $0.0083 per SMS (counted per send, so a failed attempt is over-counted); Lookup line type $0.008. */
