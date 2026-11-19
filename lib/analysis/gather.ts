@@ -1,5 +1,5 @@
-import { committeeReportCitations, committeeReportDoc, crLinkUrl, crPageRefs, disapprovedRule, statusDoc, federalRegisterDoc, federalRegisterSearchUrl, floorDoc, frAgencies,
-  frFullTextUrl, parseCommitteeReport, parseFloorSpeeches, parseFrPreamble, parseUsCodeSection, pickFederalRegisterRule, recordMentionsBill, reportPackage, reportUrl, usCodeCites, usCodeUrl,
+import { committeeReportCitations, committeeReportDoc, crLinkUrl, crPageItems, crPageRefs, disapprovedRule, statusDoc, federalRegisterDoc, federalRegisterSearchUrl, floorDoc, floorWeight, frAgencies,
+  frFullTextUrl, parseCommitteeReport, parseFloorSpeeches, parseFrPreamble, parseUsCodeSection, pickFederalRegisterRule, pickFloor, reportPackage, reportUrl, usCodeCites, usCodeUrl,
   type FrDoc, type SourceDoc } from "@/lib/analysis/sources";
 import type { BillStatus } from "@/lib/analysis/billtext";
 import type { SourceContext } from "@/lib/analysis/checker";
@@ -12,6 +12,14 @@ async function fetchText(url: string, timeoutMs = 20_000): Promise<string | null
   try {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "*/*" }, signal: AbortSignal.timeout(timeoutMs), cache: "no-store", redirect: "follow" });
     return res.ok ? await res.text() : null;
+  } catch { return null; }
+}
+
+/** The same, with the address the request ended at: a Congressional Record page link redirects to one item on that page. */
+async function fetchPage(url: string, timeoutMs = 20_000): Promise<{ url: string; text: string } | null> {
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "*/*" }, signal: AbortSignal.timeout(timeoutMs), cache: "no-store", redirect: "follow" });
+    return res.ok ? { url: res.url || url, text: await res.text() } : null;
   } catch { return null; }
 }
 
@@ -77,18 +85,41 @@ export async function gatherSources(input: { title: string; billType: string; nu
   }
 
   // What named members said on the floor (Congressional Record, govinfo): the reasons and the stakes, for and against.
-  if (input.number) for (const [i, ref] of crPageRefs(input.billStatusXml).entries()) {
-    const url = crLinkUrl(ref.date, ref.chamber, ref.page);
-    const html = await fetchText(url, 30_000);
-    const rec = html ? parseFloorSpeeches(html) : null;
-    if (!rec || !recordMentionsBill(rec.text, input.billType, input.number) || !rec.speeches.length) { notes.push(`No floor statements were found at Congressional Record ${ref.chamber}${ref.page} (${ref.date}).`); continue; }
-    const doc = floorDoc(i ? `FLOOR${i + 1}` : "FLOOR", url, rec);
-    docs.push(doc);
-    const t = rec.chamber === "Senate" ? "Sen." : "Rep.";
-    for (const sp of rec.speeches.slice(0, 10)) {
-      speakers.push({ name: sp.name, text: sp.text });
-      const who = `${t} ${sp.name} (floor statement, ${rec.date ?? ref.date})`;
-      allowedFor.push(who); allowedAgainst.push(who);
+  // 19 Nov 2026: a page link lands on one item of the page, not always the one about this bill, so every item on the
+  // page is tried and the one that is the debate on this bill is kept. Up to four page references are looked at and
+  // the two fullest debates are given to the writer (a later page holding only the roll call no longer crowds one out).
+  if (input.number) {
+    const number = input.number, floorDeadline = Date.now() + 75_000;
+    const found: Array<{ url: string; weight: number; rec: ReturnType<typeof parseFloorSpeeches>; date: string }> = [];
+    for (const ref of crPageRefs(input.billStatusXml, 4)) {
+      const first = Date.now() < floorDeadline ? await fetchPage(crLinkUrl(ref.date, ref.chamber, ref.page), 30_000) : null;
+      let best: (typeof found)[number] | null = null;
+      const weigh = (url: string, html: string) => {
+        const rec = parseFloorSpeeches(html), weight = floorWeight(rec, input.billType, number);
+        if (weight > (best?.weight ?? 0)) best = { url, weight, rec, date: ref.date };
+        return rec;
+      };
+      if (first) {
+        const rec = weigh(first.url, first.text);
+        // The item the link chose is used as it is only when it opens with this bill; otherwise the page's other items are read too.
+        const opensWithBill = floorWeight({ text: rec.text.slice(0, 3000), speeches: rec.speeches }, input.billType, number) > 0;
+        if (!opensWithBill) for (const url of crPageItems(first.url)) {
+          if (Date.now() > floorDeadline) break;
+          const html = await fetchText(url, 15_000);
+          if (html) weigh(url, html);
+        }
+      }
+      if (best) found.push(best); else notes.push(`No floor statements were found at Congressional Record ${ref.chamber}${ref.page} (${ref.date}).`);
+    }
+    for (const [i, f] of pickFloor(found).entries()) {
+      const doc = floorDoc(i ? `FLOOR${i + 1}` : "FLOOR", f.url, f.rec);
+      docs.push(doc);
+      const t = f.rec.chamber === "Senate" ? "Sen." : "Rep.";
+      for (const sp of f.rec.speeches.slice(0, 10)) {
+        speakers.push({ name: sp.name, text: sp.text });
+        const who = `${t} ${sp.name} (floor statement, ${f.rec.date ?? f.date})`;
+        allowedFor.push(who); allowedAgainst.push(who);
+      }
     }
   }
 

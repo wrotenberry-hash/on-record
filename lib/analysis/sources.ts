@@ -213,7 +213,46 @@ export function crPageRefs(billStatusXml: string, max = 2): Array<{ chamber: "H"
 export const crLinkUrl = (date: string, chamber: "H" | "S", page: number) =>
   `https://www.govinfo.gov/link/crec/${crVolume(Number(date.slice(0, 4)))}/${chamber}/${page}?link-type=html`;
 
+/**
+ * Every item printed on the same page of the Congressional Record as the one a page link resolved to.
+ *
+ * 19 Nov 2026: the link service answers a page number with ONE item on that page, and when a page carries several it
+ * is not always the one about the bill. `.../link/crec/172/H/4656` lands on `...-PgH4656-2.htm`, the debate on
+ * H.R. 7283, while the debate on H.R. 1118 is `...-PgH4656.htm`. Two summaries were written as if nobody had spoken.
+ * Items on a page are named `-PgH4656.htm`, `-PgH4656-2.htm`, `-PgH4656-3.htm`, ... so the others can be tried in turn
+ * (a name that does not exist answers with the site's error page, which holds no speech).
+ */
+export function crPageItems(resolvedUrl: string, beyond = 2, cap = 8): string[] {
+  const m = /^(https:\/\/www\.govinfo\.gov\/content\/pkg\/CREC-[0-9-]+\/html\/CREC-[0-9-]+-pt\d+-Pg[HSE]\d+)(?:-(\d+))?\.htm$/i.exec(resolvedUrl.trim());
+  if (!m) return [];
+  const last = Math.min(cap, Number(m[2] ?? 1) + beyond);
+  return Array.from({ length: last }, (_, i) => i ? `${m[1]}-${i + 1}.htm` : `${m[1]}.htm`).filter(u => u !== resolvedUrl.trim());
+}
+
 export type FloorSpeech = { speaker: string; name: string; text: string };
+
+/** A member saying how they would have voted on a vote they missed: on the record, but not a reason for or against a bill. */
+export const MISSED_VOTE = /\b(?:had I been (?:present|able to vote)|I would have voted|I was (?:unable to vote|unavoidably detained|not present for)|I missed (?:the |roll ?call )?votes?)\b/i;
+
+/** A request for unanimous consent (to take up or pass a bill without debate, to extend remarks): procedure, not a reason. */
+export const UNANIMOUS_CONSENT = /^(?:(?:Mr\.|Madam|Mister) (?:President|Speaker), )?I ask unanimous consent\b/i;
+
+/**
+ * How much of a page item is members speaking about this bill: 0 when it does not name the bill or nobody speaks;
+ * otherwise the words spoken, counted in full when the item opens with the bill (a debate on it names the bill in its
+ * first lines) and at a tenth when the bill is only mentioned further down (a debate on something else).
+ */
+export function floorWeight(rec: { text: string; speeches: readonly FloorSpeech[] }, billType: string, number: number, openingChars = 3000): number {
+  if (!rec.speeches.length || !recordMentionsBill(rec.text, billType, number)) return 0;
+  const words = rec.speeches.reduce((n, sp) => n + sp.text.split(/\s+/).length, 0);
+  return recordMentionsBill(rec.text.slice(0, openingChars), billType, number) ? words : Math.max(1, Math.round(words / 10));
+}
+
+/** The items to give the writer: the fullest debates first, at most `max`, each item once. */
+export function pickFloor<T extends { url: string; weight: number }>(found: readonly T[], max = 2): T[] {
+  const seen = new Set<string>();
+  return [...found].filter(f => f.weight > 0).sort((a, b) => b.weight - a.weight).filter(f => !seen.has(f.url) && !!seen.add(f.url)).slice(0, max);
+}
 
 /**
  * Who said what on the floor. The Record starts each speaker's remarks "  Ms. BALDWIN. " or "  Mr. BOST of Illinois. ".
@@ -233,11 +272,16 @@ export function parseFloorSpeeches(html: string, perSpeaker = 2600, closing = 14
     marks.push({ at: m.index, end: m.index + m[0].length, key: name, speaker: `${m[1]} ${name}`, name });
   }
   // Procedure lines end a speaker's turn.
-  const stops = [...text.matchAll(/\n {2}The (?:PRESIDING OFFICER|SPEAKER pro tempore|SPEAKER|CHAIR|ACTING CHAIR|Acting CHAIR|CLERK|ACTING PRESIDENT pro tempore|PRESIDENT pro tempore|VICE PRESIDENT)[^.]*\. |\n {2}The (?:result was announced|yeas and nays|question (?:is|was)|clerk will|(?:senior |assistant |legislative |bill )*clerk (?:read|called)|vote was taken|following Senators?|motion was)|\n\s*\[Rollcall Vote|\n\s*\[Roll No\./g)].map(x => x.index!);
+  // 19 Nov 2026: in the House the line is "The Clerk read the title of the bill." with a capital C, which was not on the
+  // list, so the member who moved a bill was credited with the whole printed text of the bill and their opening
+  // argument was pushed out of the part that is kept.
+  const stops = [...text.matchAll(/\n {2}The (?:PRESIDING OFFICER|SPEAKER pro tempore|SPEAKER|CHAIR|ACTING CHAIR|Acting CHAIR|CLERK|ACTING PRESIDENT pro tempore|PRESIDENT pro tempore|VICE PRESIDENT)[^.]*\. |\n {2}The (?:result was announced|yeas and nays|question (?:is|was)|[Cc]lerk will|(?:senior |assistant |legislative |bill )*[Cc]lerk (?:read|called)|text of the (?:bill|resolution|joint resolution|concurrent resolution|amendment)[^.\n]{0,40} is as follows|vote was taken|following Senators?|motion was)|\n\s*\[Rollcall Vote|\n\s*\[Roll No\./g)].map(x => x.index!);
   marks.forEach((k, i) => {
     const nextMark = marks[i + 1]?.at ?? text.length, nextStop = stops.find(s => s > k.end) ?? text.length;
     const said = text.slice(k.end, Math.min(nextMark, nextStop)).replace(/\s+/g, " ").trim();
     if (said.split(" ").length < 25 || /^The following Senators? (?:is|are) necessarily absent/.test(said)) return; // "I yield back", motions, absences and requests are not arguments
+    if (said.split(" ").length < 150 && MISSED_VOTE.test(said)) return; // a "personal explanation" of a missed vote is not an argument either (19 Nov 2026)
+    if (said.split(" ").length < 150 && UNANIMOUS_CONSENT.test(said)) return; // nor is a request to take a bill up or to extend remarks
     const cur = by.get(k.key) ?? { speaker: k.speaker, name: k.name, text: "" };
     cur.text = `${cur.text} ${said}`.trim();
     by.set(k.key, cur);

@@ -7,6 +7,7 @@
 // The ".ts" ending lets the node test runner load this without a bundler (tsconfig: allowImportingTsExtensions).
 import { EVERYDAY_NAMES, JARGON, fillerIn, HAS_SPECIFIC, headlineProblems, mechanicsShare, STRUCTURE_LIMITS, unexplainedAcronyms, unexplainedJargon, unquantifiedChanges, vagueChangeRow, type ChangeRow } from "./standard.ts";
 import { toneLine, toneProblems } from "./tone.ts";
+import { fundingLine, fundsWithoutMoney } from "./funding-rule.ts";
 
 export type Section = { num: string; heading: string; text?: string };
 
@@ -366,6 +367,8 @@ export function checkB5(d: SummaryDraft, src: SourceContext, fail: (m: string) =
     if (missing.length) fail(`${label} names ${missing.map(m => `"${m}"`).join(", ")}, which no official source provided says. Use only what the sources say; an agency's name is not a program it runs.`);
   };
   claims("The headline", d.headline);
+  // 19 Nov 2026: three summaries said a bill "funds" what it only authorizes (lib/analysis/funding-rule.ts).
+  for (const f of fundsWithoutMoney({ headline: d.headline, question: d.question, plainEnglish: d.plainEnglish }, src.docs.map(x => x.text))) fail(fundingLine(f));
   if (titleShare(d.headline, src.title) > 0.8 && words(d.headline).length > 6) fail("The headline restates the official title; say what the bill would do in plain words.");
 
   const plain = d.plainEnglish?.trim() ?? "";
