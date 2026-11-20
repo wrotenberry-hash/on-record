@@ -758,7 +758,9 @@ test("the scheduled run checks hearings after the meetings are read, and a failu
   assert.match(step, /m\.ensureMeetingBillStubs\(\)\.catch\(\(\) => null\)/);
   assert.match(step, /m\.confirmHearings\(Date\.now\(\), Math\.min\(12_000,/);
   assert.match(step, /\}\)\.catch\(error => \(\{ ok: false, error:/);
-  assert.match(tick, /return \{ \.\.\.federal, texas, loop, hearings \};/);
+  assert.match(tick, /return \{ \.\.\.federal, texas, loop, hearings, changes \};/);
+  // Menu drafting starts last, in a request of its own, and a failure to start it never breaks the run.
+  assert.match(tick, /const changes = await import\("@\/lib\/changes\/fire"\)\.then\(m => m\.fireChangeMenus\(origin\)\)\.catch\(\(\) => false\);/);
   // Meetings are matched to bills in one way everywhere.
   assert.match(read("lib/reminders.ts"), /meetings\.flatMap\(m => meetingBillIds\(m\)\)/);
   assert.match(read("lib/reminders.ts"), /bills: meetingBillIds\(m\)\.slice\(0, 12\)/);

@@ -82,8 +82,11 @@ export function findDials(sections: readonly DialSection[], opts: { max?: number
     if (/short title|table of contents/i.test(s.heading)) return;
     const body = squash(s.body), taken: Array<[number, number]> = [], here: Array<DialCandidate & { order: number }> = [];
     const overlaps = (a: number, b: number) => taken.some(([x, y]) => a < y && b > x);
+    // Words a committee struck out are printed between <DELETED> marks in a reported version. They are no longer in the bill.
+    const struck: Array<[number, number]> = [];
+    for (let at = body.indexOf("<DELETED>"); at >= 0;) { const close = body.indexOf("</DELETED>", at), end = close < 0 ? body.length : close + 10; struck.push([at, end]); at = body.indexOf("<DELETED>", end); }
     const add = (kind: DialKind, at: number, len: number, value: string) => {
-      if (overlaps(at, at + len)) return;
+      if (overlaps(at, at + len) || struck.some(([x, y]) => at < y && at + len > x)) return;
       const before = body.slice(Math.max(0, at - 40), at);
       if (kind !== "coverage" && CITED_BEFORE.test(before)) return;
       // "fiscal year 2027" inside "the Act of 2027" style names, and a year standing alone as a law's name, are not choices.
@@ -96,7 +99,7 @@ export function findDials(sections: readonly DialSection[], opts: { max?: number
       const { quote, context } = clauseAround(body, at, len);
       // The clerk's note at the end of a passed bill ("Passed the House of Representatives November 12, 2026.") is not the bill.
       if (/^(?:Passed the (?:House of Representatives|Senate)|Attest:)/.test(quote)) return;
-      if (quote.length < 20 || !quote.includes(value)) return;
+      if (quote.length < 20 || !quote.includes(value) || /<\/?DELETED>/.test(quote)) return;
       taken.push([at, at + len]);
       here.push({ id: "", kind, sectionNum: s.num, heading: s.heading, value, quote, context, order: si * 1e6 + at });
     };

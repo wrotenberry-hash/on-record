@@ -7,14 +7,17 @@
  */
 import { toneLine, toneProblems } from "../analysis/tone.ts";
 import { squash, type DialKind } from "./dials.ts";
+import { quoteInSection } from "./sections.ts";
 import type { OptionDirection } from "./types.ts";
 
 export const OPTION_LIMITS = { wordingWords: 26, wordingMinWords: 4, aboutWords: 14, quoteMin: 12, quoteMax: 600 };
 
-/** True only when the quote is found, word for word, in the section's text (whitespace aside). */
+/**
+ * True only when the quote is found, word for word, in the section's text (whitespace aside). One rule for the whole
+ * feature: the stored-text part's own test (lib/changes/sections.ts), which also refuses words a committee struck out.
+ */
 export function quoteFound(quote: string, body: string): boolean {
-  const q = squash(quote);
-  return q.length >= OPTION_LIMITS.quoteMin && squash(body).includes(q);
+  return squash(quote).length >= OPTION_LIMITS.quoteMin && quoteInSection(quote, body);
 }
 
 const SCALE: Record<string, number> = { thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12 };
