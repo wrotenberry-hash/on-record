@@ -9,7 +9,7 @@ import { analysisLimits } from "@/lib/analysis/generate";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { summaryForBill } from "@/lib/analysis/queries";
 import { getCursor, setCursor } from "@/lib/federal/ingest";
-import { inlineFromSummary, inlineProblems, INLINE_VERSION, type InlineText } from "@/lib/briefing-inline";
+import { inlineFromSummary, inlineProblems, INLINE_VERSION, saysWhatItIs, type InlineText } from "@/lib/briefing-inline";
 
 /**
  * The average-reader test for a briefing item (owner, 20 Nov 2026: "Each inline item must pass the average-reader test
@@ -78,7 +78,8 @@ export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChang
   // 20 Nov 2026, first run of this rule: the test reader also listed names from the other lines ("Forest Service") and U.S. states
   // ("California"). Only a name that is in the headline itself counts, and a state is a name everyone knows.
   const STATES = /^(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|puerto rico|america|united states)$/i;
-  const names = (reader.namesNotExplained ?? []).map(w => w.trim()).filter(w => w && !STATES.test(w) && (!headline || headline.toLowerCase().includes(w.toLowerCase())));
+  const names = (reader.namesNotExplained ?? []).map(w => w.trim()).filter(w => w && !STATES.test(w) && (!headline || headline.toLowerCase().includes(w.toLowerCase())))
+    .filter(w => !headline || !saysWhatItIs(w, headline)); // a name the headline itself explains is not unexplained
   if (names.length) out.push(`The headline does not make sense alone: it names ${names.slice(0, 4).join(", ")} without saying what that is.`);
   return out;
 }

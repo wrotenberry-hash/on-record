@@ -11,6 +11,7 @@ import { heldBillIds, READER_HOLDS } from "../lib/analysis/reader-holds.ts";
 import { HAND_CORRECTIONS, HAND_CORRECTIONS_APPROVED } from "../lib/analysis/hand-corrections.ts";
 import { ABOUT_SOURCES } from "../lib/analysis/facts.ts";
 import { EXTENDED_PARTS } from "../lib/analysis/tiers.ts";
+import { saysWhatItIs } from "../lib/briefing-inline.ts";
 import { HEADLINE_VERBS } from "../lib/analysis/standard.ts";
 
 const read = p => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -89,4 +90,14 @@ test("ten new invite links, and which of the first 25 were opened or came back",
   assert.match(page, /<CopyAll text=\{linksBlock\(fresh\.map\(l => l\.url\)\)\} inputId="new-invites"/, "all ten in one box to copy on a phone");
   assert.match(page, /await requireEditorUser\("\/editor\/trial"\);/, "links are shown only to the signed-in editor: they are made with a key only the site holds");
   assert.match(page, /name="action" value=\{l\.revokedAt \? "restore" : "revoke"\}/, "each link is revoked on its own");
+});
+
+test("a name the headline itself explains is not counted as unexplained", () => {
+  assert.equal(saysWhatItIs("Barona Band", HAND_CORRECTIONS[0].headline), true);
+  assert.equal(saysWhatItIs("Thomas Paine", HAND_CORRECTIONS[1].headline), true);
+  assert.equal(saysWhatItIs("Barona Band", "Lets the Barona Band add 847 federal acres to its reservation."), false);
+  assert.equal(saysWhatItIs("Thomas Paine", "Lets a Thomas Paine memorial be placed near the National Mall."), false);
+  assert.equal(saysWhatItIs("Emergency Conservation Program", "Raises aid under the Emergency Conservation Program (help for farms after disasters)."), true);
+  assert.equal(saysWhatItIs("", "anything"), false);
+  assert.match(read("lib/briefing-test.ts"), /\.filter\(w => !headline \|\| !saysWhatItIs\(w, headline\)\)/);
 });

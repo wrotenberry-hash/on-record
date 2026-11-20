@@ -17,7 +17,20 @@ import { byReach, type Reach } from "./briefing-reach.ts";
 // Owner, 20 Nov 2026, after reading the three corrected items: "Apply all three … confirm live, and turn the briefing on."
 export const BRIEFING_INLINE_LIVE = true;
 /** Bumped when the way an item is cut from a summary changes, so each summary's item is tested again. */
-export const INLINE_VERSION = "i3"; // i2 (20 Nov 2026): the headline must make sense alone, so every item is tested again; i3: only names in the headline itself count
+export const INLINE_VERSION = "i4"; // i2 (20 Nov 2026): the headline must make sense alone, so every item is tested again; i3: only names in the headline itself count i4: a name the headline itself explains is not "unexplained".
+
+/**
+ * Whether a headline says what a name is, right beside the name: "a California tribe, the Barona Band"; "Thomas Paine,
+ * who argued for independence"; "the Emergency Conservation Program (aid to farmers after disasters)". 20 Nov 2026: the
+ * test reader listed both names of the corrected briefing items as unexplained although the headline explains each.
+ */
+export function saysWhatItIs(name: string, headline: string): boolean {
+  const n = name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  if (!n) return false;
+  return new RegExp(`\\b(?:a|an|the)\\s+[^,]{3,60},\\s+(?:the\\s+)?${n}\\b`, "i").test(headline)      // "a California tribe, the Barona Band"
+    || new RegExp(`\\b${n},\\s+(?:who|which|whose|a|an|the)\\b`, "i").test(headline)                   // "Thomas Paine, who argued …"
+    || new RegExp(`\\b${n}\\s+\\(`, "i").test(headline);                                              // "the X Program (what it is)"
+}
 export const MAX_ITEMS = 5;
 export const CAUGHT_UP = "You're caught up.";
 export const SUMMARY_COMING = "A plain-English summary of this bill is coming.";

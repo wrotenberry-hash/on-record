@@ -122,7 +122,7 @@ test("a briefing item's headline must make sense alone, and no item promises a s
   const t = read("lib/briefing-test.ts");
   assert.match(t, /namesNotExplained: look at the FIRST LINE only \(the headline\)/);
   assert.match(t, /The headline does not make sense alone: it names/);
-  assert.match(read("lib/briefing-inline.ts"), /export const INLINE_VERSION = "i3";/, "every item is tested again under the new rule");
+  assert.match(read("lib/briefing-inline.ts"), /export const INLINE_VERSION = "i4";/, "every item is tested again under the new rule");
   assert.match(t, /headline\.toLowerCase\(\)\.includes\(w\.toLowerCase\(\)\)/, "only a name in the headline itself counts");
   assert.match(read("lib/briefing-inline.ts"), /export const BRIEFING_INLINE_LIVE = true;/, "on since the owner's go of 20 Nov 2026");
 });
