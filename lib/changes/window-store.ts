@@ -133,5 +133,18 @@ export async function openWindowBills(limit = 20, now = Date.now(), db?: Db): Pr
     if (w && w.state === "open" && OPEN_PLACES.has(w.place)) out.push({ billKey: b.id, system: "federal", place: w.place, hearingAt: w.hearingAt, latestActionAt: b.latestActionAt });
   }
   out.sort((a, b) => (a.hearingAt && b.hearingAt ? a.hearingAt.localeCompare(b.hearingAt) : a.hearingAt ? -1 : b.hearingAt ? 1 : 0) || (b.latestActionAt ?? "").localeCompare(a.latestActionAt ?? ""));
+  // After every bill still in its first chamber: bills one chamber has passed and the other can still change. They
+  // come last (the owner asked for bills in committee first), and they are the ones with two versions to compare.
+  if (out.length < want) {
+    const passed = await d.select(pick).from(officialBills).innerJoin(officialBillDepth, eq(officialBillDepth.billId, officialBills.id))
+      .where(eq(officialBillDepth.stage, "passed_first")).orderBy(desc(officialBills.latestActionAt)).limit(Math.max(20, want * 2));
+    const later: typeof out = [];
+    for (const b of passed) {
+      if (out.length + later.length >= want) break;
+      const w = await federal(d, b.id, now, s);
+      if (w && w.state === "open" && w.place === "other_chamber") later.push({ billKey: b.id, system: "federal", place: w.place, hearingAt: w.hearingAt, latestActionAt: b.latestActionAt });
+    }
+    out.push(...later);
+  }
   return out.slice(0, want).map(({ billKey, system, place, hearingAt }) => ({ billKey, system, place, hearingAt }));
 }

@@ -410,7 +410,10 @@ test("pages: editor only, no static render, and the queue is linked where the ot
   for (const page of [queuePage, menuPage]) { assert.ok(page.includes('export const dynamic = "force-dynamic";')); assert.ok(page.includes("robots: { index: false, follow: false }")); }
   assert.match(read("app/editor/editor-client.tsx"), /<Link href="\/editor\/analysis">Bill summaries<\/Link> · <Link href="\/editor\/changes">Menus of changes<\/Link>/);
   // No reader page reads a menu in this phase.
-  const tracked = execFileSync("git", ["ls-files", "app", "components"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter(f => /\.tsx?$/.test(f) && !f.startsWith("app/editor/changes/"));
+  // (Two automation routes also touch the tables: the drafting run, behind the scheduled update's secret, and the review
+  // route, which writes drafts to the function's log and answers with counts only. Neither is a page.)
+  const tracked = execFileSync("git", ["ls-files", "app", "components"], { cwd: ROOT, encoding: "utf8" }).split("\n")
+    .filter(f => /\.tsx?$/.test(f) && !f.startsWith("app/editor/changes/") && !/^app\/api\/automation\/(?:changes|change-packets)\/route\.ts$/.test(f));
   for (const f of tracked) assert.doesNotMatch(read(f), /queue-store|changeMenus|changeOptions/, `${f} does not read a menu`);
 });
 

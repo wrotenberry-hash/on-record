@@ -718,12 +718,14 @@ test("openWindowBills: open bills in committee, out of committee or on the floor
   await db.insert(schema.officialFloorSchedule).values({ chamber: "house", weekOf: "20261116", label: "H.R. 22", billId: "119-hr-22", sourceUrl: "https://docs.house.gov/floor/", retrievedAt: NOW });
   assert.deepEqual((await openWindowBills(20, NOW, db)).map(b => [b.billKey, b.place, b.hearingAt]), [
     ["119-hr-10458", "committee", null], ["119-hr-22", "floor", null], ["119-hr-20", "out_of_committee", null], ["119-hr-21", "committee", null], ["119-s-5289", "committee", null], ["119-hr-10307", "committee", null], ["119-hr-77", "committee", null],
+    // Last of all: a bill one chamber has passed and the other can still change (20 Nov 2026).
+    ["119-hr-23", "other_chamber", null],
   ], "before any confirmation: by most recent action");
   await confirmHearings(NOW, 10_000, { db, fetcher: standIn().fetcher, pauseMs: 0 });
   const picked = await openWindowBills(20, NOW, db);
   assert.deepEqual(picked.map(b => [b.billKey, b.place, b.hearingAt]), [
     ["119-hr-10458", "hearing_scheduled", "2026-11-19T17:30:00.000Z"], ["119-hr-10307", "hearing_scheduled", "2026-11-19T17:30:00.000Z"], ["119-s-5289", "hearing_scheduled", "2026-11-24T15:15:00.000Z"],
-    ["119-hr-22", "floor", null], ["119-hr-20", "out_of_committee", null], ["119-hr-21", "committee", null], ["119-hr-77", "committee", null]]);
+    ["119-hr-22", "floor", null], ["119-hr-20", "out_of_committee", null], ["119-hr-21", "committee", null], ["119-hr-77", "committee", null], ["119-hr-23", "other_chamber", null]]);
   assert.ok(picked.every(b => b.system === "federal" && Object.keys(b).sort().join() === "billKey,hearingAt,place,system"));
   assert.deepEqual((await openWindowBills(2, NOW, db)).map(b => b.billKey), ["119-hr-10458", "119-hr-10307"]);
   assert.deepEqual(await openWindowBills(0, NOW, db), []);

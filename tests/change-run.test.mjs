@@ -29,17 +29,17 @@ test("a drafting run keeps to its own monthly limit, a small number of bills, an
 test("the notes on a menu say what could not be offered, source by source", () => {
   assert.deepEqual(menuNotes({ dials: 0, diffs: 0, versions: 1, pendingAmendments: 0, skipped: [], failed: [], readerFailed: [], textNotes: [] }), [
     "From the bill's own text: no number, date or limit was found.",
-    "Differences between versions: only one version of this bill has been published, so there is nothing to compare.",
+    "Differences between versions: only one version of this bill has been published (or every published version says the same thing), so there is nothing to compare.",
     "Filed amendments: none is on the official list for this bill. Amendments offered in committee are not published in a form that can be read."]);
   const full = menuNotes({ dials: 3, diffs: 2, versions: 2, pendingAmendments: 4, skipped: [{ id: "d1", reason: "names a map" }], failed: [{ id: "d2", failures: ["The \"up\" choice states 7500."] }],
     readerFailed: [{ id: "d3", failures: ["The reader read the \"up\" choice as \"less\"."] }], textNotes: ["The reported version could not be read."] }).join(" | ");
   assert.match(full, /From the bill's own text: 3 numbers, dates or limits found\./);
-  assert.match(full, /Differences between versions: 2 passages differ between the two newest versions\./);
+  assert.match(full, /Differences between versions: 2 passages differ between the newest version and the last one that says something different\./);
   assert.match(full, /Filed amendments: 4 are on the official list\. Their text is not read yet, so none is offered\./);
   assert.match(full, /Left out as not a real choice \(1\): names a map\./);
   assert.match(full, /failing a written check twice \(1\)/); assert.match(full, /after the reader test \(1\)/);
   assert.match(full, /The reported version could not be read\./);
-  assert.match(menuNotes({ dials: 1, diffs: 0, versions: 2, pendingAmendments: 1, skipped: [], failed: [], readerFailed: [], textNotes: [] }).join(" | "), /the two newest versions say the same thing\. \| Filed amendments: 1 is on the official list/);
+  assert.match(menuNotes({ dials: 1, diffs: 0, versions: 2, pendingAmendments: 1, skipped: [], failed: [], readerFailed: [], textNotes: [] }).join(" | "), /the newest version and the one before it say the same thing\. \| Filed amendments: 1 is on the official list/);
 });
 
 test("drafting is reachable only with the scheduled update's secret, stores drafts for review, and returns no wording", () => {

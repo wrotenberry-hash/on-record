@@ -107,9 +107,13 @@ export function groupOptions(options: QueueOption[], sections: QueueSection[] = 
         quote: o.quote, otherQuote: o.otherQuote, kind: o.kind, about: o.about, options: [], section: findSection(sections, o.sectionVersion, o.sectionNum, o.quote), other: null };
       const otherQuote = o.source === "version" ? o.otherQuote : null;
       if (otherQuote) {
-        const others = sections.filter(s => s.num === o.sectionNum && s.version !== o.sectionVersion);
-        const named = o.sourceRef.toLowerCase().split(/[^a-z0-9]+/);
-        g.other = others.find(s => highlightQuote(s.body, otherQuote)) ?? others.find(s => named.includes(s.version.toLowerCase())) ?? (others.length === 1 ? others[0] : null);
+        // The other version's section is the one that holds the quoted words. Its number can differ from this version's
+        // (a section added earlier in the bill shifts the rest), so the same number is tried first, then any section
+        // of the version the drafter named, then any other version.
+        const pool = sections.filter(s => s.version !== o.sectionVersion), others = pool.filter(s => s.num === o.sectionNum);
+        const named = o.sourceRef.toLowerCase().split(/[^a-z0-9]+/), holds = (s: QueueSection) => !!highlightQuote(s.body, otherQuote);
+        g.other = others.find(holds) ?? pool.filter(s => named.includes(s.version.toLowerCase())).find(holds) ?? pool.find(holds)
+          ?? others.find(s => named.includes(s.version.toLowerCase())) ?? (others.length === 1 ? others[0] : null);
       }
       groups.set(o.groupKey, g);
     }

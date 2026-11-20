@@ -100,6 +100,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
     billTimeline(bill.id, bill.introducedAt).catch(() => null), billAmendments(bill.id).catch(() => []), floorThisWeek(bill.id).catch(() => []),
     rollCallParties(votes.map(v => v.id)).catch(() => new Map<string, Record<string, Record<string, number>>>()), cosponsorPartyCounts(bill.id).catch(() => null),
     changesFor(bill.id).catch(() => null), currentAppUserId().then(u => isFollowingBill(u, bill.id)).catch(() => false), billWindow(bill.id).catch(() => null)]);
+  const storedText = await import("@/lib/changes/text-store").then(m => m.versionsOf(bill.id)).then(v => v.length > 0).catch(() => false);
   const partyName = (p: string) => (p.startsWith("Dem") ? "Democrats" : p.startsWith("Rep") ? "Republicans" : p.startsWith("Ind") ? "Independents" : p);
   const canAnswer = !!access.invite || !!access.editor;
   // Resident voting (18 Nov 2026): the same voting box as every other bill, federal or state.
@@ -182,6 +183,8 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
         <WindowBlock w={changeWindow} />
+        {/* Shown only when the text is stored here, section by section (today: bills a menu of changes was drafted for). */}
+        {storedText ? <p className="meta"><Link href={`/bills/${bill.id}/text`}>Read this bill&apos;s text, section by section</Link></p> : null}
         {timeline && <Timeline steps={timeline.steps} current={timeline.currentStep} sourceUrl={`${bill.congressUrl}/all-actions`} />}
         {bill.latestActionText ? <p>Latest action: <Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
           : votes[0] ? <p>Latest recorded vote: {votes[0].question}, {votes[0].result ?? "result not stated"} {underReview.has(votes[0].id) ? "(tally under review)" : `${votes[0].yea}–${votes[0].nay}`} <span className="meta">({shortDate(votes[0].votedAt)})</span></p>

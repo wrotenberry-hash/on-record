@@ -90,6 +90,8 @@ export async function samples(state = "TX") {
   const bill = (await one("select id from official_bills where id = ?", [vote?.bill ?? ""])) ?? (await one("select id from official_bills order by latest_action_at desc limit 1"));
   return { state, member: senators[0]?.id ?? null, member2: senators[1]?.id ?? null, roll: vote?.roll ?? null, bill: bill?.id ?? null,
     txBill: (await one("select id from tx_bills order by id limit 1").catch(() => null))?.id ?? null,
+    // Suggest changes (20 Nov 2026): a federal bill whose text is stored section by section, for its text page.
+    textBill: (await one("select bill_key as id from bill_text_sections where system = 'federal' order by bill_key limit 1").catch(() => null))?.id ?? null,
     txMember: (await one("select id from tx_people order by id limit 1").catch(() => null))?.id ?? null };
 }
 

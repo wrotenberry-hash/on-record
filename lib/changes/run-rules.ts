@@ -26,8 +26,8 @@ export function menuNotes(m: { dials: number; diffs: number; versions: number; p
   failed: ReadonlyArray<{ id: string; failures: string[] }>; readerFailed: ReadonlyArray<{ id: string; failures: string[] }>; textNotes: readonly string[] }): string[] {
   const out: string[] = [];
   out.push(m.dials ? `From the bill's own text: ${m.dials} number${m.dials === 1 ? "" : "s"}, date${m.dials === 1 ? "" : "s"} or limit${m.dials === 1 ? "" : "s"} found.` : "From the bill's own text: no number, date or limit was found.");
-  out.push(m.versions < 2 ? "Differences between versions: only one version of this bill has been published, so there is nothing to compare."
-    : m.diffs ? `Differences between versions: ${m.diffs} passage${m.diffs === 1 ? "" : "s"} differ between the two newest versions.` : "Differences between versions: the two newest versions say the same thing.");
+  out.push(m.versions < 2 ? "Differences between versions: only one version of this bill has been published (or every published version says the same thing), so there is nothing to compare."
+    : m.diffs ? `Differences between versions: ${m.diffs} passage${m.diffs === 1 ? "" : "s"} differ between the newest version and the last one that says something different.` : "Differences between versions: the newest version and the one before it say the same thing.");
   out.push(m.pendingAmendments ? `Filed amendments: ${m.pendingAmendments} ${m.pendingAmendments === 1 ? "is" : "are"} on the official list. Their text is not read yet, so none is offered.`
     : "Filed amendments: none is on the official list for this bill. Amendments offered in committee are not published in a form that can be read.");
   if (m.skipped.length) out.push(`Left out as not a real choice (${m.skipped.length}): ${m.skipped.map(s => s.reason).filter(Boolean).slice(0, 6).join("; ")}.`);

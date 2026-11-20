@@ -9,7 +9,7 @@ import { getCursor, setCursor } from "@/lib/federal/ingest";
 import { billLabel } from "@/components/federal/badges";
 import { ensureBillText, sectionsOf } from "@/lib/changes/text-store";
 import { openWindowBills, billWindow } from "@/lib/changes/window-store";
-import { findDials } from "@/lib/changes/dials";
+import { findDials, squash } from "@/lib/changes/dials";
 import { findDifferences } from "@/lib/changes/diff";
 import { assembleMenu, menuInput, parseMenuAnswer, MENU_INSTRUCTIONS, MENU_SCHEMA, type DraftedGroup, type MenuItemAnswer } from "@/lib/changes/draft";
 import { CHOICE_READER_INSTRUCTIONS, CHOICE_READER_SCHEMA, parseReaderAnswer, readerFailures, readerInput, type ReaderAnswer } from "@/lib/changes/reader";
@@ -55,12 +55,20 @@ export async function draftMenuFor(billKey: string, limits = changeLimits(), o: 
   if (!bill) return out("skipped", ["The bill is not on file."]);
   let cost = 0;
   try {
-    const text = await ensureBillText(billKey, { now, maxVersions: 3 });
+    const text = await ensureBillText(billKey, { now, maxVersions: 4 });
     const newest = text.versions[0];
     if (!newest) return out("skipped", ["The bill's text could not be read, so no menu was drafted.", ...text.notes]);
     const already = await db.select({ id: changeMenus.id }).from(changeMenus).where(and(eq(changeMenus.billKey, billKey), eq(changeMenus.version, newest.version))).get();
     if (already) return out("skipped", ["A menu for this version already exists."]);
-    const sections = await sectionsOf(billKey, newest.version), older = text.versions[1] ? await sectionsOf(billKey, text.versions[1].version) : [];
+    const sections = await sectionsOf(billKey, newest.version);
+    // The version to compare with is the newest one that says something different. A bill sent to the other chamber is
+    // printed again word for word ("Referred in Senate" after "Engrossed in House"); comparing those two shows nothing.
+    const same = (a: typeof sections, b: typeof sections) => a.length === b.length && a.every((x, i) => squash(x.body) === squash(b[i].body) && x.num === b[i].num);
+    let olderVersion: (typeof text.versions)[number] | null = null, older: typeof sections = [];
+    for (const v of text.versions.slice(1)) {
+      const secs = await sectionsOf(billKey, v.version);
+      if (secs.length && !same(secs, sections)) { olderVersion = v; older = secs; break; }
+    }
     const dials = findDials(sections), diffs = older.length ? findDifferences(older, sections) : [];
     const pending = (await db.select({ n: sql<number>`count(*)` }).from(officialAmendments).where(and(eq(officialAmendments.billId, billKey), eq(officialAmendments.outcome, "pending"))).get())?.n ?? 0;
     const window = await billWindow(billKey, now).catch(() => null);
@@ -77,14 +85,14 @@ export async function draftMenuFor(billKey: string, limits = changeLimits(), o: 
       }
     };
     if (!dials.length && !diffs.length) {
-      const notes = menuNotes({ dials: 0, diffs: 0, versions: text.versions.length, pendingAmendments: pending, skipped: [], failed: [], readerFailed: [], textNotes: text.notes });
+      const notes = menuNotes({ dials: 0, diffs: 0, versions: olderVersion ? 2 : 1, pendingAmendments: pending, skipped: [], failed: [], readerFailed: [], textNotes: text.notes });
       await store("closed", notes, [], new Map());
       return out("closed", notes);
     }
 
-    const versions = text.versions[1] ? { newer: newest.label, older: text.versions[1].label } : null;
+    const versions = olderVersion ? { newer: newest.label, older: olderVersion.label } : null;
     const bodyOf = (n: string) => sections.find(s => s.num === n)?.body ?? null, otherBodyOf = (n: string) => older.find(s => s.num === n)?.body ?? null;
-    const versionRef = text.versions[1] ? `${text.versions[1].version}>${newest.version}` : newest.version;
+    const versionRef = olderVersion ? `${olderVersion.version}>${newest.version}` : newest.version;
     const round = async (repair: Record<string, string[]>, only?: Set<string>) => {
       const d = only ? dials.filter(x => only.has(x.id)) : dials, v = only ? diffs.filter(x => only.has(x.id)) : diffs;
       const input = menuInput({ label, title: bill.title }, d, v, versions, repair);
@@ -120,7 +128,7 @@ export async function draftMenuFor(billKey: string, limits = changeLimits(), o: 
     // Reading order: as the items appear in the bill.
     const order = new Map([...dials.map(d => d.id), ...diffs.map(d => d.id)].map((id, i) => [id, i]));
     passed.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-    const notes = menuNotes({ dials: dials.length, diffs: diffs.length, versions: text.versions.length, pendingAmendments: pending, skipped: res.skipped, failed: [...res.failed, ...res.missing.map(id => ({ id, failures: ["The writer gave no answer for this item."] }))],
+    const notes = menuNotes({ dials: dials.length, diffs: diffs.length, versions: olderVersion ? 2 : 1, pendingAmendments: pending, skipped: res.skipped, failed: [...res.failed, ...res.missing.map(id => ({ id, failures: ["The writer gave no answer for this item."] }))],
       readerFailed, textNotes: text.notes });
     await store(passed.length ? "review" : "closed", notes, passed, readerSaid);
     return out(passed.length ? "review" : "closed", notes, passed.length, passed.reduce((n, g) => n + g.options.length, 0), cost);

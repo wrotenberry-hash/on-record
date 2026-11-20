@@ -29,6 +29,7 @@ function samplePages(s) {
     s.member && s.member2 && `/compare?a=${s.member}&b=${s.member2}`, "/search?q=hospital", "/start?step=2",
     s.member && s.roll && `/share/card?t=vote&member=${s.member}&roll=${s.roll}`, s.bill && `/share/card?t=bill&bill=${s.bill}`,
     s.txBill && `/texas/bills/${encodeURIComponent(s.txBill)}`, s.txMember && `/texas/members/${encodeURIComponent(s.txMember)}`,
+    s.textBill && `/bills/${s.textBill}/text`,
     "/no-such-page",
   ].filter(Boolean);
 }
