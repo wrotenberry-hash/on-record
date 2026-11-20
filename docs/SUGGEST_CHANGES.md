@@ -156,6 +156,56 @@ a test.
 The editor's queue shows each option beside its quoted source text. On the 10-bill test set, every option is also read
 by hand against the official file, and the error rate reported.
 
+## The owner's go-ahead for Phase 2 and three conditions (20 Nov 2026, verbatim)
+
+"Go on Phase 2. Yes to all three questions: new tables only, $5 a month for menus, and load bills still in committee for
+the five samples.
+
+Three conditions:
+1. Honest receipt. Until counting is on and delivery exists, every screen says the choice is "recorded" and never "sent
+to your legislator". No neighbor counts are shown or implied.
+2. Check the hearing-date reader against live data before the "can it still be changed" line goes on any bill page. If a
+hearing date can't be confirmed, the page says the date isn't known.
+3. Nothing in Phase 3 stores a private note until threat screening of text is built. Put that first in the Phase 3 plan.
+
+Do not let this delay the trial."
+
+How each is kept:
+
+1. **Honest receipt.** A test fails the build if any screen of this feature says a choice is sent to a legislator, or
+   mentions neighbors, while counting is off. The word is "recorded".
+2. **Hearing dates.** Checked on 20 Nov against live records. Dates and times are right (a House hearing the official
+   record gives as 17:30 UTC is 12:30 p.m. Eastern on the House's own calendar). One gap found: a live hearing on four
+   bills carried no list of bills, only their numbers in its title; the reader now takes bill numbers from the title
+   too. A date is printed only when the chamber's own calendar (the House committee calendar, or the Senate's hearing
+   schedule) shows the same meeting at the same minute, checked in the last 36 hours. Otherwise the page says the date
+   isn't known. Texas hearing dates are never printed in this block: that reader has not been checked against the
+   Legislature's own notices.
+3. **Private notes.** See the Phase 3 plan below: screening is step one, and no table that could hold a note is
+   created before it passes its tests.
+
+## Phase 3 plan (not started; in this order)
+
+1. **Threat screening of text, first.** Built and tested before any table or box that could hold a note exists.
+   - Written rules that need no outside service: threats and calls to harm, slurs, and personal details that should
+     not travel (phone numbers, street addresses, email addresses, identity numbers).
+   - A second check by the model provider's moderation service, if the owner agrees that a note's text may be sent
+     there; the privacy page names it before the first note is taken.
+   - Anything either check stops goes to the editor and nowhere else. Nothing is delivered on a pass alone until the
+     owner has seen how the first real notes were sorted.
+   - A fixed test set of notes (plain requests, angry but lawful ones, threats, ones carrying a phone number) with the
+     required answer for each; the error rate is reported before step 2 starts.
+2. **The fourth answer, "Support if changed"**, in new tables, with the menu the editor approved in Phase 2. Counting
+   follows the existing rules; with counting off, the receipt says "recorded", shows no counts, and says nothing is
+   sent to anyone yet.
+3. **Who sits on the committee and where the reader's own legislators stand**, said plainly, including "your
+   legislator is not on this committee" and what a choice can still do.
+4. **The private note**, only now: 500 characters, tied to a section, screened by step 1, with the box saying exactly
+   who will read it (the editor, and that legislator's office only once it has signed in). The written promise on the
+   privacy page, the list of what is stored, account deletion and their tests change in the same step.
+5. **The receipt**, with every sentence under condition 1.
+6. Phone tasks: pick a change, read the receipt. Accessibility on every new screen.
+
 ## 5. Cost
 
 - Drafting one menu with the stronger writing model: about 15,000 tokens in and 2,500 out, **about 15 cents**; with one
