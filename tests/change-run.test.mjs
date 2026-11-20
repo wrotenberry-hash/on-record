@@ -59,3 +59,13 @@ test("drafting is reachable only with the scheduled update's secret, stores draf
   assert.doesNotMatch(packets, /\.update\(|\.insert\(|\.delete\(|responseRequest/, "the review route changes nothing and makes no model call");
   assert.match(packets, /menus: menus\.map\(m => \(\{ bill: m\.billKey, version: m\.version, status: m\.status, choices:/);
 });
+
+test("a bill with no published text does not use up one of the run's places, and is looked at again a day later", () => {
+  // 20 Nov 2026, first real run: four of the five bills taken had no published text, so one menu was drafted.
+  const s = readFileSync(new URL("../lib/changes/run.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(s, /\.slice\(0, plan\.room\)/, "the run does not stop at the first few bills whatever their text");
+  assert.match(s, /if \(drafted >= plan\.room \|\| looked >= MAX_LOOKED_AT \|\| Date\.now\(\) > deadline - 60_000\) break;/);
+  assert.match(s, /if \(m\.status === "skipped" && m\.costUsd === 0 && m\.notes\.some\(n => \/text could not be read\/\.test\(n\)\)\) noText\[billKey\] = now;\n\s+else \{ drafted\+\+;/);
+  assert.match(s, /!\(noText\[k\] && now - noText\[k\] < NO_TEXT_WAIT_MS\)/);
+  assert.match(s, /const NO_TEXT_WAIT_MS = 20 \* 3600_000, MAX_LOOKED_AT = 30;/);
+});

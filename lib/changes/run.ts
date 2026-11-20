@@ -140,6 +140,8 @@ export async function draftMenuFor(billKey: string, limits = changeLimits(), o: 
 
 export type MenuRun = { status: "COMPLETE" | "SKIPPED" | "FAILED"; reason?: string; spentUsd: number; capUsd: number; made: MenuOutcome[] };
 
+const NO_TEXT_WAIT_MS = 20 * 3600_000, MAX_LOOKED_AT = 30;
+
 /** One run: a few bills whose window is open and that have no menu yet. Logs one line per bill. */
 export async function runChangeMenus(o: { budgetMs?: number; now?: number; ask?: Ask } = {}): Promise<MenuRun> {
   const db = getDb(), now = o.now ?? Date.now(), limits = changeLimits(), deadline = Date.now() + (o.budgetMs ?? 240_000);
@@ -158,17 +160,25 @@ export async function runChangeMenus(o: { budgetMs?: number; now?: number; ask?:
   const done = keys.length ? new Set((await db.select({ k: changeMenus.billKey }).from(changeMenus).where(inArray(changeMenus.billKey, keys))).map(r => r.k)) : new Set<string>();
   // A bill whose text could not be read is tried again next run, at most three times.
   const tries = JSON.parse((await getCursor(db, "changes:tries")) || "{}") as Record<string, number>;
-  const todo = keys.filter(k => !done.has(k) && (tries[k] ?? 0) < 3 && /-(?:hr|s|hjres|sjres)-/.test(k)).slice(0, plan.room);
+  // 20 Nov 2026, first real run: the five newest bills in committee were taken, and four of them had no published text
+  // yet, so one menu was drafted. A bill with no published text costs nothing to pass over: it does not use up one of
+  // the run's places, and it is looked at again a day later, when its text may be out.
+  const noText = JSON.parse((await getCursor(db, "changes:noText")) || "{}") as Record<string, number>;
+  const todo = keys.filter(k => !done.has(k) && (tries[k] ?? 0) < 3 && !(noText[k] && now - noText[k] < NO_TEXT_WAIT_MS) && /-(?:hr|s|hjres|sjres)-/.test(k));
   if (!todo.length) return finish("SKIPPED", "no bill with an open window is waiting for a menu");
+  let drafted = 0, looked = 0;
   for (const billKey of todo) {
-    if (Date.now() > deadline - 60_000) break;
+    if (drafted >= plan.room || looked >= MAX_LOOKED_AT || Date.now() > deadline - 60_000) break;
+    looked++;
     const m = await draftMenuFor(billKey, limits, { ask: o.ask, now, spent: () => spent });
     spent += m.costUsd; made.push(m);
-    if (m.status === "skipped" || m.status === "failed") tries[billKey] = (tries[billKey] ?? 0) + 1;
+    if (m.status === "skipped" && m.costUsd === 0 && m.notes.some(n => /text could not be read/.test(n))) noText[billKey] = now;
+    else { drafted++; if (m.status === "skipped" || m.status === "failed") tries[billKey] = (tries[billKey] ?? 0) + 1; }
     console.log(`CHANGE_MENU | ${m.label} | ${m.status} | ${m.groups} groups, ${m.options} choices | $${m.costUsd.toFixed(4)} | ${m.notes.join(" ").slice(0, 400)}`);
     if (m.notes.some(n => /monthly limit for menus/.test(n))) break;
   }
   await setCursor(db, "changes:tries", JSON.stringify(tries)).catch(() => undefined);
+  await setCursor(db, "changes:noText", JSON.stringify(Object.fromEntries(Object.entries(noText).filter(([, at]) => now - at < 7 * 24 * 3600_000)))).catch(() => undefined);
   return finish("COMPLETE");
 }
 
