@@ -234,6 +234,14 @@ export function recordMemberLine(m: Meaningful | null, position: string | null |
   return memberVoteLine(m, position, answer, date);
 }
 
+/**
+ * A bill that failed has no "yet" (20 Nov 2026: readers now answer on settled bills). A member whose chamber never
+ * voted on a failed bill did not vote on it, and the row says so; nothing else about the row changes.
+ */
+export function settledMemberLine<T extends RecordLine>(line: T, outcome: Outcome["kind"], chamber: string): T {
+  return line.state === "not_yet" && outcome === "failed" ? { ...line, text: `No vote: the bill failed before the ${CHAMBER[chamber] ?? "chamber"} voted on it` } : line;
+}
+
 /* ───────────────────────────── Texas bills ───────────────────────────── */
 
 export type TxRecordVote = { id: string; chamber: string | null; motion: string; date: string; result: string; yes?: number | null; no?: number | null; tallyOk?: boolean };

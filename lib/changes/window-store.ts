@@ -19,7 +19,7 @@ import type { Db } from "../verify/residence-store.ts";
 import { confirmationHolds, houseEventUrl, SENATE_HEARINGS_URL, type Confirmation } from "./hearing-check.ts";
 import { confirmedHearings, eventIdOf, meetingsAhead } from "./hearing-store.ts";
 import type { BillSystem, BillWindow, WindowPlace } from "./types.ts";
-import { federalWindow, texasWindow, type Chamber, type FederalStage, type MeetingFact, type TexasStage } from "./window.ts";
+import { federalSettled, federalWindow, texasSettled, texasWindow, type Chamber, type FederalStage, type MeetingFact, type TexasStage } from "./window.ts";
 
 const handle = async (db?: Db): Promise<Db> => db ?? (await import("@/db")).getDb();
 const FEDERAL_ID = /^\d{2,3}-[a-z]+-\d+$/;
@@ -117,6 +117,26 @@ export async function billWindow(billKey: string, now = Date.now(), db?: Db): Pr
   if (billKey.startsWith("tx-")) return texas(d, billKey, now);
   if (!FEDERAL_ID.test(billKey)) return null;
   return federal(d, billKey, now, await shared(d, now));
+}
+
+/**
+ * Which of these bills are settled, and how: "law", or "not_law" (failed, vetoed, or ended with its Congress or
+ * session). The same answer each bill's own page gives (`BillWindow.settled`), read from the stored stage in two
+ * queries, for lists of many bills (the office dashboard). A bill that is still pending, or unknown, is absent.
+ */
+export async function settledOf(billKeys: readonly string[], now = Date.now(), db?: Db): Promise<Map<string, "law" | "not_law">> {
+  const d = await handle(db), out = new Map<string, "law" | "not_law">();
+  const fed = [...new Set(billKeys.filter(k => FEDERAL_ID.test(k)))], tx = [...new Set(billKeys.filter(k => k.startsWith("tx-")))], today = txToday(now);
+  for (let i = 0; i < fed.length; i += 200) for (const b of await d.select({ id: officialBills.id, congress: officialBills.congress, stage: officialBillDepth.stage })
+    .from(officialBills).leftJoin(officialBillDepth, eq(officialBillDepth.billId, officialBills.id)).where(inArray(officialBills.id, fed.slice(i, i + 200)))) {
+    const v = b.stage && FEDERAL_STAGES.has(b.stage) ? federalSettled(b.stage, b.congress, now) : null;
+    if (v) out.set(b.id, v);
+  }
+  for (let i = 0; i < tx.length; i += 200) for (const b of await d.select({ id: txBills.id, stage: txBills.stage, session: txBills.session }).from(txBills).where(inArray(txBills.id, tx.slice(i, i + 200)))) {
+    const v = TEXAS_STAGES.has(b.stage) ? texasSettled(b.stage, TX_SESSIONS.find(x => x.id === b.session) ?? null, today) : null;
+    if (v) out.set(b.id, v);
+  }
+  return out;
 }
 
 export type OpenWindowBill = { billKey: string; system: BillSystem; place: WindowPlace; hearingAt: string | null };

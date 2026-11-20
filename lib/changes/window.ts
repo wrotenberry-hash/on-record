@@ -158,15 +158,15 @@ export function federalWindow(f: FederalFacts): BillWindow | null {
   const make = (place: WindowPlace, state: WindowState, where: string, changes: string, extra: Source[] = []): BillWindow =>
     ({ place, state, where, changes, hearing: h.hearing, hearingAt: h.hearingAt, sources: [...sources, ...extra].filter((s, i, a) => a.findIndex(x => x.url === s.url) === i) });
 
-  if (f.stage === "law") return make("final", "closed", `Became law${on(f.stageDate)}.`, CHANGES.law);
-  if (f.stage === "vetoed") return make("final", "closed", `Vetoed by the President${on(f.stageDate)}.`, CHANGES.vetoed("Congress"));
+  if (f.stage === "law") return { ...make("final", "closed", `Became law${on(f.stageDate)}.`, CHANGES.law), settled: "law" };
+  if (f.stage === "vetoed") return { ...make("final", "closed", `Vetoed by the President${on(f.stageDate)}.`, CHANGES.vetoed("Congress")), settled: "not_law" };
   if (f.stage === "president") return make("final", "closed", `Sent to the President${on(f.stageDate)}.`, CHANGES.president);
   // Everything below is a bill that is still alive only while its Congress is.
   const end = congressEnd(f.congress);
-  if (f.now >= end.ms) return make("final", "closed", `The ${ordinal(f.congress)} Congress ended on ${longDate(end.iso)}, and this bill had not become law.`, CHANGES.expired);
+  if (f.now >= end.ms) return { ...make("final", "closed", `The ${ordinal(f.congress)} Congress ended on ${longDate(end.iso)}, and this bill had not become law.`, CHANGES.expired), settled: "not_law" };
 
   const stalled = f.stalledIn ? CHAMBER[f.stalledIn] : null;
-  if (f.stage === "failed") return make("final", "closed", `Failed a vote${stalled ? ` in the ${stalled}` : ""}${on(f.stageDate)}.`, CHANGES.failed(stalled ? `the ${stalled}` : "that chamber"));
+  if (f.stage === "failed") return { ...make("final", "closed", `Failed a vote${stalled ? ` in the ${stalled}` : ""}${on(f.stageDate)}.`, CHANGES.failed(stalled ? `the ${stalled}` : "that chamber")), settled: "not_law" };
   if (f.stage === "not_taken_up" || f.stage === "debate_blocked") {
     const what = f.stage === "not_taken_up" ? "a vote to take it up failed" : "a vote to end debate failed";
     return make("floor", "narrow", `Stalled${stalled ? ` on the ${stalled} floor` : ""}: ${what}${on(f.stageDate)}.`, CHANGES.stalled(stalled ?? "chamber"));
@@ -193,6 +193,20 @@ export function federalWindow(f: FederalFacts): BillWindow | null {
   }
   if (f.stage === "committee" || mine.length > 0) return make("committee", "open", committeeLine(names, O), CHANGES.committee);
   return make("introduced", "open", `Introduced in the ${O}. No committee has it yet.`, CHANGES.introduced);
+}
+
+/**
+ * Whether a bill in Congress is settled, from its stored stage alone: the same answer `federalWindow` gives in
+ * `settled` (tests/settled-answers.test.mjs holds the two together). For lists of many bills, where the full window is
+ * not needed.
+ */
+export function federalSettled(stage: string | null | undefined, congress: number, now: number): "law" | "not_law" | null {
+  if (!stage) return null;
+  if (stage === "law") return "law";
+  if (stage === "vetoed") return "not_law";
+  if (stage === "president") return null;
+  if (now >= congressEnd(congress).ms) return "not_law";
+  return stage === "failed" ? "not_law" : null;
 }
 
 /* ----------------------------------------------------------------- Texas --- */
@@ -232,8 +246,8 @@ export function texasWindow(f: TexasFacts): BillWindow | null {
   const tx = (c: string | null | undefined) => (c === "upper" || c === "lower" ? TX_CHAMBER[c] : null);
   const O = tx(f.origin), year = f.session.start.slice(0, 4);
 
-  if (f.stage === "law") return make("final", "closed", "Became law.", CHANGES.law);
-  if (f.stage === "vetoed") return make("final", "closed", "Vetoed by the Governor.", CHANGES.vetoed("the Legislature"));
+  if (f.stage === "law") return { ...make("final", "closed", "Became law.", CHANGES.law), settled: "law" };
+  if (f.stage === "vetoed") return { ...make("final", "closed", "Vetoed by the Governor.", CHANGES.vetoed("the Legislature")), settled: "not_law" };
   if (f.stage === "governor") return make("final", "closed", "Sent to the Governor.", CHANGES.governor);
   if (f.today < f.session.start) {
     const which = f.session.regular ? `the ${year} session` : "a special session";
@@ -242,10 +256,10 @@ export function texasWindow(f: TexasFacts): BillWindow | null {
   if (f.session.end && f.today > f.session.end) {
     const ended = longDate(f.session.end) ?? f.session.end;
     if (f.stage === "passed_both") return make("final", "closed", "Passed both the Texas House and the Texas Senate.", CHANGES.sessionOverPassed(ended));
-    if (f.stage === "failed") return make("final", "closed", "Failed a vote.", CHANGES.sessionOver(ended));
-    return make("final", "closed", `Did not pass both chambers before the session ended on ${ended}.`, CHANGES.sessionOver(ended));
+    if (f.stage === "failed") return { ...make("final", "closed", "Failed a vote.", CHANGES.sessionOver(ended)), settled: "not_law" };
+    return { ...make("final", "closed", `Did not pass both chambers before the session ended on ${ended}.`, CHANGES.sessionOver(ended)), settled: "not_law" };
   }
-  if (f.stage === "failed") return make("final", "closed", "Failed a vote.", CHANGES.failed("that chamber"));
+  if (f.stage === "failed") return { ...make("final", "closed", "Failed a vote.", CHANGES.failed("that chamber")), settled: "not_law" };
   if (f.stage === "passed_both") return make("resolving", "narrow", "Passed both the Texas House and the Texas Senate.", CHANGES.passedBoth("Governor"));
   if (f.stage === "passed_first") {
     const first = tx(f.passedFirst?.chamber) ?? O, has = first === TX_CHAMBER.upper ? TX_CHAMBER.lower : first === TX_CHAMBER.lower ? TX_CHAMBER.upper : null;
@@ -260,4 +274,15 @@ export function texasWindow(f: TexasFacts): BillWindow | null {
     return make("committee", "open", name ? `In committee: the ${C ? `${C} ` : ""}committee on ${name} has it.` : C ? `In committee in the ${C}.` : "In committee.", CHANGES.committee);
   }
   return make("introduced", "open", O ? `Filed in the ${O}. No committee has it yet.` : "Filed. No committee has it yet.", CHANGES.introduced);
+}
+
+/** Whether a Texas bill is settled, from its stored stage and its session: the same answer `texasWindow` gives in `settled`. */
+export function texasSettled(stage: string | null | undefined, session: { start: string; end: string | null } | null, today: string): "law" | "not_law" | null {
+  if (!stage || !session) return null;
+  if (stage === "law") return "law";
+  if (stage === "vetoed") return "not_law";
+  if (stage === "governor") return null;
+  if (today < session.start) return null;
+  if (session.end && today > session.end) return stage === "passed_both" ? null : "not_law";
+  return stage === "failed" ? "not_law" : null;
 }

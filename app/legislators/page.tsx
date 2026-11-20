@@ -3,6 +3,7 @@ import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge } from "@/components/federal/badges";
 import { LegislatorCards } from "@/components/home/legislator-cards";
 import { PlaceForm } from "@/components/home/place-form";
+import { STATE_COMING, stateCoverage } from "@/lib/state-coverage";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { currentLocation } from "@/lib/location";
 import { rememberedZip } from "@/lib/flow/zip";
@@ -31,7 +32,10 @@ export default async function LegislatorsPage() {
         <form action={forgetLocation}><button className="link-button">Forget my location</button></form>
       </>}
       <div className="fed-section"><h2>{loc ? "Change location" : "Where do you vote?"}</h2>
-        <PlaceForm next="/legislators" zip={zip} submit={loc ? "Update my legislators" : "Show my legislators"} />
+        {/* Outside Texas there are no state legislators to find yet, so the form does not promise them (20 Nov 2026). */}
+        {stateCoverage(loc?.state) === "coming"
+          ? <PlaceForm next="/legislators" zip={zip} submit="Update my legislators" hint={`A ZIP code alone also works. It finds your members of Congress; the street address finds your exact House district. ${STATE_COMING}`} />
+          : <PlaceForm next="/legislators" zip={zip} submit={loc ? "Update my legislators" : "Show my legislators"} />}
         <p className="flow-privacy">Your street address goes once to the U.S. Census Bureau’s address service to find your districts. We do not keep it.
           We keep your ZIP code on this device, and your state and district numbers on this device{access.editor ? " and with your editor sign-in" : access.invite ? " and with your trial invite" : ""}.</p></div>
     </section>

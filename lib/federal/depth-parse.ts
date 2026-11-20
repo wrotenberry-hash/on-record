@@ -397,7 +397,12 @@ export function districtsFromCensus(match: unknown): Districts | null {
   const layer = (re: RegExp) => Object.entries(g).find(([k]) => re.test(k))?.[1]?.[0];
   const cd = layer(/Congressional Districts/i), up = layer(/State Legislative Districts\s*-\s*Upper/i), low = layer(/State Legislative Districts\s*-\s*Lower/i);
   const code = (row: Record<string, unknown> | undefined, re: RegExp) => { if (!row) return null; const v = Object.entries(row).find(([k]) => re.test(k))?.[1]; return v == null ? null : String(v); };
-  const cdCode = code(cd, /^CD\d{3}$/);
+  // 20 Nov 2026: the district's number is not always in a "CD119" field. The 2025 map-year answer (the one that holds
+  // the sitting Congress's map while the "current" map is already the next Congress's) has no such field: there the
+  // number is only in GEOID (state code + two digits, "3915") and BASENAME ("15", or "Congressional District (at
+  // Large)"). Reading only "CD119" left a street address in a ZIP shared by two districts with no representative.
+  const geoid = String(cd?.["GEOID"] ?? ""), base = String(cd?.["BASENAME"] ?? "").trim();
+  const cdCode = code(cd, /^CD\d{3}$/) ?? (/^\d{4}$/.test(geoid) ? geoid.slice(2) : null) ?? (/^\d{1,2}$/.test(base) ? base : /at large/i.test(base) ? "00" : null);
   const congressional = cdCode && /^\d{1,2}$/.test(cdCode) ? `${state}-${cdCode === "00" || cdCode === "98" ? "AL" : cdCode.padStart(2, "0")}` : null;
   const su = code(up, /^SLDU$/) ?? code(up, /^BASENAME$/), sl = code(low, /^SLDL$/) ?? code(low, /^BASENAME$/);
   const num = (v: string | null) => (v && /^\d+$/.test(v) ? String(Number(v)) : v && v !== "ZZZ" ? v : null);

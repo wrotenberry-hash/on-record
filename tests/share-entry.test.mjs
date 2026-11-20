@@ -239,7 +239,7 @@ test("the stance comes from the reader's own answer in the database, or from the
   const page = read("app/share/card/page.tsx");
   assert.match(page, /sp\.mine === "1"/, "the switch is off until the reader turns it on");
   assert.match(page, /const own = wantMine \? await ownAnswer\(db, userId, r\.billKey\)/, "the line is read from the reader's own answer on the server");
-  assert.match(page, /needAnswer && voice && bill && <VoteBox/, "a reader with no answer is offered the vote box first");
+  assert.match(page, /needAnswer && voice && bill && ask && <VoteBox/, "a reader with no answer is offered the vote box first");
 });
 
 /* ───────────────────────────── 3. The switch: off today, and what it opens when on ───────────────────────────── */

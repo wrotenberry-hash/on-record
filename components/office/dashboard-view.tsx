@@ -11,8 +11,12 @@ export function DashboardView({ view, links = true }: { view: OfficeView; links?
     <p className="lede">{view.who} {view.asOf}</p>
     <p className="not-poll">{view.label}</p>
     <ul className="office-notes">{view.notes.map(n => <li key={n}>{n}</li>)}</ul>
-    {view.tables.map(t => <section key={t.id} className="fed-section office-table" id={t.id} aria-labelledby={`${t.id}-h`}>
-      <h2 id={`${t.id}-h`}>{t.title}</h2>
+    {/* Two sections, never merged (owner, 20 Nov 2026): pending bills, then bills that are already settled. */}
+    {view.sections.map(sec => <div key={sec.id} className="office-section" id={`section-${sec.id}`}>
+      <h2 className="office-section-h">{sec.title}</h2>
+      <p className="meta">{sec.intro}</p>
+    {view.tables.filter(t => t.section === sec.id).map(t => <section key={t.id} className="fed-section office-table" id={t.id} aria-labelledby={`${t.id}-h`}>
+      <h3 id={`${t.id}-h`}>{t.title}</h3>
       <p className="meta">{t.intro} <span className="not-poll-inline">{view.label}</span></p>
       {t.rows.length ? <div className="office-wrap"><table>
         <thead><tr>{t.columns.map(c => <th key={c} scope="col">{c}</th>)}</tr></thead>
@@ -20,5 +24,6 @@ export function DashboardView({ view, links = true }: { view: OfficeView; links?
           {j === 0 && links && t.hrefs[i] ? <Link href={t.hrefs[i]!}>{cell}</Link> : cell}</td>)}</tr>)}</tbody>
       </table></div> : <p className="meta">{t.empty}</p>}
     </section>)}
+    </div>)}
   </div>;
 }

@@ -305,3 +305,11 @@ h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middl
 .brief-item .brief-more a { display: inline-flex; align-items: center; min-height: 44px; color: #163b3c; text-decoration: underline; text-underline-offset: 3px; }
 .brief-item .brief-editor { border-top: 1px dashed #c9d1cc; padding-top: 8px; margin-top: 8px; }
 
+
+/* Settled-bill answers (20 Nov 2026): the one line under the question, and the reader's own legislators' votes after an answer. */
+.settled-line { margin: 6px 0 10px; padding: 10px 12px; background: #f3f5f3; border-left: 3px solid #163b3c; line-height: 1.5; }
+.your-legislators-voted { margin-top: 14px; padding-top: 10px; border-top: 1px solid #d9ded9; }
+
+/* A reader outside Texas: one line where state content would be (20 Nov 2026). */
+.state-coming-line { margin: 12px 0; padding: 10px 12px; background: #f3f5f3; border-left: 3px solid #51605d; }
+.preview-banner.state-coming { border-left: 3px solid #51605d; }

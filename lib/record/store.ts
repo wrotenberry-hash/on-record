@@ -8,14 +8,14 @@
  * that every page already makes (`importLegacy`). Nothing here reads another person's answer.
  */
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { officialBillDepth, officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, txBillActions, txBills, txMemberVotes, txPeople, txVotes, voiceVotes } from "../../db/schema.ts";
+import { officeAccounts, officialBillDepth, officialBills, officialMemberVotes, officialPoliticians, officialRollCalls, txBillActions, txBills, txMemberVotes, txPeople, txVotes, voiceVotes } from "../../db/schema.ts";
 import type { Db } from "../verify/residence-store.ts";
 import { importLegacy, totalsForScope } from "../constituent/store.ts";
 import type { ScopeTotals } from "../constituent/rules.ts";
 import { voteKind } from "../federal/vote-kinds.ts";
 import { txMeaningfulVote } from "../flow/votes.ts";
 import { sameWayCount, sameWayLine, type MemberVote, type SameWay } from "../agreement.ts";
-import { billOutcome, chamberPassed, DISTRICT_OUTSIDE_MESSAGE, districtView, meaningfulVote, outcomeDay, recordMemberLine, txBillOutcome, txChamberPassed, txMemberLine, txShownVote,
+import { billOutcome, chamberPassed, DISTRICT_OUTSIDE_MESSAGE, districtView, meaningfulVote, outcomeDay, recordMemberLine, settledMemberLine, txBillOutcome, txChamberPassed, txMemberLine, txShownVote,
   type BillVote, type DistrictView, type Outcome, type ReaderAnswer, type RecordLine, type TxRecordAction, type TxRecordVote } from "../voice-rules.ts";
 
 /** The most answers read for one reader. The page shows them a screen at a time (RECORD_PAGE_SIZE). */
@@ -58,17 +58,39 @@ export async function readerMembers(db: Db, place: RecordPlace | null): Promise<
   return out;
 }
 
+/**
+ * How each of the reader's own legislators voted on one bill the reader has answered, with the "same as you" mark
+ * (owner, 20 Nov 2026: "After any answer on a bill that has had a vote, show the reader how each of their own
+ * legislators voted and whether it matched"). Empty when the reader has not answered, has no place on file, or no
+ * chamber of theirs has voted on the bill yet. The same rows the record page shows for that bill.
+ */
+export async function ownVotesOnBill(db: Db, userId: string | null, billKey: string, place: RecordPlace | null): Promise<RecordMemberRow[]> {
+  if (!userId || !place) return [];
+  const rows = (await recordFor(db, userId, { place, verificationOn: false, billKey })).bills[0]?.members ?? [];
+  return rows.some(r => r.line.state !== "not_yet") ? rows : [];
+}
+
+/** Has the office of any of these legislators signed in (an active office account whose address was confirmed)? */
+export async function anyOfficeSignedIn(db: Db, members: readonly RecordMember[]): Promise<boolean> {
+  if (!members.length) return false;
+  const keys = members.map(m => `${m.level === "federal" ? "fed" : "tx"}:${m.id}`);
+  const row = await db.select({ id: officeAccounts.id }).from(officeAccounts)
+    .where(and(inArray(officeAccounts.memberKey, keys), eq(officeAccounts.status, "active"), sql`${officeAccounts.emailVerifiedAt} is not null`)).limit(1).get();
+  return !!row;
+}
+
 const ms = (date: string) => { const t = Date.parse(date); return Number.isFinite(t) ? t : 0; };
 
 /**
  * Everything on the record page for one reader: each bill they answered (newest first) with its outcome, how each of
  * their legislators voted on it and their district's line; then one count per legislator, in the legislators' own order.
  */
-export async function recordFor(db: Db, userId: string | null, input: { place: RecordPlace | null; verificationOn: boolean }): Promise<ReaderRecord> {
+export async function recordFor(db: Db, userId: string | null, input: { place: RecordPlace | null; verificationOn: boolean;
+  /** Only this bill (the bill page, after an answer). The counts then cover that one bill and are not shown. */ billKey?: string }): Promise<ReaderRecord> {
   if (!userId) return { bills: [], members: [], counts: [], answered: 0 };
   await importLegacy(db, userId).catch(() => null);
   const [answers, total, members] = await Promise.all([
-    db.select({ billKey: voiceVotes.billKey, answer: voiceVotes.answer, at: voiceVotes.updatedAt }).from(voiceVotes).where(eq(voiceVotes.userId, userId)).orderBy(desc(voiceVotes.updatedAt)).limit(RECORD_MAX),
+    db.select({ billKey: voiceVotes.billKey, answer: voiceVotes.answer, at: voiceVotes.updatedAt }).from(voiceVotes).where(input.billKey ? and(eq(voiceVotes.userId, userId), eq(voiceVotes.billKey, input.billKey)) : eq(voiceVotes.userId, userId)).orderBy(desc(voiceVotes.updatedAt)).limit(RECORD_MAX),
     db.select({ n: sql<number>`count(*)` }).from(voiceVotes).where(eq(voiceVotes.userId, userId)).get(),
     readerMembers(db, input.place),
   ]);
@@ -120,8 +142,9 @@ export async function recordFor(db: Db, userId: string | null, input: { place: R
         return { member, line: recordMemberLine(m, position, answer, m ? outcomeDay(m.vote.votedAt) ?? "" : "", { passed: chamberPassed(fed.stage, fed.billType, member.chamber), chamber: member.chamber }),
           sourceUrl: m ? votes.find(v => v.id === m.vote.id)?.sourceUrl ?? null : null };
       });
+      const fedOutcome = billOutcome({ stage: fed.stage, stageDate: fed.stageDate, billType: fed.billType, votes });
       return [{ billKey: fed.id, level: "federal", href: `/bills/${fed.id}`, billType: fed.billType, number: fed.number, identifier: null, officialTitle: fed.title, answer, at: a.at,
-        outcome: billOutcome({ stage: fed.stage, stageDate: fed.stageDate, billType: fed.billType, votes }), members: rows,
+        outcome: fedOutcome, members: rows.map(r => ({ ...r, line: settledMemberLine(r.line, fedOutcome.kind, r.member.chamber) })),
         districts: [{ scope: place?.congressional ?? null, view: districtView({ enabled: input.verificationOn, districtId: place?.congressional ?? null, totals: fedTotals.get(fed.id) }) }] }];
     }
     if (tx) {
@@ -135,8 +158,9 @@ export async function recordFor(db: Db, userId: string | null, input: { place: R
       const districts: RecordBill["districts"] = place && place.state.toUpperCase() !== "TX" ? [{ scope: null, view: { kind: "outside", text: DISTRICT_OUTSIDE_MESSAGE } }]
         : stateScopes.length ? stateScopes.map((scope, i) => ({ scope, view: districtView({ enabled: input.verificationOn, districtId: scope, totals: stateTotals[i]?.get(tx.id) }) }))
         : [{ scope: null, view: districtView({ enabled: input.verificationOn, districtId: null, totals: null }) }];
+      const txOutcome = txBillOutcome({ stage: tx.stage, chamber: tx.chamber, actions, votes });
       return [{ billKey: tx.id, level: "state", href: `/texas/bills/${encodeURIComponent(tx.id)}`, billType: null, number: null, identifier: tx.identifier, officialTitle: tx.title, answer, at: a.at,
-        outcome: txBillOutcome({ stage: tx.stage, chamber: tx.chamber, actions, votes }), members: rows, districts }];
+        outcome: txOutcome, members: rows.map(r => ({ ...r, line: settledMemberLine(r.line, txOutcome.kind, r.member.chamber) })), districts }];
     }
     return []; // a bill the site no longer holds
   });

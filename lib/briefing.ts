@@ -8,6 +8,7 @@ import { currentTxSession } from "@/lib/texas/parse";
 import { sendTo } from "@/lib/mailer";
 import { BRAND } from "@/lib/brand";
 import { BRIEFING_INLINE_LIVE, briefingInlineText } from "@/lib/briefing-inline";
+import { STATE_COMING, stateCoverage } from "@/lib/state-coverage";
 
 /**
  * Round H briefing: a two-minute read for Congress and Texas, built only from
@@ -87,7 +88,10 @@ export async function runBriefing(now = Date.now()) {
   let sent = 0, failed = 0;
   for (const s of subs) {
     if (s.lastSentId === id || !s.verifiedAt) continue;
-    const r = await sendTo(s.email, `${BRAND.name} briefing: ${b.periodLabel}`, BRIEFING_INLINE_LIVE ? await briefingEmailInline(b, id, s.userId ?? null) : briefingText(b, id));
+    // 20 Nov 2026: a subscriber whose saved place is outside Texas gets one line where the Texas part would be.
+    const place = s.userId ? await import("@/lib/loop/people").then(m => m.placeOf(db, s.userId!)).catch(() => null) : null;
+    const coming = stateCoverage(place?.state) === "coming", forReader: Briefing = coming ? { ...b, texas: null } : b, note = coming ? STATE_COMING : null;
+    const r = await sendTo(s.email, `${BRAND.name} briefing: ${b.periodLabel}`, BRIEFING_INLINE_LIVE ? await briefingEmailInline(forReader, id, s.userId ?? null, note) : briefingText(forReader, id, note));
     if (r.ok) { sent++; await db.update(briefingSubscriptions).set({ lastSentId: id }).where(eq(briefingSubscriptions.accountId, s.accountId)); } else failed++;
   }
   if (sent) await db.update(briefings).set({ emailedAt: now }).where(and(eq(briefings.id, id), isNull(briefings.emailedAt)));
@@ -98,18 +102,18 @@ export async function runBriefing(now = Date.now()) {
  * The email in the same form as the page: at most five items, each readable on its own, then "You're caught up."
  * Written for one subscriber, so it can say how that reader's own legislators voted.
  */
-export async function briefingEmailInline(b: Briefing, id: string, userId: string | null = null): Promise<string> {
+export async function briefingEmailInline(b: Briefing, id: string, userId: string | null = null, note: string | null = null): Promise<string> {
   const { inlineBriefing } = await import("@/lib/briefing-items");
   const items = await inlineBriefing(b, userId, "reader");
   return briefingInlineText(`${BRAND.name} briefing, ${b.periodLabel}. Official records and approved summaries only.`, items, SITE,
-    [`Read it on the site: ${SITE}/briefing?id=${id}`, "", "You get this because you turned on the briefing on your Account page. Turn it off there."]);
+    [...(note ? [note, ""] : []), `Read it on the site: ${SITE}/briefing?id=${id}`, "", "You get this because you turned on the briefing on your Account page. Turn it off there."]);
 }
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
-export function briefingText(b: Briefing, id: string) {
+export function briefingText(b: Briefing, id: string, note: string | null = null) {
   const block = (s: BriefSection) => [`${s.name}${s.inSession ? "" : " (not in session)"}`, ...([["Passed", s.passed], ["Failed", s.failed], ["Stopped by a procedural vote", s.blocked], ["Coming next", s.coming]] as const)
     .filter(([, l]) => l.length).flatMap(([h, l]) => [`  ${h}:`, ...l.map(i => `   - ${i.label}: ${i.title} (${i.date}). ${i.note}`)]), ""];
-  return [`${BRAND.name} briefing, ${b.periodLabel}. Official records only.`, "", ...block(b.congress), ...(b.texas ? block(b.texas) : []), `Read it on the site: ${SITE}/briefing?id=${id}`, "",
+  return [`${BRAND.name} briefing, ${b.periodLabel}. Official records only.`, "", ...block(b.congress), ...(b.texas ? block(b.texas) : []), ...(note ? [note, ""] : []), `Read it on the site: ${SITE}/briefing?id=${id}`, "",
     "You get this because you turned on the briefing on your Account page. Turn it off there."].join("\n");
 }
 

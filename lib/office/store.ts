@@ -8,6 +8,7 @@
  * file returns a reader, an account, an answer or a reason. The one query that reads single answers
  * (`countedInScope`) is not exported; only the weekly counts and issue counts built from it leave the file.
  */
+import { settledOf } from "../changes/window-store.ts";
 import { and, asc, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { accessLinks, billCategories, billJurisdictions, flaggedPositions, integrityFlags, issueCategories, legislatorContacts, officeAccounts, officeEmailSends, officialBills,
   officialFloorSchedule, officialMemberVotes, officialPoliticians, officialRollCalls, positionResidences, txBills, txEvents, txMemberVotes, txPeople, txVotes, voiceVotes } from "../../db/schema.ts";
@@ -311,8 +312,8 @@ export async function officeDashboard(db: Db, m: OfficeMember, now: number): Pro
   const [coming, voted, withTotals] = await Promise.all([upcomingFor(db, m, now), memberVotes(db, m, { since: now - RECENT_VOTE_DAYS * DAY }), billsWithTotals(db, m.scope, 200)]);
   const info = await billInfo(db, m, unique([...coming.map(c => c.billKey), ...voted.keys(), ...withTotals]));
   const known = [...info.keys()];
-  const [totals, votes] = await Promise.all([totalsForScope(db, m.scope, known), memberVotes(db, m, { billKeys: known })]);
-  const bill = (billKey: string, why: string): OfficeBill => ({ billKey, ...info.get(billKey)!, why, total: shownTotals(totals.get(billKey), m.scopeKind), memberVote: votes.get(billKey) ?? null });
+  const [totals, votes, settled] = await Promise.all([totalsForScope(db, m.scope, known), memberVotes(db, m, { billKeys: known }), settledOf(known, now, db)]);
+  const bill = (billKey: string, why: string): OfficeBill => ({ billKey, ...info.get(billKey)!, why, total: shownTotals(totals.get(billKey), m.scopeKind), memberVote: votes.get(billKey) ?? null, settled: settled.get(billKey) ?? null });
   // Each bill is listed once, in the first list it belongs to; a list holds at most LIST_MAX bills.
   const seen = new Set<string>();
   const take = (rows: ReadonlyArray<{ billKey: string; why: string }>, keep: (b: OfficeBill) => boolean = () => true) => {
@@ -325,10 +326,19 @@ export async function officeDashboard(db: Db, m: OfficeMember, now: number): Pro
     }
     return out;
   };
-  const upcoming = take(coming);
-  const recent = take([...voted].map(([billKey, v]) => ({ billKey, why: `The member voted on ${longDate(v.date)}.` })));
-  const other = take(withTotals.map(billKey => ({ billKey, why: `Residents of ${m.scopeName} have answered this bill.` })), b => b.total.show);
+  // Owner, 20 Nov 2026: settled-bill opinion has its own section and is never merged with pending-bill opinion. A
+  // settled bill is taken out of the three pending lists and listed under laws, or under bills that did not become law.
+  const pending = (b: OfficeBill) => !b.settled;
+  const votedRows = [...voted].map(([billKey, v]) => ({ billKey, why: `The member voted on ${longDate(v.date)}.` }));
+  const answeredRows = withTotals.map(billKey => ({ billKey, why: `Residents of ${m.scopeName} have answered this bill.` }));
+  const upcoming = take(coming, pending);
+  const recent = take(votedRows, pending);
+  const other = take(answeredRows, b => pending(b) && b.total.show);
+  const settledRows = [...votedRows, ...answeredRows];
+  const laws = take(settledRows, b => b.settled === "law" && (b.total.show || votedRows.some(r => r.billKey === b.billKey)));
+  const notLaw = take(settledRows, b => b.settled === "not_law" && (b.total.show || votedRows.some(r => r.billKey === b.billKey)));
 
+  // The trend and the issues count pending bills only, so no number on the page adds the two kinds together.
   const shownKeys = [...upcoming, ...recent, ...other].filter(b => b.total.show).map(b => b.billKey);
   const counted = await countedInScope(db, m.scope, shownKeys, now);
   const weeks = trendWeeks(now), byWeek = new Map<string, Set<string>>(weeks.map(w => [w, new Set<string>()]));
@@ -342,7 +352,7 @@ export async function officeDashboard(db: Db, m: OfficeMember, now: number): Pro
   }
   const issues: TopIssue[] = [...byIssue].map(([name, i]) => ({ name, voters: i.voters.size, bills: i.bills.size }))
     .sort((a, b) => b.voters - a.voters || a.name.localeCompare(b.name)).slice(0, TOP_ISSUES);
-  return { member: m, asOf: now, upcoming, recent, other, trend, issues };
+  return { member: m, asOf: now, upcoming, recent, other, trend, issues, laws, notLaw };
 }
 
 /* ───────────────────────────── The weekly email ───────────────────────────── */

@@ -8,6 +8,8 @@ import { VideoMaker, type Scene } from "@/components/share/video-maker";
 import { ReportProblem } from "@/components/share/report-problem";
 import { StanceSwitch } from "@/components/share/stance-switch";
 import { VoteBox } from "@/components/voice/vote-box";
+import { billQuestion } from "@/lib/constituent/settled";
+import { billWindow } from "@/lib/changes/window-store";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { resolveShare, retiredShare, type Resolved } from "@/lib/share-resolve";
 import { captionWith, countShareStart, shortLinkFor, SITE } from "@/lib/share";
@@ -87,6 +89,8 @@ export default async function ShareCardPage({ searchParams }: { searchParams: Se
   const needAnswer = wantMine && !own;
   const bill = needAnswer ? await billIdentity(db, r.billKey!).catch(() => null) : null, level = bill ? await billLevel(db, bill.key).catch(() => null) : null;
   const voice = needAnswer && bill ? await voteBoxData(bill.key, access).catch(() => null) : null;
+  // A settled bill asks the settled question here too (20 Nov 2026), as on its own page.
+  const ask = voice && bill ? billQuestion((await billWindow(bill.key).catch(() => null))?.settled, { question: `Do you support ${bill.label}?`, plain: false }, voice.delivery) : null;
 
   return <PublicShell current="/politicians" access={access} page="/share/card">
     <section className="fed-page">
@@ -105,7 +109,7 @@ export default async function ShareCardPage({ searchParams }: { searchParams: Se
       </> : <>
         {stanceable && canAnswer && <StanceSwitch on={!!mine} href={mine ? `/share/card?${r.query}` : `/share/card?${r.query}&mine=1`} line={mine ? STANCE_LINE[mine] : null} />}
         {needAnswer && <div className="gate gate-closed" role="status"><p>You have not answered on this bill yet. Answer below, and your answer can go on the card.</p></div>}
-        {needAnswer && voice && bill && <VoteBox billKey={bill.key} question={`Do you support ${bill.label}?`} plain={false} officialTitle={bill.title} data={voice} back={billPagePath(bill.key, level ?? "federal")} />}
+        {needAnswer && voice && bill && ask && <VoteBox billKey={bill.key} question={ask.question} plain={ask.plain} settledLine={ask.line} officialTitle={bill.title} data={voice} back={billPagePath(bill.key, level ?? "federal")} />}
         <SharePanel key={query} imageBase={`/api/cards/g?${query}`} filename={`${BRAND.fileSlug}-${r.type}`} defaultCaption={caption} kind={r.type} link={link} slides={r.slides?.length ?? 0} />
         <h2>Make a short video</h2>
         <VideoMaker scenes={scenesOf(r)} filename={`${BRAND.fileSlug}-${r.type}`} caption={caption} kind={r.type} />

@@ -9,6 +9,9 @@ import { CaughtUp, ListEnd } from "@/components/dashboard/list-end";
 import { ROLE_NOTE } from "@/lib/federal/dashboard-rules";
 import { FunnelChart, RowBars, SeatBar } from "@/components/charts/charts";
 import { BRAND, brandTitle } from "@/lib/brand";
+import { cookies } from "next/headers";
+import { LOCATION_COOKIE } from "@/lib/location";
+import { coverageFromPlaceCookie, STATE_COMING } from "@/lib/state-coverage";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: brandTitle("Congress dashboard"), robots: { index: false, follow: false } };
@@ -32,11 +35,12 @@ export default async function DashboardPage() {
   const advanced = capList(d.advanced, DASH_CAPS.top), againstParty = capList(d.againstParty, DASH_CAPS.top), missed = capList(d.missed, DASH_CAPS.top), stall = capList(d.stall, DASH_CAPS.stall), byIssue = capList(d.byIssue, DASH_CAPS.issues);
   // When this reader was last here (a time only, never a page): the closing line says whether the figures are newer than that.
   const lastVisit = await previousVisit(access.invite || access.editor ? await currentAppUserId().catch(() => null) : null).catch(() => null);
+  const coverage = coverageFromPlaceCookie((await cookies()).get(LOCATION_COOKIE)?.value);
   return <PublicShell current="/dashboard" access={access} page="/dashboard">
     <section className="fed-page">
       <div className="eyebrow">CONGRESS DASHBOARD <OfficialBadge /></div>
       <h1>{d.current}th Congress at a glance</h1>
-      <p className="as-of">Data as of {when(d.generatedAt)} · <Link href="/dashboard/texas">Texas Legislature</Link></p>
+      <p className="as-of">Data as of {when(d.generatedAt)}{coverage === "coming" ? <> · {STATE_COMING}</> : <> · <Link href="/dashboard/texas">Texas Legislature</Link></>}</p>
 
       <div className="fed-section"><h2>The bill funnel <Link className="src-link" href="/share/card?t=dash&kind=funnel">Share</Link></h2>
         <p className="lead-stat">{cur.takeaway}</p>

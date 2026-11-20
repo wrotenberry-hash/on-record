@@ -142,3 +142,28 @@ Switches, all off in production today: `VERIFICATION_ENABLED` (address matching 
 ## Status, open decisions and what is not proven
 
 Kept current in `STATUS.md`, `docs/DECISIONS.md` (from O-147) and Editor → What's next.
+
+
+## Revised item 1: answers on every bill, at every stage (owner, 20 Nov 2026)
+
+Verbatim, as received:
+
+> Revised item 1. Readers answer on every bill, at every stage, and every answer counts the same way.
+>
+> - Bill still pending: "Do you support...?" as now.
+> - Bill settled (became law, failed, vetoed): "Do you agree with this law?" or "Would you have supported this bill?" One line under it: "This is settled, so your answer can't change it. It tells your legislators what their district thinks of it, and lets you see how often they vote the way you would."
+> - Counting, verification tiers and the 25-per-district threshold apply to settled-bill answers exactly as to pending ones.
+> - Legislator dashboard: show settled-bill opinion in its own section, labeled "District view of laws already passed", separate from "District view of pending bills". Never merge the two into one number.
+> - After any answer on a bill that has had a vote, show the reader how each of their own legislators voted and whether it matched.
+> - "Your record" page: a running count per legislator of how often they voted the way the reader answered. Private to the reader, shown as a count ("7 of 10"), never a grade, score or ranking, and never public.
+> - Until counting is on and a legislator's office has signed in, wording says answers "will be included" in what legislators see, never that they are being seen now.
+>
+> Before I send invites outside Texas: test the address lookup with one address each in California, New York, Ohio and a single-district state like Wyoming. Confirm each returns the right two senators and representative, and tell me what a non-Texas reader sees where state content would be. If it shows anything empty or Texas-specific, replace it with one line: "State coverage starts with Texas. Your state is coming."
+
+| Piece | Where |
+|---|---|
+| Which bills are settled, the two questions, the one line and its "will be included" forms | `lib/constituent/settled.ts`; `settled` on `BillWindow` (`lib/changes/window.ts`) |
+| The reader's own legislators' votes after an answer | `ownVotesOnBill` in `lib/record/store.ts`; `components/voice/vote-box.tsx` |
+| The office dashboard's two sections | `lib/office/rules.ts`, `lib/office/store.ts`, `components/office/dashboard-view.tsx`, `lib/office/email.ts` |
+| The line for readers outside Texas | `lib/state-coverage.ts` |
+| Tests | `tests/settled-answers.test.mjs`, `tests/office.test.mjs`, `tests/state-coverage.test.mjs` |

@@ -14,6 +14,8 @@ import { answerFor, answerHistory } from "@/lib/opinions";
 import { importLegacy, jurisdictionOf, totalsForBill } from "@/lib/constituent/store";
 import { isTerritory, placeName, shownTotals, standing, TERRITORIES_SCOPE, tierOf, type Jurisdiction, type ScopeTotals, type Shown, type Standing, type Tier } from "@/lib/constituent/rules";
 import { socialProof } from "@/lib/constituent/proof";
+import { anyOfficeSignedIn, ownVotesOnBill, readerMembers, type RecordMemberRow } from "@/lib/record/store";
+import { deliveryOf, type Delivery } from "@/lib/constituent/settled";
 
 export type TotalsBlock = { scope: string; title: string; kind: "nation" | "state" | "district"; shown: Shown };
 export type VoteBoxData = {
@@ -30,6 +32,13 @@ export type VoteBoxData = {
    * totals themselves are then on the page.
    */
   proof: string[];
+  /**
+   * After an answer on a bill that has had a vote: how each of the reader's own legislators voted, with the "same as
+   * you" mark (20 Nov 2026). Empty before an answer, with no place on file, or when no chamber of theirs has voted.
+   */
+  yours: RecordMemberRow[];
+  /** Whether answers are reaching a legislator today; decides "tells" or "will be included" in the page's wording. */
+  delivery: Delivery;
 };
 
 const districtName = (scope: string) => (/-SD-/.test(scope) ? `State senate district ${scope.split("-SD-")[1]}` : /-HD-/.test(scope) ? `State house district ${scope.split("-HD-")[1]}`
@@ -80,7 +89,10 @@ export async function voteBoxData(billKey: string, access: ViewerAccess): Promis
   const st = standing(jurisdiction, place?.state ?? null);
   const totals = await totalsForBill(db, billKey, scopesToRead(jurisdiction, place)).catch(() => new Map<string, ScopeTotals>());
   const showTotals = !!answer || st === "outside";
+  const [yours, officeIn] = await Promise.all([answer ? ownVotesOnBill(db, userId, billKey, place).catch(() => []) : [],
+    vc.enabled ? readerMembers(db, place).then(m => anyOfficeSignedIn(db, m)).catch(() => false) : false]);
   return { jurisdiction, canAnswer, userId, answer, history, tier, standing: st, held: holds.length > 0, verificationOn: vc.enabled,
     needsChallenge: vc.enabled && vc.turnstileReady && (tier === "address" || tier === "mail") && !profile?.firstVoteChallengeAt, legacy: legacy as VoteBoxData["legacy"], place,
-    totals: totalsBlocks(jurisdiction, place, totals), showTotals, proof: canAnswer && !showTotals ? socialProof(jurisdiction, place, totals) : [] };
+    totals: totalsBlocks(jurisdiction, place, totals), showTotals, proof: canAnswer && !showTotals ? socialProof(jurisdiction, place, totals) : [],
+    yours, delivery: deliveryOf({ countingOn: vc.enabled, officeSignedIn: officeIn }) };
 }

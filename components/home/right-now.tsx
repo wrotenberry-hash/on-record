@@ -6,6 +6,9 @@ import { congressCounts } from "@/lib/federal/depth";
 import { weekOf } from "@/lib/federal/depth-parse";
 import { currentTxSession, TX_SESSIONS } from "@/lib/texas/parse";
 import { shortDate } from "@/components/federal/badges";
+import { cookies } from "next/headers";
+import { LOCATION_COOKIE } from "@/lib/location";
+import { coverageFromPlaceCookie, STATE_COMING } from "@/lib/state-coverage";
 
 /** Home "Right now": who is in session, what is on the floor this week, and session counts. Official data, with its date. */
 const clock = () => Date.now();
@@ -21,11 +24,13 @@ export async function RightNow() {
   const txFocus = tx.inSession ? tx.session : next ?? tx.session;
   const txCounts = await db.select({ total: sql<number>`count(*)`, laws: sql<number>`sum(case when ${txBills.stage} = 'law' then 1 else 0 end)` }).from(txBills).where(eq(txBills.session, txFocus.id)).get().catch(() => null);
   const onFloor = (c: string) => Number(floor.find(f => f.chamber === c)?.n ?? 0);
+  // 20 Nov 2026: a reader whose saved place is outside Texas gets one line where the Texas cell would be.
+  const coverage = coverageFromPlaceCookie((await cookies()).get(LOCATION_COOKIE)?.value);
   const status = (votes: number, items: number) => (votes > 0 || items > 0 ? "In session this week" : "No votes this week");
   return <section className="right-now" aria-label="Right now">
     <div className="rn-cell"><b>House</b><span>{status(Number(house?.n ?? 0), onFloor("house"))}</span>{onFloor("house") > 0 && <Link href="/coming">{onFloor("house")} items on the floor schedule</Link>}</div>
     <div className="rn-cell"><b>Senate</b><span>{status(Number(senate?.n ?? 0), onFloor("senate"))}</span>{onFloor("senate") > 0 && <Link href="/coming">{onFloor("senate")} bills named on the floor schedule</Link>}</div>
-    <div className="rn-cell"><b>Texas Legislature</b><span>{tx.inSession ? `In session (${tx.session.tlo})` : next ? `Convenes ${shortDate(next.start)}` : "Not in session"}</span>{Number(txCounts?.total ?? 0) > 0 && <Link href="/texas">{txCounts!.total} bills {tx.inSession ? "this session" : "prefiled"}</Link>}</div>
+    {coverage === "coming" ? <div className="rn-cell"><b>Your state</b><span>{STATE_COMING}</span></div> : <div className="rn-cell"><b>Texas Legislature</b><span>{tx.inSession ? `In session (${tx.session.tlo})` : next ? `Convenes ${shortDate(next.start)}` : "Not in session"}</span>{Number(txCounts?.total ?? 0) > 0 && <Link href="/texas">{txCounts!.total} bills {tx.inSession ? "this session" : "prefiled"}</Link>}</div>}
     {counts && <div className="rn-cell"><b>{counts.congress}th Congress</b><span>{counts.bills?.toLocaleString() ?? "?"} bills introduced · {counts.laws ?? "?"} became law</span><span className="meta">Congress.gov, {shortDate(counts.at)}</span></div>}
   </section>;
 }

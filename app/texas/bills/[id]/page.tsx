@@ -12,6 +12,7 @@ import { txSummaryForPage } from "@/lib/texas/summaries";
 import { AnalysisBadge } from "@/components/federal/badges";
 import { TxSummaryRest, TxSummaryTop } from "@/components/texas/summary";
 import { VoteBox } from "@/components/voice/vote-box";
+import { billQuestion } from "@/lib/constituent/settled";
 import { billTotals } from "@/lib/verify/store";
 import { txLegislatorsOnBill } from "@/lib/texas/queries";
 import { NOT_SCIENTIFIC, scopeLine, type ScopeTotals } from "@/lib/constituent/rules";
@@ -51,6 +52,8 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
   // summary is on show; otherwise it names the bill, with the official title beside it.
   const voice = shared ? null : await voteBoxData(bill.id, access).catch(() => null);
   const ask = analysis && !analysis.held ? stanceQuestion({ question: analysis.details?.question ?? null, headline: analysis.summary.headline }) : { question: `Do you support ${bill.identifier}?`, plain: false };
+  // 20 Nov 2026: a settled bill (became law, failed, vetoed, or its session ended) asks the settled question; the answer counts the same way.
+  const voiceAsk = voice ? billQuestion(changeWindow?.settled, ask, voice.delivery) : null;
   // Each of the reader's own state legislators: their recorded vote on this bill beside their district's total, once they have voted.
   const myDistricts = voice?.place?.state === "TX" ? [voice.place.stateUpper, voice.place.stateLower].filter((x): x is string => !!x) : [];
   const yourMembers = myDistricts.length ? await txLegislatorsOnBill(bill.id, myDistricts).catch(() => []) : [];
@@ -82,7 +85,7 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
         <p className="meta"><a className={TAP} href={bill.tloUrl} target="_blank" rel="noopener noreferrer">{TLO_RECORD}</a>. Where this page and the official record differ, the official record is right.</p>
       </div>
       {analysis && <TxSummaryRest a={analysis} />}
-      {voice && <VoteBox billKey={bill.id} question={ask.question} plain={ask.plain} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/texas/bills/${encodeURIComponent(bill.id)}`} />}
+      {voice && voiceAsk && <VoteBox billKey={bill.id} question={voiceAsk.question} plain={voiceAsk.plain} settledLine={voiceAsk.line} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/texas/bills/${encodeURIComponent(bill.id)}`} />}
       {/* BEGIN contact-your-legislator (test-ready build): the reader's Texas legislators, official phone, email and an editable message. */}
       {shared ? <TakePart /> : <ContactForTxBill bill={bill} votes={votes} />}
       {/* END contact-your-legislator */}

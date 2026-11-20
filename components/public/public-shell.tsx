@@ -11,6 +11,7 @@ import { NavProgress } from "@/components/ui/nav-progress";
 import { BRAND, recordSectionLabel } from "@/lib/brand";
 import { Wordmark } from "@/components/brand/wordmark";
 import { SomethingWrong } from "@/components/public/something-wrong";
+import { coverageFromPlaceCookie, STATE_COMING } from "@/lib/state-coverage";
 
 /** The voting record leads (owner decision 2026-11-15); the claim record follows. */
 export const PUBLIC_PAGES = [
@@ -58,7 +59,10 @@ export async function PublicShell({ current, children, access, page }: { current
   const jar = await cookies(), fromShare = !!jar.get("or_from_share")?.value && !jar.get("or_loc")?.value;
   const askFeedback = trial && enabled && shouldAskFeedback(access?.invite?.activeDays, (await cookies()).get(FEEDBACK_COOKIE)?.value);
   // The claim record is not part of the trial: it opens with public reading.
-  const pages = PUBLIC_PAGES.filter(p => p.href !== "/records" || publicRead || !!access?.editor);
+  // 20 Nov 2026: a reader whose saved place is outside Texas is not offered the Texas section in the menu, and a Texas
+  // page they open says in one line that their state is coming.
+  const coverage = coverageFromPlaceCookie(jar.get("or_loc")?.value);
+  const pages = PUBLIC_PAGES.filter(p => p.href !== "/records" || publicRead || !!access?.editor).filter(p => p.href !== "/texas" || coverage !== "coming" || current === "/texas");
   // Round E: the menu carries what readers do; the about pages (method, corrections, transparency, records) stay in the footer.
   const nav = pages.filter(p => !INFO_PAGES.has(p.href)).map(p => <Link key={p.href} href={p.href} aria-current={p.href === current ? "page" : undefined}>{p.label}</Link>);
   return <>
@@ -73,6 +77,7 @@ export async function PublicShell({ current, children, access, page }: { current
       {enabled && <SwRegister />}
       <NavProgress />
       {askFeedback && <FeedbackPrompt />}
+      {enabled && coverage === "coming" && current === "/texas" && <div className="preview-banner state-coming" role="note">{STATE_COMING} This section covers the Texas Legislature.</div>}
       {/* Round G: arrived through a shared link and has not set a location yet → invite them to look up their own legislators. */}
       {enabled && fromShare && current !== "/start" && page !== "/share/card" && <div className="share-landing" role="note"><p>Someone shared this from the official record.</p><Link className="button-link" href="/start">See your own legislators →</Link></div>}
       {enabled ? children : <><div className="intro"><div className="eyebrow">PRIVATE REVIEW</div><h1>This page is not yet public.</h1>

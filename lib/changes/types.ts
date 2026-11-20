@@ -37,6 +37,12 @@ export type BillWindow = {
   /** When a confirmed hearing or markup is ahead: its start (ISO, UTC), else null. */
   hearingAt: string | null;
   sources: Array<{ label: string; url: string }>;
+  /**
+   * Set when the bill is settled (20 Nov 2026): "law" when it became law; "not_law" when it failed, was vetoed, or its
+   * Congress or session ended without it becoming law. Absent while anything is still pending, including a bill that
+   * is on the President's or the Governor's desk. Bill pages use it to choose the reader's question (lib/constituent/settled.ts).
+   */
+  settled?: "law" | "not_law";
 };
 
 /** The three sources a menu option may come from, and nothing else (owner, 20 Nov 2026). */

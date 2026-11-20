@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { STATE_COMING } from "@/lib/state-coverage";
 import { analysisBillSummaries, analysisSummaryDetails, billCategories, officialBills, officialFloorSchedule, txEvents } from "@/db/schema";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { federalLegislators, type Legislator } from "@/lib/federal/legislators";
@@ -115,7 +116,7 @@ export async function yourLegislators(loc: Location, zip: string | null, now = D
   }
   const houseChoices = fed.representative || loc.congressional ? [] : await houseChoicesFor(loc.state, zip, fed.houseChoices);
   return { state: loc.state, cards, texas, needsAddress: texas && !loc.stateUpper && !loc.stateLower, houseChoices, zipSplit: houseChoices.length > 0 && houseChoices.length < fed.houseChoices.length,
-    stateNote: texas ? null : "State legislators are covered for Texas only for now.",
+    stateNote: texas ? null : STATE_COMING,
     counts: { senators: fed.senators.length, representative: fed.representative ? 1 : 0, state: stateMembers } };
 }
 

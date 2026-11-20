@@ -7,7 +7,7 @@
  */
 import { BRAND } from "../brand.ts";
 import { MIN_GROUP, MIN_SHOWN, NOT_SCIENTIFIC } from "../constituent/rules.ts";
-import { groupCell, isoDay, voteCell, type OfficeBill, type OfficeDashboard } from "./rules.ts";
+import { groupCell, isoDay, SECTION_PENDING, SECTION_SETTLED, voteCell, type OfficeBill, type OfficeDashboard } from "./rules.ts";
 
 export const OFFICE_EMAIL_FLAG = "OFFICE_EMAIL_ENABLED";
 /** Off unless the switch is exactly "1". */
@@ -43,19 +43,23 @@ export function composeOfficeEmail(d: OfficeDashboard, links: { dashboard: strin
   const where = d.member.scopeName, since = isoDay(d.asOf - EMAIL_RECENT_DAYS * 86400e3);
   const upcoming = d.upcoming.filter(b => b.total.show), waiting = d.upcoming.length - upcoming.length;
   const recent = d.recent.filter(b => b.total.show && !!b.memberVote && b.memberVote.date >= since && !upcoming.some(u => u.billKey === b.billKey));
+  // Settled bills are listed apart, under the dashboard's own heading, and are never added to the pending ones (20 Nov 2026).
+  const settled = [...d.laws, ...d.notLaw].filter(b => b.total.show && !!b.memberVote && b.memberVote.date >= since);
   const text = [
     `To the office of ${d.member.seat} ${d.member.name}.`, "",
     `${NOT_SCIENTIFIC} These are totals from residents of ${where} who answered Support, Oppose or Unsure on a bill at ${BRAND.name}.`,
     `Only mail-verified and address-matched residents are counted, mail-verified first. A total is shown only from ${MIN_SHOWN} counted voters, and a group of fewer than ${MIN_GROUP} by its size only. No names, no individual answers and no reasons are shared with anyone.`, "",
+    SECTION_PENDING.toUpperCase(), "",
     "COMING UP",
     ...(upcoming.length ? upcoming.flatMap(billLines) : ["- No bill that is coming up has a total yet."]),
     ...(waiting > 0 && upcoming.length ? [`${waiting === 1 ? "One other bill that is coming up does" : `${waiting} other bills that are coming up do`} not have ${MIN_SHOWN} counted voters in ${where} yet.`] : []), "",
     `VOTED ON IN THE LAST ${EMAIL_RECENT_DAYS} DAYS`,
-    ...(recent.length ? recent.flatMap(billLines) : ["- No bill with a total had a recorded vote by the member."]), "",
+    ...(recent.length ? recent.flatMap(billLines) : ["- No pending bill with a total had a recorded vote by the member."]), "",
+    ...(settled.length ? [SECTION_SETTLED.toUpperCase(), "", `SETTLED BILLS THE MEMBER VOTED ON IN THE LAST ${EMAIL_RECENT_DAYS} DAYS (laws, and bills that failed or were vetoed; residents were asked whether they agree, or would have supported it)`, ...settled.flatMap(billLines), ""] : []),
     `See all of it, and download or print it: ${links.dashboard}`, "",
     "Every office gets this same email, built by the same rules.",
     `Stop this weekly email: ${links.optOut}`,
   ].join("\n");
-  return { subject: `${BRAND.name}: what residents of ${where} say about this week's bills`, text, items: upcoming.length + recent.length,
-    billKeys: [...upcoming, ...recent].map(b => b.billKey) };
+  return { subject: `${BRAND.name}: what residents of ${where} say about this week's bills`, text, items: upcoming.length + recent.length + settled.length,
+    billKeys: [...upcoming, ...recent, ...settled].map(b => b.billKey) };
 }

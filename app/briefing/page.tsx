@@ -9,6 +9,9 @@ import { BRAND, brandTitle } from "@/lib/brand";
 import { BRIEFING_INLINE_LIVE } from "@/lib/briefing-inline";
 import { inlineBriefing } from "@/lib/briefing-items";
 import { InlineItems } from "@/components/briefing/inline-items";
+import { cookies } from "next/headers";
+import { LOCATION_COOKIE } from "@/lib/location";
+import { coverageFromPlaceCookie, STATE_COMING } from "@/lib/state-coverage";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: brandTitle("Briefing"), robots: { index: false, follow: false } };
@@ -34,7 +37,10 @@ export default async function BriefingPage({ searchParams }: { searchParams: Pro
   const account = (await currentAccount()) ?? await currentAppUserId().then(u => (u ? accountForAppUser(u) : null));
   const subscribed = account ? await isSubscribed(account.id).catch(() => false) : false;
   const archive = await briefingArchive().catch(() => []);
-  const items = inline ? await inlineBriefing(b, await currentAppUserId().catch(() => null), preview ? "editor" : "reader").catch(() => null) : null;
+  // 20 Nov 2026: a reader whose saved place is outside Texas gets one line where the Texas part would be.
+  const coverage = coverageFromPlaceCookie((await cookies()).get(LOCATION_COOKIE)?.value);
+  const forReader: Briefing = coverage === "coming" ? { ...b, texas: null } : b;
+  const items = inline ? await inlineBriefing(forReader, await currentAppUserId().catch(() => null), preview ? "editor" : "reader").catch(() => null) : null;
   return <PublicShell current="/briefing" access={access} page="/briefing">
     <section className="fed-page">
       <div className="eyebrow">{b.kind === "daily" ? "DAILY BRIEFING" : "WEEKLY BRIEFING"}</div>
@@ -47,8 +53,9 @@ export default async function BriefingPage({ searchParams }: { searchParams: Pro
         <p className="meta">A two-minute read built from official records only: votes, floor schedules and hearings. {row ? "" : "This is a live preview; the saved briefing is written each evening."}</p>
         {access.editor && !BRIEFING_INLINE_LIVE ? <p className="meta"><Link href={id ? `/briefing?id=${id}&preview=1` : "/briefing?preview=1"}>Editor: preview the new format</Link></p> : null}
         <Section s={b.congress} />
-        {b.texas && <Section s={b.texas} />}
+        {forReader.texas && <Section s={forReader.texas} />}
       </>}
+      {coverage === "coming" && <p className="meta state-coming-line">{STATE_COMING}</p>}
       <div className="fed-section">
         {row && <p><a className="secondary-link" href={`/api/cards/briefing?id=${row.id}&format=feed`} download={`${BRAND.fileSlug}-${row.id}.png`}>Save the briefing card</a></p>}
         {account ? <form action={toggleBriefingEmail}><input type="hidden" name="on" value={subscribed ? "0" : "1"} /><button className="follow-btn">{subscribed ? "Stop the briefing email" : "Email me the briefing"}</button></form>

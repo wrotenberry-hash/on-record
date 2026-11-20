@@ -25,7 +25,7 @@ test("it is off until the owner has seen three real items", () => {
   const page = read("app/briefing/page.tsx");
   assert.match(page, /preview = !!access\.editor && sp\.preview === "1", inline = BRIEFING_INLINE_LIVE \|\| preview/, "readers get the new format only when it is live; the preview is the editor's");
   assert.ok(page.includes('preview ? "editor" : "reader").catch(() => null) : null;'), "a reader is never given the editor's view");
-  assert.match(read("lib/briefing.ts"), /BRIEFING_INLINE_LIVE \? await briefingEmailInline\(b, id, s\.userId \?\? null\) : briefingText\(b, id\)/, "the email changes with the page, not before");
+  assert.ok(read("lib/briefing.ts").includes("BRIEFING_INLINE_LIVE ? await briefingEmailInline(forReader, id, s.userId ?? null, note) : briefingText(forReader, id, note)"), "the email changes with the page, not before");
 });
 
 test("sentences: abbreviations, bill numbers and money do not end one", () => {

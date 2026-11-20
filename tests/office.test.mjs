@@ -11,14 +11,14 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import * as schema from "../db/schema.ts";
 import { MIN_GROUP, MIN_SHOWN, NOT_ENOUGH, NOT_ENOUGH_DISTRICT, NOT_SCIENTIFIC } from "../lib/constituent/rules.ts";
 import { castVote, recomputeVoice } from "../lib/constituent/store.ts";
 import { issueMailCode, redeemMailCode, setResidence } from "../lib/verify/residence-store.ts";
 import { LIMITS } from "../lib/verify/rules.ts";
 import { domainOf, matchDomain, OFFICE_DOMAINS, officeEmail, officeProof, senateSiteLabel, statusOnConfirm } from "../lib/office/domains.ts";
-import { longDate, OFFICE_LINK_TTL_MS, OFFICE_SESSION_MS, officeCsv, officeView, parseCsv, trendWeeks, weekStart, weekVoters } from "../lib/office/rules.ts";
+import { longDate, OFFICE_LINK_TTL_MS, OFFICE_SESSION_MS, officeCsv, officeView, parseCsv, SECTION_PENDING, SECTION_SETTLED, trendWeeks, weekStart, weekVoters } from "../lib/office/rules.ts";
 import { composeOfficeEmail, OFFICE_EMAIL_MAX_PER_RUN, officeEmailCap, officeEmailEnabled } from "../lib/office/email.ts";
 import { decideOffice, memberOf, officeById, officeDashboard, officesForEditor, purgeOfficeData, redeemOfficeLink, requestOfficeAccess, sendOfficeEmails, setWeeklyEmail } from "../lib/office/store.ts";
 
@@ -355,7 +355,7 @@ test("the dashboard: bills coming up, recent votes, other bills, each with the m
   const d = await board("fed:H000037"), view = officeView(d);
   assert.equal(view.heading, "What residents of congressional district TX-37 say"); assert.equal(view.who, "For the office of U.S. Representative Avery Stone."); assert.equal(view.asOf, "As of November 20, 2026.");
   assert.equal(view.label, NOT_SCIENTIFIC);
-  assert.deepEqual(view.tables.map(t => t.title), ["Coming up", "Recent votes", "Other bills with a total", "Trend over time", "Top issues"]);
+  assert.deepEqual(view.tables.map(t => t.title), ["Coming up", "Recent votes", "Other pending bills with a total", "Trend over time", "Top issues", "Laws", "Bills that failed or were vetoed"]);
   assert.deepEqual(tableOf(view, "upcoming").columns, ["Bill", "Title", "Why it is listed", "Counted voters", "Mail-verified", "Address-matched", "The member's recorded vote"]);
   assert.ok(tableOf(view, "upcoming").columns.indexOf("Mail-verified") < tableOf(view, "upcoming").columns.indexOf("Address-matched"), "mail-verified first");
   // Coming up: this week's House floor schedule (last week's entry for F3 is not "coming up"). The vote beside it was procedural and says so.
@@ -417,8 +417,8 @@ test("aggregates only: no name, email, account, single answer or reason reaches 
   for (const key of ["fed:H000037", "fed:S000001", "tx:ocd-person/hd49"]) {
     const d = await board(key), out = JSON.stringify(d) + officeCsv(officeView(d)) + JSON.stringify(composeOfficeEmail(d, { dashboard: "D", optOut: "O" }));
     assert.doesNotMatch(out, /user-\d|acct-\d|resident\d+@|example\.test|MY PRIVATE REASON|phone-\d|addr:/, key);
-    assert.deepEqual(Object.keys(d).sort(), ["asOf", "issues", "member", "other", "recent", "trend", "upcoming"]);
-    for (const b of [...d.upcoming, ...d.recent, ...d.other]) assert.deepEqual(Object.keys(b).sort(), ["billKey", "href", "label", "memberVote", "title", "total", "why"]);
+    assert.deepEqual(Object.keys(d).sort(), ["asOf", "issues", "laws", "member", "notLaw", "other", "recent", "trend", "upcoming"]);
+    for (const b of [...d.upcoming, ...d.recent, ...d.other, ...d.laws, ...d.notLaw]) assert.deepEqual(Object.keys(b).sort(), ["billKey", "href", "label", "memberVote", "settled", "title", "total", "why"]);
   }
   // The office code never selects a reader's email or a reason. Of a reader's account it reads two dates only: when
   // the account was made and when its email was confirmed, which the counting rule needs.
@@ -433,12 +433,16 @@ test("the file to download holds exactly what the dashboard shows", async () => 
     const view = officeView(await board(key)), rows = parseCsv(officeCsv(view));
     // Rebuild the file's rows from the page, in order: nothing more, nothing less, nothing changed.
     const expected = [[view.heading], [view.who], [view.asOf], [view.label], ...view.notes.map(n => [n])];
-    for (const t of view.tables) expected.push([""], [t.title], [t.intro], ...(t.rows.length ? [t.columns, ...t.rows] : [[t.empty]]));
+    for (const sec of view.sections) {
+      expected.push([""], [sec.title], [sec.intro]);
+      for (const t of view.tables.filter(x => x.section === sec.id)) expected.push([""], [t.title], [t.intro], ...(t.rows.length ? [t.columns, ...t.rows] : [[t.empty]]));
+    }
+    assert.deepEqual(view.tables.filter(t => !view.sections.some(sec => sec.id === t.section)), [], "every table is in one of the two sections");
     assert.deepEqual(rows, expected, key);
     assert.match(officeCsv(view), new RegExp(NOT_SCIENTIFIC.replace(".", "\\.")));
   }
   // A cell with a comma, a quote or a new line survives; a cell a spreadsheet would run as a formula is written as text.
-  const odd = { heading: "h", who: "w", asOf: "a", label: NOT_SCIENTIFIC, notes: [], tables: [{ id: "other", title: "t", intro: "i", columns: ["A", "B"], rows: [['He said "no", twice', "line one\nline two"], ["=SUM(A1)", "+1"]], hrefs: [null, null], empty: "e" }] };
+  const odd = { heading: "h", who: "w", asOf: "a", label: NOT_SCIENTIFIC, notes: [], sections: [{ id: "pending", title: "s", intro: "si" }], tables: [{ id: "other", section: "pending", title: "t", intro: "i", columns: ["A", "B"], rows: [['He said "no", twice', "line one\nline two"], ["=SUM(A1)", "+1"]], hrefs: [null, null], empty: "e" }] };
   assert.deepEqual(parseCsv(officeCsv(odd)).slice(-2), [['He said "no", twice', "line one\nline two"], ["'=SUM(A1)", "'+1"]]);
   // The dashboard page, the print page and the download are all written from the one view.
   const page = read("app/office/dashboard/page.tsx"), print = read("app/office/print/page.tsx"), route = read("app/office/export/route.ts"), draw = read("components/office/dashboard-view.tsx");
@@ -471,7 +475,9 @@ test("the weekly email: one template, totals at or above 25 only, Not a scientif
     "  The member's recorded vote: Voted no on a procedural step (not a vote on the bill itself) (On Motion to Recommit, November 17, 2026)"]);
   assert.ok(e.text.indexOf("Mail-verified:") < e.text.indexOf("Address-matched:"), "mail-verified first");
   assert.ok(lines.includes(`See all of it, and download or print it: ${LINKS.dashboard}`)); assert.equal(lines.at(-1), `Stop this weekly email: ${LINKS.optOut}`);
-  assert.ok(lines.includes("- No bill with a total had a recorded vote by the member."), "F2 was voted on this week but has 24 voters: it is not listed");
+  assert.ok(lines.includes("- No pending bill with a total had a recorded vote by the member."), "F2 was voted on this week but has 24 voters: it is not listed");
+  assert.ok(lines.indexOf("DISTRICT VIEW OF PENDING BILLS") > 0 && lines.indexOf("DISTRICT VIEW OF PENDING BILLS") < lines.indexOf("COMING UP"));
+  assert.ok(!lines.includes("DISTRICT VIEW OF LAWS ALREADY PASSED"), "no settled bill this week: the section is not printed empty");
   // An office whose bills have no total yet gets no email: there is nothing it may be told.
   assert.equal(composeOfficeEmail(await board("fed:S000001"), LINKS).items, 0);
   // Address-matched is never called verified, anywhere an office reads.
@@ -646,4 +652,35 @@ test("no table, column or migration was added for office access", () => {
   for (const t of ["office_accounts", "access_links", "office_email_sends"]) assert.ok(sql.includes(`CREATE TABLE \`${t}\``), t);
   // Dates are written out.
   assert.equal(longDate("2026-11-16"), "November 16, 2026"); assert.equal(longDate("20261116"), "November 16, 2026"); assert.equal(longDate("2026-12-01T09:00:00-06:00"), "December 1, 2026");
+});
+
+// Owner, 20 Nov 2026: "Legislator dashboard: show settled-bill opinion in its own section, labeled 'District view of
+// laws already passed', separate from 'District view of pending bills'. Never merge the two into one number."
+test("settled bills are listed in their own section, and their voters are never added to a pending number", async () => {
+  const before = await board("fed:H000037");
+  assert.deepEqual([before.laws, before.notLaw], [[], []], "nothing is settled in the fixture yet");
+  assert.deepEqual(before.other.map(b => b.billKey), [F3]);
+  // F3 (27 counted voters, the member voted yes 200 days ago) becomes law; F2 (24 voters, voted on 5 days ago) fails.
+  await db.insert(schema.officialBillDepth).values([{ billId: F3, stage: "law", stageDate: "2026-11-10" }, { billId: F2, stage: "failed", stageDate: "2026-11-15" }]);
+  try {
+    const d = await board("fed:H000037"), view = officeView(d);
+    assert.deepEqual(view.sections.map(x => x.title), [SECTION_PENDING, SECTION_SETTLED]);
+    assert.equal(SECTION_PENDING, "District view of pending bills"); assert.equal(SECTION_SETTLED, "District view of laws already passed");
+    assert.deepEqual(view.tables.map(t => [t.id, t.section]), [["upcoming", "pending"], ["recent", "pending"], ["other", "pending"], ["trend", "pending"], ["issues", "pending"], ["laws", "settled"], ["not_law", "settled"]]);
+    // The law has left the pending lists and keeps its own total, by the same rules: 27 voters, mail-verified first.
+    assert.deepEqual([d.upcoming, d.recent, d.other].map(l => l.map(b => b.billKey)), [[F1], [], []]);
+    assert.deepEqual(tableOf(view, "laws").rows.map(r => [r[0], r[3], r[6]]), [["H.R. 9003", "27 voters", "Voted yes on passing it (On Passage, May 4, 2026)"]]);
+    assert.deepEqual(d.laws[0].total, before.other[0].total, "a settled bill's total is counted and shown exactly as a pending bill's");
+    // The failed bill is settled too, kept apart from the laws, and its 24 voters stay below the line.
+    assert.deepEqual(tableOf(view, "not_law").rows.map(r => [r[0], r[3]]), [["H.R. 9002", NOT_ENOUGH_DISTRICT]]);
+    // No number adds the two kinds: the trend and the issues now count the pending bill (F1) alone.
+    assert.deepEqual(d.trend.slice(-5), [{ week: "2026-10-19", voters: 0 }, { week: "2026-10-26", voters: 0 }, { week: "2026-11-02", voters: 0 }, { week: "2026-11-09", voters: 20 }, { week: "2026-11-16", voters: 6 }]);
+    assert.deepEqual(d.issues, [{ name: before.issues.find(i => i.bills >= 1 && /health/i.test(i.name)).name, voters: 26, bills: 1 }]);
+    for (const t of view.tables.filter(x => x.section === "pending")) assert.doesNotMatch(JSON.stringify(t.rows), /H\.R\. 9003|H\.R\. 9002/, `${t.id} holds no settled bill`);
+    // The file and the email keep the same two sections.
+    const csv = officeCsv(view); assert.ok(csv.indexOf(SECTION_PENDING) > 0 && csv.indexOf(SECTION_PENDING) < csv.indexOf("Coming up") && csv.indexOf(SECTION_SETTLED) > csv.indexOf("Top issues") && csv.indexOf(SECTION_SETTLED) < csv.indexOf("Laws"));
+    const mail = composeOfficeEmail(d, LINKS);
+    assert.deepEqual(mail.billKeys, [F1], "F3's vote is 200 days old and F2 has no total: neither is in this week's email");
+  } finally { await db.delete(schema.officialBillDepth).where(inArray(schema.officialBillDepth.billId, [F2, F3])); }
+  assert.deepEqual((await board("fed:H000037")).other.map(b => b.billKey), [F3], "the fixture is as it was");
 });

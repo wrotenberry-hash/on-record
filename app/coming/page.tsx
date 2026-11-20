@@ -3,6 +3,7 @@ import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge } from "@/components/federal/badges";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { currentLocation } from "@/lib/location";
+import { STATE_COMING, stateCoverage } from "@/lib/state-coverage";
 import { comingItems, remindersOf, type ComingItem } from "@/lib/reminders";
 import { readerMembers } from "@/lib/coming";
 import { comingView, EMPTY_SCOPE, mineOnly } from "@/lib/coming-rules";
@@ -24,8 +25,11 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
   if (!access.allowed) return <PublicShell current="/coming" access={access} page="/coming">{null}</PublicShell>;
   const userId = await currentAppUserId();
   const loc = await currentLocation(userId).catch(() => null);
-  const [items, reminded, who] = await Promise.all([comingItems().catch(() => [] as ComingItem[]), remindersOf(userId).catch(() => new Set<string>()),
+  // 20 Nov 2026: a reader whose saved place is outside Texas is not shown Texas hearings; one line says their state is coming.
+  const coverage = stateCoverage(loc?.state);
+  const [allItems, reminded, who] = await Promise.all([comingItems().catch(() => [] as ComingItem[]), remindersOf(userId).catch(() => new Set<string>()),
     readerMembers(loc).catch(() => ({ scope: EMPTY_SCOPE, federal: [], texas: { reader: false, stateLegislators: 0, membershipsLoaded: false } }))]);
+  const items = coverage === "coming" ? allItems.filter(i => i.where !== "Texas") : allItems;
   const matched = mineOnly(items, who.scope);
   const view = comingView((await searchParams).show, !!loc, matched.length);
   const shown = view === "mine" ? matched : items;
@@ -52,7 +56,7 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
       {view === "mine"
         ? (loc ? <p className="meta">Showing floor votes in your legislators&apos; chambers and hearings of the committees they sit on.{who.federal.length > 0 && <> Your legislators: {who.federal.map(m => m.fullName).join(", ")}.</>}</p>
           : <p className="gate gate-open" role="note">Add your ZIP code on <Link href="/legislators">Your legislators</Link> and this view will show what is coming up for them.</p>)
-        : <p className="meta">Everything on the House and Senate floor schedules, committee meetings in Congress, and Texas hearings.{!loc && <> <Link href="/legislators">Add your ZIP code</Link> to see only what your legislators will take part in.</>}</p>}
+        : <p className="meta">Everything on the House and Senate floor schedules{coverage === "coming" ? " and committee meetings in Congress." : ", committee meetings in Congress, and Texas hearings."}{!loc && <> <Link href="/legislators">Add your ZIP code</Link> to see only what your legislators will take part in.</>}</p>}
 
       {hearings.length > 0 && floor.length > 4 && <p className="meta coming-skip"><a href="#hearings">Skip to hearings ({hearings.length})</a></p>}
 
@@ -78,7 +82,8 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
       </li>)}</ul> : <p className="empty-note">{view === "mine" && loc ? <>No hearing is listed yet for a committee your legislators sit on. <Link href="/coming?show=all#hearings">See every hearing</Link>.</>
         : view === "mine" ? "Nothing to show until you add your ZIP code." : "No committee meetings are listed yet. Committees usually post them about a week ahead."}</p>}
       {txNote && <p className="meta">{txNote} <Link href="/coming?show=all#hearings">See every hearing</Link>.</p>}
-      <p className="meta">Times are Eastern for Congress and Central for Texas. Hearing titles are the committees&apos; own wording. A committee is a smaller group of members that studies bills before the whole chamber votes.</p>
+      {coverage === "coming" && <p className="meta state-coming-line">{STATE_COMING}</p>}
+      <p className="meta">{coverage === "coming" ? "Times are Eastern." : "Times are Eastern for Congress and Central for Texas."} Hearing titles are the committees&apos; own wording. A committee is a smaller group of members that studies bills before the whole chamber votes.</p>
 
       <div className="fed-section coming-townhalls"><h3 className="subhead">Town halls</h3>
         <p>Town halls: no official source lists them. Check your legislator&apos;s official website.</p>
