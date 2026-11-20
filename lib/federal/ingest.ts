@@ -1,6 +1,6 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { billCategories, categoryMappings, ingestCursors, ingestRuns, issueCategories, officialBillSubjects, officialBills,
+import { billCategories, categoryMappings, ingestCursors, ingestRuns, issueCategories, officialBillDepth, officialBillSubjects, officialBills,
   officialMemberVotes, officialPoliticians, officialRollCalls } from "@/db/schema";
 import { categorize, DEFAULT_MAPPINGS, ISSUE_CATEGORIES, type Mapping } from "@/lib/federal/categories";
 import { officialBillCosponsors, officialSponsorshipFetches } from "@/db/schema";
@@ -260,8 +260,34 @@ export async function ingestBills(db: Db, deadline: number, cap = PER_RUN_CAP): 
     categorized += (await categorizeBill(db, b.id, policyArea, subj.subjects, mappings)) ? 1 : 0;
     completed++;
   }
-  return { ok: true, listed, completed, categorized };
+  // 20 Nov 2026: a bill already held had its latest action read once and never again, so a bill a chamber passed with no
+  // recorded vote kept its old stage (H.R. 2478: the Senate passed it by unanimous consent on 18 November and its page
+  // still said "The Senate has it now"). Each run re-reads the latest action of the held bills that are still alive,
+  // longest-unchecked first; a changed action makes the stage step below read the bill again.
+  const alive = await db.select({ id: officialBills.id, congress: officialBills.congress, billType: officialBills.billType, number: officialBills.number,
+    latestActionAt: officialBills.latestActionAt, latestActionText: officialBills.latestActionText })
+    .from(officialBills).leftJoin(officialBillDepth, eq(officialBillDepth.billId, officialBills.id))
+    .where(and(eq(officialBills.detailStatus, "complete"), lt(officialBills.retrievedAt, Date.now() - RECHECK_AFTER_MS),
+      or(isNull(officialBillDepth.stage), notInArray(officialBillDepth.stage, [...FINAL_STAGES]))))
+    .orderBy(asc(officialBills.retrievedAt)).limit(RECHECK_PER_RUN);
+  let rechecked = 0, moved = 0;
+  for (let i = 0; i < alive.length; i += 6) {
+    if (Date.now() > deadline - 5000) break;
+    const answers = await Promise.all(alive.slice(i, i + 6).map(async b => ({ b, res: await fetchText(congressBillApi({ id: b.id, congress: b.congress, billType: b.billType, number: b.number }), 20_000, headers) })));
+    if (answers.some(a => a.res.status === 429)) break;
+    for (const { b, res } of answers) {
+      const detail = res.ok ? parseCongressBill(JSON.parse(res.text)) : null;
+      if (!detail) continue;
+      const changed = !!detail.latestActionAt && (detail.latestActionAt !== b.latestActionAt || (detail.latestActionText ?? "") !== (b.latestActionText ?? ""));
+      await db.update(officialBills).set({ retrievedAt: Date.now(), ...(changed ? { latestActionAt: detail.latestActionAt, latestActionText: detail.latestActionText } : {}) }).where(eq(officialBills.id, b.id));
+      rechecked++; if (changed) moved++;
+    }
+  }
+  return { ok: true, listed, completed, categorized, rechecked, moved };
 }
+/** Stages after which a bill's record no longer changes (lib/changes/window.ts treats the same three as closed). */
+const FINAL_STAGES = ["law", "vetoed", "failed"] as const;
+const RECHECK_PER_RUN = 120, RECHECK_AFTER_MS = 10 * 3600_000;
 
 /** Refresh sponsorships older than this; new cosponsors are added over a bill's life. */
 const SPONSORSHIP_REFRESH_MS = 7 * 24 * 3600 * 1000;
