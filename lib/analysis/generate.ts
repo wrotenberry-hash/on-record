@@ -8,10 +8,10 @@ import { outputText, responseRequest } from "@/lib/automated-research";
 import { billStatusUrl, MAX_TEXT_CHARS, parseBillStatus, parseBillTextHtml, type BillStatus } from "@/lib/analysis/billtext";
 import { checkSummary, routeSummary, spreadAcrossCategories, type CheckResult, type SummaryDraft } from "@/lib/analysis/checker";
 import { callCost, maxCallCost, priceTable } from "@/lib/model-cost";
-import { summarySpendSince } from "@/lib/model-calls";
+import { spendSince, summarySpendSince } from "@/lib/model-calls";
 import { LAWMAKING_TYPES } from "@/lib/federal/parse";
 import { SUMMARY_TYPES, summaryScope } from "@/lib/summary-scope";
-import { READER_HOLDS } from "@/lib/analysis/reader-holds";
+import { heldBillIds, READER_HOLDS } from "@/lib/analysis/reader-holds";
 import { getCursor, setCursor } from "@/lib/federal/ingest";
 import { billLabel } from "@/components/federal/badges";
 import { CHECKPOINT_SUMMARIES } from "@/lib/analysis/report-format";
@@ -34,16 +34,34 @@ export const PROMPT_VERSION = "b12-2026-11-20";
 const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const MAX_OUTPUT_TOKENS = 6000;
 
+/**
+ * Owner, 20 Nov 2026 ("Go on the explanations"): "If at least 4 of the 5 trial rewrites passed every check AND your own
+ * read against the sources, proceed. If fewer, stop and tell me what still fails. Then run, in this order, until this
+ * month's $25 summaries cap is reached: a. the 19 held bills from the last 90 days; b. H.Con.Res. 93 and the other
+ * resolutions that do something themselves; c. older bills in the vote lists, most recent vote first. Stop early if the
+ * pass rate over any 10 in a row drops below 60%, and report why. … Do not exceed the $25 summaries cap or the $40
+ * monthly limit without my yes."
+ *
+ * false until the trial has been judged by that rule; set true by hand only when it passed. While false, nothing of a,
+ * b or c runs.
+ */
+export const EXPLANATIONS_GO = false;
+/** The automatic stop: of the last 10 summaries this writer wrote since PASS_RATE_SINCE, at least 6 must have passed every automatic check. */
+export const PASS_RATE_WINDOW = 10, PASS_RATE_MIN = 6;
+/** Counting starts here. After a stop has been reported and its cause fixed, move this forward to start again. */
+export const PASS_RATE_SINCE = Date.UTC(2026, 10, 20, 20, 0);
+
 /** Test-phase limits. Raise them in Vercel when the owner approves wider use. */
 export function analysisLimits() {
   const num = (v: string | undefined, d: number) => { const n = Number(v); return v?.trim() && Number.isFinite(n) && n >= 0 ? n : d; };
   // Master plan (16 Nov): summaries are capped by money, $25 a month (ANALYSIS_SPEND_CAP_USD), alert at 75%.
   // Owner, 17 Nov ("Go coverage", after 4 of the 5 test summaries passed): the limit rises from 5 to 40, enough for every bill
   // voted on in the last 90 days (31 that day) with room for new votes. The monthly spend cap is unchanged.
-  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 75), // owner, 19 Nov 2026: 40 to 50 for the one-time catch-up; 20 Nov: 50 to 75 ("Yes to the last-90-days group")
+  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), monthlyLimitUsd: num(process.env.OPENAI_MONTHLY_LIMIT_USD, 40), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, EXPLANATIONS_GO ? 400 : 75), // owner, 19 Nov 2026: 40 to 50 for the one-time catch-up; 20 Nov: 50 to 75 ("Yes to the last-90-days group")
     // Owner, 20 Nov 2026: "Do NOT run the older 118 yet … I want the pass rate up before paying for more attempts." A summary is
     // written for the first time only for a bill with a recorded vote in the last this-many days. 0 = no such limit.
-    freshWindowDays: num(process.env.ANALYSIS_FRESH_WINDOW_DAYS, 90),
+    // With the go-ahead (EXPLANATIONS_GO) it is the 12 months a vote list reaches back: "older bills in the vote lists, most recent vote first".
+    freshWindowDays: num(process.env.ANALYSIS_FRESH_WINDOW_DAYS, EXPLANATIONS_GO ? 365 : 90),
     model: process.env.OPENAI_SUMMARY_MODEL?.trim() || process.env.OPENAI_EXTRACT_MODEL?.trim() || "gpt-5.4-mini",
     // Owner decision, 17 Nov ("Try the stronger model"): after two real runs in which the low-cost model passed nothing and misread
     // the rule behind S.J.Res. 197, the WRITER is the stronger model, as a trial on the five test summaries (the cap stays 5).
@@ -127,7 +145,7 @@ type Candidate = { id: string; congress: number; billType: string; number: numbe
   sponsorName: string | null; categorySlug: string; /** When the bill was last voted on in a roll call; null when never. */ lastVote?: number | null };
 
 /** Bills ready to explain: complete record, a lawmaking bill type, sorted by category, no summary yet. Voted-on bills first. */
-async function candidates(limit = 60): Promise<Candidate[]> {
+async function candidates(limit = EXPLANATIONS_GO ? 400 : 60): Promise<Candidate[]> {
   const db = getDb();
   const hasSummary = db.select({ one: sql`1` }).from(analysisBillSummaries).where(eq(analysisBillSummaries.billId, officialBills.id));
   const rows = await db.select({ id: officialBills.id, congress: officialBills.congress, billType: officialBills.billType, number: officialBills.number,
@@ -145,7 +163,7 @@ async function candidates(limit = 60): Promise<Candidate[]> {
   // ceremonial one never is (lib/summary-scope.ts). Until the owner has seen the count and the cost, only the
   // resolutions named in RESOLUTIONS_NOW are written; bills and joint resolutions are unaffected.
   return rows.map(r => ({ ...r, sponsorName: r.sponsorName ?? null, categorySlug: r.categorySlug ?? "" }))
-    .filter(r => summaryScope({ billType: r.billType, title: r.title }) === "summarised" && ((LAWMAKING_TYPES as readonly string[]).includes(r.billType) || RESOLUTIONS_NOW.includes(r.id)));
+    .filter(r => summaryScope({ billType: r.billType, title: r.title }) === "summarised" && (isLawmaking(r.billType) || RESOLUTIONS_NOW.includes(r.id) || EXPLANATIONS_GO));
 }
 
 /** Summaries the current generator has not written (an older PROMPT_VERSION), oldest first, at most ANALYSIS_REGEN_PER_RUN. */
@@ -180,18 +198,36 @@ export const RESOLUTIONS_NOW = list(process.env.ANALYSIS_RESOLUTIONS_NOW, ["119-
 /** Fix E: bills too large for the format (a defense bill, a spending bill). They are not rewritten; they wait for an explainer written by hand. */
 export const NEEDS_HAND_EXPLAINER = ["119-hr-8800", "119-hr-8595", "119-hr-3106"];
 const triedKey = (billId: string) => `rewrite:tried:${billId}`;
+const isLawmaking = (billType: string) => (LAWMAKING_TYPES as readonly string[]).includes(billType);
 
-async function staleSummaries() {
-  const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? "5"), ids = REWRITE_NOW.filter(id => !NEEDS_HAND_EXPLAINER.includes(id));
-  if (!ids.length) return [];
+async function staleSummaries(now = Date.now()) {
+  const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? (EXPLANATIONS_GO ? "25" : "5")), ids = REWRITE_NOW.filter(id => !NEEDS_HAND_EXPLAINER.includes(id));
   const db = getDb();
-  const rows = await db.select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence })
-    .from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, ids), sql`${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION}`, sql`${analysisBillSummaries.status} <> 'rejected'`));
+  const rows = ids.length ? await db.select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence })
+    .from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, ids), sql`${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION}`, sql`${analysisBillSummaries.status} <> 'rejected'`)) : [];
+  // With the go-ahead, step a: every summary an earlier writer wrote that readers cannot see (held by a check, or hidden
+  // after a reading), for a bill voted on in the last 90 days, most recent vote first. Each is rewritten once.
+  const hidden = heldBillIds(), lastVote = sql<number>`(select max(r.voted_at) from official_roll_calls r where r.bill_id = ${analysisBillSummaries.billId})`;
+  const held = EXPLANATIONS_GO ? await db.select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence, lastVote })
+    .from(analysisBillSummaries).where(and(sql`${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION}`, sql`${analysisBillSummaries.status} <> 'rejected'`,
+      hidden.length ? sql`(${analysisBillSummaries.status} = 'held' or ${inArray(analysisBillSummaries.billId, hidden)})` : sql`${analysisBillSummaries.status} = 'held'`,
+      sql`${lastVote} >= ${now - 90 * 86_400_000}`)).orderBy(desc(lastVote)) : [];
+  const named = rows.sort((a, b) => ids.indexOf(a.billId) - ids.indexOf(b.billId));
+  const all = [...named, ...held.filter(h => !named.some(n => n.id === h.id) && !NEEDS_HAND_EXPLAINER.includes(h.billId))];
   // A rewrite that failed while the earlier summary stayed on show is not tried again by the same writer.
-  const fresh: typeof rows = [];
-  for (const r of rows) if ((await getCursor(db, triedKey(r.billId))) !== PROMPT_VERSION) fresh.push(r);
-  return fresh.sort((a, b) => ids.indexOf(a.billId) - ids.indexOf(b.billId)).slice(0, Number.isInteger(per) && per >= 0 ? per : 5);
+  const fresh: Array<{ id: string; billId: string; sequence: number }> = [];
+  for (const r of all) if ((await getCursor(db, triedKey(r.billId))) !== PROMPT_VERSION) fresh.push(r);
+  return fresh.slice(0, Number.isInteger(per) && per >= 0 ? per : 5);
 }
+
+/** How the last PASS_RATE_WINDOW summaries by this writer fared, newest first: null until there are that many since PASS_RATE_SINCE. */
+export async function recentPassRate(): Promise<{ of: number; passed: number } | null> {
+  const rows = await getDb().all<{ ok: number }>(sql`select (s.status = 'visible' and s.check_passed = 1) as ok, (select max(c.created_at) from analysis_checks c where c.summary_id = s.id) as t
+    from analysis_bill_summaries s where s.prompt_version = ${PROMPT_VERSION} and (select max(c.created_at) from analysis_checks c where c.summary_id = s.id) >= ${PASS_RATE_SINCE}
+    order by t desc limit ${PASS_RATE_WINDOW}`);
+  return rows.length < PASS_RATE_WINDOW ? null : { of: rows.length, passed: rows.filter(r => Number(r.ok) === 1).length };
+}
+const passRateStop = (r: { of: number; passed: number } | null) => (EXPLANATIONS_GO && r && r.passed < PASS_RATE_MIN ? `pass rate: ${r.passed} of the last ${r.of} passed every check (at least ${PASS_RATE_MIN} are needed); writing stops until the cause is reported` : null);
 
 async function candidateFor(billId: string): Promise<Candidate | null> {
   const r = await getDb().select({ id: officialBills.id, congress: officialBills.congress, billType: officialBills.billType, number: officialBills.number,
@@ -438,6 +474,13 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
   const monthStartMs = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1);
   let spent = await summarySpendSince(monthStartMs); // federal and Texas, writing and the reader test: one cap
   if (spent >= limits.spendCapUsd) return finish("SKIPPED", `spend cap reached ($${spent.toFixed(2)} of ANALYSIS_SPEND_CAP_USD $${limits.spendCapUsd})`);
+  // The owner's monthly limit for every kind of model call, not only summaries: a summary starts only with room for its worst case.
+  const allAtStart = await spendSince(monthStartMs), ROOM_FOR_ONE = 0.75;
+  const overMonth = () => allAtStart + (spent - spentAtStart) + ROOM_FOR_ONE > limits.monthlyLimitUsd;
+  const spentAtStart = spent;
+  if (overMonth()) return finish("SKIPPED", `monthly limit: $${allAtStart.toFixed(2)} of $${limits.monthlyLimitUsd} is spent, and one more summary might pass it`);
+  const stopped = passRateStop(await recentPassRate().catch(() => null));
+  if (stopped) return finish("SKIPPED", stopped);
   await db.insert(ingestRuns).values({ id, job: "analysis", status: "RUNNING", startedAt: started, detail: { trigger } });
   try {
     const coveredRows = await db.select({ slug: issueCategories.slug, n: sql<number>`count(*)` }).from(analysisBillSummaries)
@@ -446,12 +489,16 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
     // The first 5 (the review set) are spread across issues; after that, the bills behind the most recent votes come first.
     const ranked = await candidates();
     const recentOnly = limits.freshWindowDays > 0 ? ranked.filter(c => c.lastVote != null && Number(c.lastVote) >= started - limits.freshWindowDays * 86_400_000) : ranked;
-    const queue = existing < CHECKPOINT_SUMMARIES ? spreadAcrossCategories(ranked, new Map(coveredRows.map(r => [r.slug, Number(r.n)]))) : recentOnly;
+    // With the go-ahead, step b before step c: resolutions that do something first, then bills, each by most recent vote.
+    const ordered = EXPLANATIONS_GO ? [...recentOnly.filter(c => !isLawmaking(c.billType)), ...recentOnly.filter(c => isLawmaking(c.billType))] : recentOnly;
+    const queue = existing < CHECKPOINT_SUMMARIES ? spreadAcrossCategories(ranked, new Map(coveredRows.map(r => [r.slug, Number(r.n)]))) : ordered;
+    const mayGoOn = async () => (overMonth() ? "monthly limit" : passRateStop(await recentPassRate().catch(() => null)));
     let stoppedBy: string | null = queue.length || stale.length ? null : ranked.length ? `no bill voted on in the last ${limits.freshWindowDays} days is waiting (older bills wait for the owner's go-ahead)` : "no bill ready (needs a complete, categorised record)";
     // Summaries written by an older version of the generator are rewritten first (they do not count against the summary cap).
     for (const old of stale) {
       // 17 Nov: S.J.Res. 197 went last, with time for one draft only. A summary starts only when its full cycle fits; the rest wait for the next run.
       if (deadline - Date.now() < FULL_CYCLE_MS) { stoppedBy = "time budget"; break; }
+      const halt = await mayGoOn(); if (halt) { stoppedBy = halt; break; }
       const c = await candidateFor(old.billId);
       if (!c) continue;
       const out = await summarise(key, c, limits, deadline, () => spent, { id: old.id, sequence: old.sequence });
@@ -460,9 +507,12 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
       made.push(out); spent += out.costUsd;
     }
     const fresh = made.length;
+    // Step a comes wholly before b and c: while rewrites are still waiting, no first summary is started.
+    if (!stoppedBy && EXPLANATIONS_GO && (await staleSummaries()).length) stoppedBy = "time budget";
     for (const c of stoppedBy ? [] : queue) {
       if (made.length - fresh >= room) { stoppedBy = "summary cap"; break; }
       if (deadline - Date.now() < FULL_CYCLE_MS) { stoppedBy = "time budget"; break; }
+      const halt = await mayGoOn(); if (halt) { stoppedBy = halt; break; }
       const out = await summarise(key, c, limits, deadline, () => spent);
       if (out === null) { skippedNoText.push(c.id); continue; }
       if ("stop" in out) { stoppedBy = out.stop; break; }

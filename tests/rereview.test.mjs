@@ -110,9 +110,9 @@ test("a takedown made by the wrong rules is listed as the check's mistake, not a
 
 test("the summary limit is 75, inside the unchanged $25 monthly cap; older bills wait", () => {
   const g = read("lib/analysis/generate.ts");
-  assert.match(g, /maxSummaries: num\(process\.env\.ANALYSIS_MAX_SUMMARIES, 75\)/); // owner, 20 Nov 2026: 50 to 75 for the last-90-days group
+  assert.match(g, /maxSummaries: num\(process\.env\.ANALYSIS_MAX_SUMMARIES, EXPLANATIONS_GO \? 400 : 75\)/); // owner, 20 Nov 2026: 50 to 75 for the last-90-days group
   // "Do NOT run the older 118 yet": a first summary is written only for a bill voted on in the last 90 days.
-  assert.match(g, /freshWindowDays: num\(process\.env\.ANALYSIS_FRESH_WINDOW_DAYS, 90\)/);
+  assert.match(g, /freshWindowDays: num\(process\.env\.ANALYSIS_FRESH_WINDOW_DAYS, EXPLANATIONS_GO \? 365 : 90\)/);
   assert.match(g, /ranked\.filter\(c => c\.lastVote != null && Number\(c\.lastVote\) >= started - limits\.freshWindowDays \* 86_400_000\)/);
   assert.match(g, /: recentOnly;/);
   assert.match(g, /spendCapUsd: num\(process\.env\.ANALYSIS_SPEND_CAP_USD, 25\)/);

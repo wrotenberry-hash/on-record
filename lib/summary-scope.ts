@@ -7,13 +7,18 @@
  *   summarised    a bill, a joint resolution, or a simple or concurrent resolution that does something itself
  *   debate_rule   a House resolution that only sets the rules for debating another measure (lib/procedural.ts)
  *   ceremonial    a resolution that only honours, marks a day, or handles the chamber's own housekeeping
+ *   statement     a resolution that only states a chamber's position ("Expressing support for …", "Condemning …"): it
+ *                 does nothing itself. Not written for now, and no summary is promised (owner, 20 Nov 2026, later:
+ *                 "the other resolutions that do something themselves"); the owner may add these.
+ *   procedural    a resolution that only handles another bill's passage (disposing of its Senate amendment) or changes
+ *                 an earlier rule: the bill it acts on has its own summary
  *
  * Decided from the measure's type and official title alone, by fixed rules, the same for every sponsor. Pure (one
  * relative import), so node's test runner loads it: tests/summary-scope.test.mjs.
  */
 import { isDebateRule } from "./procedural.ts";
 
-export type SummaryScope = "summarised" | "debate_rule" | "ceremonial";
+export type SummaryScope = "summarised" | "debate_rule" | "ceremonial" | "statement" | "procedural";
 export const RESOLUTION_TYPES = ["hres", "sres", "hconres", "sconres"] as const;
 /** Every federal type a summary can be written for; the title decides for the last four. */
 export const SUMMARY_TYPES = ["hr", "s", "hjres", "sjres", ...RESOLUTION_TYPES] as const;
@@ -28,6 +33,9 @@ const CEREMONIAL = new RegExp("^(?:" + [
   "fixing the (?:daily )?hour", "notifying the", "to inform the", "informing the", "adopting the rules of the house", "providing amounts for the expenses",
 ].join("|") + ")\\b", "i");
 
+const STATEMENT = /^(?:expressing (?:the )?(?:sense|support|opposition|concern)|reaffirming|affirming|condemning|denouncing|calling (?:on|for)|urging|supporting|opposing|providing for the condemnation|recognizing that)\b/i;
+const PROCEDURAL_OTHER = /^providing for (?:the )?(?:disposition of|concurrence by the house in) the senate amendments?\b|^providing that section \d+ of house resolution\b/i;
+
 const typeOf = (v: { billType?: string | null; billId?: string | null }) => (v.billType ?? String(v.billId ?? "").match(/^\d+-([a-z]+)-\d+$/)?.[1] ?? "").toLowerCase();
 
 /** Where a measure falls. A measure whose type is not known (a Texas bill) is "summarised": Texas summaries are decided elsewhere. */
@@ -37,5 +45,7 @@ export function summaryScope(v: { billType?: string | null; billId?: string | nu
   // Some official titles open with the kind of measure ("Resolution memorializing …", "A concurrent resolution honoring …").
   const title = String(v.title ?? "").replace(/\s+/g, " ").trim().replace(/^(?:a |an )?(?:house |senate )?(?:concurrent |simple )?resolution (?=[a-z])/i, "");
   if (isDebateRule({ billType: type, title })) return "debate_rule";
-  return CEREMONIAL.test(title) ? "ceremonial" : "summarised";
+  if (CEREMONIAL.test(title)) return "ceremonial";
+  if (PROCEDURAL_OTHER.test(title)) return "procedural";
+  return STATEMENT.test(title) ? "statement" : "summarised";
 }

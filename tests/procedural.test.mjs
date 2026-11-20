@@ -81,7 +81,7 @@ test("every vote list collapses them", () => {
 
 test("older bills wait: a first summary is written only for a bill voted on in the last 90 days", () => {
   const g = read("lib/analysis/generate.ts");
-  assert.match(g, /freshWindowDays: num\(process\.env\.ANALYSIS_FRESH_WINDOW_DAYS, 90\)/);
+  assert.match(g, /freshWindowDays: num\(process\.env\.ANALYSIS_FRESH_WINDOW_DAYS, EXPLANATIONS_GO \? 365 : 90\)/); // 20 Nov, later: 12 months once the owner's go-ahead is on
   const report = read("lib/analysis/failure-report.ts");
   assert.doesNotMatch(report, /openai|insert\(|update\(|delete\(/i, "the failure report only reads");
   assert.match(read("app/api/automation/health/route.ts"), /summaryFailures: wants\("summaryFailures"\)/, "asked for by name only");

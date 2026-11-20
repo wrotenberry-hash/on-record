@@ -44,13 +44,13 @@ export async function voteListCoverage(now = Date.now()) {
     bills.set(r.billId, b);
   }
   const last90 = empty(), older = empty(), resolutions = { bills: 0, last90: 0, /** Resolutions that only set debate rules: collapsed into "Procedural votes (N)" in every list. */ debateRules: 0,
-    /** Purely ceremonial or housekeeping: no summary. */ ceremonial: 0,
+    /** Ceremonial, a statement of position only, or a step in another bill's passage: no summary, none promised. */ ceremonial: 0,
     /** Resolutions that do something themselves (owner, 20 Nov 2026): summarised like a bill. */ doSomething: 0, doSomethingLast90: 0, doSomethingApproved: 0, doSomethingWritten: 0, doSomethingRecordNotLoaded: 0,
     /** Which they are, and which were set aside as ceremonial, so the sorting can be read (official titles, cut short). */ doSomethingList: [] as string[], ceremonialList: [] as string[] };
   for (const [id, b] of bills) {
     if (!b.lawmaking) {
       resolutions.bills++; if (b.last >= d90) resolutions.last90++;
-      if (b.scope === "debate_rule") resolutions.debateRules++; else if (b.scope === "ceremonial") { resolutions.ceremonial++; resolutions.ceremonialList.push(`${id}: ${b.title}`); }
+      if (b.scope === "debate_rule") resolutions.debateRules++; else if (b.scope !== "summarised") { resolutions.ceremonial++; resolutions.ceremonialList.push(`${id} [${b.scope}]: ${b.title}`); }
       else { resolutions.doSomething++; resolutions.doSomethingList.push(`${id}${b.last >= d90 ? " (90d)" : ""}: ${b.title}`); if (b.last >= d90) resolutions.doSomethingLast90++; if (approved.has(id)) resolutions.doSomethingApproved++; else if (written.has(id)) resolutions.doSomethingWritten++; if (!b.complete) resolutions.doSomethingRecordNotLoaded++; }
       continue;
     }

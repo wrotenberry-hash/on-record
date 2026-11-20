@@ -90,7 +90,7 @@ test("which measures get a summary: bills, joint resolutions, and resolutions th
   assert.equal(s("ocd-bill/1", "Relating to public education."), "summarised", "a Texas bill is not decided here");
   const g = read("lib/analysis/generate.ts");
   assert.match(g, /export const RESOLUTIONS_NOW = list\(process\.env\.ANALYSIS_RESOLUTIONS_NOW, \["119-hconres-93"\]\);/, "only the one the owner named is written until the count and cost are approved");
-  assert.match(g, /summaryScope\(\{ billType: r\.billType, title: r\.title \}\) === "summarised" && \(\(LAWMAKING_TYPES as readonly string\[\]\)\.includes\(r\.billType\) \|\| RESOLUTIONS_NOW\.includes\(r\.id\)\)/);
+  assert.match(g, /summaryScope\(\{ billType: r\.billType, title: r\.title \}\) === "summarised" && \(isLawmaking\(r\.billType\) \|\| RESOLUTIONS_NOW\.includes\(r\.id\) \|\| EXPLANATIONS_GO\)/);
 });
 
 test("reach, read from the approved summary's own words", () => {
@@ -124,4 +124,53 @@ test("a briefing item's headline must make sense alone, and no item promises a s
   assert.match(t, /The headline does not make sense alone: it names/);
   assert.match(read("lib/briefing-inline.ts"), /export const INLINE_VERSION = "i2";/, "every item is tested again under the new rule");
   assert.match(read("lib/briefing-inline.ts"), /export const BRIEFING_INLINE_LIVE = false;/, "still off for readers until the owner says go");
+});
+
+// Owner, 20 Nov 2026, later: "Go on the explanations … use this rule instead."
+test("a statement of position or a step in another bill's passage is not a resolution that does something itself", () => {
+  const s = (billId, title) => summaryScope({ billId, title });
+  for (const t of ["Expressing support for law enforcement officers.", "Reaffirming Iran remains the largest state sponsor of terrorism.", "Condemning actors seeking to defraud the United States Government",
+    "Providing for the condemnation and denouncement of socialism in all its forms, and for other purposes.", "Calling on elected officials and civil society leaders to counter antisemitism",
+    "Expressing the sense of the House of Representatives that the President should prioritize securing the release"]) assert.equal(s("119-hres-1", t), "statement", t);
+  for (const t of ["Providing for disposition of the Senate amendment to the bill (H.R. 7147) making further consolidated appropriations", "Providing for the concurrence by the House in the Senate amendment to H.R. 6644, with amendment.",
+    "Providing that section 11 of House Resolution 1224 shall have no force or effect."]) assert.equal(s("119-hres-2", t), "procedural", t);
+  for (const t of ["Directing the President, pursuant to section 5(c) of the War Powers Resolution, to remove United States Armed Forces", "To direct the removal of United States Armed Forces from Venezuela that have not been authorized by Congress.",
+    "Impeaching Donald John Trump, President of the United States, for high crimes and misdemeanors.", "Establishing the congressional budget for the United States Government for fiscal year 2027",
+    "Directing the Committee on Ethics to preserve and publicly release records", "A resolution requesting information on Israel's human rights practices pursuant to section 502B(c)"]) assert.equal(s("119-hconres-3", t), "summarised", t);
+  assert.equal(s("119-hres-4", "Expressing support for the designation of a week"), "ceremonial", "ceremonial is decided first");
+});
+
+test("the go-ahead is a switch that is off until the trial has been judged, and it sets the order a, b, c", () => {
+  const g = read("lib/analysis/generate.ts");
+  assert.match(g, /export const EXPLANATIONS_GO = (?:false|true);/);
+  assert.match(g, /maxSummaries: num\(process\.env\.ANALYSIS_MAX_SUMMARIES, EXPLANATIONS_GO \? 400 : 75\)/);
+  assert.match(g, /freshWindowDays: num\(process\.env\.ANALYSIS_FRESH_WINDOW_DAYS, EXPLANATIONS_GO \? 365 : 90\)/, "older bills only when the go-ahead is on, and only those in the vote lists");
+  // a: the held bills voted on in the last 90 days, each once, never the three set aside.
+  assert.match(g, /const held = EXPLANATIONS_GO \? await db\.select/);
+  assert.match(g, /sql`\$\{lastVote\} >= \$\{now - 90 \* 86_400_000\}`/);
+  assert.match(g, /!NEEDS_HAND_EXPLAINER\.includes\(h\.billId\)/);
+  assert.match(g, /if \(!stoppedBy && EXPLANATIONS_GO && \(await staleSummaries\(\)\)\.length\) stoppedBy = "time budget";/, "no first summary starts while a rewrite is waiting");
+  // b before c.
+  assert.match(g, /\[\.\.\.recentOnly\.filter\(c => !isLawmaking\(c\.billType\)\), \.\.\.recentOnly\.filter\(c => isLawmaking\(c\.billType\)\)\]/);
+  assert.match(g, /\(isLawmaking\(r\.billType\) \|\| RESOLUTIONS_NOW\.includes\(r\.id\) \|\| EXPLANATIONS_GO\)/);
+});
+
+test("the automatic stop and the two limits", () => {
+  const g = read("lib/analysis/generate.ts");
+  assert.match(g, /export const PASS_RATE_WINDOW = 10, PASS_RATE_MIN = 6;/, "below 60% over any 10 in a row");
+  assert.match(g, /r\.passed < PASS_RATE_MIN \? `pass rate:/);
+  assert.match(g, /const halt = await mayGoOn\(\); if \(halt\) \{ stoppedBy = halt; break; \}/, "checked before every summary");
+  assert.match(g, /spendCapUsd: num\(process\.env\.ANALYSIS_SPEND_CAP_USD, 25\), monthlyLimitUsd: num\(process\.env\.OPENAI_MONTHLY_LIMIT_USD, 40\)/);
+  assert.match(g, /allAtStart \+ \(spent - spentAtStart\) \+ ROOM_FOR_ONE > limits\.monthlyLimitUsd/);
+  assert.match(g, /spentSoFar\(\) \+ cost \+ readerCost \+ worst > limits\.spendCapUsd/, "a draft starts only with room for its worst case under the summaries cap");
+});
+
+test("nothing unread is shown: a summary by the new writer needs its reading", async () => {
+  const gate = read("lib/analysis/publish-gate.ts");
+  assert.match(gate, /cast\(substr\(analysis_bill_summaries\.prompt_version, 2\) as integer\) < \$\{READ_FROM_GENERATOR\}/);
+  assert.match(gate, /and \(\$\{generatorNumberSql\("s\.prompt_version"\)\} < \$\{READ_FROM_GENERATOR\}/);
+  const { READ_FROM_GENERATOR, READ_AND_SOUND, readAndSoundIds } = await import("../lib/analysis/reader-read.ts");
+  assert.equal(READ_FROM_GENERATOR, 12);
+  const { READER_HOLDS } = await import("../lib/analysis/reader-holds.ts");
+  for (const id of readAndSoundIds()) { assert.ok(!(id in READER_HOLDS), `${id} cannot be both read-and-sound and hidden`); assert.match(READ_AND_SOUND[id], /^\d{4}-\d{2}-\d{2}/, "each line carries the day it was read"); }
 });
