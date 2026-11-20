@@ -171,7 +171,7 @@ async function researchOneWaitingCase(): Promise<{ status: string; representatio
   return { status: draft.status ?? "COMPLETE", representationId: pending.id };
 }
 
-async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown; loop?: unknown; hearings?: unknown; changes?: unknown }> {
+async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown; loop?: unknown; hearings?: unknown; changes?: unknown; briefingTests?: unknown }> {
   let federal: IngestSummary | { status: "FAILED"; error: string };
   const started = Date.now(), fedBudget = Math.max(20_000, Math.round(budgetMs * 0.75));
   // 20 Nov 2026: approvals the owner told Claude to make for him (lib/analysis/owner-approvals.ts). One listed bill; a line does nothing once applied.
@@ -198,7 +198,10 @@ async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { statu
   // Suggest changes (20 Nov 2026): menus of changes are drafted in a run of their own (its own time and its own monthly
   // limit), started here once the bills and hearing dates are fresh. One request; it never starts another.
   const changes = await import("@/lib/changes/fire").then(m => m.fireChangeMenus(origin)).catch(() => false);
-  return { ...federal, texas, loop, hearings, changes };
+  // Briefing items (20 Nov 2026): each approved summary's short version is tested on its own, in a run of its own, inside
+  // the summaries' monthly limit. One request; it never starts another.
+  const briefingTests = await import("@/lib/briefing-fire").then(m => m.fireBriefingTests(origin)).catch(() => false);
+  return { ...federal, texas, loop, hearings, changes, briefingTests };
 }
 
 /**

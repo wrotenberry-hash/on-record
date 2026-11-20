@@ -7,6 +7,7 @@ import { weekOf } from "@/lib/federal/depth-parse";
 import { currentTxSession } from "@/lib/texas/parse";
 import { sendTo } from "@/lib/mailer";
 import { BRAND } from "@/lib/brand";
+import { BRIEFING_INLINE_LIVE, briefingInlineText } from "@/lib/briefing-inline";
 
 /**
  * Round H briefing: a two-minute read for Congress and Texas, built only from
@@ -14,7 +15,8 @@ import { BRAND } from "@/lib/brand";
  * procedural vote, and what is coming next. Daily while Congress or the Texas
  * Legislature is in session, weekly (Mondays) otherwise.
  */
-export type BriefItem = { label: string; title: string; href: string; date: string; note: string };
+/** `billId`, `voteId` and `chamber` (20 Nov 2026) let the inline briefing attach the approved summary and the reader's own legislators' votes; older stored briefings do not have them. */
+export type BriefItem = { label: string; title: string; href: string; date: string; note: string; billId?: string | null; voteId?: string | null; chamber?: "house" | "senate" | null };
 export type BriefSection = { name: string; inSession: boolean; passed: BriefItem[]; failed: BriefItem[]; blocked: BriefItem[]; coming: BriefItem[] };
 export type Briefing = { kind: "daily" | "weekly"; periodLabel: string; congress: BriefSection; texas: BriefSection | null; generatedAt: string };
 
@@ -38,7 +40,8 @@ export async function buildBriefing(now = Date.now()): Promise<Briefing> {
     billType: officialBills.billType, number: officialBills.number })
     .from(officialRollCalls).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId)).where(gte(officialRollCalls.votedAt, from)).orderBy(desc(officialRollCalls.votedAt));
   const item = (r: typeof rolls[number], note: string): BriefItem => ({ label: r.billType ? billLabel(r.billType, r.number!) : r.documentLabel ?? "Vote", title: r.billTitle ?? r.title ?? r.question,
-    href: r.billId ? `/bills/${r.billId}` : "/moving", date: iso(r.votedAt), note: `${r.chamber === "senate" ? "Senate" : "House"}, ${r.yea}–${r.nay}. ${note}` });
+    href: r.billId ? `/bills/${r.billId}` : "/moving", date: iso(r.votedAt), note: `${r.chamber === "senate" ? "Senate" : "House"}, ${r.yea}–${r.nay}. ${note}`,
+    billId: r.billId ?? null, voteId: r.id, chamber: r.chamber === "senate" ? "senate" : "house" });
   const congress: BriefSection = { name: "Congress", inSession: congressInSession, passed: [], failed: [], blocked: [], coming: [] };
   for (const r of rolls) {
     const k = voteKind(r.question, r.title ?? r.billTitle);
@@ -49,7 +52,7 @@ export async function buildBriefing(now = Date.now()): Promise<Briefing> {
   }
   const floor = await db.select({ chamber: officialFloorSchedule.chamber, label: officialFloorSchedule.label, billId: officialFloorSchedule.billId, description: officialFloorSchedule.description, weekOf: officialFloorSchedule.weekOf,
     title: officialBills.title }).from(officialFloorSchedule).leftJoin(officialBills, eq(officialBills.id, officialFloorSchedule.billId)).where(gte(officialFloorSchedule.weekOf, weekOf(now))).limit(40);
-  congress.coming = floor.slice(0, MAX).map(f => ({ label: f.label, title: f.title ?? f.description ?? f.label, href: f.billId ? `/bills/${f.billId}#your-view` : "/coming", date: `${f.weekOf.slice(0, 4)}-${f.weekOf.slice(4, 6)}-${f.weekOf.slice(6, 8)}`,
+  congress.coming = floor.slice(0, MAX).map(f => ({ label: f.label, title: f.title ?? f.description ?? f.label, href: f.billId ? `/bills/${f.billId}#your-view` : "/coming", date: `${f.weekOf.slice(0, 4)}-${f.weekOf.slice(4, 6)}-${f.weekOf.slice(6, 8)}`, billId: f.billId ?? null,
     note: `On the ${f.chamber === "senate" ? "Senate" : "House"} floor schedule for the week` }));
   let texas: BriefSection | null = null;
   const txCount = await db.select({ n: sql<number>`count(*)` }).from(txBills).get().catch(() => ({ n: 0 }));
@@ -77,16 +80,27 @@ export async function runBriefing(now = Date.now()) {
   const id = `${b.kind}-${iso(now)}`;
   const exists = await db.select({ id: briefings.id }).from(briefings).where(eq(briefings.id, id)).get();
   if (!exists) await db.insert(briefings).values({ id, kind: b.kind, periodStart: now - (b.kind === "daily" ? DAY : 7 * DAY), periodEnd: now, content: b, createdAt: now });
-  const subs = await db.select({ accountId: briefingSubscriptions.accountId, email: readerAccounts.email, verifiedAt: readerAccounts.verifiedAt, lastSentId: briefingSubscriptions.lastSentId })
+  const subs = await db.select({ accountId: briefingSubscriptions.accountId, email: readerAccounts.email, verifiedAt: readerAccounts.verifiedAt, lastSentId: briefingSubscriptions.lastSentId, userId: readerAccounts.appUserId })
     .from(briefingSubscriptions).innerJoin(readerAccounts, eq(readerAccounts.id, briefingSubscriptions.accountId));
   let sent = 0, failed = 0;
   for (const s of subs) {
     if (s.lastSentId === id || !s.verifiedAt) continue;
-    const r = await sendTo(s.email, `${BRAND.name} briefing: ${b.periodLabel}`, briefingText(b, id));
+    const r = await sendTo(s.email, `${BRAND.name} briefing: ${b.periodLabel}`, BRIEFING_INLINE_LIVE ? await briefingEmailInline(b, id, s.userId ?? null) : briefingText(b, id));
     if (r.ok) { sent++; await db.update(briefingSubscriptions).set({ lastSentId: id }).where(eq(briefingSubscriptions.accountId, s.accountId)); } else failed++;
   }
   if (sent) await db.update(briefings).set({ emailedAt: now }).where(and(eq(briefings.id, id), isNull(briefings.emailedAt)));
   return { written: !exists, id, kind: b.kind, sent, failed };
+}
+
+/**
+ * The email in the same form as the page: at most five items, each readable on its own, then "You're caught up."
+ * Written for one subscriber, so it can say how that reader's own legislators voted.
+ */
+export async function briefingEmailInline(b: Briefing, id: string, userId: string | null = null): Promise<string> {
+  const { inlineBriefing } = await import("@/lib/briefing-items");
+  const items = await inlineBriefing(b, userId, "reader");
+  return briefingInlineText(`${BRAND.name} briefing, ${b.periodLabel}. Official records and approved summaries only.`, items, SITE,
+    [`Read it on the site: ${SITE}/briefing?id=${id}`, "", "You get this because you turned on the briefing on your Account page. Turn it off there."]);
 }
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
