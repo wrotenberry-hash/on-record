@@ -22,8 +22,8 @@ export type Briefing = { kind: "daily" | "weekly"; periodLabel: string; congress
 
 const DAY = 86400e3, MAX = 5;
 const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-const passedResult = (r: string | null) => /pass|agreed|adopted|confirmed|invoked/i.test(r ?? "") && !/not agreed|rejected|failed/i.test(r ?? "");
-const failedResult = (r: string | null) => /fail|rejected|not agreed|not invoked|not sustained/i.test(r ?? "");
+export const passedResult = (r: string | null) => /pass|agreed|adopted|confirmed|invoked/i.test(r ?? "") && !/not agreed|rejected|failed/i.test(r ?? "");
+export const failedResult = (r: string | null) => /fail|rejected|not agreed|not invoked|not sustained/i.test(r ?? "");
 
 export function briefingKind(congressInSession: boolean, texasInSession: boolean): "daily" | "weekly" { return congressInSession || texasInSession ? "daily" : "weekly"; }
 

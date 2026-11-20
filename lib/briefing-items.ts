@@ -4,10 +4,10 @@ import { analysisBillSummaries, officialMemberVotes } from "@/db/schema";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { summaryForBill } from "@/lib/analysis/queries";
 import { billWindow } from "@/lib/changes/window-store";
-import { ownLegislators, placeOf } from "@/lib/loop/people";
+import { ownLegislators, placeOf, type Place } from "@/lib/loop/people";
 import { memberLines, type MemberVote } from "@/lib/loop/rules";
 import { inlineTestFor } from "@/lib/briefing-test";
-import { inlineFromSummary, inlineProblems, pickItems, standsFallback, NO_SUMMARY_YET, SHORT_NOT_READY, SUMMARY_COMING, type BriefEvent, type BriefPick, type InlineItem } from "@/lib/briefing-inline";
+import { inlineFromSummary, inlineProblems, pickItems, standsLine, MAX_ITEMS, NO_SUMMARY_YET, SHORT_NOT_READY, SUMMARY_COMING, type BriefEvent, type BriefPick, type InlineItem } from "@/lib/briefing-inline";
 import type { Briefing, BriefItem, BriefSection } from "@/lib/briefing";
 
 /**
@@ -38,17 +38,18 @@ export function candidates(b: Briefing): BriefPick[] {
  * reader test has passed. "editor": the lines are shown whatever the test says, with the state and reasons beside
  * them, so the editor sees exactly what readers would and would not get.
  */
-export async function inlineBriefing(b: Briefing, userId: string | null, audience: "reader" | "editor" = "reader"): Promise<ComposedItem[]> {
+export async function inlineBriefing(b: Briefing, userId: string | null, audience: "reader" | "editor" = "reader",
+  o: { /** More than five only for the editor's log of examples; a reader's briefing is always at most five. */ max?: number; /** A sample place, for the same log. */ place?: Place | null } = {}): Promise<ComposedItem[]> {
   const db = getDb(), all = candidates(b);
   const fedKeys = [...new Set(all.filter(c => c.system === "federal" && c.billKey).map(c => c.billKey!))];
   const approved = new Set(fedKeys.length ? (await db.select({ billId: analysisBillSummaries.billId }).from(analysisBillSummaries).where(and(readerVisible(), inArray(analysisBillSummaries.billId, fedKeys)))).map(r => r.billId) : []);
-  const picks = pickItems(all, k => approved.has(k));
-  const place = userId ? await placeOf(db, userId).catch(() => null) : null;
+  const picks = pickItems(all, k => approved.has(k), audience === "editor" ? o.max ?? MAX_ITEMS : MAX_ITEMS);
+  const place = o.place ?? (userId ? await placeOf(db, userId).catch(() => null) : null);
   const mine = place ? (await ownLegislators(db, place).catch(() => [])).filter(m => m.level === "federal") : [];
   const out: ComposedItem[] = [];
   for (const p of picks) {
     const window = p.billKey ? await billWindow(p.billKey).catch(() => null) : null;
-    const stands = window ? window.where : standsFallback(p);
+    const stands = standsLine(p, window ? window.where : null);
     let legislators: string[] = [];
     if (p.system === "federal" && p.voteId && p.chamber && mine.length) {
       const voters = mine.filter(m => m.chamber === p.chamber);

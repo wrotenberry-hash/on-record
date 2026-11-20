@@ -10,6 +10,7 @@
  */
 import { unexplainedAcronyms, unexplainedJargon } from "./analysis/standard.ts";
 import { toneProblems } from "./analysis/tone.ts";
+import { longDate } from "./changes/window.ts";
 
 /** Off until the owner has seen three real items ("Show me three real briefing items in the new format before it goes live to trial readers"). */
 export const BRIEFING_INLINE_LIVE = false;
@@ -101,6 +102,41 @@ export function pickItems(candidates: readonly BriefPick[], hasSummary: (billKey
   const rank = (c: BriefPick) => (c.billKey && hasSummary(c.billKey) ? 0 : 1);
   return unique.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || EVENT_ORDER[a.c.event] - EVENT_ORDER[b.c.event] || b.c.date.localeCompare(a.c.date) || a.i - b.i)
     .slice(0, Math.max(0, max)).map(x => x.c);
+}
+
+const TALLY = /^(House|Senate), (\d+)–(\d+)\./;
+/**
+ * What the record says just happened, with the count: "The House passed it 417–3 on November 19, 2026." Null for
+ * something scheduled, or when the briefing holds no count for it. Built from the briefing's own note
+ * ("House, 417–3. On Passage"), which comes from the official roll call.
+ */
+export function eventSentence(p: Pick<BriefPick, "event" | "note" | "date">): string | null {
+  const m = TALLY.exec(p.note.trim());
+  if (!m || p.event === "coming" || p.event === "hearing") return null;
+  const [, ch, yea, nay] = m, d = longDate(p.date), on = d ? ` on ${d}` : "";
+  if (p.event === "passed") return `The ${ch} passed it ${yea}–${nay}${on}.`;
+  // A vote can fail with more votes for than against (some need two thirds), so the count is given without "voted it down".
+  if (p.event === "failed") return `It failed in the ${ch}${on}: ${yea} for, ${nay} against.${Number(yea) > Number(nay) ? " That vote needed more than a simple majority." : ""}`;
+  return `A procedural vote in the ${ch} stopped it${on}, ${yea}–${nay}. That was not a vote on the bill itself.`;
+}
+
+/**
+ * The "Where it stands" line: what just happened (with the count), then where the bill is now. `where` is the line the
+ * bill page prints in "Can this bill still be changed?". The stored stage can lag a vote by a day; when it has not
+ * caught up with the vote the briefing reports, the vote alone is given rather than a stage the vote has overtaken.
+ */
+export function standsLine(p: Pick<BriefPick, "event" | "note" | "date">, where: string | null): string {
+  const e = eventSentence(p), w = where?.trim() || null;
+  if (!e) return w ?? standsFallback(p);
+  if (!w) return e;
+  const ch = TALLY.exec(p.note.trim())![1];
+  if (p.event === "passed") {
+    const same = new RegExp(`^Passed the ${ch} on [^.]+\\.\\s*`);
+    if (same.test(w)) return `${e} ${w.replace(same, "")}`.trim();
+    return /^(?:Passed both|Became law|Sent to the President|Vetoed)/.test(w) ? `${e} ${w}` : e;
+  }
+  if (p.event === "blocked" && /^Passed the (?:House|Senate) on /.test(w)) return `${sentencesOf(w)[0]} ${e}`;
+  return e;
 }
 
 /** One item as a reader sees it. `today` and `thisBill` are null when no approved summary may be shown inline. */

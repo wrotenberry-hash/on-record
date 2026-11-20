@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { BRIEFING_INLINE_LIVE, MAX_ITEMS, CAUGHT_UP, SUMMARY_COMING, SHORT_NOT_READY, FULL_EXPLANATION, sentencesOf, inlineFromSummary, inlineProblems, pickItems, standsFallback, itemText, briefingInlineText } from "../lib/briefing-inline.ts";
+import { BRIEFING_INLINE_LIVE, MAX_ITEMS, CAUGHT_UP, SUMMARY_COMING, SHORT_NOT_READY, FULL_EXPLANATION, sentencesOf, inlineFromSummary, inlineProblems, pickItems, standsFallback, standsLine, eventSentence, itemText, briefingInlineText } from "../lib/briefing-inline.ts";
 
 const read = f => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 
@@ -83,6 +83,28 @@ test("at most five items, each bill once, the ones a reader can finish here firs
   assert.deepEqual(pickItems([], () => true), []);
 });
 
+test("where it stands says what just happened, with the count, then where the bill is now", () => {
+  const v = (event, note = "House, 417–3. On Passage", date = "2026-11-19") => ({ event, note, date });
+  assert.equal(eventSentence(v("passed")), "The House passed it 417–3 on November 19, 2026.");
+  assert.equal(eventSentence(v("failed", "House, 200–215. On Passage")), "It failed in the House on November 19, 2026: 200 for, 215 against.");
+  assert.equal(eventSentence(v("failed", "House, 250–170. On Motion to Suspend the Rules and Pass")), "It failed in the House on November 19, 2026: 250 for, 170 against. That vote needed more than a simple majority.");
+  assert.equal(eventSentence(v("blocked", "Senate, 52–46. On the Cloture Motion: Rejected.")), "A procedural vote in the Senate stopped it on November 19, 2026, 52–46. That was not a vote on the bill itself.");
+  assert.equal(eventSentence(v("coming", "On the House floor schedule for the week")), null);
+  // The stage line names the same passage without the count: the count is put into it, nothing is said twice.
+  assert.equal(standsLine(v("passed"), "Passed the House on November 19, 2026. The Senate has it now."), "The House passed it 417–3 on November 19, 2026. The Senate has it now.");
+  // The stored stage has not caught up with the vote: the vote is given, not the stage it overtook.
+  assert.equal(standsLine(v("passed"), "On the House floor schedule this week."), "The House passed it 417–3 on November 19, 2026.");
+  assert.equal(standsLine(v("passed", "Senate, 90–5. On Passage"), "Passed the House on April 27, 2026. The Senate has it now."), "The Senate passed it 90–5 on November 19, 2026.");
+  assert.equal(standsLine(v("passed", "Senate, 90–5. On Passage"), "Passed both the House and the Senate."), "The Senate passed it 90–5 on November 19, 2026. Passed both the House and the Senate.");
+  assert.equal(standsLine(v("blocked", "Senate, 52–46. On the Cloture Motion: Rejected."), "Passed the House on April 27, 2026. The Senate has it now."),
+    "Passed the House on April 27, 2026. A procedural vote in the Senate stopped it on November 19, 2026, 52–46. That was not a vote on the bill itself.");
+  assert.equal(standsLine(v("failed", "House, 200–215. On Passage"), "On the House floor schedule this week."), "It failed in the House on November 19, 2026: 200 for, 215 against.");
+  // Something scheduled: the stage line as the bill page prints it; with no stage on file, the schedule itself.
+  assert.equal(standsLine(v("coming", "On the Senate floor schedule for the week"), "Passed the House on April 27, 2026. The Senate has it now. It is on the Senate floor schedule this week."), "Passed the House on April 27, 2026. The Senate has it now. It is on the Senate floor schedule this week.");
+  assert.equal(standsLine(v("coming", "On the House floor schedule for the week"), null), "Coming up: On the House floor schedule for the week.");
+  assert.equal(standsLine(v("passed"), null), "The House passed it 417–3 on November 19, 2026.");
+});
+
 test("the text a reader gets: every line labelled, the link called Full explanation, and the closing line", () => {
   const t = inlineFromSummary(HR2102);
   const item = { key: "k", label: "H.R. 2102", href: "/bills/119-hr-2102", headline: t.headline, today: t.today, thisBill: t.thisBill, stands: "Passed the House on 18 November 2026. The Senate has it now.", legislators: ["Rep. A voted yes."], note: null };
@@ -122,7 +144,9 @@ test("a reader sees the two lines only after the item passed the written rules a
   assert.match(s, /where\(and\(readerVisible\(\), inArray\(analysisBillSummaries\.billId, fedKeys\)\)\)/);
   assert.match(s, /approved\.has\(p\.billKey\) \? await summaryForBill\(p\.billKey, false\)/);
   // Where it stands is the record's own line, and legislators are the reader's own, for the chamber that voted.
-  assert.match(s, /const stands = window \? window\.where : standsFallback\(p\);/);
+  assert.match(s, /const stands = standsLine\(p, window \? window\.where : null\);/);
+  // More than five items is possible only in the editor's log of examples.
+  assert.match(s, /pickItems\(all, k => approved\.has\(k\), audience === "editor" \? o\.max \?\? MAX_ITEMS : MAX_ITEMS\)/);
   assert.match(s, /const voters = mine\.filter\(m => m\.chamber === p\.chamber\);/);
 });
 
@@ -170,5 +194,7 @@ test("the tests run in a run of their own, started by the scheduled update, and 
   assert.doesNotMatch(preview, /responseRequest|runInlineTests/);
   assert.match(preview, /if \(now - last < EVERY_MS\) return Response\.json\(\{ service: "on-record", ran: false/);
   assert.match(preview, /out\[name\] = items\.map\(i => \(\{ item: i\.label, state: i\.state \}\)\);/, "it answers with bill numbers and states, never wording");
+  assert.match(preview, /place = \/\^\[A-Z\]\{2\}\$\/\.test\(state\) \? \{ state, congressional: null, stateUpper: null, stateLower: null \} : null/, "a sample state only: no reader's own place is read");
+  assert.match(preview, /inlineBriefing\(b, null, "editor", \{ max, place \}\)/);
   assert.ok(existsSync(new URL("../components/dashboard/end.css", import.meta.url)));
 });
