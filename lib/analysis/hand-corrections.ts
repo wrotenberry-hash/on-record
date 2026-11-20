@@ -12,7 +12,9 @@
  */
 import type { ExtendedPart } from "./tiers.ts";
 
-export const HAND_CORRECTIONS_APPROVED = false;
+// Owner, 20 Nov 2026, after reading the corrected text: "Briefing corrections: yes. Apply all three, keep the two long H.R. 8483 lines
+// as written, confirm live, and turn the briefing on."
+export const HAND_CORRECTIONS_APPROVED = true;
 
 export type HandCorrection = {
   billId: string; /** Changing this applies the correction again. */ version: string;

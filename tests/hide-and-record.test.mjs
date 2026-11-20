@@ -38,8 +38,8 @@ test("the public record: one plain line each, about the text, never about a pers
   assert.match(page, /While it is hidden, the bill&apos;s page and vote lists show the official title\./);
 });
 
-test("the briefing corrections wait for the owner's yes", () => {
-  assert.equal(HAND_CORRECTIONS_APPROVED, false, "set true only on the owner's yes to the wording");
+test("the briefing corrections are applied on the owner's yes, each once, keeping the earlier wording", () => {
+  assert.equal(HAND_CORRECTIONS_APPROVED, true, "the owner's yes, 20 Nov 2026: \"Briefing corrections: yes. Apply all three\"");
   const run = read("lib/analysis/hand-corrections-run.ts");
   assert.match(run, /if \(!HAND_CORRECTIONS_APPROVED\) return out;/);
   assert.ok(run.indexOf("db.insert(analysisSummaryVersions)") < run.indexOf("db.update(analysisBillSummaries)"), "the earlier wording is kept before anything is changed");
