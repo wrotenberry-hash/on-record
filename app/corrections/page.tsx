@@ -5,6 +5,7 @@ import { listPublicCorrections } from "@/lib/published-records";
 import { viewerAccess } from "@/lib/viewer";
 
 import { summaryCorrections } from "@/lib/analysis/quality";
+import { correctionStateLine, summaryCorrectionsList } from "@/lib/analysis/summary-corrections";
 import { correctionsFromReports, PROBLEM_REASONS, type ProblemReason } from "@/lib/problems";
 import { brandTitle } from "@/lib/brand";
 
@@ -53,6 +54,12 @@ export default async function CorrectionsPage() {
         <p className="fine-links">{c.replacementRecordId ? <Link href={`/records/${c.replacementRecordId}`}>Corrected record</Link> : <span>No replacement record.</span>} <span>Original record id {c.originalRecordId}.</span></p>
       </li>)}</ol>
       : <p>None. This section lists every correction and retraction, newest first, as soon as there is one.</p>}
+
+      <h2>Bill summaries hidden or corrected after a full reading</h2>
+      <p>Every bill summary on show was read line by line against the official text and record it was written from. A summary that says something the official text does not is hidden until it is corrected. While it is hidden, the bill&apos;s page and vote lists show the official title.</p>
+      <ol className="corrections-list">{summaryCorrectionsList().map(c => <li key={c.billId}>
+        <div className="eyebrow">SUMMARY · {new Date(`${c.date}T12:00:00Z`).toLocaleDateString()} · {correctionStateLine(c)}</div>
+        <p><b>{c.label}</b>: {c.wrong} <Link href={`/bills/${c.billId}`}>Open the page for {c.label}</Link></p></li>)}</ol>
 
       <h2>Bill summaries withdrawn after a re-check</h2>
       {summaryFixes && summaryFixes.length ? <ol className="corrections-list">{summaryFixes.map((f, i) => <li key={i}>

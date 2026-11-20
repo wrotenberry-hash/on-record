@@ -5,7 +5,13 @@
  * hiding needs no change to stored data; the editor still sees the summary, with the reason. Remove a line when the
  * summary has been rewritten and read again. Bill ids are lower case, as stored ("119-hr-1181").
  */
+import { HIDDEN_AFTER_AUDIT } from "./summary-corrections.ts";
+
 export const READER_HOLDS: Record<string, string> = {
+  // Owner, 20 Nov 2026, after all 18 on show were read claim by claim: "Hide now the summaries with a core misstatement: H.R. 7008,
+  // 8823, 8897, 4464, 915 and 1013 … H.R. 8483 and 9600 stay hidden only until I approve their corrections." The reason is the
+  // line shown on the corrections page (lib/analysis/summary-corrections.ts).
+  ...HIDDEN_AFTER_AUDIT,
   // Rewritten by generator b12 on 20 Nov 2026 and read again: the earlier mistake (a point by Rep. Frost credited to Rep. Thompson) is gone; these are new.
   "119-hr-1181": "It credits “the committee minority” with a statement about California, New York and Colorado that Rep. Waters and Rep. Moore made on the floor; it says a purchase record would still show the business, which no source says; and it calls a report to Congress “annual” and “public”, which the bill does not.",
   "119-hr-9640": "The headline, the plain-English part and the question say the bill funds or gives $84 million; the bill only authorizes that amount, and money would still have to be provided.",

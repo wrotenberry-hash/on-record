@@ -64,11 +64,15 @@ test("a summary that failed a reading against its sources is hidden by the reade
   assert.ok(ids.includes("119-s-307"), "a Senate bill id is well formed too"); assert.ok(ids.includes("119-hr-2140"));
   // 20 Nov 2026: the trial of generator b12 added three (H.R. 7128, S.J.Res. 197, H.Con.Res. 93); H.R. 1181 stays, for new reasons.
   for (const id of ["119-hr-7128", "119-sjres-197", "119-hconres-93"]) assert.ok(ids.includes(id), id);
-  assert.equal(ids.length, 16);
-  // Left on show, each read against its sources: seven sound and three with a small point.
-  for (const id of ["119-hr-8823", "119-hr-8483", "119-hjres-210"]) assert.ok(!ids.includes(id), id);
-  // The bills read and found sound stay on show.
-  for (const id of ["119-hr-2102", "119-hr-1013", "119-hr-7008", "119-hr-3978", "119-hr-8278", "119-hr-9600", "119-hr-9770"]) assert.ok(!ids.includes(id), id);
+  // 20 Nov 2026, later: all 18 on show were read claim by claim; the owner hid the eight with a misstatement in the core
+  // ("Hide now … H.R. 7008, 8823, 8897, 4464, 915 and 1013 … H.R. 8483 and 9600 stay hidden only until I approve their corrections").
+  for (const id of ["119-hr-7008", "119-hr-8823", "119-hr-8897", "119-hr-4464", "119-hr-915", "119-hr-1013", "119-hr-8483", "119-hr-9600"]) assert.ok(ids.includes(id), id);
+  // Same day: the check of four summaries was finished against bill text fetched for it; H.R. 9770 has a core line the text does not support.
+  assert.ok(ids.includes("119-hr-9770"));
+  assert.equal(ids.length, 25);
+  // Left on show: the ten with looser wording only, or a fault only outside the core.
+  for (const id of ["119-hr-7401", "119-hr-3978", "119-hjres-210", "119-hr-2102"]) assert.ok(!ids.includes(id), id);
+  for (const id of ["119-hr-8278", "119-hr-7757", "119-hr-9576", "119-hr-2478", "119-s-629"]) assert.ok(!ids.includes(id), id);
   assert.deepEqual(heldBillIds(), ids, "every listed id is well formed, so none is silently ignored");
   for (const [id, why] of Object.entries(READER_HOLDS)) { assert.match(id, /^[0-9]+-[a-z]+-[0-9]+$/, id); assert.ok(why.length > 40 && /\.$/.test(why), "each hold says why, in a sentence"); }
   // Both forms of the gate leave the listed bills out: the query-builder form and the raw form used in subqueries.

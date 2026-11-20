@@ -25,3 +25,14 @@ Each line: bill | verdict | core (misstatements, looser wording) | other section
 - H.R. 7008 | MISSTATES | core 3 (stock-buying row drops the bill's exceptions; mailed-ballot row "last 4 Social Security digits plus a sworn statement" drops "unable to obtain photo ID after reasonable efforts"; "Military and overseas voters are exempt" — text exempts absent uniformed services voters only), 9 minor (two "The sources do not give"; "the 60 needed") | extended 3 (unknowns says no floor statements were found for the 22 July House vote, but they are among the sources; two dropped conditions), 5 minor
 
 TOTALS (18 on show): at least one CORE misstatement: 8 (H.R. 8897, 915*, 8823, 4464, 1013*, 7008, 8483, 9600; * = borderline). Extended-only misstatement: 2 (H.R. 3978, 2102). Minor only: 8 (H.R. 7401, 2478, 7757, 8278, 9770, 9576, S. 629, H.J.Res. 210). Clean: 0. All 18 have kind-5 wording ("the sources do not say"). Could not be fully checked (bill sections not in packet): H.R. 7757, 8278, 9770, 2102.
+
+## Later the same day: the check finished for the four that could not be fully checked
+
+Owner: "For H.R. 7757, 8278, 9770 and 2102, fetch the bill sections the saved sources lacked and finish the check. If a core statement can't be verified against the text, hide the summary until it can." The bill text and the Congressional Record were fetched from govinfo.gov (notes: findings/<bill>-completed.md).
+
+- H.R. 7757 | ALL VERIFIED ("under 17" is the bill's own definition of a minor, Sec. 2(8); searchable accounts, video-game and chatbot rows are in the text as passed).
+- H.R. 8278 | ALL VERIFIED (the three statements are in the bill's findings, Sec. 2).
+- H.R. 2102 | ALL VERIFIED (58,000, September 2025, $2,275, $825, 65,000 by 2036, $1,450, $13 billion and $7 billion are all in the budget office's estimate printed in the Record).
+- H.R. 9770 | HIDDEN. The Indian Health Service figures are verified (Sec. 123). But one "today" line ("New yearly spending laws could fund new projects") is in no official text, and "a new full-year spending law" adds a word the text does not have (Sec. 106(1): "an appropriation for any project or activity").
+
+On show after this: 9 (H.R. 7401, 2478, 7757, 8278, 9576, 3978, 2102, S. 629, H.J.Res. 210). Hidden today: 9 (H.R. 7008, 8823, 8897, 4464, 915, 1013, 9770; H.R. 8483 and 9600 until their corrections are approved).
