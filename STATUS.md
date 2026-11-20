@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-20 22:30 UTC (facts first, two tiers and repair mode are built and live for the second trial at the 13:00 UTC run on 21 Nov; the 18 on show were read claim by claim and none is clean; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-20 21:00 UTC (facts first, two tiers and repair mode are built and live for the second trial at the 13:00 UTC run on 21 Nov; the 18 on show were read claim by claim and none is clean; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
