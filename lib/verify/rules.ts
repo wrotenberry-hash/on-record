@@ -88,8 +88,14 @@ export function districtFromCensus(match: unknown): { districtId: string; state:
   const state = String(geos["States"]?.[0]?.["STUSAB"] ?? "").toUpperCase();
   const cdLayer = Object.entries(geos).find(([k]) => /Congressional Districts/i.test(k))?.[1]?.[0];
   if (!state || !/^[A-Z]{2}$/.test(state) || !cdLayer) return null;
-  const code = Object.entries(cdLayer).find(([k]) => /^CD\d{3}$/.test(k))?.[1];
-  const n = String(code ?? "").padStart(2, "0");
+  // 20 Nov 2026: the number is not always in a "CD119" field (the 2025 map-year answer has none): then it is read from
+  // GEOID (state code + two digits) or BASENAME. With no number at all the answer is "no district". Before this fix a
+  // missing field read as "00", which named every such address "at large".
+  const field = Object.entries(cdLayer).find(([k]) => /^CD\d{3}$/.test(k))?.[1];
+  const geoid = String(cdLayer["GEOID"] ?? ""), base = String(cdLayer["BASENAME"] ?? "").trim();
+  const code = field != null && String(field).trim() !== "" ? String(field).trim() : /^\d{4}$/.test(geoid) ? geoid.slice(2) : /^\d{1,2}$/.test(base) ? base : /at large/i.test(base) ? "00" : null;
+  if (code === null) return null;
+  const n = code.padStart(2, "0");
   if (!/^\d{2}$/.test(n)) return null;
   return { districtId: `${state}-${n === "00" || n === "98" ? "AL" : n}`, state };
 }

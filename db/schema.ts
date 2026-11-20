@@ -613,8 +613,8 @@ export const billFollows = sqliteTable("bill_follows", {
 // ── Round C: a reader's districts for "Your legislators" (migration 0021). District ids only, never the address. ──
 export const readerLocations = sqliteTable("reader_locations", {
   userId: text("user_id").primaryKey().references(() => appUsers.id), state: text("state").notNull(), congressional: text("congressional"),
-  stateUpper: text("state_upper"), stateLower: text("state_lower"), source: text("source", { enum: ["zip", "address"] }).notNull(), updatedAt: integer("updated_at").notNull(),
-});
+  stateUpper: text("state_upper"), stateLower: text("state_lower"), source: text("source", { enum: ["zip", "address", "nearby", "pin", "picked"] }).notNull(), updatedAt: integer("updated_at").notNull(),
+}); // "nearby", "pin" and "picked" (20 Nov 2026) are the reader's own word for where they live; the column is plain text, so no migration.
 
 // ── Round H: Texas Legislature (migration 0022). New tables only. Copies of public records; TLO is the source of record. ──
 export const txPeople = sqliteTable("tx_people", {

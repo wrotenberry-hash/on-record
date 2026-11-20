@@ -10,13 +10,24 @@ import { applyFollowDefaults } from "@/lib/follow-defaults";
  * them to other devices. The street address used to find the districts is never stored.
  */
 export const LOCATION_COOKIE = "or_loc";
-export type Location = { state: string; congressional: string | null; stateUpper: string | null; stateLower: string | null; source: "zip" | "address" };
+/**
+ * How the place was found. "zip": a ZIP code alone. "address": the Census Bureau matched a street address.
+ * "nearby": the Census Bureau matched a cross street the reader gave in place of their own address. "pin": the reader
+ * dropped a pin on a map and the Census Bureau named the districts at that spot. "picked": the reader chose the House
+ * district themselves. The last three are the reader's own word for where they live (owner, 20 Nov 2026:
+ * "Mark any account whose district was self-picked rather than matched, so those answers never count as
+ * address-matched later"); counting never reads this place at all (lib/verify decides that from its own address match).
+ */
+export type PlaceSource = "zip" | "address" | "nearby" | "pin" | "picked";
+export const SELF_PLACED: readonly PlaceSource[] = ["nearby", "pin", "picked"];
+export const selfPlaced = (source: string | null | undefined) => source === "nearby" || source === "pin" || source === "picked";
+export type Location = { state: string; congressional: string | null; stateUpper: string | null; stateLower: string | null; source: PlaceSource };
 
 const ID = /^[A-Z]{2}(-(\d{2}|AL)|-(SD|HD)-\d{1,3})?$/;
 export function encodeLocation(l: Location) { return [l.state, l.congressional ?? "", l.stateUpper ?? "", l.stateLower ?? "", l.source].join("|"); }
 export function decodeLocation(v: string | null | undefined): Location | null {
   const [state, cd, su, sl, source] = String(v ?? "").split("|");
-  if (!state || !/^[A-Z]{2}$/.test(state) || (source !== "zip" && source !== "address")) return null;
+  if (!state || !/^[A-Z]{2}$/.test(state) || (source !== "zip" && source !== "address" && source !== "nearby" && source !== "pin" && source !== "picked")) return null;
   const ok = (x: string) => (x && ID.test(x) ? x : null);
   return { state, congressional: ok(cd), stateUpper: ok(su), stateLower: ok(sl), source };
 }

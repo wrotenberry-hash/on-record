@@ -44,6 +44,35 @@ export async function geocodeAddress(address: string, now = Date.now()): Promise
   } catch { return { ok: false, reason: "unreachable" }; }
 }
 
+/**
+ * One spot on the map → its districts (owner, 20 Nov 2026: a reader whose new address the Census Bureau cannot place
+ * may drop a pin instead). The same official service, asked by coordinates; the same care about which Congress's map
+ * answered. The spot is sent once, rounded to about a metre, and is not stored.
+ */
+export async function geocodePoint(lat: number, lon: number, now = Date.now()): Promise<{ ok: true; districts: Districts } | { ok: false; reason: "unreachable" | "no_match" }> {
+  const ask = async (vintage: string) => {
+    const q = new URLSearchParams({ x: String(lon), y: String(lat), benchmark: "Public_AR_Current", vintage, layers: "all", format: "json" });
+    const res = await fetch(`${CENSUS()}/geocoder/geographies/coordinates?${q}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
+    if (!res.ok) throw new Error(`census ${res.status}`);
+    const g = ((await res.json()) as { result?: { geographies?: Record<string, unknown[]> } }).result?.geographies;
+    return g && Object.keys(g).length ? { geographies: g } : undefined;
+  };
+  try {
+    const match = await ask("Current_Current");
+    const d = districtsFromCensus(match);
+    if (!d) return { ok: false, reason: "no_match" };
+    const year = new Date(now).getUTCFullYear(), sitting = congressForYear(year), used = censusCongress(match);
+    if (d.congressional && used !== null && used !== sitting) {
+      d.congressional = null;
+      for (const vintage of [`ACS${year - 1}_Current`, `ACS${year - 2}_Current`]) {
+        const older = await ask(vintage).catch(() => undefined);
+        if (older && censusCongress(older) === sitting) { d.congressional = districtsFromCensus(older)?.congressional ?? null; break; }
+      }
+    }
+    return { ok: true, districts: d };
+  } catch { return { ok: false, reason: "unreachable" }; }
+}
+
 export type Legislator = { id: string; fullName: string; party: string; state: string; district: number | null; chamber: string; role: string; level: "federal" | "state" };
 
 const role = (p: { chamber: string; state: string; district: number | null }) => p.chamber === "senate" ? `U.S. Senator, ${p.state}` : `U.S. Representative, ${p.state}${p.district ? `-${p.district}` : " at large"}`;

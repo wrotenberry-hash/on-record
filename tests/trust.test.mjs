@@ -223,7 +223,7 @@ test("cookie lifetimes on the privacy page are the ones in the code", () => {
   assert.match(read("lib/mail-verify/rules.ts"), /MAIL_OFFER_MAX_AGE_S = 400 \* 24 \* 3600/); assert.equal(lasts("or_mvo"), "400 days");
   assert.match(read("lib/share.ts"), /maxAge: 7 \* 24 \* 3600/); assert.equal(lasts("or_from_share"), "7 days");
   // The place cookie holds district codes only: the saved shape has no ZIP and no street.
-  assert.match(read("lib/location.ts"), /export type Location = \{ state: string; congressional: string \| null; stateUpper: string \| null; stateLower: string \| null; source: "zip" \| "address" \}/);
+  assert.match(read("lib/location.ts"), /export type Location = \{ state: string; congressional: string \| null; stateUpper: string \| null; stateLower: string \| null; source: PlaceSource \}/);
 });
 
 test("outside services: who gets reader data, and when", () => {

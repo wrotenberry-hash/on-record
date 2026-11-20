@@ -60,7 +60,8 @@ export function censusCongress(match: unknown): number | null {
 export const PLACE_ERRORS = {
   need_zip: "Enter your 5-digit ZIP code.",
   unknown_zip: "We could not find that ZIP code. Check the five digits.",
-  no_match: "The Census Bureau could not place that street address. Check the house number and street name, or clear the street box to use your ZIP code alone.",
+  // Owner, 20 Nov 2026: say this, then offer what to try in order (lib/map-rules.ts PLACE_STEPS). No fall back to the ZIP.
+  no_match: "We couldn't place that address.",
   unreachable: "The Census Bureau’s address service did not answer. Try again in a minute, or clear the street box to use your ZIP code alone.",
   closed: "This page is open to invited readers only.",
 } as const;

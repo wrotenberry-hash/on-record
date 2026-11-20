@@ -124,8 +124,12 @@ export const SOURCES: Source[] = [
 
   { id: "census", group: "lookup", name: "U.S. Census Bureau geocoder", publisher: "U.S. Census Bureau", government: true,
     url: "https://geocoding.geo.census.gov/geocoder/", hosts: ["geocoding.geo.census.gov"],
-    reads: "Turns a street address into a U.S. House district and the two state legislative districts. A ZIP code alone is matched to its state and House district from a Census table kept inside the site, without asking anyone.",
-    refreshed: "Each time a reader looks up an address." },
+    reads: "Turns a street address, a cross street or a spot chosen on the map into a U.S. House district and the two state legislative districts. A ZIP code alone is matched to its state and House district from a Census table kept inside the site, without asking anyone.",
+    refreshed: "Each time a reader looks up an address or uses a spot on the map." },
+  { id: "census-boundaries", group: "lookup", name: "U.S. Census Bureau boundary files", publisher: "U.S. Census Bureau", government: true,
+    url: "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html", hosts: ["www2.census.gov"],
+    reads: "The outlines of U.S. House districts and of ZIP code areas, drawn on the small map that helps a reader choose a district when an address cannot be placed. The lines are general outlines: close to a line they can be off by a street.",
+    refreshed: "Copied into the site when a new Congress is seated or a state redraws its map." },
 ];
 
 /* ───────────────────────────── 2. Official and Analysis ───────────────────────────── */
@@ -272,7 +276,7 @@ export type Cookie = {
 export const COOKIES: Cookie[] = [
   { name: "or_trial", kind: "cookie", who: "everyone", purpose: "Lets you in as an invited trial reader.", holds: "The code from your invite link.", lasts: "60 days" },
   { name: "or_reader", kind: "cookie", who: "everyone", purpose: "Keeps you signed in after you tap the link in your email.", holds: "A signed token naming your account.", lasts: "90 days" },
-  { name: "or_loc", kind: "cookie", who: "everyone", purpose: "Remembers which legislators are yours.", holds: "Your state and district codes, such as TX and TX-37. Not your address.", lasts: "400 days" },
+  { name: "or_loc", kind: "cookie", who: "everyone", purpose: "Remembers which legislators are yours.", holds: "Your state and district codes, such as TX and TX-37, and how they were found (a ZIP code, an address, a cross street, a spot on the map, or your own choice). Not your address, and not the spot.", lasts: "400 days" },
   { name: "or_zip", kind: "cookie", who: "everyone", purpose: "Keeps the ZIP code you typed so you do not have to type it again.", holds: "Your ZIP code. It is kept in your browser; the site does not save it in its database.", lasts: "400 days" },
   { name: "or_first", kind: "cookie", who: "everyone", purpose: "Lets the site count, in total, how long first-time readers take to give their first answer.", holds: "The time of your first visit. Only a total by time band is recorded, never your own time.", lasts: "1 year" },
   { name: "or_issues", kind: "cookie", who: "everyone", purpose: "Remembers the issues you picked.", holds: "Up to three issue names.", lasts: "400 days" },
@@ -309,7 +313,9 @@ export const PROCESSORS: Processor[] = [
   { id: "resend", name: "Resend", url: "https://resend.com/", role: "Sends the site's email.", when: "optional", readerData: true, hosts: ["api.resend.com"],
     receives: "Your email address and the text of each email sent to you: the sign-in link; the weekly email and bill alerts, unless you turn them off; and any briefing, vote alert or reminder you turned on." },
   { id: "census", name: "U.S. Census Bureau geocoder", url: "https://geocoding.geo.census.gov/geocoder/", role: "Finds the districts for a street address.", when: "optional", readerData: true, hosts: ["geocoding.geo.census.gov"],
-    receives: "The street address you type, sent from the site's server. The Census Bureau does not receive your name, your email or your device's internet address." },
+    receives: "The street address you type, or the spot you choose on the map, sent from the site's server. The Census Bureau does not receive your name, your email or your device's internet address." },
+  { id: "osm", name: "OpenStreetMap", url: "https://www.openstreetmap.org/copyright", role: "Supplies the map pictures under the district lines and the pin.", when: "optional", readerData: true, hosts: ["tile.openstreetmap.org"],
+    receives: "Only if you open the map: requests for pictures of the area shown, sent from the site's server. OpenStreetMap does not receive your address, the spot you choose, your name, your email or your device's internet address." },
   { id: "push", name: "Your browser's notification service (Apple, Google or Mozilla)", url: "https://developer.mozilla.org/en-US/docs/Web/API/Push_API", role: "Wakes your device when you have turned on alerts.", when: "optional", readerData: true, hosts: [],
     receives: "An empty signal with no content. Your device then asks the site itself for the text of the alert." },
   { id: "twilio", name: "Twilio", url: "https://www.twilio.com/", role: "Checks that a phone number is a real mobile line and texts the code.", when: "verification", readerData: true, hosts: ["lookups.twilio.com", "verify.twilio.com"],

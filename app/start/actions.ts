@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { refresh, revalidatePath } from "next/cache";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { currentLocation, saveLocation, type Location } from "@/lib/location";
-import { federalLegislators, geocodeAddress } from "@/lib/federal/legislators";
+import { federalLegislators, geocodeAddress, geocodePoint } from "@/lib/federal/legislators";
+import { pinInRange, roundPin } from "@/lib/map-rules";
 import { txLegislatorsFor } from "@/lib/texas/queries";
 import { savePickedIssues } from "@/lib/reader-issues";
 import { countEvent } from "@/lib/events";
@@ -50,7 +51,11 @@ export async function findPlace(prev: PlaceState, formData: FormData): Promise<P
     if (!g.ok) return fail(g.reason);
     const d = g.districts;
     // The House district is the sitting Congress's; when the geocoder could not give it, a ZIP inside one district still settles it.
-    loc = { state: d.state, congressional: d.congressional ?? (place.state === d.state ? place.congressional : null), stateUpper: d.stateUpper, stateLower: d.stateLower, source: "address" };
+    loc = { state: d.state, congressional: d.congressional ?? (place.state === d.state ? place.congressional : null), stateUpper: d.stateUpper, stateLower: d.stateLower,
+      // A cross street ("Main St & Oak Ave") is a spot near home, not the reader's own address: it is marked as that.
+      source: / & /.test(d.matchedAddress ?? "") ? "nearby" : "address" };
+    // 20 Nov 2026: counted apart, so "the address matched but named no House district" can be told from "it did not match".
+    if (!loc.congressional) await countEvent("lookup_address_no_district", access.audience);
   } else {
     await countEvent("lookup_zip_ok", access.audience);
     loc = { state: place.state, congressional: place.congressional, stateUpper: null, stateLower: null, source: "zip" };
@@ -83,8 +88,30 @@ export async function chooseDistrict(formData: FormData) {
   const allowed = place?.choices.length ? place.choices.includes(d) : m[1] === loc.state;
   if (!allowed) redirect(next);
   const same = m[1] === loc.state;
-  await saveLocation(userId, { state: m[1], congressional: d, stateUpper: same ? loc.stateUpper : null, stateLower: same ? loc.stateLower : null, source: loc.source });
+  // 20 Nov 2026: a district the reader chose is marked as their own choice, whatever found the rest of the place.
+  await saveLocation(userId, { state: m[1], congressional: d, stateUpper: same ? loc.stateUpper : null, stateLower: same ? loc.stateLower : null, source: "picked" });
   await countEvent("flow_district", access.audience);
+  redirect(next);
+}
+
+/**
+ * "Drop a pin on a map" (owner, 20 Nov 2026): for a reader whose address the Census Bureau cannot place. The spot is
+ * sent once to the Census Bureau, which names the districts there; the spot itself is not stored. The place is saved
+ * as the reader's own word for where they live ("pin"), never as an address match. Works from any step: with or
+ * without a place already saved.
+ */
+export async function placeByPin(formData: FormData) {
+  const access = await viewerAccess(), next = nextPath(formData.get("next")), back = `/start/pin?next=${encodeURIComponent(next)}`;
+  if (!access.allowed) redirect(next);
+  const lat = roundPin(Number(formData.get("lat"))), lon = roundPin(Number(formData.get("lon")));
+  if (!pinInRange(lat, lon)) redirect(`${back}&e=range`);
+  const g = await geocodePoint(lat, lon);
+  await countEvent(g.ok && g.districts.congressional ? "lookup_pin_ok" : "lookup_pin_failed", access.audience);
+  if (!g.ok) redirect(`${back}&e=${g.reason}`);
+  if (!g.districts.congressional) redirect(`${back}&e=no_district`);
+  const userId = access.invite || access.editor ? await currentAppUserId(true) : null;
+  const d = g.districts;
+  await saveLocation(userId, { state: d.state, congressional: d.congressional, stateUpper: d.stateUpper, stateLower: d.stateLower, source: "pin" });
   redirect(next);
 }
 

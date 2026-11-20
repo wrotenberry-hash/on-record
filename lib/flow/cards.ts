@@ -41,12 +41,15 @@ export function legislatorsHeading(n: { senators: number; representative: number
  * members of Congress; the two Texas state legislators need a street address, and so does a House district when the
  * ZIP crosses a line.
  */
-export function notFoundLine(i: { source: "zip" | "address"; needsAddress: boolean; chooseDistrict: boolean }): string | null {
+export function notFoundLine(i: { source: "zip" | "address" | "nearby" | "pin" | "picked"; needsAddress: boolean; chooseDistrict: boolean }): string | null {
   const missing = [...(i.chooseDistrict ? ["your U.S. representative"] : []), ...(i.needsAddress ? ["your Texas state senator", "your Texas state representative"] : [])];
   if (!missing.length) return null;
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
-  if (i.source === "address") return `That address did not find ${list}. ${i.chooseDistrict ? "Choose your district below." : "Check it and try again below."}`;
-  return `A ZIP code alone could not find ${list}. ${i.needsAddress ? "Add your street address below." : "Choose your district below, or add your street address."}`;
+  // 20 Nov 2026: choosing a district by hand is the last resort, so no line sends the reader to it first.
+  if (i.source === "address" || i.source === "nearby") return `That address did not find ${list}. The steps below say what to try.`;
+  if (i.source === "pin") return `That spot on the map did not find ${list}. The steps below say what to try.`;
+  if (i.source === "picked") return `You chose your U.S. House district yourself. A street address is still needed to find ${list}.`;
+  return `A ZIP code alone could not find ${list}. Add your street address below.`;
 }
 
 /* --------------------------------------------------------------- party and seat --- */

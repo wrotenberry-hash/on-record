@@ -77,7 +77,7 @@ test("the heading counts who was found: five only when all five are there", () =
 
 test("a ZIP code alone says what it could not find", () => {
   assert.equal(notFoundLine({ source: "zip", needsAddress: true, chooseDistrict: false }), "A ZIP code alone could not find your Texas state senator and your Texas state representative. Add your street address below.");
-  assert.equal(notFoundLine({ source: "zip", needsAddress: false, chooseDistrict: true }), "A ZIP code alone could not find your U.S. representative. Choose your district below, or add your street address.");
+  assert.equal(notFoundLine({ source: "zip", needsAddress: false, chooseDistrict: true }), "A ZIP code alone could not find your U.S. representative. Add your street address below.");
   assert.match(notFoundLine({ source: "zip", needsAddress: true, chooseDistrict: true }), /your U\.S\. representative, your Texas state senator and your Texas state representative\. Add your street address below\.$/);
   assert.equal(notFoundLine({ source: "address", needsAddress: false, chooseDistrict: false }), null);
   assert.equal(notFoundLine({ source: "zip", needsAddress: false, chooseDistrict: false }), null, "outside Texas a ZIP in one district finds everyone the site covers");
@@ -590,7 +590,7 @@ test("honest names: the first screen never calls address matching verifying", ()
 test("calm and specific: no outrage wording, no exclamation marks, no urgency tricks, no streaks or points", () => {
   const lines = [
     ...[[2, 1, 2], [2, 1, 0], [2, 0, 0], [1, 1, 1], [0, 1, 0]].map(([senators, representative, state]) => legislatorsHeading({ senators, representative, state })),
-    ...[["zip", true, true], ["zip", true, false], ["zip", false, true], ["address", false, true], ["address", true, false]].map(([source, needsAddress, chooseDistrict]) => notFoundLine({ source, needsAddress, chooseDistrict })),
+    ...[["zip", true, true], ["zip", true, false], ["zip", false, true], ["address", false, true], ["address", true, false], ["nearby", false, true], ["pin", true, false], ["picked", true, false]].map(([source, needsAddress, chooseDistrict]) => notFoundLine({ source, needsAddress, chooseDistrict })),
     ...[[1, 1], [2, 2], [3, 3], [3, 9], [3, 40]].map(([a, b]) => cardVotesNote(a, b)),
     ...[[5, 5, true], [5, 3, false], [5, 0, false], [1, 1, true], [1, 0, false], [2, 2, false]].flatMap(([total, followed, alertsOn]) => { const s = followSummary({ total, followed, alertsOn }); return [s.line, s.alerts, s.button ?? ""]; }),
     ...[[0, false, true], [1, true, true], [3, true, false]].flatMap(([devices, hasEmail, alertsOn]) => { const d = deliveryLines({ devices, hasEmail, alertsOn }); return [d.push, d.email, ...d.links.map(l => l.label)]; }),
