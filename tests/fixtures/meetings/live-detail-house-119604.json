@@ -1,0 +1,193 @@
+{
+    "committeeMeeting": {
+        "chamber": "House",
+        "committees": [
+            {
+                "name": "House Natural Resources Subcommittee on Indian and Insular Affairs",
+                "systemCode": "hsii24",
+                "url": "https://api.congress.gov/v3/committee/house/hsii24?format=json"
+            }
+        ],
+        "congress": 119,
+        "date": "2026-11-19T17:30:00Z",
+        "eventId": "119604",
+        "location": {
+            "building": "Longworth House Office Building",
+            "room": "1324"
+        },
+        "meetingDocuments": [
+            {
+                "description": "H.R. 10307 (Rep. Begich), “Anaktuvuk Pass Food Security Access Act”",
+                "documentType": "Bills and Resolutions",
+                "format": "PDF",
+                "name": "H.R. 10307 (Rep. Begich), “Anaktuvuk Pass Food Security Access Act”",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/BILLS-11910307ih.pdf"
+            },
+            {
+                "description": "H.R. 10458 (Rep. Salinas), “Grand Ronde Land Transfer Act of 2026”",
+                "documentType": "Bills and Resolutions",
+                "format": "PDF",
+                "name": "H.R. 10458 (Rep. Salinas), “Grand Ronde Land Transfer Act of 2026”",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/BILLS-11910458ih.pdf"
+            },
+            {
+                "description": "H.R. 10751 (Rep. Bergman), “Tribal Oral Health Sovereignty Act”",
+                "documentType": "Bills and Resolutions",
+                "format": "PDF",
+                "name": "H.R. 10751 (Rep. Bergman), “Tribal Oral Health Sovereignty Act”",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/BILLS-11910751ih.pdf"
+            },
+            {
+                "description": "H.R. 10956 (Rep. Kennedy of UT), “IHS Workforce Parity Act of 2026”",
+                "documentType": "Bills and Resolutions",
+                "format": "PDF",
+                "name": "H.R. 10956 (Rep. Kennedy of UT), “IHS Workforce Parity Act of 2026”",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/BILLS-11910956ih.pdf"
+            },
+            {
+                "description": "Hearing Notice",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "Hearing Notice",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD001.pdf"
+            },
+            {
+                "description": "Hearing Memo",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "Hearing Memo",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD002.pdf"
+            },
+            {
+                "description": "Letter of Support from OKCIC CEO and NCUIH Board President for H.R. 10956 (Rep. Hurd)",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "Letter of Support from OKCIC CEO and NCUIH Board President for H.R. 10956 (Rep. Hurd)",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD006.pdf"
+            },
+            {
+                "description": "USDA Statement FTR (Rep. Hurd)",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "USDA Statement FTR (Rep. Hurd)",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD007.pdf"
+            },
+            {
+                "description": "DOI Statement FTR (Rep. Hurd)",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "DOI Statement FTR (Rep. Hurd)",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD004.pdf"
+            },
+            {
+                "description": "HHS Statement FTR (Rep. Hurd)",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "HHS Statement FTR (Rep. Hurd)",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD005.pdf"
+            },
+            {
+                "description": "Time Change Hearing Notice",
+                "documentType": "Support Document",
+                "format": "PDF",
+                "name": "Time Change Hearing Notice",
+                "url": "https://www.congress.gov/119/meeting/house/119604/documents/HHRG-119-II24-20261119-SD003.pdf"
+            }
+        ],
+        "meetingStatus": "Rescheduled",
+        "title": "Legislative Hearing on: H.R. 10307 (Rep. Begich), \"Anaktuvuk Pass Food Security Access Act\", H.R. 10458 (Rep. Salinas), \"Grand Ronde Land Transfer Act of 2026\", H.R. 10751 (Rep. Bergman), \"Tribal Oral Health Sovereignty Act\", and H.R. 10956 (Rep. Kennedy of UT), \"IHS Workforce Parity Act of 2026\".",
+        "type": "Hearing",
+        "updateDate": "2026-11-19T22:33:44Z",
+        "witnessDocuments": [
+            {
+                "documentType": "Witness Biography",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Bio-HugoE-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Truth in Testimony",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-TTF-HugoE-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Statement",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Wstate-HugoE-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Biography",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Bio-CarlosM-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Truth in Testimony",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-TTF-CarlosM-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Statement",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Wstate-CarlosM-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Biography",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Bio-KennedyC-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Truth in Testimony",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-TTF-KennedyC-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Statement",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Wstate-KennedyC-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Biography",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Bio-ObeyD-20261119-U1.pdf"
+            },
+            {
+                "documentType": "Witness Truth in Testimony",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-TTF-ObeyD-20261119.pdf"
+            },
+            {
+                "documentType": "Witness Statement",
+                "format": "PDF",
+                "url": "https://www.congress.gov/119/meeting/house/119604/witnesses/HHRG-119-II24-Wstate-ObeyD-20261119.pdf"
+            }
+        ],
+        "witnesses": [
+            {
+                "name": "The Honorable Esther Hugo",
+                "organization": "Village of Anaktuvuk Pass (Naqsraġmiut) Tribal Council",
+                "position": "Vice President"
+            },
+            {
+                "name": "The Honorable Mikah Carlos",
+                "organization": "National Indian Health Board",
+                "position": "Board Member"
+            },
+            {
+                "name": "The Honorable Cheryle Kennedy",
+                "organization": "The Confederated Tribes of Grand Ronde",
+                "position": "Chairwoman"
+            },
+            {
+                "name": "Ms. Dana Obey",
+                "organization": "American Dental Therapy Association",
+                "position": "Vice President"
+            }
+        ]
+    },
+    "request": {
+        "chamber": "house",
+        "congress": "119",
+        "contentType": "application/json",
+        "eventId": "119604",
+        "format": "json"
+    }
+}

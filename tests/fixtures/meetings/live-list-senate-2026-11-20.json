@@ -1,0 +1,294 @@
+{
+    "committeeMeetings": [
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338880",
+            "updateDate": "2026-11-19T21:08:40Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338880?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338840",
+            "updateDate": "2026-11-19T03:08:53Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338840?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338841",
+            "updateDate": "2026-11-18T21:08:58Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338841?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338822",
+            "updateDate": "2026-11-18T21:08:57Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338822?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338842",
+            "updateDate": "2026-11-18T19:08:49Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338842?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338845",
+            "updateDate": "2026-11-18T19:08:43Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338845?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338860",
+            "updateDate": "2026-11-18T17:08:56Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338860?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338828",
+            "updateDate": "2026-11-18T17:08:49Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338828?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338830",
+            "updateDate": "2026-11-18T17:08:43Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338830?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338831",
+            "updateDate": "2026-11-18T17:08:37Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338831?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338849",
+            "updateDate": "2026-11-17T23:23:58Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338849?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338823",
+            "updateDate": "2026-11-17T23:08:48Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338823?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338835",
+            "updateDate": "2026-11-17T23:08:48Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338835?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338825",
+            "updateDate": "2026-11-17T23:08:48Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338825?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338843",
+            "updateDate": "2026-11-17T23:08:47Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338843?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338824",
+            "updateDate": "2026-11-17T23:08:47Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338824?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338832",
+            "updateDate": "2026-11-17T23:08:44Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338832?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338847",
+            "updateDate": "2026-11-17T23:08:43Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338847?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338833",
+            "updateDate": "2026-11-17T19:08:46Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338833?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338827",
+            "updateDate": "2026-11-17T17:08:45Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338827?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338844",
+            "updateDate": "2026-11-17T05:08:39Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338844?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338848",
+            "updateDate": "2026-11-17T00:38:39Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338848?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338846",
+            "updateDate": "2026-11-17T00:38:39Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338846?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338826",
+            "updateDate": "2026-11-17T00:38:39Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338826?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338829",
+            "updateDate": "2026-11-17T00:38:38Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338829?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338821",
+            "updateDate": "2026-11-17T00:38:38Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338821?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338834",
+            "updateDate": "2026-11-12T21:08:38Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338834?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338800",
+            "updateDate": "2026-11-12T01:08:40Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338800?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338807",
+            "updateDate": "2026-11-10T19:08:25Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338807?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338801",
+            "updateDate": "2026-11-10T19:08:24Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338801?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338804",
+            "updateDate": "2026-11-09T23:54:24Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338804?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338806",
+            "updateDate": "2026-11-09T23:54:17Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338806?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338802",
+            "updateDate": "2026-11-09T23:09:16Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338802?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338805",
+            "updateDate": "2026-11-09T23:09:16Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338805?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338803",
+            "updateDate": "2026-11-09T23:09:15Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338803?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338781",
+            "updateDate": "2026-09-30T16:08:20Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338781?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338787",
+            "updateDate": "2026-09-30T00:23:27Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338787?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338788",
+            "updateDate": "2026-09-30T00:08:26Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338788?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338795",
+            "updateDate": "2026-09-30T00:08:25Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338795?format=json"
+        },
+        {
+            "chamber": "Senate",
+            "congress": 119,
+            "eventId": "338758",
+            "updateDate": "2026-09-28T22:08:21Z",
+            "url": "https://api.congress.gov/v3/committee-meeting/119/senate/338758?format=json"
+        }
+    ],
+    "pagination": {
+        "count": 1160,
+        "next": "https://api.congress.gov/v3/committee-meeting/119/senate?offset=40&limit=40&format=json"
+    },
+    "request": {
+        "chamber": "senate",
+        "congress": "119",
+        "contentType": "application/json",
+        "format": "json"
+    }
+}

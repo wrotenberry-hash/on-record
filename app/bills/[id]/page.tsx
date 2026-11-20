@@ -29,6 +29,8 @@ import { voteBoxData } from "@/lib/constituent/view";
 import { BRAND, brandTitle } from "@/lib/brand";
 import { ContactForBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
 import { READER_HOLDS } from "@/lib/analysis/publish-gate";
+import { billWindow } from "@/lib/changes/window-store"; // Suggest changes (20 Nov 2026): where the bill is and whether it can still be changed
+import { WindowBlock } from "@/components/changes/window-block";
 
 export const dynamic = "force-dynamic";
 
@@ -93,10 +95,11 @@ export default async function BillPage({ params, searchParams }: { params: Promi
   const memberScope = (m: { chamber: string; state: string; district: number | null }) => scopeForMember({ level: "federal", chamber: m.chamber === "senate" ? "upper" : "lower", state: m.state, district: m.district });
   const districtTotals = mine.length ? await billTotals(bill.id, [...new Set(mine.map(memberScope))]).catch(() => new Map<string, ScopeTotals>()) : new Map<string, ScopeTotals>();
   const underReview = await import("@/lib/federal/depth").then(d => d.tallyUnderReview(votes.map(v => v.id))).catch(() => new Set<string>());
-  const [timeline, amendments, floor, parties, cosponsors, changes, followingBill] = await Promise.all([
+  const [timeline, amendments, floor, parties, cosponsors, changes, followingBill, changeWindow] = await Promise.all([
+    // The last one is "Can this bill still be changed?": for every visitor who can see this page; nothing is shown when it cannot be worked out.
     billTimeline(bill.id, bill.introducedAt).catch(() => null), billAmendments(bill.id).catch(() => []), floorThisWeek(bill.id).catch(() => []),
     rollCallParties(votes.map(v => v.id)).catch(() => new Map<string, Record<string, Record<string, number>>>()), cosponsorPartyCounts(bill.id).catch(() => null),
-    changesFor(bill.id).catch(() => null), currentAppUserId().then(u => isFollowingBill(u, bill.id)).catch(() => false)]);
+    changesFor(bill.id).catch(() => null), currentAppUserId().then(u => isFollowingBill(u, bill.id)).catch(() => false), billWindow(bill.id).catch(() => null)]);
   const partyName = (p: string) => (p.startsWith("Dem") ? "Democrats" : p.startsWith("Rep") ? "Republicans" : p.startsWith("Ind") ? "Independents" : p);
   const canAnswer = !!access.invite || !!access.editor;
   // Resident voting (18 Nov 2026): the same voting box as every other bill, federal or state.
@@ -178,6 +181,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       </>}
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
+        <WindowBlock w={changeWindow} />
         {timeline && <Timeline steps={timeline.steps} current={timeline.currentStep} sourceUrl={`${bill.congressUrl}/all-actions`} />}
         {bill.latestActionText ? <p>Latest action: <Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
           : votes[0] ? <p>Latest recorded vote: {votes[0].question}, {votes[0].result ?? "result not stated"} {underReview.has(votes[0].id) ? "(tally under review)" : `${votes[0].yea}–${votes[0].nay}`} <span className="meta">({shortDate(votes[0].votedAt)})</span></p>

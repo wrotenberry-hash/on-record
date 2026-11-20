@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><css_meetings_scheduled>
+  <meeting>
+    <identifier>338833</identifier>
+    <last_update>11-17-2026 11:10:20 AM</last_update>
+    <last_update_iso_8601>2026-11-17T11:10:20.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SSGA00</cmte_code>
+    <committee>Homeland Security and Governmental Affairs</committee>
+    <type>Open Hearing</type>
+    <date>19-NOV-2026 09:30 AM</date>
+    <date_iso_8601>2026-11-19</date_iso_8601>
+    <day_of_week>Thursday</day_of_week>
+    <time>09:30 AM</time>
+    <time_iso_8601>09:30:00</time_iso_8601>
+    <room>SD-342</room>
+    <video_url>https://www.senate.gov/isvp/?comm=govtaff&amp;filename=govtaff111926</video_url>
+    <senate_cable_channel> 19.1</senate_cable_channel>
+    <Documents>
+      <AssociatedDocument congress="119" document_description="Michael Chamberlain, of Virginia, to be Director of the Office of Government Ethics for a term of five years, vice David Huitema." document_num="1097" document_prefix="PN" partition="0 "/>
+      <AssociatedDocument congress="119" document_description="Maria D' Avanzo, of New York, to be Inspector General, General Services Administration, vice Carol Fortine Ochoa, resigned." document_num="1180" document_prefix="PN" partition="01"/>
+      <AssociatedDocument congress="119" document_description="Dennis Kirk, of Virginia, to be Inspector General, Department of the Interior, vice Mark Lee Greenblatt." document_num="1256" document_prefix="PN" partition="0 "/>
+      <AssociatedDocument congress="119" document_description="Mark Priebe, of Virginia, to be Inspector General, Department of Education, vice Sandra D. Bruce." document_num="1366" document_prefix="PN" partition="04"/>
+      <AssociatedDocument congress="119" document_description="Robert Steinau, of Maryland, to be Inspector General, National Aeronautics and Space Administration, vice Paul K. Martin." document_num="1367" document_prefix="PN" partition="07"/>
+      <AssociatedDocument congress="119" document_description="Jeffrey Zisk, of Texas, to be a Commissioner of the Postal Regulatory Commission for a term expiring November 22, 2032. (Reappointment)" document_num="1367" document_prefix="PN" partition="09"/>
+      <AssociatedDocument congress="119" document_description="Michael LoSapio, of New Jersey, to be Director of the Cybersecurity and Infrastructure Security Agency, Department of Homeland Security, vice Jen Easterly, resigned." document_num="1426" document_prefix="PN" partition="0 "/>
+      <AssociatedDocument congress="119" document_description="Fernando Campoamor-Sanchez, of the District of Columbia, to be an Associate Judge of the Superior Court of the District of Columbia for the term of fifteen years, vice Peter Arno Krauthamer, retired." document_num="1429" document_prefix="PN" partition="03"/>
+      <AssociatedDocument congress="119" document_description="Roman Marian Chaban, of the District of Columbia, to be an Associate Judge of the Superior Court of the District of Columbia for the term of fifteen years, vice Jennifer M. Anderson, retired." document_num="1429" document_prefix="PN" partition="04"/>
+      <AssociatedDocument congress="119" document_description="Eric Sebastian Glover, of the District of Columbia, to be an Associate Judge of the Superior Court of the District of Columbia for the term of fifteen years, vice Anita M. Josey, retired." document_num="1429" document_prefix="PN" partition="06"/>
+      <AssociatedDocument congress="119" document_description="Bernard Michael Desrosiers, of the District of Columbia, to be an Associate Judge of the Superior Court of the District of Columbia for the term of fifteen years, vice Hiram E. Puig-Lugo, retired." document_num="1477" document_prefix="PN" partition="0 "/>
+      <AssociatedDocument congress="119" document_description="Eric Matthew Ueland, of Virginia, to be Comptroller General of the United States for a term of fifteen years, vice Eugene Louis Dodaro, term expired." document_num="1504" document_prefix="PN" partition="02"/>
+      <AssociatedDocument congress="119" document_description="Robert Steffens, of Texas, to be a Governor of the United States Postal Service for a term expiring December 8, 2032, vice Robert M. Duncan, term expired." document_num="852" document_prefix="PN" partition="10"/>
+    </Documents>
+    <matter>Hearings to examine the nominations of Michael LoSapio, of New Jersey, to be Director of the Cybersecurity and Infrastructure Security Agency, Department of Homeland Security, Eric Matthew Ueland, of Virginia, to be Comptroller General of the United States, Michael Chamberlain, of Virginia, to be Director of the Office of Government Ethics, Robert Steffens, of Texas, to be a Governor of the United States Postal Service, Jeffrey Zisk, of Texas, to be a Commissioner of the Postal Regulatory Commission, Mark Priebe, of Virginia, to be Inspector General, Department of Education, Dennis Kirk, of Virginia, to be Inspector General, Department of the Interior, Maria D' Avanzo, of New York, to be Inspector General, General Services Administration, Robert Steinau, of Maryland, to be Inspector General, National Aeronautics and Space Administration, and Eric Sebastian Glover, Fernando Campoamor-Sanchez, Roman Marian Chaban, and Bernard Michael Desrosiers, all of the District of Columbia, each to be an Associate Judge of the Superior Court of the District of Columbia.</matter>
+  </meeting>
+  <meeting>
+    <identifier>338822</identifier>
+    <last_update>11-18-2026 01:40:11 PM</last_update>
+    <last_update_iso_8601>2026-11-18T13:40:11.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SSAS00</cmte_code>
+    <committee>Armed Services</committee>
+    <type>Open Hearing</type>
+    <date>19-NOV-2026 09:45 AM</date>
+    <date_iso_8601>2026-11-19</date_iso_8601>
+    <day_of_week>Thursday</day_of_week>
+    <time>09:45 AM</time>
+    <time_iso_8601>09:45:00</time_iso_8601>
+    <room>SD-G50</room>
+    <video_url>https://www.senate.gov/isvp/?comm=armed&amp;filename=armedA111926</video_url>
+    <senate_cable_channel> 11.1</senate_cable_channel>
+    <Documents>
+      <AssociatedDocument congress="119" document_description="Richard Breckenridge, of New Hampshire, to be an Assistant Secretary of the Navy, vice Nickolas Guertin, resigned." document_num="1273" document_prefix="PN" partition="02"/>
+      <AssociatedDocument congress="119" document_description="William Toti, of Florida, to be Under Secretary of the Navy, vice Hung Cao." document_num="1273" document_prefix="PN" partition="22"/>
+      <AssociatedDocument congress="119" document_description="Arthur Miller, of the District of Columbia, to be an Assistant Secretary of the Navy, vice R. Russell Rumbaugh, resigned." document_num="1430" document_prefix="PN" partition="08"/>
+      <AssociatedDocument congress="119" document_description="Daniel Zimmerman, of North Carolina, to be an Assistant Secretary of Defense. (New Position)" document_num="1479" document_prefix="PN" partition="14"/>
+    </Documents>
+    <matter>Hearings to examine the nominations of William Toti, of Florida, to be Under Secretary of the Navy, Daniel Zimmerman, of North Carolina, to be an Assistant Secretary, Richard Breckenridge, of New Hampshire, to be an Assistant Secretary of the Navy, and Arthur Miller, of the District of Columbia, to be an Assistant Secretary of the Navy, all of the Department of Defense.</matter>
+  </meeting>
+  <meeting>
+    <identifier>338841</identifier>
+    <last_update>11-18-2026 01:40:35 PM</last_update>
+    <last_update_iso_8601>2026-11-18T13:40:35.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SSBK00</cmte_code>
+    <committee>Banking, Housing, and Urban Affairs</committee>
+    <type>Open Business Meeting</type>
+    <date>19-NOV-2026 10:00 AM</date>
+    <date_iso_8601>2026-11-19</date_iso_8601>
+    <day_of_week>Thursday</day_of_week>
+    <time>10:00 AM</time>
+    <time_iso_8601>10:00:00</time_iso_8601>
+    <room>SD-538</room>
+    <video_url>https://www.senate.gov/isvp/?comm=banking&amp;filename=banking111926</video_url>
+    <senate_cable_channel> 12.1</senate_cable_channel>
+    <Documents>
+      <AssociatedDocument congress="119" document_description="David Slade, of Florida, to be First Vice President of the Export-Import Bank of the United States for a term expiring January 20, 2029, vice Judith DelZoppo Pryor, resigned." document_num="1180" document_prefix="PN" partition="02"/>
+      <AssociatedDocument congress="119" document_description="Michael Rigas, of Virginia, to be a Member of the Board of Directors of the Export-Import Bank of the United States for a term expiring January 20, 2031. (Reappointment)" document_num="1255" document_prefix="PN" partition="17"/>
+      <AssociatedDocument congress="119" document_description="Matthew Jones, of Virginia, to be an Assistant Secretary of Housing and Urban Development, vice Francis Cassidy, resigned." document_num="1273" document_prefix="PN" partition="12"/>
+      <AssociatedDocument congress="119" document_description="Jeremy Wiggins, of the District of Columbia, to be an Assistant Secretary of the Treasury, vice Francis Brooke, resigned." document_num="1273" document_prefix="PN" partition="25"/>
+      <AssociatedDocument congress="119" document_description="Mark Aesch, of Florida, to be Federal Transit Administrator, vice Marcus Molinaro." document_num="1479" document_prefix="PN" partition="01"/>
+      <AssociatedDocument congress="119" document_description="Hugo Dante, Jr., of Alabama, to be Director, Office of Financial Research, Department of the Treasury, for a term of six years, vice Dino Falaschetti." document_num="1479" document_prefix="PN" partition="06"/>
+      <AssociatedDocument congress="119" document_description="Rebekah Jurata, of California, to be an Assistant Secretary of the Treasury, vice Luke Pettit, resigned." document_num="1479" document_prefix="PN" partition="10"/>
+      <AssociatedDocument congress="119" document_description="Kristin N. Johnson, of Michigan, to be a Member of the Securities and Exchange Commission for a term expiring June 5, 2029, vice Caroline A. Crenshaw, term expired." document_num="1489" document_prefix="PN" partition="02"/>
+      <AssociatedDocument congress="119" document_description="Steven Levine, of Maryland, to be a Member of the Securities and Exchange Commission for a term expiring June 5, 2030, vice Hester Maria Peirce, term expired." document_num="1489" document_prefix="PN" partition="03"/>
+    </Documents>
+    <matter>Business meeting to consider the nominations of Jeremy Wiggins, of the District of Columbia, to be an Assistant Secretary of the Treasury, Matthew Jones, of Virginia, to be an Assistant Secretary of Housing and Urban Development, and David Slade, of Florida, to be First Vice President, and Michael Rigas, of Virginia, to be a Member of the Board of Directors, both of the Export-Import Bank of the United States; to be immediately followed by an open hearing to examine the nominations of Mark Aesch, of Florida, to be Federal Transit Administrator, and Hugo Dante, Jr., of Alabama, to be Director, Office of Financial Research, and Rebekah Jurata, of California, to be an Assistant Secretary, both of the Department of the Treasury, and Kristin N. Johnson, of Michigan, and Steven Levine, of Maryland, both to be a Member of the Securities and Exchange Commission.</matter>
+  </meeting>
+  <meeting>
+    <identifier>338840</identifier>
+    <last_update>11-18-2026 06:39:01 PM</last_update>
+    <last_update_iso_8601>2026-11-18T18:39:01.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SSFR00</cmte_code>
+    <committee>Foreign Relations</committee>
+    <type>Open Hearing</type>
+    <date>19-NOV-2026 10:00 AM</date>
+    <date_iso_8601>2026-11-19</date_iso_8601>
+    <day_of_week>Thursday</day_of_week>
+    <time>10:00 AM</time>
+    <time_iso_8601>10:00:00</time_iso_8601>
+    <room>SD-419</room>
+    <video_url>https://www.senate.gov/isvp/?comm=foreign&amp;filename=foreign111926</video_url>
+    <senate_cable_channel> 17.1</senate_cable_channel>
+    <Documents>
+      <AssociatedDocument congress="119" document_description="Austin Holmes, of Florida, to be Ambassador Extraordinary and Plenipotentiary of the United States of America to the Republic of Haiti." document_num="1273" document_prefix="PN" partition="07"/>
+      <AssociatedDocument congress="119" document_description="Elliott Hulse, of California, to be Chief Executive Officer, Millennium Challenge Corporation, vice Alice P. Albright, resigned." document_num="1273" document_prefix="PN" partition="08"/>
+      <AssociatedDocument congress="119" document_description="Asa Pitt, of the District of Columbia, to be United States Representative to the Organization for the Prohibition of Chemical Weapons, with rank of Ambassador." document_num="1273" document_prefix="PN" partition="18"/>
+    </Documents>
+    <matter>Hearings to examine the nominations of Elliott Hulse, of California, to be Chief Executive Officer, Millennium Challenge Corporation, and Austin Holmes, of Florida, to be Ambassador to the Republic of Haiti, and Asa Pitt, of the District of Columbia, to be United States Representative to the Organization for the Prohibition of Chemical Weapons, both of the Department of State.</matter>
+  </meeting>
+  <meeting>
+    <identifier>338860</identifier>
+    <last_update>11-18-2026 09:35:55 AM</last_update>
+    <last_update_iso_8601>2026-11-18T09:35:55.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SSCM00</cmte_code>
+    <committee>Commerce, Science, and Transportation</committee>
+    <type>Open Hearing</type>
+    <date>24-NOV-2026 10:00 AM</date>
+    <date_iso_8601>2026-11-24</date_iso_8601>
+    <day_of_week>Tuesday</day_of_week>
+    <time>10:00 AM</time>
+    <time_iso_8601>10:00:00</time_iso_8601>
+    <room>SR-253</room>
+    <video_url>https://www.senate.gov/isvp/?comm=commerce&amp;filename=commerce112426</video_url>
+    <senate_cable_channel>
+    </senate_cable_channel>
+    <Documents>
+      <AssociatedDocument congress="119" document_description="Christopher Mufarrige, of Texas, to be a Federal Trade Commissioner for the term of seven years from September 26, 2026, vice Alvaro M. Bedoya, term expired. " document_num="1425" document_prefix="PN"/>
+      <AssociatedDocument congress="119" document_description="Loren Smith, Jr., of Virginia, to be an Assistant Secretary of Transportation, vice Christopher A. Coes, resigned." document_num="1430" document_prefix="PN" partition="09"/>
+      <AssociatedDocument congress="119" document_description="Peter A. Feldman, of the District of Columbia, to be a Commissioner of the Consumer Product Safety Commission for a term of seven years from October 27, 2026. (Reappointment)" document_num="1479" document_prefix="PN" partition="09"/>
+    </Documents>
+    <matter>Hearings to examine the nominations of Peter A. Feldman, of the District of Columbia, to be a Commissioner of the Consumer Product Safety Commission, Christopher Mufarrige, of Texas, to be a Federal Trade Commissioner, and Loren Smith, Jr., of Virginia, to be an Assistant Secretary of Transportation.</matter>
+  </meeting>
+  <meeting>
+    <identifier>338849</identifier>
+    <last_update>11-17-2026 06:04:19 PM</last_update>
+    <last_update_iso_8601>2026-11-17T18:04:19.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SSJU00</cmte_code>
+    <committee>Judiciary</committee>
+    <type>Open Business Meeting</type>
+    <date>24-NOV-2026 10:15 AM</date>
+    <date_iso_8601>2026-11-24</date_iso_8601>
+    <day_of_week>Tuesday</day_of_week>
+    <time>10:15 AM</time>
+    <time_iso_8601>10:15:00</time_iso_8601>
+    <room>SH-216</room>
+    <video_url>https://www.senate.gov/isvp/?comm=judiciary&amp;filename=judiciary112426</video_url>
+    <senate_cable_channel>
+    </senate_cable_channel>
+    <Documents>
+      <AssociatedDocument congress="119" document_description="Trevor Scott Pemberton, of Oklahoma, to be United States District Judge for the Northern District of Oklahoma, vice Gregory Kent Frizzell, retired." document_num="1272" document_prefix="PN" partition="11"/>
+      <AssociatedDocument congress="119" document_description="Zachary Paul West, of Oklahoma, to be United States District Judge for the Eastern District of Oklahoma, vice Ronald A. White, retired." document_num="1272" document_prefix="PN" partition="16"/>
+      <AssociatedDocument congress="119" document_description="Scott Krueger, of Indiana, to be United States Marshal for the Northern District of Indiana for the term of four years, vice Todd L. Nukes, term expired." document_num="1367" document_prefix="PN" partition="06"/>
+      <AssociatedDocument congress="119" document_description="A bill to protect the right to the free exercise of religion." document_num="5289" document_prefix="SN"/>
+    </Documents>
+    <matter>Business meeting to consider S.5289, to protect the right to the free exercise of religion, and the nominations of Trevor Scott Pemberton, to be United States District Judge for the Northern District of Oklahoma, Zachary Paul West, to be United States District Judge for the Eastern District of Oklahoma, and Scott Krueger, of Indiana, to be United States Marshal for the Northern District of Indiana.</matter>
+  </meeting>
+  <meeting>
+    <identifier>338880</identifier>
+    <last_update>11-19-2026 01:12:23 PM</last_update>
+    <last_update_iso_8601>2026-11-19T13:12:23.000000Z-05:00</last_update_iso_8601>
+    <cmte_code>SPAG00</cmte_code>
+    <committee>Aging</committee>
+    <type>Open Hearing</type>
+    <date>02-DEC-2026 03:30 PM</date>
+    <date_iso_8601>2026-12-02</date_iso_8601>
+    <day_of_week>Wednesday</day_of_week>
+    <time>03:30 PM</time>
+    <time_iso_8601>15:30:00</time_iso_8601>
+    <room>SD-G50</room>
+    <video_url>https://www.senate.gov/isvp/?comm=aging&amp;filename=aging120226</video_url>
+    <senate_cable_channel>
+    </senate_cable_channel>
+    <Documents/>
+    <matter>Hearings to examine caregivers and AI, focusing on opportunities, challenges, and threats.</matter>
+  </meeting>
+</css_meetings_scheduled>

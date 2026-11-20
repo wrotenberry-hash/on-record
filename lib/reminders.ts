@@ -4,7 +4,7 @@ import { officialBills, officialFloorSchedule, readerAccounts, reminders, txBill
 import { weekOf } from "@/lib/federal/depth-parse";
 import { congressGovPage } from "@/lib/federal/parse";
 import { upcomingMeetings } from "@/lib/federal/meetings";
-import { billIdLabel, meetingKindLine, meetingStatusNote } from "@/lib/federal/meetings-parse";
+import { billIdLabel, meetingBillIds, meetingKindLine, meetingStatusNote } from "@/lib/federal/meetings-parse";
 import { remindAtFor, txCommitteeFor, whenLabel, type ComingKind } from "@/lib/coming-rules";
 import { sendTo } from "@/lib/mailer";
 import { BRAND } from "@/lib/brand";
@@ -32,8 +32,9 @@ export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
     upcomingMeetings(now).catch(() => []),
     db.select().from(txCommittees).catch(() => []),
   ]);
-  // Bills named by a hearing link to our own page when we hold the bill, else to the official page.
-  const named = [...new Set(meetings.flatMap(m => m.billIds ?? []))], txNamed = [...new Set(events.flatMap(e => (e.bills as string[] | null) ?? []))];
+  // Bills named by a hearing link to our own page when we hold the bill, else to the official page. A hearing's bills
+  // are those its record lists plus those its title names (meetingBillIds; live check of 20 Nov 2026).
+  const named = [...new Set(meetings.flatMap(m => meetingBillIds(m)))], txNamed = [...new Set(events.flatMap(e => (e.bills as string[] | null) ?? []))];
   const [ours, txOurs] = await Promise.all([
     named.length ? db.select({ id: officialBills.id }).from(officialBills).where(inArray(officialBills.id, named.slice(0, 400))).catch(() => []) : [],
     txNamed.length ? db.select({ id: txBills.id, identifier: txBills.identifier, session: txBills.session }).from(txBills).where(inArray(txBills.identifier, txNamed.slice(0, 400))).orderBy(desc(txBills.session)).catch(() => []) : [],
@@ -46,7 +47,7 @@ export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
       kind: "floor" as const, chamber: f.chamber })),
     ...meetings.map(m => ({ key: `meeting:${m.id}`, when: whenLabel(m.startsAt, "Congress"), whenMs: Date.parse(m.startsAt), title: m.title, detail: meetingKindLine(m.meetingType), href: "/coming?show=all#hearings", where: "Congress" as const,
       kind: "hearing" as const, chamber: m.chamber, committee: m.committeeName, committeeCodes: (m.committeeCode ?? "").split(",").filter(Boolean), meetingKind: meetingKindLine(m.meetingType), status: meetingStatusNote(m.status),
-      place: m.location, bills: (m.billIds ?? []).slice(0, 12).map(id => ({ label: billIdLabel(id), href: held.has(id) ? `/bills/${id}` : officialBillPage(id) })), sourceUrl: m.url })),
+      place: m.location, bills: meetingBillIds(m).slice(0, 12).map(id => ({ label: billIdLabel(id), href: held.has(id) ? `/bills/${id}` : officialBillPage(id) })), sourceUrl: m.url })),
     ...events.map(e => ({ key: `tx:${e.id}`, when: whenLabel(e.start, "Texas"),
       whenMs: Date.parse(e.start), title: e.name, detail: `Texas hearing${e.location ? ` · ${e.location}` : ""}${(e.bills as string[] | null)?.length ? ` · ${(e.bills as string[]).slice(0, 5).join(", ")}` : ""}`, href: "/texas", where: "Texas" as const,
       kind: "hearing" as const, committee: null, txCommitteeId: txCommitteeFor(e.name, txComms), meetingKind: "", status: null, place: e.location,

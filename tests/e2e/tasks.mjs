@@ -285,4 +285,25 @@ export const tasks = [
       if (!img.ok() || w !== 1200 || h !== 630) t.fail(`The preview image is ${w}×${h}, not 1200×630.`);
       return "short link opens the exact card; preview image 1200×630 (outside previews stay blank while the site is private)";
     } },
+
+  // Suggest changes (owner, 20 Nov 2026): "find the window". A reader opens a bill and finds where it is, whether it
+  // can still be changed, and the hearing line. The block is the first thing under Status (components/changes/window-block.tsx).
+  { id: "window", name: "Find out whether a bill can still be changed", target: { taps: 2, seconds: SECONDS }, reader: "onboarded",
+    async run(t) {
+      await t.start();
+      await t.tap(CARD_BILL, "the bill my senator last voted on");
+      await t.see("h1", "the bill page");
+      if (!(await t.has("#window")))
+        t.blocked("This bill page has no “Can this bill still be changed?” block: the bill's stage has not been read yet (official_bill_depth), so the page says nothing rather than guess.");
+      await t.see('#window h3:has-text("Can this bill still be changed?")', "the question, as the block's heading");
+      const where = await t.text("#window .window-where"), changes = await t.text("#window .window-changes"), hearing = await t.text("#window .window-hearing");
+      for (const [name, line] of [["where the bill is", where], ["whether it can be changed", changes], ["the hearing line", hearing]])
+        if (line.length < 12 || !/\.$/.test(line) || /!/.test(line)) t.fail(`The sentence for ${name} is missing or is not a plain sentence: “${line.slice(0, 120)}”`);
+      const state = await t.page.locator("#window").getAttribute("data-state");
+      if (state === "closed" && !/^The window is closed: /.test(changes)) t.fail(`The window is closed but the page does not say so: “${changes.slice(0, 120)}”`);
+      // A date is printed only for a confirmed meeting; every other case says the date isn't known or that none is.
+      if (!/ is set for .+ Eastern\.|No hearing date is known\.|The date isn't known\.|No new date is known\./.test(hearing)) t.fail(`The hearing line is not one of the sentences the page may show: “${hearing.slice(0, 160)}”`);
+      if (!(await t.has('#window .meta a[href^="https://"]'))) t.fail("The block names no source.");
+      return `under Status: where it is, whether it can be changed (${state}) and the hearing line, with sources`;
+    } },
 ];
