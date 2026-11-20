@@ -8,7 +8,8 @@
  * (tests/first-screen.test.mjs).
  */
 import { placeName } from "../constituent/rules.ts";
-import { meaningfulVote, plainBillName, txMeaningfulVote, txVoteLine, voteLine, type BillName, type MeaningfulKind, type TxMeaningfulKind } from "./votes.ts";
+import { meaningfulVote, plainBillName, thisMeasure, txMeaningfulVote, txVoteLine, voteLine, type BillName, type MeaningfulKind, type TxMeaningfulKind } from "./votes.ts";
+import { billRowText, type BillRowText, type RowSummary } from "../bill-row.ts";
 
 /* ------------------------------------------------------------------- numbers --- */
 
@@ -88,7 +89,12 @@ export const noPhotoLabel = (name: string) => `No official photo on file for ${n
 /* ------------------------------------------------------- the last three votes --- */
 
 export const VOTES_PER_CARD = 3;
-export type CardVote = { line: string; label: BillName["label"]; when: number | string; billHref: string; billLabel: string; billId: string | null };
+/**
+ * One vote on a card. `row` is the bill as the row shows it (headline or official title, one sentence, the number:
+ * lib/bill-row.ts) and `vote` is how the member voted, said about "this bill" because the headline sits right above it.
+ * `line` is the same vote as one self-contained sentence that names the bill, for places with no headline above.
+ */
+export type CardVote = { line: string; label: BillName["label"]; when: number | string; billHref: string; billLabel: string; billId: string | null; row: BillRowText; vote: string };
 
 const LABELS: Record<string, string> = { hr: "H.R.", s: "S.", hres: "H.Res.", sres: "S.Res.", hjres: "H.J.Res.", sjres: "S.J.Res.", hconres: "H.Con.Res.", sconres: "S.Con.Res." };
 export const billLabel = (billType: string, number: number) => `${LABELS[billType] ?? billType.toUpperCase()} ${number}`;
@@ -102,11 +108,13 @@ export function meaningfulFed(rows: readonly FedVoteRow[]): MeaningfulFed[] {
   return rows.flatMap(v => { const kind = meaningfulVote({ question: v.question, result: v.result, title: v.title, billTitle: v.billTitle, hasBill: true }); return kind ? [{ ...v, kind }] : []; });
 }
 
-/** One vote on a card: the plain line, its date and the link to the bill. `headline` is the Analysis headline when a summary is on show. */
-export function fedCardVote(v: MeaningfulFed, o: { headline?: string | null; tallyUnderReview?: boolean } = {}): CardVote {
-  const label = billLabel(v.billType, v.number), name = plainBillName({ title: v.billTitle, billType: v.billType, headline: o.headline, label });
-  return { line: voteLine({ position: v.position, kind: v.kind, name: name.text, result: v.result, yea: v.yea, nay: v.nay, question: v.question, chamber: v.chamber, billType: v.billType, tallyUnderReview: o.tallyUnderReview }),
-    label: name.label, when: v.votedAt, billHref: `/bills/${v.billId}`, billLabel: label, billId: v.billId };
+/** One vote on a card. `summary` is the newest summary a reader may see for the bill, when there is one (`headline` alone is also taken). */
+export function fedCardVote(v: MeaningfulFed, o: { headline?: string | null; summary?: RowSummary | null; tallyUnderReview?: boolean } = {}): CardVote {
+  const summary = o.summary ?? (o.headline ? { headline: o.headline } : null);
+  const label = billLabel(v.billType, v.number), name = plainBillName({ title: v.billTitle, billType: v.billType, headline: summary?.headline, label });
+  const said = (as: string) => voteLine({ position: v.position, kind: v.kind, name: as, result: v.result, yea: v.yea, nay: v.nay, question: v.question, chamber: v.chamber, billType: v.billType, tallyUnderReview: o.tallyUnderReview });
+  return { line: said(name.text), label: name.label, when: v.votedAt, billHref: `/bills/${v.billId}`, billLabel: label, billId: v.billId,
+    row: billRowText({ number: label, title: v.billTitle, summary, billType: v.billType }), vote: said(thisMeasure(v.billType)) };
 }
 
 export type TxVoteRow = { motion: string; date: string; result: string; counts: unknown; tallyOk: number; option: string; billId: string; identifier: string; title: string };
@@ -116,10 +124,12 @@ export function meaningfulTx(rows: readonly TxVoteRow[]): MeaningfulTx[] {
   return rows.flatMap(r => { const kind = txMeaningfulVote(r.motion); return kind ? [{ ...r, kind }] : []; });
 }
 
+/** One Texas vote on a card. Texas summaries are not on show to readers (lib/analysis/publish-gate.ts), so the row is the official caption. */
 export function txCardVote(v: MeaningfulTx): CardVote {
   const counts = (v.counts ?? null) as Record<string, number> | null, name = plainBillName({ title: v.title, billType: "hb", label: v.identifier });
-  return { line: txVoteLine({ option: v.option, kind: v.kind, name: name.text, result: v.result, yes: counts?.yes, no: counts?.no, tallyOk: v.tallyOk === 1 }), label: name.label,
-    when: v.date, billHref: `/texas/bills/${encodeURIComponent(v.billId)}`, billLabel: v.identifier, billId: null };
+  const said = (as: string) => txVoteLine({ option: v.option, kind: v.kind, name: as, result: v.result, yes: counts?.yes, no: counts?.no, tallyOk: v.tallyOk === 1 });
+  return { line: said(name.text), label: name.label, when: v.date, billHref: `/texas/bills/${encodeURIComponent(v.billId)}`, billLabel: v.identifier, billId: null,
+    row: billRowText({ number: v.identifier, title: v.title }), vote: said("this bill") };
 }
 
 /**

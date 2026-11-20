@@ -10,6 +10,7 @@ import type { Location } from "@/lib/location";
 import { comingUp, type FlowBill } from "@/lib/flow/data";
 import { answerPrivacyLine } from "@/lib/flow/rules";
 import { endOfList, numberWord } from "@/lib/flow/cards";
+import { WHAT_THIS_BILL_DOES } from "@/lib/bill-row";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const issueName = (slug: string) => ISSUE_CATEGORIES.find(c => c.slug === slug)?.name ?? slug;
@@ -17,8 +18,9 @@ const issueName = (slug: string) => ISSUE_CATEGORIES.find(c => c.slug === slug)?
 function Bill({ b, canAnswer, mine }: { b: FlowBill; canAnswer: boolean; mine: readonly string[] }) {
   const onMine = b.issues.filter(s => mine.includes(s)).map(issueName);
   return <li>
-    <span className="flow-where">{b.where} · {b.when}{onMine.length ? ` · on your issues: ${onMine.join(", ")}` : ""}</span>
-    <p className="flow-billname">{b.answerable ? <Link className="flow-billlink" href={`/bills/${b.billId}`}>{b.billLabel}</Link> : <b>{b.billLabel}</b>}: {cap(b.name.text)}{b.name.label === "Analysis" ? <AnalysisBadge /> : <OfficialBadge />}</p>
+    <span className="flow-where">{b.where} · {b.when} · {b.billLabel}{onMine.length ? ` · on your issues: ${onMine.join(", ")}` : ""}</span>
+    <p className="flow-billname">{cap(b.name.text)}{b.name.label === "Analysis" ? <AnalysisBadge /> : <OfficialBadge />}</p>
+    {b.answerable && <Link className="flow-billlink" href={`/bills/${b.billId}`}>{WHAT_THIS_BILL_DOES}<span className="visually-hidden">: {b.name.text}</span></Link>}
     {b.answerable ? canAnswer && <StanceButtons billId={b.billId} question={b.question} initial={b.answer} />
       : <span className="meta">This bill’s record is still loading. You can answer once it is in.</span>}
   </li>;

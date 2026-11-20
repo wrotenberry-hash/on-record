@@ -117,7 +117,7 @@ async function run(name, number, { zip, street, expectCards, chooseDistrict }) {
   await page.locator(".place-form button[type=submit]").first().tap(); taps++;
   await page.locator(".flow-cards .flow-card").first().waitFor({ timeout: 60_000 });
   const legislatorsAt = seconds(t0), tapsToLegislators = taps;
-  const lines = await page.locator(".flow-cards .flow-card .flow-line").allInnerTexts();
+  const lines = await page.locator(".flow-cards .flow-card .br-vote, .flow-cards .flow-card .flow-none").allInnerTexts();
   shots.push(await shot(page, name, "2-legislators"));
 
   if (chooseDistrict) {

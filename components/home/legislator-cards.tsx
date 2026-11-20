@@ -1,6 +1,7 @@
 import "./flow.css";
 import Link from "next/link";
-import { AnalysisBadge, OfficialBadge, shortDate } from "@/components/federal/badges";
+import { OfficialBadge, shortDate } from "@/components/federal/badges";
+import { BillRow } from "@/components/bills/bill-row";
 import { PlaceForm } from "@/components/home/place-form";
 import { MemberPhoto } from "@/components/home/member-photo";
 import { FollowStatus } from "@/components/home/follow-status";
@@ -18,8 +19,9 @@ const mapFor = (data: YourLegislators, zip: string | null) => (data.houseChoices
 
 /**
  * One legislator. Every member's card has the same parts in the same order, whoever they are: the portrait (or their
- * initials), the name, the party as a word, the seat, then their last three votes on bills, each a plain line with
- * its date and a link to the bill, and a line that ends the list.
+ * initials), the name, the party as a word, the seat, then their last three votes on bills, and a line that ends the
+ * list. Each vote is one row (components/bills/bill-row.tsx, owner 20 Nov 2026): what the bill is, one sentence on what
+ * it does, how they voted, the bill number small, and "What this bill does"; the whole row opens the bill.
  */
 function Card({ c }: { c: LegislatorCard }) {
   const member = !!c.memberId;
@@ -32,10 +34,8 @@ function Card({ c }: { c: LegislatorCard }) {
         <span className="flow-seat">{c.seat} <OfficialBadge /></span>
       </div>
     </div>
-    {c.votes.length ? <ol className="flow-votes" aria-label={`${c.name}: latest votes on bills, newest first`}>{c.votes.map((v, i) => <li key={`${v.billHref}-${i}`}>
-      <p className="flow-line">{v.line}{v.label === "Analysis" ? <AnalysisBadge /> : <OfficialBadge />}</p>
-      <span className="flow-when">{shortDate(v.when)} · <Link href={v.billHref}>{v.billLabel}</Link></span>
-    </li>)}</ol> : <p className="flow-line flow-none">{c.none}</p>}
+    {c.votes.length ? <ol className="flow-votes" aria-label={`${c.name}: latest votes on bills, newest first`}>{c.votes.map((v, i) =>
+      <BillRow key={`${v.billHref}-${i}`} row={v.row} href={v.billHref} vote={v.vote} meta={shortDate(v.when)} />)}</ol> : <p className="flow-line flow-none">{c.none}</p>}
     {c.votesNote && <p className="flow-end">{c.votesNote}{c.href ? <> <Link href={c.href}>All recent votes by {c.name}</Link></> : null}</p>}
   </li>;
 }
@@ -111,7 +111,7 @@ export async function YourLegislatorsBlock({ loc, userId, next = "/start", level
   const map = await mapFor(data, zip);
   return <>
     <H id="your-legislators">{legislatorsHeading(data.counts)}</H>
-    <p className="meta flow-lede">Each one’s last three votes on bills, in plain words, from the official record. {children}</p>
+    <p className="meta flow-lede">Each one’s last three votes on bills: what the bill is, then how they voted, from the official record. Tap a vote to see what the bill does. {children}</p>
     {missing && <p className="flow-missing" role="note">{missing}</p>}
     <Cards data={data} zip={zip} next={next} map={map} tried={loc.source === "address" || loc.source === "nearby"} />
     {canFollow && <FollowStatus userId={userId} memberIds={memberIds} />}

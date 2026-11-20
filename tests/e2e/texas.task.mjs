@@ -117,9 +117,9 @@ export const tasks = [
       if (!names.includes(who.senator.name) || !names.includes(who.rep.name)) t.fail(`Expected ${who.senator.name} and ${who.rep.name} among the cards, found: ${names.join(", ")}`);
       if (fed !== 2 || rep !== 1) t.fail(`Expected two U.S. senators and one U.S. representative beside them, found ${fed} and ${rep}.`);
       const card = t.page.locator(".flow-card", { hasText: who.senator.name });
-      const line = (await card.locator(".flow-line").innerText()).trim();
+      const line = (await card.locator(".br-vote, .flow-none").first().innerText()).trim();
       if (!/^Voted Yes/.test(line)) t.fail(`The state senator's card should show the record vote on SB 9001, it says: “${line}”`);
-      const repLine = (await t.page.locator(".flow-card", { hasText: who.rep.name }).locator(".flow-line").innerText()).trim();
+      const repLine = (await t.page.locator(".flow-card", { hasText: who.rep.name }).locator(".br-vote, .flow-none").first().innerText()).trim();
       if (/viva voce|voice/i.test(repLine) || /9002/.test(await t.page.locator(".flow-card", { hasText: who.rep.name }).innerText())) t.fail(`The representative's card used the voice vote: “${repLine}”`);
       return `five cards: ${names.join(", ")}; state senator's line: “${line}”; representative: “${repLine}”`;
     }) },

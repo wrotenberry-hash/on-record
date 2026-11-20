@@ -6,6 +6,9 @@ import { PublicShell } from "@/components/public/public-shell";
 import { AnalysisBadge, OfficialBadge, OpinionBadge, billLabel, memberLine, shortDate } from "@/components/federal/badges";
 import { FollowButton } from "@/components/federal/follow-button";
 import { VoteRow } from "@/components/federal/vote-row";
+import { BillRow } from "@/components/bills/bill-row";
+import { billRowsFor } from "@/lib/bill-row-store";
+import { WHAT_THIS_BILL_DOES } from "@/lib/bill-row";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
 import { followedIds, getPolitician, recentVotes, sponsorships } from "@/lib/federal/queries";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
@@ -54,6 +57,8 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   // Round G: votes against most of their own party, and Said vs. Did (matches and contradictions), same rules for every member.
   const { breakingRanksFor, saidVsDidPairs } = await import("@/lib/share-cards");
   const [ranks, said] = await Promise.all([breakingRanksFor(p.id, 5).catch(() => []), saidVsDidPairs(200).then(x => x.filter(y => y.memberId === p.id)).catch(() => [])]);
+  const rankRows = await billRowsFor(ranks.map(r => ({ billId: r.billId, title: r.title })));
+  const clipTitle = (t: string) => (t.length > 90 ? `${t.slice(0, 89)}…` : t);
   const canAnswer = !!access.editor || !!access.invite;
   const userId = canAnswer ? await currentAppUserId() : null;
   const agreement = userId ? await agreementWith(userId, p.id).catch(() => ({ rows: [], answered: 0 })) : null;
@@ -112,9 +117,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <p className="meta">Counted residents are address-matched or mail-verified at a home in {constituents.scope}; mail-verified are listed first. Shown beside the member&apos;s actual vote, never as a score. No individual vote is ever shown.</p></div>}
 
       {latestBill && <div className="fed-section latest-bill"><h2>Latest vote on a bill <OfficialBadge /></h2>
-        <p className="lead">{positionLine(latestBill.position, voteKind(latestBill.question, latestBill.billTitle ?? latestBill.title))}</p>
-        <p><Link href={`/bills/${latestBill.billId}`}>{latestBill.documentLabel ? `${latestBill.documentLabel}: ` : ""}{latestBill.billTitle ?? latestBill.title ?? latestBill.question}</Link></p>
-        <p className="meta">{shortDate(latestBill.votedAt)} · {latestBill.question}{latestBill.result ? ` · ${latestBill.result}` : ""} · <a className="src-link" href={latestBill.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a> · <Link className="src-link" href={`/share/card?t=vote&member=${p.id}&roll=${latestBill.rollCallId}`}>Share</Link></p></div>}
+        <ul className="vote-list"><VoteRow v={latestBill} memberId={p.id} /></ul></div>}
       {stats && stats.rollCalls > 0 && <div className="fed-section"><h2 id="record">{BRAND.hasSeparateRecordName ? BRAND.recordSection : "On the record"} <OfficialBadge /></h2>
         <div className="stat-grid">
           <div className="stat"><b>{stats.missedRate ?? 0}%</b>missed votes ({stats.missed} of {stats.rollCalls})</div>
@@ -124,10 +127,13 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <p className="meta">{partner && <><Link className="tap" href={`/compare?a=${p.id}&b=${partner.id}`}>Compare with {partner.fullName}</Link> · </>}<Link className="tap" href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
 
       {ranks.length > 0 && <div className="fed-section"><h2>Votes against most of their own party <OfficialBadge /></h2>
-        <ul className="analysis-list">{ranks.map(r => <li key={r.rollId}>{shortDate(r.votedAt)}: voted {r.position === "Yea" ? "yes" : "no"} on &ldquo;{r.question}&rdquo;{r.title ? <> ({r.billId ? <Link href={`/bills/${r.billId}`}>{r.title.slice(0, 90)}</Link> : r.title.slice(0, 90)})</> : null}. Their party: {r.party.Yea ?? 0} yes, {r.party.Nay ?? 0} no. <Link className="src-link" href={`/share/card?t=ranks&member=${p.id}&roll=${r.rollId}`}>Share</Link></li>)}</ul>
+        <ul className="vote-list">{ranks.map(r => { const row = r.billId ? rankRows.get(r.billId) : null, share = <Link className="src-link" href={`/share/card?t=ranks&member=${p.id}&roll=${r.rollId}`}>Share</Link>;
+          const voted = `Voted ${r.position === "Yea" ? "yes" : "no"} on “${r.question}”. Their party: ${r.party.Yea ?? 0} yes, ${r.party.Nay ?? 0} no.`;
+          return row ? <BillRow key={r.rollId} row={row} href={`/bills/${r.billId}`} vote={voted} meta={<>{shortDate(r.votedAt)} · {share}</>} />
+            : <li key={r.rollId} className="vote-row"><div className="vote-main"><b>{r.title ? clipTitle(r.title) : r.question}</b><span className="vote-position">{voted}</span><small>{shortDate(r.votedAt)} · {share}</small></div></li>; })}</ul>
         <p className="meta">The same rule for every member: a yes or no vote where most of the member&apos;s own party voted the other way. Not a rating.</p></div>}
       {said.length > 0 && <div className="fed-section"><h2>Said and did <OfficialBadge /></h2>
-        <ul className="analysis-list">{said.map(x => <li key={x.publicationId}><b>{x.result === "match" ? "Matched" : "Did not match"}:</b> said &ldquo;{x.said.length > 160 ? `${x.said.slice(0, 158)}…` : x.said}&rdquo;, then voted {x.position === "Yea" ? "yes" : "no"} on passing the bill. <Link href={`/bills/${x.billId}`}>The bill</Link> · <Link className="src-link" href={`/share/card?t=saiddid&pub=${x.publicationId}`}>Share</Link></li>)}</ul>
+        <ul className="analysis-list">{said.map(x => <li key={x.publicationId}><b>{x.result === "match" ? "Matched" : "Did not match"}:</b> said &ldquo;{x.said.length > 160 ? `${x.said.slice(0, 158)}…` : x.said}&rdquo;, then voted {x.position === "Yea" ? "yes" : "no"} on passing the bill. <Link href={`/bills/${x.billId}`}>{WHAT_THIS_BILL_DOES}</Link> · <Link className="src-link" href={`/share/card?t=saiddid&pub=${x.publicationId}`}>Share</Link></li>)}</ul>
         <p className="meta">Only published, human-reviewed statements that name a bill and say the speaker supports or opposes it, compared with their vote on passing it. Matches are shown as well as contradictions.</p></div>}
       <h2>Latest votes <OfficialBadge /></h2>
       {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} memberId={p.id} />)}</ul>

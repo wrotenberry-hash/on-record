@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { OfficialBadge, shortDate } from "@/components/federal/badges";
 import { PartySplit } from "@/components/federal/party-split";
+import { BillRow } from "@/components/bills/bill-row";
+import { billRowText } from "@/lib/bill-row";
 import { decisionLabel, SEE_EACH_MEMBER, TX_VOTE_TERMS, voteAnchor, type MemberOnDecision, type TxDecision, type TxTerm } from "@/lib/texas/vote-record";
 
 /**
@@ -60,18 +62,18 @@ export function MemberVoteLists({ decisions, members, tloUrl }: { decisions: TxD
   </div>;
 }
 
-/** One decision on a member's page: the member's position for a record vote that lists them, otherwise the plain label. */
+/**
+ * One decision on a member's page, as one vote row (components/bills/bill-row.tsx, owner 20 Nov 2026): what the bill is,
+ * how the member voted (only for a record vote that lists them; otherwise the plain label), then the bill number small
+ * with the date and the official wording, and "What this bill does". Texas summaries are not on show to readers yet, so
+ * the main line is the bill's official caption.
+ */
 export function MemberDecisionRow({ d, member, bill, terms }: { d: TxDecision; member: MemberOnDecision; bill: { id: string; identifier: string; title: string; tloUrl: string }; terms?: TxTerm[] }) {
   const l = decisionLabel(d);
-  return <li className="vote-row" data-member-show={member.show}>
-    <div className="vote-main">
-      <span className="vote-date">{shortDate(d.date)}</span>
-      <b><Link href={`/texas/bills/${bill.id}`}>{bill.identifier}: {bill.title}</Link></b>
-      <span className="vote-plain">{d.what}</span>
-      <span className="vote-position">{member.line}</span>
-      {member.show !== "label" && <span className="vote-plain">{l.label}</span>}
-      <TermNotes terms={terms} />
-      <small>Official wording: “{d.action}”{d.vote && !d.vote.tallyOk ? <> · <span className="tally-review">Tally under review</span></> : null} · <a className="src-link" href={bill.tloUrl} target="_blank" rel="noopener noreferrer">{TLO_RECORD}</a></small>
-    </div>
-  </li>;
+  return <BillRow row={billRowText({ number: bill.identifier, title: bill.title })} href={`/texas/bills/${bill.id}`} data-member-show={member.show} vote={member.line}
+    meta={<>{shortDate(d.date)} · Official wording: “{d.action}”{d.vote && !d.vote.tallyOk ? <> · <span className="tally-review">Tally under review</span></> : null} · <a className="src-link" href={bill.tloUrl} target="_blank" rel="noopener noreferrer">{TLO_RECORD}</a></>}>
+    <span className="vote-plain">{d.what}</span>
+    {member.show !== "label" && <span className="vote-plain">{l.label}</span>}
+    <TermNotes terms={terms} />
+  </BillRow>;
 }

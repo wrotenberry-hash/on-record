@@ -45,7 +45,7 @@ export default async function TexasSummariesPage() {
       <h2>Every Texas summary</h2>
       {list.length ? <div className="table-wrap"><table className="mapping-table"><thead><tr><th>Bill</th><th>Status</th><th>Written rules</th><th>Reader test</th><th>Cost</th></tr></thead>
         <tbody>{list.map(({ s, identifier, session: ses, queue, readerTest }) => <tr key={s.id}>
-          <td><Link href={`/texas/bills/${encodeURIComponent(s.billId)}`}>{identifier}</Link><br /><small>{session(ses)} · {shortDate(s.createdAt)} · {s.model}</small></td>
+          <td><Link href={`/texas/bills/${encodeURIComponent(s.billId)}`}>{identifier}: bill page</Link><br /><small>{session(ses)} · {shortDate(s.createdAt)} · {s.model}</small></td>
           <td>{s.status === "visible" ? "passed" : s.status}{queue ? <><br /><small>{(REASON[queue.reason] ?? queue.reason).replace(/ \(.*$/, "")}</small></> : null}</td>
           <td>{s.checkPassed ? "passed" : "did not pass"}{s.attempts > 1 ? ` (${s.attempts} attempts)` : ""}</td>
           <td>{readerTest ? (readerTest.passed ? "passed" : "did not pass") : "not run"}</td>

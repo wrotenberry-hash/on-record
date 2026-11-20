@@ -123,6 +123,8 @@ export function plainBillName(b: { title: string; billType?: string | null; head
 
 const tally = (yea: number, nay: number, show: boolean) => (show && yea + nay > 0 ? `${yea}–${nay}` : "");
 const measure = (billType?: string | null) => (LAW_TYPES.has(String(billType ?? "").toLowerCase()) ? "the bill" : "the measure");
+/** How a vote line names the bill when the bill's own headline is the line above it (lib/bill-row.ts): "this bill", or "this measure" for a resolution. */
+export const thisMeasure = (billType?: string | null) => (LAW_TYPES.has(String(billType ?? "").toLowerCase()) ? "this bill" : "this measure");
 
 // What a Yes was for ("to pass …") and the neutral form used for No, Present and absences ("on passing …").
 const ACT: Record<MeaningfulKind | "advance", { to: string; on: string }> = {

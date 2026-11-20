@@ -1,8 +1,7 @@
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { STATE_COMING } from "@/lib/state-coverage";
-import { analysisBillSummaries, analysisSummaryDetails, billCategories, officialBills, officialFloorSchedule, txEvents } from "@/db/schema";
-import { readerVisible } from "@/lib/analysis/publish-gate";
+import { billCategories, officialBills, officialFloorSchedule, txEvents } from "@/db/schema";
 import { federalLegislators, type Legislator } from "@/lib/federal/legislators";
 import { tallyUnderReview } from "@/lib/federal/depth";
 import { weekOf } from "@/lib/federal/depth-parse";
@@ -16,6 +15,7 @@ import { NO_RECENT_VOTE, plainBillName, RECENT_VOTE_MS, TX_NO_MEMBER_ON_FILE, tx
 import { billLabel, cardVotesNote, fedCardVote, initials, meaningfulFed, meaningfulTx, partyWord, seatLine, txCardVote, VOTES_PER_CARD, type CardVote, type MeaningfulFed } from "@/lib/flow/cards";
 import { FED_ROWS, fedVoteRows, TX_ROWS, txVoteRows } from "@/lib/flow/card-store";
 import { allowedPhotoUrl, photoPath, TEXAS_PHOTO_HOSTS } from "@/lib/photos";
+import { rowSummaries, type VisibleSummary } from "@/lib/bill-row-store";
 
 /**
  * Reads for the first screen (owner, 17 and 18 Nov 2026): the reader's legislators, each with their last three
@@ -24,18 +24,9 @@ import { allowedPhotoUrl, photoPath, TEXAS_PHOTO_HOSTS } from "@/lib/photos";
  * facts only. The words and the rules are in lib/flow/cards.ts and lib/flow/votes.ts; the queries in lib/flow/card-store.ts.
  */
 
-/** The newest reader-visible summary for each bill: its headline and its own question. Empty while the gate is shut. */
-export async function visibleSummaries(billIds: readonly string[]) {
-  const out = new Map<string, { headline: string; question: string | null }>(), ids = [...new Set(billIds)];
-  if (!ids.length) return out;
-  const db = getDb();
-  const rows = await db.select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, headline: analysisBillSummaries.headline, promptVersion: analysisBillSummaries.promptVersion })
-    .from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, ids), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt));
-  if (!rows.length) return out;
-  const details = await db.select({ summaryId: analysisSummaryDetails.summaryId, question: analysisSummaryDetails.question, promptVersion: analysisSummaryDetails.promptVersion })
-    .from(analysisSummaryDetails).where(inArray(analysisSummaryDetails.summaryId, rows.map(r => r.id)));
-  for (const r of rows) if (!out.has(r.billId)) out.set(r.billId, { headline: r.headline, question: details.find(d => d.summaryId === r.id && d.promptVersion === r.promptVersion)?.question ?? null });
-  return out;
+/** The newest reader-visible summary for each bill: its headline, its own question and the words a vote row uses. Empty while the gate is shut. */
+export async function visibleSummaries(billIds: readonly string[]): Promise<Map<string, VisibleSummary>> {
+  return rowSummaries(billIds);
 }
 
 /* ------------------------------------------------------------ your legislators --- */
@@ -85,10 +76,10 @@ export async function yourLegislators(loc: Location, zip: string | null, now = D
   const members = [...fed.senators, ...(fed.representative ? [fed.representative] : [])];
   const found = await Promise.all(members.map(m => meaningfulVotesOf(m.id, now).catch(() => ({ votes: [] as MeaningfulFed[], full: true }))));
   const shown = found.map(f => f.votes.slice(0, VOTES_PER_CARD)), chosen = shown.flat();
-  const [summaries, review] = await Promise.all([visibleSummaries(chosen.map(v => v.billId)).catch(() => new Map<string, { headline: string; question: string | null }>()),
+  const [summaries, review] = await Promise.all([visibleSummaries(chosen.map(v => v.billId)).catch(() => new Map<string, VisibleSummary>()),
     tallyUnderReview(chosen.map(v => v.rollCallId)).catch(() => new Set<string>())]);
   const cards: LegislatorCard[] = members.map((m, i) => {
-    const votes = shown[i].map(v => fedCardVote(v, { headline: summaries.get(v.billId)?.headline, tallyUnderReview: review.has(v.rollCallId) }));
+    const votes = shown[i].map(v => fedCardVote(v, { summary: summaries.get(v.billId), tallyUnderReview: review.has(v.rollCallId) }));
     return { key: m.id, slot: m.chamber === "senate" ? "U.S. senator" : "U.S. representative", name: m.fullName, seat: seatLine({ level: "federal", chamber: m.chamber, state: m.state, district: m.district }),
       party: partyWord(m.party), href: `/politicians/${m.id}`, memberId: m.id, photo: photoPath(m.id), initials: initials(m.fullName),
       votes, votesNote: cardVotesNote(votes.length, found[i].votes.length, !found[i].full), none: votes.length ? null : NO_RECENT_VOTE };
@@ -166,7 +157,7 @@ export async function comingUp(input: { userId: string | null; issues: readonly 
   const unique = rowsOf.filter((f, i, a) => a.findIndex(x => x.billId === f.billId) === i);
   const build = async (rows: Row[]): Promise<FlowBill[]> => {
     const ids = rows.filter(r => r.answerable).map(r => r.billId);
-    const [issues, summaries, answers] = await Promise.all([issuesOf(ids), visibleSummaries(ids).catch(() => new Map<string, { headline: string; question: string | null }>()), answersOf(input.userId, ids)]);
+    const [issues, summaries, answers] = await Promise.all([issuesOf(ids), visibleSummaries(ids).catch(() => new Map<string, VisibleSummary>()), answersOf(input.userId, ids)]);
     return orderByIssues(rows.map(r => { const s = summaries.get(r.billId);
       return { billId: r.billId, billLabel: billLabel(r.billType, r.number), name: plainBillName({ title: r.title, billType: r.billType, headline: s?.headline, label: billLabel(r.billType, r.number) }),
         where: r.where, when: r.when, issues: issues.get(r.billId) ?? [], question: stanceQuestion({ question: s?.question, headline: s?.headline }).question, answer: answers.get(r.billId) ?? null, answerable: r.answerable }; }), input.issues);
@@ -201,7 +192,7 @@ export async function answeredBills(userId: string | null, limit = 5): Promise<A
   if (!top.length) return [];
   const ids = top.map(t => t.billId);
   const [bills, summaries] = await Promise.all([db.select({ id: officialBills.id, title: officialBills.title, billType: officialBills.billType, number: officialBills.number }).from(officialBills).where(inArray(officialBills.id, ids)),
-    visibleSummaries(ids).catch(() => new Map<string, { headline: string; question: string | null }>())]);
+    visibleSummaries(ids).catch(() => new Map<string, VisibleSummary>())]);
   return top.flatMap(t => { const b = bills.find(x => x.id === t.billId); if (!b) return [];
     return [{ billId: b.id, billLabel: billLabel(b.billType, b.number), name: plainBillName({ title: b.title, billType: b.billType, headline: summaries.get(b.id)?.headline, label: billLabel(b.billType, b.number) }), answer: t.answer, at: t.at }]; });
 }

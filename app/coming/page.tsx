@@ -8,6 +8,7 @@ import { comingItems, remindersOf, type ComingItem } from "@/lib/reminders";
 import { readerMembers } from "@/lib/coming";
 import { comingView, EMPTY_SCOPE, mineOnly } from "@/lib/coming-rules";
 import { brandTitle } from "@/lib/brand";
+import { officialMain, TITLE_NOT_ON_FILE, WHAT_THIS_BILL_DOES } from "@/lib/bill-row";
 import { toggleReminder } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -75,8 +76,10 @@ export default async function ComingPage({ searchParams }: { searchParams: Promi
         {(i.meetingKind || i.status) && <span className="meta">{i.meetingKind}{i.meetingKind && i.status ? " · " : ""}{i.status && <b className="coming-status">{i.status}</b>}</span>}
         <span className="official-line"><OfficialBadge /> <span>{clip(i.title)}</span></span>
         {i.place && <span className="meta">Where: {i.place}</span>}
-        {!!i.bills?.length && <span className="meta">Bills named: {i.bills.map((b, n) => <span key={b.label}>{n ? ", " : ""}{!b.href ? b.label : b.href.startsWith("/") ? <Link href={b.href}>{b.label}</Link>
-          : <a href={b.href} target="_blank" rel="noopener noreferrer">{b.label}</a>}</span>)}</span>}
+        {/* 20 Nov 2026: a link is never only a bill number. The number is plain text; the link is the bill's title, or says where it goes. */}
+        {!!i.bills?.length && <span className="meta">Bills named: {i.bills.map((b, n) => <span key={b.label}>{n ? "; " : ""}{b.label}{!b.href ? null : b.href.startsWith("/")
+          ? <>: <Link href={b.href}>{officialMain(b.title) === TITLE_NOT_ON_FILE ? WHAT_THIS_BILL_DOES : clip(officialMain(b.title), 70)}</Link></>
+          : <>: <a href={b.href} target="_blank" rel="noopener noreferrer">its page on Congress.gov</a></>}</span>)}</span>}
         {i.sourceUrl && <span className="meta"><a className="src-link" href={i.sourceUrl} target="_blank" rel="noopener noreferrer">Official listing</a></span>}
         {remind(i)}
       </li>)}</ul> : <p className="empty-note">{view === "mine" && loc ? <>No hearing is listed yet for a committee your legislators sit on. <Link href="/coming?show=all#hearings">See every hearing</Link>.</>

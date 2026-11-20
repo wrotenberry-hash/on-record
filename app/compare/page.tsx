@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
 import { PublicShell } from "@/components/public/public-shell";
 import { OfficialBadge, shortDate } from "@/components/federal/badges";
@@ -7,6 +6,8 @@ import { getDb } from "@/db";
 import { officialPoliticians } from "@/db/schema";
 import { compareMembers } from "@/lib/federal/member-stats";
 import { KIND_LABEL, voteKind } from "@/lib/federal/vote-kinds";
+import { BillRow } from "@/components/bills/bill-row";
+import { billRowsFor } from "@/lib/bill-row-store";
 import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     .from(officialPoliticians).where(eq(officialPoliticians.isCurrent, 1)).orderBy(asc(officialPoliticians.lastName));
   const ma = members.find(m => m.id === a), mb = members.find(m => m.id === b);
   const result = ma && mb ? await compareMembers(ma.id, mb.id).catch(() => null) : null;
+  const rows = await billRowsFor((result?.details ?? []).map(d => ({ billId: d.billId, title: d.billTitle })));
   const pick = (name: string, value: string | null, chamber?: string) => <select name={name} defaultValue={value ?? ""} className="leg-select" aria-label={name === "a" ? "First member" : "Second member"}>
     <option value="">Choose a member</option>
     {(["senate", "house"] as const).filter(c => !chamber || c === chamber).map(c => <optgroup key={c} label={c === "senate" ? "Senators" : "Representatives"}>
@@ -36,9 +38,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       {result && (result.total ? <>
         <p className="lead-stat">Voted the same way on <b>{result.same} of {result.total}</b> shared votes{result.kinds.passage.total ? `; on votes to pass a bill, ${result.kinds.passage.same} of ${result.kinds.passage.total}` : ""}.</p>
         <div className="fed-section"><h2>By issue</h2><ul className="analysis-list">{result.byIssue.map(i => <li key={i.issue}><b>{i.issue}:</b> same on {i.same} of {i.total}</li>)}</ul></div>
-        <div className="fed-section"><h2>Recent shared votes</h2><ul className="result-list">{result.details.map(d => <li key={d.rollCallId}>
-          <span>{d.billId ? <Link href={`/bills/${d.billId}`}>{d.title ?? d.question}</Link> : d.title ?? d.question}</span>
-          <span className="meta">{shortDate(d.votedAt)} · {KIND_LABEL[voteKind(d.question, d.title)]} · {ma!.fullName.split(" ").pop()}: {d.a} · {mb!.fullName.split(" ").pop()}: {d.b} · {d.same ? "same" : "different"}</span></li>)}</ul></div>
+        <div className="fed-section"><h2>Recent shared votes</h2><ul className="result-list">{result.details.map(d => { const row = d.billId ? rows.get(d.billId) : null;
+          const voted = `${ma!.fullName.split(" ").pop()}: ${d.a} · ${mb!.fullName.split(" ").pop()}: ${d.b} · ${d.same ? "same" : "different"}`, kind = KIND_LABEL[voteKind(d.question, d.billTitle ?? d.title)];
+          return row ? <BillRow key={d.rollCallId} row={row} href={`/bills/${d.billId}`} vote={voted} meta={<>{shortDate(d.votedAt)} · {kind} · {d.question}</>} />
+            : <li key={d.rollCallId}><span>{d.title ?? d.question}</span><span className="meta">{shortDate(d.votedAt)} · {kind} · {voted}</span></li>; })}</ul></div>
         <p className="meta">Method: roll calls in {BRAND.name}&apos;s copy of the official record where both members voted Yea or Nay. Present and not voting are left out. This is a count, not a rating.</p>
       </> : <p className="meta">No shared Yea or Nay votes in the record yet.</p>)}
     </section>

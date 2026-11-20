@@ -1,11 +1,12 @@
 import "./flow.css";
 import Link from "next/link";
 import { getDb } from "@/db";
-import { shortDate } from "@/components/federal/badges";
+import { billLabel, shortDate } from "@/components/federal/badges";
 import { previousVisit } from "@/lib/visits";
 import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
-import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
+import { MemberVoteRow } from "@/components/bills/member-vote-row";
+import { billRowsFor } from "@/lib/bill-row-store";
 import { STAGE_LABEL, type StageKey } from "@/lib/federal/depth-parse";
 import { followedBillsMovedSince, followedMemberIds, memberVotesSince, texasBillsMovedSince } from "@/lib/flow/card-store";
 import { CAUGHT_UP, caughtUp, endOfList } from "@/lib/flow/cards";
@@ -29,6 +30,7 @@ export async function SincePanel({ userId }: { userId: string | null }) {
   const s = await Promise.all([memberVotesSince(db, ids, prev, VOTES), followedBillsMovedSince(db, userId, sinceDay, BILLS), loc?.state === "TX" ? texasBillsMovedSince(db, sinceDay) : 0]).catch(() => null);
   if (!s) return null;
   const [votes, bills, texasMoved] = s;
+  const voteRows = await billRowsFor(votes.rows.map(v => ({ billId: v.billId, title: v.billTitle, number: v.billType ? billLabel(v.billType, v.number!) : null })));
   const done = caughtUp({ previousVisit: prev, newVotes: votes.total, newBills: bills.total });
   const votesEnd = endOfList(votes.rows.length, votes.total, { one: "vote", many: "votes" }), billsEnd = endOfList(bills.rows.length, bills.total, { one: "bill", many: "bills" });
   const texas = texasMoved > 0 ? <Link href="/texas">{texasMoved === 1 ? "One Texas bill moved" : `${texasMoved} Texas bills moved`}</Link> : null;
@@ -37,8 +39,7 @@ export async function SincePanel({ userId }: { userId: string | null }) {
     {done ? <p className="meta caught-up"><b>{CAUGHT_UP}</b> Nothing new from your legislators or the bills you follow since then.{texas ? <> In the Texas Legislature: {texas}.</> : null}
       {!loc ? <> <Link href="/legislators">Add your address</Link> to see your legislators here.</> : null}</p> : <>
       <ul className="result-list">
-        {votes.rows.map(v => <li key={v.key}><span><b>{v.name}</b>: {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
-          {v.billId ? <Link href={`/bills/${v.billId}`}>{v.billTitle ?? v.title ?? v.question}</Link> : <span>{v.title ?? v.question}</span>}<span className="meta">{shortDate(v.votedAt)}</span></li>)}
+        {votes.rows.map(v => <MemberVoteRow key={v.key} v={v} row={v.billId ? voteRows.get(v.billId) : null} />)}
         {bills.rows.map(b => <li key={b.id}><Link href={`/bills/${b.id}`}>{b.title}</Link><span className="meta">Now: {STAGE_LABEL[b.stage as StageKey] ?? b.stage}{b.stageDate ? ` (${shortDate(b.stageDate)})` : ""}</span></li>)}
         {texas && <li>{texas}</li>}
       </ul>

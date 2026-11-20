@@ -194,6 +194,8 @@ export async function GET(request: Request) {
     rhythm: await rhythm(), throughput: await throughput(), federal: await federal(),
     intakeHoursUtc: intakeHours(process.env.STATEMENT_INTAKE_HOURS_UTC), recentRuns: await recentRuns(), recentAlerts: await recentAlerts(),
     openaiSpend: await openaiSpend(), analysis: await analysis(),
+    // 20 Nov 2026: of the bills in legislators' vote lists (a recorded vote in the last 12 months), how many have a summary readers can see. Counts only.
+    voteRows: await import("@/lib/analysis/vote-list-coverage").then(m => m.voteListCoverage()).catch(() => "unavailable" as const),
     intakePause: await intakePauseState().catch(() => "unavailable" as const),
     casesArchived: await archivedCount().catch(() => "unavailable" as const),
     feedback: await feedbackCounts().catch(() => "unavailable" as const),

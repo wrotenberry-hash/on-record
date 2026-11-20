@@ -20,7 +20,8 @@ export type ComingItem = { key: string; when: string; whenMs: number; title: str
   kind: ComingKind; chamber?: string | null;
   // Hearings only. `title` is the official title, unchanged; `committee` and `meetingKind` are the plain-words lines above it.
   committee?: string | null; committeeCodes?: string[]; txCommitteeId?: string | null; meetingKind?: string; status?: string | null; place?: string | null;
-  bills?: Array<{ label: string; href: string | null }>; sourceUrl?: string | null };
+  /** Bills a hearing names. `title` is the official title when the bill is in this site's record: a link is never only a bill number (owner, 20 Nov 2026). */
+  bills?: Array<{ label: string; href: string | null; title?: string | null }>; sourceUrl?: string | null };
 const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 
 export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
@@ -36,10 +37,10 @@ export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
   // are those its record lists plus those its title names (meetingBillIds; live check of 20 Nov 2026).
   const named = [...new Set(meetings.flatMap(m => meetingBillIds(m)))], txNamed = [...new Set(events.flatMap(e => (e.bills as string[] | null) ?? []))];
   const [ours, txOurs] = await Promise.all([
-    named.length ? db.select({ id: officialBills.id }).from(officialBills).where(inArray(officialBills.id, named.slice(0, 400))).catch(() => []) : [],
-    txNamed.length ? db.select({ id: txBills.id, identifier: txBills.identifier, session: txBills.session }).from(txBills).where(inArray(txBills.identifier, txNamed.slice(0, 400))).orderBy(desc(txBills.session)).catch(() => []) : [],
+    named.length ? db.select({ id: officialBills.id, title: officialBills.title }).from(officialBills).where(inArray(officialBills.id, named.slice(0, 400))).catch(() => []) : [],
+    txNamed.length ? db.select({ id: txBills.id, identifier: txBills.identifier, session: txBills.session, title: txBills.title }).from(txBills).where(inArray(txBills.identifier, txNamed.slice(0, 400))).orderBy(desc(txBills.session)).catch(() => []) : [],
   ]);
-  const held = new Set(ours.map(b => b.id));
+  const held = new Map(ours.map(b => [b.id, b.title]));
   const officialBillPage = (id: string) => { const m = id.match(/^(\d+)-([a-z]+)-(\d+)$/); return m ? congressGovPage({ id, congress: Number(m[1]), billType: m[2], number: Number(m[3]) }) : null; };
   const monday = (w: string) => Date.UTC(Number(w.slice(0, 4)), Number(w.slice(4, 6)) - 1, Number(w.slice(6, 8)), 14);
   return [...floor.map(f => ({ key: `floor:${f.chamber}:${f.weekOf}:${f.label}`, when: `Week of ${new Date(monday(f.weekOf)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`, whenMs: monday(f.weekOf),
@@ -47,11 +48,11 @@ export async function comingItems(now = Date.now()): Promise<ComingItem[]> {
       kind: "floor" as const, chamber: f.chamber })),
     ...meetings.map(m => ({ key: `meeting:${m.id}`, when: whenLabel(m.startsAt, "Congress"), whenMs: Date.parse(m.startsAt), title: m.title, detail: meetingKindLine(m.meetingType), href: "/coming?show=all#hearings", where: "Congress" as const,
       kind: "hearing" as const, chamber: m.chamber, committee: m.committeeName, committeeCodes: (m.committeeCode ?? "").split(",").filter(Boolean), meetingKind: meetingKindLine(m.meetingType), status: meetingStatusNote(m.status),
-      place: m.location, bills: meetingBillIds(m).slice(0, 12).map(id => ({ label: billIdLabel(id), href: held.has(id) ? `/bills/${id}` : officialBillPage(id) })), sourceUrl: m.url })),
+      place: m.location, bills: meetingBillIds(m).slice(0, 12).map(id => ({ label: billIdLabel(id), href: held.has(id) ? `/bills/${id}` : officialBillPage(id), title: held.get(id) ?? null })), sourceUrl: m.url })),
     ...events.map(e => ({ key: `tx:${e.id}`, when: whenLabel(e.start, "Texas"),
       whenMs: Date.parse(e.start), title: e.name, detail: `Texas hearing${e.location ? ` · ${e.location}` : ""}${(e.bills as string[] | null)?.length ? ` · ${(e.bills as string[]).slice(0, 5).join(", ")}` : ""}`, href: "/texas", where: "Texas" as const,
       kind: "hearing" as const, committee: null, txCommitteeId: txCommitteeFor(e.name, txComms), meetingKind: "", status: null, place: e.location,
-      bills: ((e.bills as string[] | null) ?? []).slice(0, 12).map(label => { const b = txOurs.find(x => x.identifier === label); return { label, href: b ? `/texas/bills/${encodeURIComponent(b.id)}` : null }; }), sourceUrl: e.url }))]
+      bills: ((e.bills as string[] | null) ?? []).slice(0, 12).map(label => { const b = txOurs.find(x => x.identifier === label); return { label, href: b ? `/texas/bills/${encodeURIComponent(b.id)}` : null, title: b?.title ?? null }; }), sourceUrl: e.url }))]
     .filter(i => Number.isFinite(i.whenMs)).sort((a, b) => a.whenMs - b.whenMs);
 }
 

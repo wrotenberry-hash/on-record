@@ -44,9 +44,13 @@ export const tasks = [
       await t.start();
       await t.see(CARD, "the reader's legislators on the home page");
       const row = t.page.locator(CARD).first();
-      const line = (await row.locator(".flow-line").first().innerText()).replace(/\s+/g, " ");
+      const line = (await row.locator(".br-vote, .flow-none").first().innerText()).replace(/\s+/g, " ");
       if (!/voted (yes|no|present)|did not vote/i.test(line)) t.fail(`The first legislator's card does not say how they voted: “${line.slice(0, 120)}”`);
-      if (!(await row.locator('a[href^="/bills/"]').count())) t.fail("The vote is not linked to its bill.");
+      // 20 Nov 2026: what the bill is comes first, the row ends with the labelled link, and no link is only a bill number.
+      const links = (await row.locator('a[href^="/bills/"]').allInnerTexts()).map(x => x.replace(/\s+/g, " ").trim());
+      if (!links.length) t.fail("The vote is not linked to its bill.");
+      if (!links.every(x => x.startsWith("What this bill does"))) t.fail(`A bill link on the card is not labelled “What this bill does”: ${links.join(" | ")}`);
+      if (!(await row.locator(".bill-row .br-main").first().innerText()).trim()) t.fail("The vote row does not say what the bill is.");
       return "on the home page, no taps";
     } },
 

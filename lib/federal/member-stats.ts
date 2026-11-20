@@ -35,6 +35,7 @@ export async function compareMembers(a: string, b: string) {
   const all = sharedAgreement(va, vb);
   if (!all.rows.length) return { ...all, byIssue: [], kinds: { passage: { same: 0, total: 0 } }, details: [] };
   const rolls = await db.select({ id: officialRollCalls.id, question: officialRollCalls.question, title: officialRollCalls.title, billId: officialRollCalls.billId, votedAt: officialRollCalls.votedAt,
+    billTitle: sql<string | null>`(select b.title from official_bills b where b.id = ${officialRollCalls.billId})`,
     issue: sql<string | null>`(select ic.name from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialRollCalls.billId} order by ic.sort_order limit 1)` })
     .from(officialRollCalls).where(inArray(officialRollCalls.id, all.rows.map(r => r.rollCallId)));
   const byId = new Map(rolls.map(r => [r.id, r]));

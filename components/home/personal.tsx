@@ -6,7 +6,8 @@ import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
 import { pickedIssues } from "@/lib/reader-issues";
 import { movingThisWeek } from "@/lib/federal/bill-depth";
-import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
+import { MemberVoteRow } from "@/components/bills/member-vote-row";
+import { billRowsFor } from "@/lib/bill-row-store";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { shortDate, billLabel } from "@/components/federal/badges";
 import { YourLegislatorsBlock } from "@/components/home/legislator-cards";
@@ -33,6 +34,7 @@ export async function PersonalHome({ userId, canAnswer = false }: { userId: stri
   const follows = await followedMemberIds(db, userId).catch(() => [] as string[]);
   const ids = [...new Set([...(fed?.senators.map(s => s.id) ?? []), ...(fed?.representative ? [fed.representative.id] : []), ...follows])];
   const week = await memberVotesSince(db, ids, now - 7 * 86400e3, WEEK_VOTES).catch(() => ({ rows: [], total: 0 }));
+  const weekRows = await billRowsFor(week.rows.map(v => ({ billId: v.billId, title: v.billTitle, number: v.billType ? billLabel(v.billType, v.number!) : null })));
   const weekEnd = endOfList(week.rows.length, week.total, { one: "vote", many: "votes" });
   const lists = issues.length ? await Promise.all(issues.map(i => movingThisWeek(i, now, MOVING_READ).catch(() => []))) : [];
   const allMoving = lists.flat().filter((b, i, a) => a.findIndex(x => x.id === b.id) === i), moving = allMoving.slice(0, MOVING);
@@ -44,8 +46,7 @@ export async function PersonalHome({ userId, canAnswer = false }: { userId: stri
     {loc && canAnswer && <IssuesStep userId={userId} />}
     <ComingUp userId={userId} loc={loc} canAnswer={canAnswer} limit={3} />
     {ids.length > 0 && <div className="fed-section"><h2>This week from your legislators</h2>
-      {week.rows.length ? <><ul className="result-list">{week.rows.map(v => <li key={v.key}><span><Link href={`/politicians/${v.memberId}`}><b>{v.name}</b></Link> · {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title)).toLowerCase()}</span>
-        {v.billId ? <Link href={`/bills/${v.billId}`}>{v.billType ? `${billLabel(v.billType, v.number!)}: ` : ""}{v.billTitle ?? v.title}</Link> : <span>{v.title ?? v.question}</span>}<span className="meta">{shortDate(v.votedAt)}</span></li>)}</ul>
+      {week.rows.length ? <><ul className="result-list">{week.rows.map(v => <MemberVoteRow key={v.key} v={v} row={v.billId ? weekRows.get(v.billId) : null} linkMember />)}</ul>
         <p className="list-end">{weekEnd.text}{weekEnd.more > 0 ? <> <Link className="more-link" href="/following">The rest are on your Following page</Link></> : null}</p></>
         : <p className="meta">No recorded votes by your legislators in the last 7 days.</p>}
       <p className="meta"><Link href="/legislators">Your legislators</Link> · <Link href="/recap">This week&apos;s recap card</Link></p></div>}

@@ -7,6 +7,7 @@ import { verificationConfig } from "@/lib/verify/config";
 import { profileFor, scopeTotals } from "@/lib/verify/store";
 import { answeredBills } from "@/lib/flow/data";
 import { districtCompareLine } from "@/lib/flow/rules";
+import { WHAT_THIS_BILL_DOES } from "@/lib/bill-row";
 
 const ANSWER = { support: "Support", oppose: "Oppose", unsure: "Not sure" } as const;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -31,9 +32,10 @@ export async function DistrictCompare({ userId, loc }: { userId: string | null; 
   return <section className="flow-block" id="district" aria-labelledby="district-h">
     <h2 id="district-h">See how your district compares <OpinionBadge title="Answers from readers, added up without names" /></h2>
     {lines.length ? <ul className="flow-compare">{lines.map(({ b, line }) => <li key={b.billId}>
-      <span><Link href={`/bills/${b.billId}`}>{b.billLabel}</Link>: {cap(b.name.text)}</span>
+      <span><b>{cap(b.name.text)}</b> <span className="meta">{b.billLabel}</span></span>
       <span>Your answer: <b>{ANSWER[b.answer]}</b></span>
-      {line.state === "shown" ? <span className="flow-total">{line.text}</span> : <span className="meta">{district ? `${district}: ` : ""}no total yet</span>}</li>)}</ul>
+      {line.state === "shown" ? <span className="flow-total">{line.text}</span> : <span className="meta">{district ? `${district}: ` : ""}no total yet</span>}
+      <Link className="flow-billlink" href={`/bills/${b.billId}`}>{WHAT_THIS_BILL_DOES}<span className="visually-hidden">: {b.name.text}</span></Link></li>)}</ul>
       : <p className="meta">Answer a bill above and it appears here beside your district’s total.</p>}
     {anyHidden && <p className="flow-threshold" role="note">{general.text}</p>}
     {anyShown && <p className="meta">Not a scientific poll. Totals count address-matched and mail-verified residents only.</p>}

@@ -5,6 +5,7 @@ import { officialBillCosponsors, officialSponsorshipFetches } from "@/db/schema"
 import { billCategories, categoryMappings, ingestRuns, issueCategories, officialBillSubjects, officialBills, officialMemberVotes, officialPoliticians,
   officialRollCalls, userFollows } from "@/db/schema";
 import { LAWMAKING_TYPES } from "@/lib/federal/parse";
+import { billRowsFor } from "@/lib/bill-row-store";
 
 /** Read-only queries over the official record. Callers decide who may see the result (lib/viewer.ts). */
 
@@ -27,7 +28,7 @@ export async function getPolitician(id: string) {
 }
 
 export async function recentVotes(politicianId: string, limit = 10) {
-  return getDb().select({ rollCallId: officialRollCalls.id, chamber: officialRollCalls.chamber, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question,
+  const rows = await getDb().select({ rollCallId: officialRollCalls.id, chamber: officialRollCalls.chamber, votedAt: officialRollCalls.votedAt, question: officialRollCalls.question,
     title: officialRollCalls.title, result: officialRollCalls.result, documentLabel: officialRollCalls.documentLabel, billId: officialRollCalls.billId,
     yea: officialRollCalls.yea, nay: officialRollCalls.nay, sourceUrl: officialRollCalls.sourceUrl, retrievedAt: officialRollCalls.retrievedAt,
     position: officialMemberVotes.position, rawPosition: officialMemberVotes.rawPosition, billTitle: officialBills.title,
@@ -40,6 +41,9 @@ export async function recentVotes(politicianId: string, limit = 10) {
     .from(officialMemberVotes).innerJoin(officialRollCalls, eq(officialRollCalls.id, officialMemberVotes.rollCallId))
     .leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId))
     .where(eq(officialMemberVotes.politicianId, politicianId)).orderBy(desc(officialRollCalls.votedAt)).limit(limit);
+  // 20 Nov 2026: each vote on a bill carries the bill as a vote row shows it (lib/bill-row.ts): headline or official title, one sentence, number.
+  const texts = await billRowsFor(rows.map(r => ({ billId: r.billId, title: r.billTitle ?? (r.billId ? null : r.title) })));
+  return rows.map(r => ({ ...r, row: r.billId ? texts.get(r.billId) ?? null : null }));
 }
 
 /** Bills in On Record's record that the member sponsored or cosponsored (withdrawn cosponsorships shown as such). */

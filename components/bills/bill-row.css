@@ -1,0 +1,23 @@
+/* One bill in a list of votes (components/bills/bill-row.tsx). The labelled link at the end covers the whole row. */
+.bill-row{position:relative;display:grid;gap:4px;padding:12px 0 2px;border-top:1px solid #e1e6e3;list-style:none}
+.bill-row p{margin:0}
+.br-main{font-size:17px;line-height:1.35;font-weight:700;color:#172224}
+.br-main .ctype{margin-left:4px;vertical-align:2px;font-weight:400}
+.br-does{font-size:15.5px;line-height:1.45;color:#2c3a38}
+.br-coming{color:#51605d}
+.br-vote{font-size:15.5px;line-height:1.4;font-weight:600;color:#172224;margin-top:2px!important}
+.br-meta{font-size:13.5px;line-height:1.45;color:#51605d}
+.br-number{white-space:nowrap}
+.br-more{justify-self:start;display:inline-flex;align-items:center;min-height:44px;font-size:15.5px;font-weight:600;color:#163b3c;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.br-more::after{content:"";position:absolute;inset:0}
+.br-arrow{margin-left:5px}
+/* Anything else that can be pressed inside the row sits above the covering link. */
+.bill-row a:not(.br-more),.bill-row button,.bill-row summary,.bill-row details{position:relative;z-index:1}
+.bill-row:hover{background:#f4f7f5}
+.br-more:focus-visible{outline:none}
+.bill-row:has(.br-more:focus-visible){outline:3px solid #163b3c;outline-offset:2px}
+/* In the bordered vote lists the rows have their own side padding. */
+.vote-list>.bill-row{padding:12px 14px 2px}
+.vote-list>.bill-row:first-child{border-top:0}
+.bill-row .vote-plain,.bill-row .yes-no{font-size:14px}
+.bill-row .br-pill{justify-self:start}

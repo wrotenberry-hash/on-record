@@ -77,5 +77,5 @@ test("a summary that failed a reading against its sources is hidden by the reade
   // The editor still sees it, with the reason; no reader-facing file reads summaries around the gate.
   assert.match(read("app/bills/[id]/page.tsx"), /const heldByReading = s \? READER_HOLDS\[bill\.id\] \?\? null : null;/);
   for (const f of ["lib/analysis/queries.ts", "lib/cards.ts", "lib/digest.ts", "lib/federal/bill-depth.ts", "lib/flow/data.ts", "lib/search.ts", "lib/social.ts", "lib/voice.ts", "lib/federal/queries.ts", "lib/share-cards.ts"])
-    assert.match(read(f), /readerVisible\(|READER_S/, `${f} reads summaries through the gate`);
+    assert.match(read(f === "lib/flow/data.ts" ? "lib/bill-row-store.ts" : f), /readerVisible\(|READER_S/, `${f} reads summaries through the gate`); // 20 Nov: lib/flow/data.ts reads them through lib/bill-row-store.ts
 });

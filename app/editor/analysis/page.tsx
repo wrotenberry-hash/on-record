@@ -64,7 +64,7 @@ export default async function AnalysisReviewPage() {
       <h2>Every summary</h2>
       {summaries.length ? <div className="table-wrap"><table className="mapping-table"><thead><tr><th>Bill</th><th>Status</th><th>Checker</th><th>Grade</th><th>Words</th><th>Cost</th></tr></thead>
         <tbody>{summaries.map(({ s, billType, number, reason, grade, words }) => <tr key={s.id}>
-          <td><Link href={`/bills/${s.billId}`}>{billLabel(billType, number)}</Link><br /><small>{shortDate(s.createdAt)} · {s.model}</small></td>
+          <td><Link href={`/bills/${s.billId}`}>{billLabel(billType, number)}: bill page</Link><br /><small>{shortDate(s.createdAt)} · {s.model}</small></td>
           <td>{s.status}{reason ? <><br /><small>{reason.replace("_", " ")}</small></> : null}</td>
           <td>{s.checkPassed ? "passed" : "failed"}{s.attempts > 1 ? " (2nd try)" : ""}</td>
           <td>{grade ?? "–"}</td><td>{words ?? "–"}</td>
