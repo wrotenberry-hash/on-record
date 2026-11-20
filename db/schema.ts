@@ -1080,3 +1080,45 @@ export const readerSetup = sqliteTable("reader_setup", {
   userId: text("user_id").primaryKey().references(() => appUsers.id), placeKey: text("place_key"), defaultsAt: integer("defaults_at"),
   issuesAskedAt: integer("issues_asked_at"), firstSeenAt: integer("first_seen_at").notNull(), weekTwoAt: integer("week_two_at"),
 });
+
+// ── Suggest changes (owner, 20 Nov 2026; docs/SUGGEST_CHANGES.md; migration 0038). New tables only. ──
+// The text of each version of a bill, section by section, as published. An option on a menu quotes one of these rows
+// word for word, and the "exact section" link opens it. `bill_key` is a federal bill id ("119-hr-2102") or a Texas one;
+// `version` is the publisher's own code for the version ("ih", "rh", "eh"; for Texas the version's name).
+export const billTextSections = sqliteTable("bill_text_sections", {
+  billKey: text("bill_key").notNull(), system: text("system", { enum: ["federal", "texas"] }).notNull(),
+  version: text("version").notNull(), versionLabel: text("version_label").notNull(), versionDate: text("version_date"),
+  seq: integer("seq").notNull(), num: text("num").notNull(), heading: text("heading").notNull(), body: text("body").notNull(),
+  sourceUrl: text("source_url").notNull(), retrievedAt: integer("retrieved_at").notNull(),
+}, t => [primaryKey({ columns: [t.billKey, t.version, t.seq] }), index("bill_text_sections_bill_idx").on(t.billKey, t.version),
+  check("bill_text_sections_system", sql`${t.system} IN ('federal', 'texas')`)]);
+
+// One menu of changes per bill and text version. Drafted by the model from the three allowed sources, checked by code,
+// then read by the editor: nothing on it is shown to a reader until the editor approves it ("live").
+export const changeMenus = sqliteTable("change_menus", {
+  id: text("id").primaryKey(), billKey: text("bill_key").notNull(), system: text("system", { enum: ["federal", "texas"] }).notNull(),
+  version: text("version").notNull(), status: text("status", { enum: ["review", "live", "closed", "failed"] }).notNull().default("review"),
+  generator: text("generator").notNull(), model: text("model"), costUsd: real("cost_usd").notNull().default(0),
+  /** What could not be offered and why (plain sentences for the editor), and counts of what the checks refused. */
+  notes: text("notes", { mode: "json" }).$type<string[]>().notNull(), windowAtDraft: text("window_at_draft"),
+  createdAt: integer("created_at").notNull(), decidedAt: integer("decided_at"), decidedBy: text("decided_by"),
+}, t => [uniqueIndex("change_menus_bill_version_uq").on(t.billKey, t.version), index("change_menus_status_idx").on(t.status, t.createdAt),
+  check("change_menus_status", sql`${t.status} IN ('review', 'live', 'closed', 'failed')`), check("change_menus_system", sql`${t.system} IN ('federal', 'texas')`)]);
+
+// One option on a menu. `source` is one of the three allowed sources and nothing else. `quote` is copied word for word
+// from the section it changes (`section_version`, `section_num` in bill_text_sections); an option whose quote is not
+// found there is never stored. Options that share `group_key` are about the same number, date, limit or difference, so
+// both directions always travel together.
+export const changeOptions = sqliteTable("change_options", {
+  id: text("id").primaryKey(), menuId: text("menu_id").references(() => changeMenus.id).notNull(), billKey: text("bill_key").notNull(), seq: integer("seq").notNull(),
+  source: text("source", { enum: ["amendment", "version", "dial"] }).notNull(), sourceRef: text("source_ref").notNull(), sourceLabel: text("source_label").notNull(),
+  sectionVersion: text("section_version").notNull(), sectionNum: text("section_num").notNull(), quote: text("quote").notNull(), otherQuote: text("other_quote"),
+  groupKey: text("group_key").notNull(), kind: text("kind").notNull(), about: text("about").notNull(),
+  direction: text("direction", { enum: ["up", "down", "keep", "remove", "adopt", "reject", "this_version", "other_version"] }).notNull(),
+  wording: text("wording").notNull(), checks: text("checks", { mode: "json" }).$type<{ passed: boolean; failures: string[]; reader?: string }>().notNull(),
+  status: text("status", { enum: ["draft", "approved", "rejected", "retired"] }).notNull().default("draft"),
+  decidedAt: integer("decided_at"), decidedBy: text("decided_by"), editorNote: text("editor_note"), createdAt: integer("created_at").notNull(),
+}, t => [index("change_options_menu_idx").on(t.menuId, t.seq), index("change_options_bill_idx").on(t.billKey, t.status),
+  check("change_options_source", sql`${t.source} IN ('amendment', 'version', 'dial')`),
+  check("change_options_direction", sql`${t.direction} IN ('up', 'down', 'keep', 'remove', 'adopt', 'reject', 'this_version', 'other_version')`),
+  check("change_options_status", sql`${t.status} IN ('draft', 'approved', 'rejected', 'retired')`)]);
