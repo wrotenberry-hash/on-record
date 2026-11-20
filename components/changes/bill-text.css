@@ -1,0 +1,6 @@
+/* A bill's stored text (components/changes/bill-text.tsx). The text keeps its own line breaks; a long word or a table row wraps instead of pushing the page wide. */
+.bill-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.6;color:#172224;margin:0 0 6px;max-width:72ch}
+.bill-text-section h2{scroll-margin-top:12px;overflow-wrap:anywhere}
+.bill-text-versions,.bill-text-index{margin:4px 0 8px;padding-left:1.2em;font-size:15px;line-height:1.5}
+.bill-text-versions a,.bill-text-index a,.bill-text-which a{display:inline-block;padding:6px 0;min-height:24px;color:#163b3c;text-decoration:underline;text-underline-offset:2px}
+.bill-text-which{font-size:15px;line-height:1.5;color:#2c3b39;margin:8px 0}
