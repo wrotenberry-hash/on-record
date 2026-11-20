@@ -79,7 +79,7 @@ test("a place the reader gave themselves is marked, and counting never reads it"
   assert.match(action, /source: \/ & \/\.test\(d\.matchedAddress \?\? ""\) \? "nearby" : "address" \};/);
   assert.match(SELF_PICKED_NOTE, /never counted as address-matched/);
   // The mark is stored with the account's place (reader_locations.source, plain text: no migration) and in the cookie.
-  assert.match(read("db/schema.ts"), /source: text\("source", \{ enum: \["zip", "address", "nearby", "pin", "picked"\] \}\)\.notNull\(\)/);
+  assert.match(read("drizzle/0021_roundc_locations.sql"), /`source` text NOT NULL,/); assert.doesNotMatch(read("drizzle/0021_roundc_locations.sql"), /CHECK[^;]*source/i);
   assert.match(loc, /source !== "nearby" && source !== "pin" && source !== "picked"\)\) return null;/);
   // What makes an answer count is decided elsewhere, from its own match of a full home address by the Census Bureau:
   // the counting rules, the counting store and the verification flow never read the lookup place at all.

@@ -50,7 +50,10 @@ export async function saveLocation(userId: string | null, l: Location) {
   if (!userId) return;
   const db = getDb(), now = Date.now();
   const before = await db.select().from(readerLocations).where(eq(readerLocations.userId, userId)).get().catch(() => null);
-  await db.insert(readerLocations).values({ userId, ...l, updatedAt: now }).onConflictDoUpdate({ target: readerLocations.userId, set: { ...l, updatedAt: now } });
+  // The column is plain text with no list of allowed values in the database (migration 0021), so the newer marks
+  // ("nearby", "pin", "picked") are stored as they are; the table's description in db/schema.ts is left untouched.
+  const row = { ...l, source: l.source as "zip" | "address" };
+  await db.insert(readerLocations).values({ userId, ...row, updatedAt: now }).onConflictDoUpdate({ target: readerLocations.userId, set: { ...row, updatedAt: now } });
   await applyFollowDefaults(db, { userId, place: l, previous: before ?? null, now }).catch(() => null);
 }
 
