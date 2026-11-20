@@ -174,6 +174,8 @@ async function researchOneWaitingCase(): Promise<{ status: string; representatio
 async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown; loop?: unknown; hearings?: unknown; changes?: unknown }> {
   let federal: IngestSummary | { status: "FAILED"; error: string };
   const started = Date.now(), fedBudget = Math.max(20_000, Math.round(budgetMs * 0.75));
+  // 20 Nov 2026: approvals the owner told Claude to make for him (lib/analysis/owner-approvals.ts). One listed bill; a line does nothing once applied.
+  await import("@/lib/analysis/owner-approvals-store").then(m => m.applyOwnerApprovals()).catch(() => null);
   try { federal = await runFederalIngest({ budgetMs: fedBudget, trigger: "scheduled" }); }
   catch (error) { federal = { status: "FAILED", error: (error instanceof Error ? error.message : "federal ingestion failed").slice(0, 200) }; }
   // Suggest changes (20 Nov 2026), after the meetings were read: bills named by upcoming committee meetings get a starter
