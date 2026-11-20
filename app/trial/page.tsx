@@ -8,6 +8,7 @@ export const metadata = { title: brandTitle("Invite"), robots: { index: false, f
 const MESSAGES: Record<string, { title: string; body: string }> = {
   not_open: { title: "The trial opens soon.", body: "Your invite link is genuine. The trial has not opened yet; try the same link again later. Nothing else to do." },
   revoked: { title: "This invite has been withdrawn.", body: "If you think that is a mistake, ask the person who sent it for a new link." },
+  editor: { title: "You are signed in as the editor.", body: "This invite link is genuine and has not been used up. While you are signed in as the editor, the site shows you the editor's view and not what a trial reader sees. To see what a reader sees, open the link in a private window where you have not signed in. On a phone, close any private tabs you signed in from first." },
   invalid: { title: "This invite link is not valid.", body: "Check that the whole link was copied, or ask the person who sent it for a new one." },
 };
 

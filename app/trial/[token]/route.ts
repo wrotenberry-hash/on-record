@@ -9,6 +9,7 @@ const to = (path: string) => new NextResponse(null, { status: 307, headers: { Lo
 import { countEvent } from "@/lib/events";
 import { gateState, inviteForToken, TRIAL_COOKIE, TRIAL_COOKIE_MAX_AGE_S } from "@/lib/trial";
 import { inviteLanding } from "@/lib/trial-welcome";
+import { getEditorUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,9 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   if (!invite) { await countEvent("invite_blocked", problem ?? "invalid"); return to(`/trial?state=${problem ?? "invalid"}`); }
   const gate = await gateState();
   if (!gate.open) { await countEvent("invite_blocked", "not_open"); return to("/trial?state=not_open"); }
+  // 20 Nov 2026: while the editor is signed in the site shows the editor's view and ignores an invite, so a link opened
+  // in the editor's own window looked broken (it landed on the editor's workspace). Say so, and do not use the link up.
+  if (await getEditorUser().catch(() => null)) return to("/trial?state=editor");
   await countEvent("invite_redeemed", "trial");
   // Test-ready build: the first visit lands on the welcome screen (what to try, how to give feedback); later visits go home.
   const response = to(inviteLanding(invite.activeDays ?? 0));
