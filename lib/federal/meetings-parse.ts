@@ -2,11 +2,16 @@
  * Committee hearings and markups in Congress, from the Congress.gov API's committee-meeting records
  * (test-ready build, 17 Nov 2026). Pure; tested in tests/meetings.test.mjs.
  *
- * NOT YET CHECKED AGAINST LIVE DATA. The API key exists only in production, so these parsers were written from the
- * Library of Congress's published documentation of the endpoint
+ * Written from the Library of Congress's published documentation of the endpoint
  * (github.com/LibraryOfCongress/api.congress.gov, Documentation/CommitteeMeetingEndpoint.md and ChangeLog.md, read
- * 17 Nov 2026) and are tested against hand-made fixtures that follow it. Every parser is defensive: an unknown shape
+ * 17 Nov 2026) and first tested against hand-made fixtures that follow it. Every parser is defensive: an unknown shape
  * gives an empty result, never a throw, and the ingest step reports how many records it could not read.
+ *
+ * CHECKED AGAINST LIVE DATA on 20 Nov 2026 (tests/fixtures/meetings/, tests/window.test.mjs): the two lists and one
+ * House detail record read correctly, and the record's time is true UTC (the House's own page gives the same hearing
+ * at 12:30 PM Eastern for 17:30Z). One gap was found: a legislative hearing on four bills carried no `relatedItems`,
+ * so its bills were named only in its title. `billsNamedIn` reads them from the title, and `meetingBillIds` is the
+ * one place that says which bills a stored meeting is about. Not checked: a Senate detail record.
  *
  * Documented shape:
  *   list    GET /v3/committee-meeting/{congress}/{chamber}  →  { committeeMeetings: [{ eventId, url, updateDate, congress, chamber }], pagination: { count, next } }
@@ -91,6 +96,34 @@ function locationOf(v: unknown): string | null {
   return null;
 }
 
+/*
+ * A bill number as committees write it in a meeting's title: "H.R. 10307", "H.R.10307", "S. 5289", "S.5289",
+ * "H.J. Res. 12", "S. Con. Res. 7". Capital letters and the full stop after the chamber letter are required, and the
+ * letter may not follow a letter, a digit or a full stop, so "U.S. 30" and "U.S.C. 1413" name no bill.
+ */
+const NAMED_BILL = /(?<![A-Za-z0-9.])(H\.\s?J\.\s?Res\.?|H\.\s?Con\.\s?Res\.?|H\.\s?Res\.?|H\.\s?R\.|S\.\s?J\.\s?Res\.?|S\.\s?Con\.\s?Res\.?|S\.\s?Res\.?|S\.)\s?(\d{1,5})(?![\d,]\d|\d|\.\d)/g;
+/** The ids of the bills a meeting's title names ("119-hr-10307"), each once, in the order named. `congress` is the meeting's. */
+export function billsNamedIn(title: string | null | undefined, congress: number): string[] {
+  if (typeof title !== "string" || !Number.isInteger(congress) || congress <= 0) return [];
+  const out = new Set<string>();
+  for (const m of title.matchAll(NAMED_BILL)) {
+    const type = m[1].replace(/[.\s]/g, "").toLowerCase(), number = Number(m[2]);
+    if (BILL_TYPES.has(type) && number > 0) out.add(`${congress}-${type}-${number}`);
+  }
+  return [...out];
+}
+/**
+ * The bills a stored meeting is about: those its record lists (bill_ids) plus those its title names. Use this
+ * wherever a meeting is matched to a bill; titles are stored, so meetings stored before 20 Nov 2026 are covered too.
+ */
+export function meetingBillIds(m: { billIds?: readonly string[] | null; title?: string | null; congress: number }): string[] {
+  return [...new Set([...(Array.isArray(m.billIds) ? m.billIds.filter((b): b is string => typeof b === "string") : []), ...billsNamedIn(m.title, m.congress)])];
+}
+/** How a meeting names a bill: in its title ("title"), only in the record's list of related bills ("record"), or not at all. */
+export function meetingNamesBill(m: { billIds?: readonly string[] | null; title?: string | null; congress: number }, billId: string): "title" | "record" | null {
+  return billsNamedIn(m.title, m.congress).includes(billId) ? "title" : (m.billIds ?? []).includes(billId) ? "record" : null;
+}
+
 /** One meeting from the detail record. `fallback` is the list item it came from (the detail repeats congress and chamber, but may leave them out). */
 export function parseMeetingDetail(data: unknown, fallback: { congress?: number | null; chamber?: MeetingChamber | null; eventId?: string } = {}): Meeting | null {
   const m = (data as { committeeMeeting?: unknown } | null)?.committeeMeeting as Record<string, unknown> | undefined;
@@ -105,11 +138,12 @@ export function parseMeetingDetail(data: unknown, fallback: { congress?: number 
   if (!eventId || !congress || !chamber || !startsAt || !title) return null;
   const codes = [...new Set(committees.map(c => committeeIdFromSystemCode(text(c?.systemCode))).filter((c): c is string => !!c))];
   const related = m.relatedItems as { bills?: unknown } | undefined;
-  const billIds = [...new Set(list(related?.bills).flatMap(b => {
+  // The bills the record lists, then any the title names that the record left out (seen live, 20 Nov 2026).
+  const billIds = [...new Set([...list(related?.bills).flatMap(b => {
     const x = b as { type?: unknown; number?: unknown; congress?: unknown } | null;
     const type = text(x?.type).toLowerCase().replace(/[.\s]/g, ""), number = Number(text(x?.number)), c = Number(x?.congress) || congress;
     return BILL_TYPES.has(type) && Number.isInteger(number) && number > 0 ? [`${c}-${type}-${number}`] : [];
-  }))];
+  }), ...billsNamedIn(title, congress)])];
   return { id: meetingId(congress, chamber, eventId), eventId, congress, chamber, committeeCodes: codes, committeeName: names.join("; ") || null, title,
     meetingType: text(m.type) || null, status: text(m.meetingStatus) || null, startsAt, location: locationOf(m.location), billIds, url: meetingPageUrl(congress, chamber, eventId) };
 }

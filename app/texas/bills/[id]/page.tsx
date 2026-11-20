@@ -19,6 +19,8 @@ import { OpinionBadge } from "@/components/federal/badges";
 import { voteBoxData } from "@/lib/constituent/view";
 import { stanceQuestion } from "@/lib/federal/stance-question";
 import { ContactForTxBill } from "@/components/contact/contact-section"; // contact-your-legislator (test-ready build)
+import { billWindow } from "@/lib/changes/window-store"; // Suggest changes (20 Nov 2026): where the bill is and whether it can still be changed
+import { WindowBlock } from "@/components/changes/window-block";
 
 export const dynamic = "force-dynamic";
 const STEPS: TxStage[] = ["filed", "committee", "passed_first", "passed_both", "governor", "law"];
@@ -43,6 +45,8 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
   const main = decisions.filter(mainDecision).reverse(), rest = decisions.filter(d => !mainDecision(d)).reverse(), terms = firstUseTerms([...main, ...rest]);
   // Readers get a summary only when it passed and the Texas gate is open; the signed-in editor also sees a held one, labelled.
   const analysis = await txSummaryForPage(bill.id, !!access.editor).catch(() => null);
+  // "Can this bill still be changed?": for every visitor who can see this page; nothing is shown when it cannot be worked out.
+  const changeWindow = await billWindow(bill.id).catch(() => null);
   // Resident voting (18 Nov 2026): Support / Oppose / Unsure on every bill. The question uses the plain headline when a
   // summary is on show; otherwise it names the bill, with the official title beside it.
   const voice = shared ? null : await voteBoxData(bill.id, access).catch(() => null);
@@ -61,6 +65,7 @@ export default async function TexasBillPage({ params, searchParams }: { params: 
       {analysis ? <h1 className="bill-headline">{analysis.summary.headline} <AnalysisBadge /></h1> : <h1>{bill.identifier}</h1>}
       {analysis && <TxSummaryTop a={analysis} />}
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
+        <WindowBlock w={changeWindow} />
         <ol className="timeline" aria-label="Where this bill is">{(bill.stage === "vetoed" ? [...STEPS.slice(0, 5), "vetoed" as TxStage] : bill.stage === "failed" ? ["filed", "committee", "failed"] as TxStage[] : STEPS).map((s, i) => {
           const done = bill.stage === s || (at >= 0 && i <= at) || (bill.stage === "vetoed" && i < 5);
           const date = s === "filed" ? (firstDate("filing") ?? bill.firstActionDate) : s === "committee" ? firstDate("referral-committee") : s === "law" ? (firstDate("became-law") ?? firstDate("executive-signature")) : s === "governor" ? firstDate("executive-receipt") : s === "vetoed" ? firstDate("executive-veto") : null;
