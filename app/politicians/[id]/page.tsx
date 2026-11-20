@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/public/public-shell";
 import { AnalysisBadge, OfficialBadge, OpinionBadge, billLabel, memberLine, shortDate } from "@/components/federal/badges";
 import { FollowButton } from "@/components/federal/follow-button";
-import { VoteRow } from "@/components/federal/vote-row";
+import { isRuleVote, VoteList, VoteRow } from "@/components/federal/vote-row";
+import { ProceduralGroup } from "@/components/bills/procedural-group";
+import { isDebateRule, shortPosition, splitProcedural } from "@/lib/procedural";
 import { BillRow } from "@/components/bills/bill-row";
 import { billRowsFor } from "@/lib/bill-row-store";
 import { WHAT_THIS_BILL_DOES } from "@/lib/bill-row";
@@ -48,8 +50,8 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const p = await getPolitician(id);
   if (!p) notFound();
   const [votes, followed, sponsor] = await Promise.all([recentVotes(p.id, 80), currentAppUserId().then(followedIds), sponsorships(p.id).catch(() => ({ sponsored: [], cosponsored: [] }))]);
-  const latest = votes.slice(0, 10);
-  const latestBill = votes.find(v => !!v.billId) ?? null;
+  // 20 Nov 2026: the latest vote on a bill is never a vote on a debate rule; those are collapsed into "Procedural votes (N)" in each list.
+  const latestBill = votes.find(v => !!v.billId && !isRuleVote(v)) ?? null;
   // Round E: one-tap compare with the other senator from the same state (same chamber, so the votes line up).
   const partner = p.chamber === "senate" ? await getDb().select({ id: officialPoliticians.id, fullName: officialPoliticians.fullName }).from(officialPoliticians)
     .where(and(eq(officialPoliticians.state, p.state), eq(officialPoliticians.chamber, "senate"), eq(officialPoliticians.isCurrent, 1), sql`${officialPoliticians.id} <> ${p.id}`)).get().catch(() => null) : null;
@@ -58,6 +60,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const { breakingRanksFor, saidVsDidPairs } = await import("@/lib/share-cards");
   const [ranks, said] = await Promise.all([breakingRanksFor(p.id, 5).catch(() => []), saidVsDidPairs(200).then(x => x.filter(y => y.memberId === p.id)).catch(() => [])]);
   const rankRows = await billRowsFor(ranks.map(r => ({ billId: r.billId, title: r.title })));
+  const rankSplit = splitProcedural(ranks, r => isDebateRule({ billId: r.billId, title: r.title }));
   const clipTitle = (t: string) => (t.length > 90 ? `${t.slice(0, 89)}…` : t);
   const canAnswer = !!access.editor || !!access.invite;
   const userId = canAnswer ? await currentAppUserId() : null;
@@ -127,25 +130,27 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <p className="meta">{partner && <><Link className="tap" href={`/compare?a=${p.id}&b=${partner.id}`}>Compare with {partner.fullName}</Link> · </>}<Link className="tap" href={`/compare?a=${p.id}`}>Compare {p.fullName} with another member</Link></p></div>}
 
       {ranks.length > 0 && <div className="fed-section"><h2>Votes against most of their own party <OfficialBadge /></h2>
-        <ul className="vote-list">{ranks.map(r => { const row = r.billId ? rankRows.get(r.billId) : null, share = <Link className="src-link" href={`/share/card?t=ranks&member=${p.id}&roll=${r.rollId}`}>Share</Link>;
+        <ul className="vote-list">{rankSplit.main.map(r => { const row = r.billId ? rankRows.get(r.billId) : null, share = <Link className="src-link" href={`/share/card?t=ranks&member=${p.id}&roll=${r.rollId}`}>Share</Link>;
           const voted = `Voted ${r.position === "Yea" ? "yes" : "no"} on “${r.question}”. Their party: ${r.party.Yea ?? 0} yes, ${r.party.Nay ?? 0} no.`;
           return row ? <BillRow key={r.rollId} row={row} href={`/bills/${r.billId}`} vote={voted} meta={<>{shortDate(r.votedAt)} · {share}</>} />
-            : <li key={r.rollId} className="vote-row"><div className="vote-main"><b>{r.title ? clipTitle(r.title) : r.question}</b><span className="vote-position">{voted}</span><small>{shortDate(r.votedAt)} · {share}</small></div></li>; })}</ul>
+            : <li key={r.rollId} className="vote-row"><div className="vote-main"><b>{r.title ? clipTitle(r.title) : r.question}</b><span className="vote-position">{voted}</span><small>{shortDate(r.votedAt)} · {share}</small></div></li>; })}
+          <ProceduralGroup votes={rankSplit.procedural.map(r => ({ key: r.rollId, title: r.title, number: null, href: r.billId ? `/bills/${r.billId}` : null, votedAt: r.votedAt,
+            voted: `${shortPosition(r.position)}. Their party: ${r.party.Yea ?? 0} yes, ${r.party.Nay ?? 0} no.`, outcome: r.question }))} /></ul>
         <p className="meta">The same rule for every member: a yes or no vote where most of the member&apos;s own party voted the other way. Not a rating.</p></div>}
       {said.length > 0 && <div className="fed-section"><h2>Said and did <OfficialBadge /></h2>
         <ul className="analysis-list">{said.map(x => <li key={x.publicationId}><b>{x.result === "match" ? "Matched" : "Did not match"}:</b> said &ldquo;{x.said.length > 160 ? `${x.said.slice(0, 158)}…` : x.said}&rdquo;, then voted {x.position === "Yea" ? "yes" : "no"} on passing the bill. <Link href={`/bills/${x.billId}`}>{WHAT_THIS_BILL_DOES}</Link> · <Link className="src-link" href={`/share/card?t=saiddid&pub=${x.publicationId}`}>Share</Link></li>)}</ul>
         <p className="meta">Only published, human-reviewed statements that name a bill and say the speaker supports or opposes it, compared with their vote on passing it. Matches are shown as well as contradictions.</p></div>}
       <h2>Latest votes <OfficialBadge /></h2>
-      {latest.length ? <ul className="vote-list">{latest.map(v => <VoteRow key={v.rollCallId} v={v} memberId={p.id} />)}</ul>
+      {votes.length ? <VoteList votes={votes} take={10} memberId={p.id} />
         : <p className="empty-note">No recorded votes stored yet. Votes load with each scheduled update.</p>}
       <p className="meta">A procedural vote decides how or whether the chamber proceeds (for example ending debate). It is shown as such and never as a vote for or against the bill itself.</p>
 
       {votes.length > 0 && <><h2>Votes by issue <OfficialBadge /></h2>
         <p className="meta">The {votes.length} most recent recorded votes, grouped by the issue of the bill voted on. A bill can sit under one issue here: the first of its issues.</p>
         <div className="issue-groups">{byIssue.map(g => <details key={g.slug} className="issue-group"><summary><b>{g.name}</b> <span className="meta">{g.votes.length} vote{g.votes.length === 1 ? "" : "s"}</span></summary>
-          <ul className="vote-list">{g.votes.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul></details>)}
+          <VoteList votes={g.votes} /></details>)}
           {unsorted.length > 0 && <details className="issue-group"><summary><b>Not sorted into an issue</b> <span className="meta">{unsorted.length} (nominations, procedure, or bills without a topic yet)</span></summary>
-            <ul className="vote-list">{unsorted.map(v => <VoteRow key={v.rollCallId} v={v} />)}</ul></details>}</div></>}
+            <VoteList votes={unsorted} /></details>}</div></>}
 
       <h2>Bills sponsored and cosponsored <OfficialBadge /></h2>
       <p className="meta">Bills in {BRAND.name}&apos;s record (those with a recorded vote or recent action), from govinfo&apos;s bill status records. Not every bill this member has signed.</p>

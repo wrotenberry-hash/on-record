@@ -2,6 +2,8 @@ import Link from "next/link";
 import { PositionPill, shortDate } from "@/components/federal/badges";
 import { BillRow } from "@/components/bills/bill-row";
 import { billRowText, numberFromBillId, typeFromBillId, type BillRowText } from "@/lib/bill-row";
+import { ProceduralGroup, type ProceduralVote } from "@/components/bills/procedural-group";
+import { isDebateRule, shortPosition, splitProcedural, takeWithProcedural } from "@/lib/procedural";
 import { explainVote } from "@/lib/federal/vote-labels";
 import { KIND_LABEL, positionLine, voteKind, yesNoMeaning } from "@/lib/federal/vote-kinds";
 
@@ -40,6 +42,24 @@ export function VoteRow({ v, memberId }: { v: VoteRowData; memberId?: string }) 
     </div>
     <PositionPill position={v.position} raw={v.rawPosition} />
   </li>;
+}
+
+/** Whether a recorded vote was on a resolution that only sets the rules for debating another bill (lib/procedural.ts). */
+export const isRuleVote = (v: Pick<VoteRowData, "billId" | "billTitle" | "title">) => isDebateRule({ billId: v.billId, title: v.billTitle ?? v.title });
+/** A debate-rule vote as one plain line inside "Procedural votes (N)". */
+export function proceduralFromVote(v: VoteRowData): ProceduralVote {
+  return { key: v.rollCallId, title: v.billTitle ?? v.title, number: numberFromBillId(v.billId) ?? v.documentLabel, href: v.billId ? `/bills/${v.billId}` : null, votedAt: v.votedAt,
+    voted: shortPosition(v.position), outcome: <>{v.question}{v.tallyBad ? <> · <span className="tally-review">Tally under review</span></> : v.result ? ` · ${v.result} ${v.yea}–${v.nay}` : ""}</>, sourceUrl: v.sourceUrl };
+}
+
+/**
+ * A member's votes as a list (owner, 20 Nov 2026): each vote a row, and the votes on debate rules collapsed into one
+ * line at the end, "Procedural votes (N)". With `take`, the list is that many ordinary votes, newest first, plus the
+ * procedural votes that fall among them.
+ */
+export function VoteList({ votes, take, memberId }: { votes: readonly VoteRowData[]; take?: number; memberId?: string }) {
+  const { main, procedural } = take ? takeWithProcedural(votes, take, isRuleVote) : splitProcedural(votes, isRuleVote);
+  return <ul className="vote-list">{main.map(v => <VoteRow key={v.rollCallId} v={v} memberId={memberId} />)}<ProceduralGroup votes={procedural.map(proceduralFromVote)} /></ul>;
 }
 
 /** The fixed plain-language line for a roll-call question; nothing when the wording is not in the glossary. */

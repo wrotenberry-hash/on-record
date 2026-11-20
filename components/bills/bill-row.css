@@ -21,3 +21,13 @@
 .vote-list>.bill-row:first-child{border-top:0}
 .bill-row .vote-plain,.bill-row .yes-no{font-size:14px}
 .bill-row .br-pill{justify-self:start}
+/* "Procedural votes (N)": the debate-rule votes of a list as one closed line (components/bills/procedural-group.tsx). */
+.proc-group{list-style:none;border-top:1px solid #e1e6e3;padding:0}
+.vote-list>.proc-group{padding:0 14px}
+.proc-group summary{display:flex;align-items:center;gap:8px;min-height:48px;cursor:pointer;font-size:15.5px;font-weight:600;color:#163b3c}
+.proc-group summary .proc-label{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.proc-explain{margin:0 0 8px;font-size:15px;line-height:1.45;color:#2c3a38}
+.proc-list{list-style:none;margin:0 0 10px;padding:0}
+.proc-list>li{display:grid;gap:2px;padding:8px 0;border-top:1px dotted #d3dad6}
+.proc-title{font-size:14.5px;line-height:1.4;color:#2c3a38}
+.proc-vote{font-size:14.5px;font-weight:600;color:#172224}

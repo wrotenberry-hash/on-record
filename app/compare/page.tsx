@@ -8,6 +8,9 @@ import { compareMembers } from "@/lib/federal/member-stats";
 import { KIND_LABEL, voteKind } from "@/lib/federal/vote-kinds";
 import { BillRow } from "@/components/bills/bill-row";
 import { billRowsFor } from "@/lib/bill-row-store";
+import { ProceduralGroup } from "@/components/bills/procedural-group";
+import { numberFromBillId } from "@/lib/bill-row";
+import { isDebateRule, splitProcedural } from "@/lib/procedural";
 import { BRAND, brandTitle } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +28,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const ma = members.find(m => m.id === a), mb = members.find(m => m.id === b);
   const result = ma && mb ? await compareMembers(ma.id, mb.id).catch(() => null) : null;
   const rows = await billRowsFor((result?.details ?? []).map(d => ({ billId: d.billId, title: d.billTitle })));
+  // 20 Nov 2026: votes on debate rules are collapsed into "Procedural votes (N)" (lib/procedural.ts).
+  const shared = splitProcedural(result?.details ?? [], d => isDebateRule({ billId: d.billId, title: d.billTitle ?? d.title }));
+  const both = (d: { a: string; b: string; same: boolean }) => `${ma!.fullName.split(" ").pop()}: ${d.a} · ${mb!.fullName.split(" ").pop()}: ${d.b} · ${d.same ? "same" : "different"}`;
   const pick = (name: string, value: string | null, chamber?: string) => <select name={name} defaultValue={value ?? ""} className="leg-select" aria-label={name === "a" ? "First member" : "Second member"}>
     <option value="">Choose a member</option>
     {(["senate", "house"] as const).filter(c => !chamber || c === chamber).map(c => <optgroup key={c} label={c === "senate" ? "Senators" : "Representatives"}>
@@ -38,10 +44,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       {result && (result.total ? <>
         <p className="lead-stat">Voted the same way on <b>{result.same} of {result.total}</b> shared votes{result.kinds.passage.total ? `; on votes to pass a bill, ${result.kinds.passage.same} of ${result.kinds.passage.total}` : ""}.</p>
         <div className="fed-section"><h2>By issue</h2><ul className="analysis-list">{result.byIssue.map(i => <li key={i.issue}><b>{i.issue}:</b> same on {i.same} of {i.total}</li>)}</ul></div>
-        <div className="fed-section"><h2>Recent shared votes</h2><ul className="result-list">{result.details.map(d => { const row = d.billId ? rows.get(d.billId) : null;
-          const voted = `${ma!.fullName.split(" ").pop()}: ${d.a} · ${mb!.fullName.split(" ").pop()}: ${d.b} · ${d.same ? "same" : "different"}`, kind = KIND_LABEL[voteKind(d.question, d.billTitle ?? d.title)];
-          return row ? <BillRow key={d.rollCallId} row={row} href={`/bills/${d.billId}`} vote={voted} meta={<>{shortDate(d.votedAt)} · {kind} · {d.question}</>} />
-            : <li key={d.rollCallId}><span>{d.title ?? d.question}</span><span className="meta">{shortDate(d.votedAt)} · {kind} · {voted}</span></li>; })}</ul></div>
+        <div className="fed-section"><h2>Recent shared votes</h2><ul className="result-list">{shared.main.map(d => { const row = d.billId ? rows.get(d.billId) : null, kind = KIND_LABEL[voteKind(d.question, d.billTitle ?? d.title)];
+          return row ? <BillRow key={d.rollCallId} row={row} href={`/bills/${d.billId}`} vote={both(d)} meta={<>{shortDate(d.votedAt)} · {kind} · {d.question}</>} />
+            : <li key={d.rollCallId}><span>{d.title ?? d.question}</span><span className="meta">{shortDate(d.votedAt)} · {kind} · {both(d)}</span></li>; })}
+          <ProceduralGroup votes={shared.procedural.map(d => ({ key: d.rollCallId, title: d.billTitle ?? d.title, number: numberFromBillId(d.billId), href: d.billId ? `/bills/${d.billId}` : null, votedAt: d.votedAt, voted: both(d), outcome: d.question }))} /></ul></div>
         <p className="meta">Method: roll calls in {BRAND.name}&apos;s copy of the official record where both members voted Yea or Nay. Present and not voting are left out. This is a count, not a rating.</p>
       </> : <p className="meta">No shared Yea or Nay votes in the record yet.</p>)}
     </section>

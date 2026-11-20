@@ -5,6 +5,7 @@ import { generatorNumber } from "./prompt-order";
 import { PUBLIC_MIN_PROMPT } from "./publish-gate";
 import { meaningfulVote, RECENT_VOTE_MS } from "@/lib/flow/votes";
 import { summaryPlanned } from "@/lib/bill-row";
+import { isDebateRule } from "@/lib/procedural";
 
 /**
  * Summary coverage of the vote lists (owner, 20 Nov 2026: "of the bills that appear in any legislator's recent vote
@@ -39,19 +40,19 @@ export async function voteListCoverage(now = Date.now()) {
     const n = generatorNumber(s.promptVersion);
     if (gate !== null && s.status === "visible" && n !== null && n >= gate && !hidden.has(s.billId)) approved.add(s.billId);
   }
-  type Bill = { last: number; type: string | null; complete: boolean; onCards: boolean };
+  type Bill = { last: number; type: string | null; complete: boolean; onCards: boolean; rule: boolean };
   const bills = new Map<string, Bill>();
   for (const r of rolls) {
     const type = r.billType ?? r.billId.match(/^\d+-([a-z]+)-\d+$/)?.[1] ?? null;
-    const b = bills.get(r.billId) ?? { last: 0, type, complete: !!Number(r.complete), onCards: false };
+    const b = bills.get(r.billId) ?? { last: 0, type, complete: !!Number(r.complete), onCards: false, rule: isDebateRule({ billId: r.billId, billType: type, title: r.billTitle ?? r.title }) };
     b.last = Math.max(b.last, Number(r.votedAt));
     if (r.billTitle !== null && meaningfulVote({ question: r.question, result: r.result, title: r.title, billTitle: r.billTitle, hasBill: true })) b.onCards = true;
     bills.set(r.billId, b);
   }
-  const last90 = empty(), older = empty(), resolutions = { bills: 0, last90: 0 };
+  const last90 = empty(), older = empty(), resolutions = { bills: 0, last90: 0, /** Of them: resolutions that only set debate rules, collapsed into "Procedural votes (N)" in every list. */ debateRules: 0 };
   for (const [id, b] of bills) {
     // A simple or concurrent resolution (a House rule for debate, for one) is not a bill a summary is written for.
-    if (!summaryPlanned(b.type)) { resolutions.bills++; if (b.last >= d90) resolutions.last90++; continue; }
+    if (!summaryPlanned(b.type)) { resolutions.bills++; if (b.last >= d90) resolutions.last90++; if (b.rule) resolutions.debateRules++; continue; }
     const g = b.last >= d90 ? last90 : older, ok = approved.has(id);
     g.bills++;
     if (ok) g.approved++; else { g.notApproved++; if (written.has(id)) g.writtenNotOnShow++; else { g.neverWritten++; if (!b.complete) g.recordNotLoaded++; } }

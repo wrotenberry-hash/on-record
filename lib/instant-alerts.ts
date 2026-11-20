@@ -2,6 +2,7 @@ import { getDb } from "@/db";
 import { notifyUser } from "@/lib/push";
 import { sendToReader } from "@/lib/mailer";
 import { runVoteAlerts } from "@/lib/loop/alerts";
+import { rowSummaries } from "@/lib/bill-row-store";
 
 /**
  * Vote alerts, after each update of the record (owner's point 2, 18 Nov 2026): a reader whose setting is on hears
@@ -10,5 +11,5 @@ import { runVoteAlerts } from "@/lib/loop/alerts";
  */
 const SITE = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 export async function runInstantAlerts(now = Date.now()) {
-  return runVoteAlerts(getDb(), now, { notify: notifyUser, send: sendToReader, site: SITE });
+  return runVoteAlerts(getDb(), now, { notify: notifyUser, send: sendToReader, site: SITE, summaries: rowSummaries });
 }

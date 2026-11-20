@@ -567,8 +567,9 @@ test("vote alerts: every vote on a bill by a followed legislator, one message pe
   assert.equal(ALERT_MAX_VOTES, 5);
   assert.equal((mail.text.match(/^(Rep\.|Sen\.|State Rep\.) /gm) ?? []).length, 5, "five votes are listed");
   assert.match(mail.text, /And 3 more votes by legislators you follow\. They are listed here: https:\/\/site\.test\/following/);
-  assert.match(mail.text, /Sen\. John Cornyn voted No on passing the Sample 407 Act\. It passed 60–38\.\n {2}H\.R\. 407: https:\/\/site\.test\/bills\/119-hr-407/);
-  assert.match(mail.text, /Rep\. Lloyd Doggett voted Yes to pass the Sample 406 Act\. It passed 392–18\./);
+  // 20 Nov 2026: the email is in the vote row's order: what the bill is, the explanation line, who voted and how, the number, the labelled link.
+  assert.match(mail.text, /Sample 407 Act\nPlain-English explanation coming\nSen\. John Cornyn voted No on passing this bill\. It passed 60–38\.\nH\.R\. 407\nWhat this bill does: https:\/\/site\.test\/bills\/119-hr-407/);
+  assert.match(mail.text, /Sample 406 Act\nPlain-English explanation coming\nRep\. Lloyd Doggett voted Yes to pass this bill\. It passed 392–18\./);
   assert.doesNotMatch(mail.text, /Hinojosa/, "the Texas vote is one of the three that are counted, not listed: it carries a day, not a time, so it sorts as the oldest");
   assert.doesNotMatch(mail.text + p.body, /Amendment|Previous Question|Sample 408 Act|Ted Cruz|Pat Fallon/, "no amendment, no procedural step, nothing from before the last update, nobody the reader does not follow");
   assert.match(mail.text, /Turn them off on your Account page: https:\/\/site\.test\/account/);
@@ -601,6 +602,20 @@ test("vote alerts: the bundle on its own", () => {
   assert.deepEqual([six.shown, six.more, six.title, six.path], [5, 1, "6 new votes by legislators you follow", "/following"]);
   assert.match(six.body, /^Rep\. A B voted Yes to pass the Act 6\./, "newest first");
   assert.match(six.body, /And 1 more vote by legislators you follow\.$/); assert.doesNotMatch(six.body, /Act 1\./);
+});
+
+test("vote alerts: the email uses the vote row's order, with the labelled link and never a bare bill number as the link", () => {
+  const base = { member: "Rep. A B", line: "Voted Yes to pass the Tax Relief Act. It passed 300–120.", vote: "Voted Yes to pass this bill. It passed 300–120.", billLabel: "H.R. 7", path: "/bills/119-hr-7", at: 9 };
+  const withSummary = alertBundle([{ ...base, row: { main: "Lets fraud victims deduct stolen money.", does: "This bill would let fraud victims deduct stolen money.", coming: false, label: "Analysis", number: "H.R. 7" } }], { site: SITE, brand: "X" });
+  const lines = withSummary.text.split("\n"), at = lines.indexOf("Lets fraud victims deduct stolen money.");
+  assert.ok(at > 0);
+  assert.deepEqual(lines.slice(at, at + 5), ["Lets fraud victims deduct stolen money.", "This bill would let fraud victims deduct stolen money.", "Rep. A B voted Yes to pass this bill. It passed 300–120.", "H.R. 7", `What this bill does: ${SITE}/bills/119-hr-7`]);
+  assert.doesNotMatch(withSummary.text, /H\.R\. 7: http/, "the link is labelled, not a bill number");
+  // The push stays one self-contained sentence that names the bill.
+  assert.equal(withSummary.body, "Rep. A B voted Yes to pass the Tax Relief Act. It passed 300–120.");
+  const none = alertBundle([{ ...base, row: { main: "Tax Relief Act", does: null, coming: true, label: "Official", number: "H.R. 7" } }], { site: SITE, brand: "X" });
+  const l2 = none.text.split("\n"), a2 = l2.indexOf("Tax Relief Act");
+  assert.deepEqual(l2.slice(a2, a2 + 4), ["Tax Relief Act", "Plain-English explanation coming", "Rep. A B voted Yes to pass this bill. It passed 300–120.", "H.R. 7"]);
 });
 
 /* ───────────────────────────── The rules that hold everywhere ───────────────────────────── */

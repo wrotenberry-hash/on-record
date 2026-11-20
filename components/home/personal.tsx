@@ -6,7 +6,7 @@ import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
 import { pickedIssues } from "@/lib/reader-issues";
 import { movingThisWeek } from "@/lib/federal/bill-depth";
-import { MemberVoteRow } from "@/components/bills/member-vote-row";
+import { MemberVoteRows } from "@/components/bills/member-vote-row";
 import { billRowsFor } from "@/lib/bill-row-store";
 import { ISSUE_CATEGORIES } from "@/lib/federal/categories";
 import { shortDate, billLabel } from "@/components/federal/badges";
@@ -46,7 +46,7 @@ export async function PersonalHome({ userId, canAnswer = false }: { userId: stri
     {loc && canAnswer && <IssuesStep userId={userId} />}
     <ComingUp userId={userId} loc={loc} canAnswer={canAnswer} limit={3} />
     {ids.length > 0 && <div className="fed-section"><h2>This week from your legislators</h2>
-      {week.rows.length ? <><ul className="result-list">{week.rows.map(v => <MemberVoteRow key={v.key} v={v} row={v.billId ? weekRows.get(v.billId) : null} linkMember />)}</ul>
+      {week.rows.length ? <><ul className="result-list"><MemberVoteRows votes={week.rows} rows={weekRows} linkMember /></ul>
         <p className="list-end">{weekEnd.text}{weekEnd.more > 0 ? <> <Link className="more-link" href="/following">The rest are on your Following page</Link></> : null}</p></>
         : <p className="meta">No recorded votes by your legislators in the last 7 days.</p>}
       <p className="meta"><Link href="/legislators">Your legislators</Link> · <Link href="/recap">This week&apos;s recap card</Link></p></div>}

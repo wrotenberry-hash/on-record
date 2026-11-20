@@ -8,6 +8,7 @@
  */
 import { carried, longDate, meaningfulVote, plainBillName, txMeaningfulVote, type MeaningfulKind, type TxMeaningfulKind } from "../flow/votes.ts";
 import { groupLine, NOT_SCIENTIFIC, shownTotals, type ScopeTotals } from "../constituent/rules.ts";
+import { EXPLANATION_COMING, WHAT_THIS_BILL_DOES, type BillRowText } from "../bill-row.ts";
 
 /* ───────────────────────────── Names ───────────────────────────── */
 
@@ -300,7 +301,20 @@ export function noticeEmail(notices: readonly OutNotice[], o: { site: string; br
 /* ───────────────────────────── Vote alerts ───────────────────────────── */
 
 export const ALERT_MAX_VOTES = 5;
-export type AlertVote = { member: string; /** The sentence from voteLine: "Voted Yes to pass …. It passed 392–18." */ line: string; billLabel: string; path: string; at: number };
+export type AlertVote = { member: string; /** The sentence from voteLine: "Voted Yes to pass …. It passed 392–18." */ line: string; billLabel: string; path: string; at: number;
+  /** The bill as a vote row shows it (lib/bill-row.ts), and the same vote said about "this bill". With these the email uses the row format (owner, 20 Nov 2026). */
+  row?: BillRowText; vote?: string };
+
+/**
+ * One vote in the alert email, in the order of a vote row on the site (owner, 20 Nov 2026: "change the vote-alert email
+ * to the new row format"): what the bill is, one sentence on what it does (or that an explanation is coming), who voted
+ * and how, the bill number, then the labelled link. A vote with no row text keeps the earlier two lines.
+ */
+function inRowFormat(v: AlertVote, site: string): string[] {
+  const lower = (s: string) => `${s.charAt(0).toLowerCase()}${s.slice(1)}`;
+  if (!v.row || !v.vote) return [`${v.member} ${lower(v.line)}`, `  ${v.billLabel}: ${site}${v.path}`];
+  return [v.row.main, ...(v.row.coming ? [EXPLANATION_COMING] : v.row.does ? [v.row.does] : []), `${v.member} ${lower(v.vote)}`, v.row.number, `${WHAT_THIS_BILL_DOES}: ${site}${v.path}`, ""];
+}
 
 /**
  * One message for every new vote on a bill by the legislators a reader follows: the newest five, then how many
@@ -314,7 +328,7 @@ export function alertBundle(votes: readonly AlertVote[], o: { site: string; bran
   const title = sorted.length === 1 ? `${sorted[0].member} voted on ${sorted[0].billLabel}` : `${sorted.length} new votes by legislators you follow`;
   const path = sorted.length === 1 ? sorted[0].path : "/following";
   const text = [sorted.length === 1 ? "A legislator you follow voted on a bill." : `Legislators you follow voted on bills: ${sorted.length} votes.`, "",
-    ...shown.flatMap(v => [say(v), `  ${v.billLabel}: ${o.site}${v.path}`]), ...(more ? ["", `${rest} They are listed here: ${o.site}/following`] : []), "",
+    ...shown.flatMap(v => inRowFormat(v, o.site)), ...(more ? ["", `${rest} They are listed here: ${o.site}/following`] : []), "",
     "You're caught up.", "", `You get this because vote alerts are on. Turn them off on your Account page: ${o.site}/account`, `${o.brand} shows what officials did. It does not grade them.`].join("\n");
   return { title, body: [...shown.map(say), rest].filter(Boolean).join(" "), path, subject: title, text, shown: shown.length, more };
 }

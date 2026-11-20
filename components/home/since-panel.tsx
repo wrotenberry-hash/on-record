@@ -5,7 +5,7 @@ import { billLabel, shortDate } from "@/components/federal/badges";
 import { previousVisit } from "@/lib/visits";
 import { currentLocation } from "@/lib/location";
 import { federalLegislators } from "@/lib/federal/legislators";
-import { MemberVoteRow } from "@/components/bills/member-vote-row";
+import { MemberVoteRows } from "@/components/bills/member-vote-row";
 import { billRowsFor } from "@/lib/bill-row-store";
 import { STAGE_LABEL, type StageKey } from "@/lib/federal/depth-parse";
 import { followedBillsMovedSince, followedMemberIds, memberVotesSince, texasBillsMovedSince } from "@/lib/flow/card-store";
@@ -39,7 +39,7 @@ export async function SincePanel({ userId }: { userId: string | null }) {
     {done ? <p className="meta caught-up"><b>{CAUGHT_UP}</b> Nothing new from your legislators or the bills you follow since then.{texas ? <> In the Texas Legislature: {texas}.</> : null}
       {!loc ? <> <Link href="/legislators">Add your address</Link> to see your legislators here.</> : null}</p> : <>
       <ul className="result-list">
-        {votes.rows.map(v => <MemberVoteRow key={v.key} v={v} row={v.billId ? voteRows.get(v.billId) : null} />)}
+        <MemberVoteRows votes={votes.rows} rows={voteRows} />
         {bills.rows.map(b => <li key={b.id}><Link href={`/bills/${b.id}`}>{b.title}</Link><span className="meta">Now: {STAGE_LABEL[b.stage as StageKey] ?? b.stage}{b.stageDate ? ` (${shortDate(b.stageDate)})` : ""}</span></li>)}
         {texas && <li>{texas}</li>}
       </ul>

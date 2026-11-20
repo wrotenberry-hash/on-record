@@ -2,7 +2,9 @@ import Link from "next/link";
 import { shortDate } from "@/components/federal/badges";
 import { BillRow } from "@/components/bills/bill-row";
 import { positionLine, voteKind } from "@/lib/federal/vote-kinds";
-import type { BillRowText } from "@/lib/bill-row";
+import { numberFromBillId, type BillRowText } from "@/lib/bill-row";
+import { ProceduralGroup } from "@/components/bills/procedural-group";
+import { isDebateRule, shortPosition, splitProcedural } from "@/lib/procedural";
 
 /**
  * One line in a list of several legislators' votes ("This week from your legislators", "Since you last visited", the
@@ -17,4 +19,17 @@ export function MemberVoteRow({ v, row, linkMember = false }: { v: MemberVote; r
   const voted = <>{who}: {positionLine(v.position, voteKind(v.question, v.billTitle ?? v.title))}</>;
   if (v.billId && row) return <BillRow row={row} href={`/bills/${v.billId}`} vote={voted} meta={shortDate(v.votedAt)} />;
   return <li><span>{voted}</span><span>{v.title ?? v.question}</span><span className="meta">{shortDate(v.votedAt)}</span></li>;
+}
+
+/**
+ * The whole list: each vote a row, and the votes on debate rules collapsed into one line at the end, "Procedural
+ * votes (N)" (owner, 20 Nov 2026; lib/procedural.ts). `rows` is the bill text for each bill id (lib/bill-row-store.ts).
+ */
+export function MemberVoteRows({ votes, rows, linkMember = false }: { votes: ReadonlyArray<MemberVote & { key: string }>; rows: ReadonlyMap<string, BillRowText>; linkMember?: boolean }) {
+  const { main, procedural } = splitProcedural(votes, v => isDebateRule({ billId: v.billId, title: v.billTitle ?? v.title }));
+  return <>
+    {main.map(v => <MemberVoteRow key={v.key} v={v} row={v.billId ? rows.get(v.billId) : null} linkMember={linkMember} />)}
+    <ProceduralGroup votes={procedural.map(v => ({ key: v.key, title: v.billTitle ?? v.title, number: numberFromBillId(v.billId), href: v.billId ? `/bills/${v.billId}` : null, votedAt: v.votedAt,
+      voted: <><b>{v.name}</b>: {shortPosition(v.position)}</>, outcome: v.question }))} />
+  </>;
 }

@@ -115,7 +115,7 @@ test("every place votes are listed uses the row", () => {
   assert.match(read("components/home/legislator-cards.tsx"), /<BillRow key=\{`\$\{v\.billHref\}-\$\{i\}`\} row=\{v\.row\} href=\{v\.billHref\} vote=\{v\.vote\}/, "home, Your legislators");
   assert.match(read("components/federal/vote-row.tsx"), /return <BillRow row=\{row\} href=\{`\/bills\/\$\{v\.billId\}`\}/, "a member of Congress's page, Following");
   assert.match(read("components/texas/decisions.tsx"), /return <BillRow row=\{billRowText\(\{ number: bill\.identifier, title: bill\.title \}\)\} href=\{`\/texas\/bills\/\$\{bill\.id\}`\}/, "a Texas legislator's page");
-  for (const p of ["components/home/personal.tsx", "components/home/since-panel.tsx", "app/recap/page.tsx"]) assert.match(read(p), /<MemberVoteRow /, p);
+  for (const p of ["components/home/personal.tsx", "components/home/since-panel.tsx", "app/recap/page.tsx"]) assert.match(read(p), /<MemberVoteRows /, p);
   assert.match(read("components/bills/member-vote-row.tsx"), /return <BillRow row=\{row\} href=\{`\/bills\/\$\{v\.billId\}`\}/);
   assert.match(read("app/compare/page.tsx"), /<BillRow key=\{d\.rollCallId\} row=\{row\}/);
   assert.match(read("app/politicians/[id]/page.tsx"), /<BillRow key=\{r\.rollId\} row=\{row\}/, "votes against most of their own party");

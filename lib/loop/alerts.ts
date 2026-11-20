@@ -14,7 +14,8 @@
 import { and, eq, gt, gte, inArray, isNotNull, lte } from "drizzle-orm";
 import { alertPrefs, ingestCursors, officialBills, officialMemberVotes, officialRollCalls, officialTallyChecks, readerAccounts, txBills, txMemberVotes, txVotes, userFollows } from "../../db/schema.ts";
 import { BRAND } from "../brand.ts";
-import { meaningfulVote, plainBillName, txMeaningfulVote, txVoteLine, voteLine } from "../flow/votes.ts";
+import { meaningfulVote, plainBillName, thisMeasure, txMeaningfulVote, txVoteLine, voteLine } from "../flow/votes.ts";
+import { billRowText, type RowSummary } from "../bill-row.ts";
 import type { Db } from "../verify/residence-store.ts";
 import { membersById } from "./people.ts";
 import { alertBundle, fedBillLabel, type AlertVote } from "./rules.ts";
@@ -31,6 +32,8 @@ export type AlertDeps = {
   site?: string;
   /** The most alert emails one run may send; readers past it still get the alert on the site and their devices. */
   emailCap?: number;
+  /** The newest summary a reader may see for each bill (lib/bill-row-store.ts holds the reader gate). None: official titles only. */
+  summaries?: (billIds: string[]) => Promise<Map<string, RowSummary>>;
 };
 
 async function cursor(db: Db, key: string) { return (await db.select().from(ingestCursors).where(eq(ingestCursors.key, key)).get())?.value ?? null; }
@@ -38,7 +41,8 @@ async function setCursor(db: Db, key: string, value: string, now: number) {
   await db.insert(ingestCursors).values({ key, value, updatedAt: now }).onConflictDoUpdate({ target: ingestCursors.key, set: { value, updatedAt: now } });
 }
 
-type NewVote = { voteId: string; memberId: string; vote: Omit<AlertVote, "member"> };
+/** `bill` is what the email's row is built from; `id` is set for a bill in Congress (a Texas bill has no summary on show). */
+type NewVote = { voteId: string; memberId: string; vote: Omit<AlertVote, "member">; bill: { id: string | null; number: string; title: string | null; billType?: string | null } };
 
 /** New votes on bills in Congress since the last update, one entry per followed member who is listed in them. */
 async function newFederal(db: Db, now: number, members: readonly string[]): Promise<NewVote[]> {
@@ -57,8 +61,9 @@ async function newFederal(db: Db, now: number, members: readonly string[]): Prom
     for (const ids of chunks(members)) for (const v of await db.select().from(officialMemberVotes).where(and(inArray(officialMemberVotes.rollCallId, part), inArray(officialMemberVotes.politicianId, ids)))) {
       const r = meaningful.find(x => x.id === v.rollCallId)!, label = fedBillLabel(r.billType!, r.number!);
       const name = plainBillName({ title: r.billTitle ?? "", billType: r.billType, label }).text;
-      out.push({ voteId: r.id, memberId: v.politicianId, vote: { billLabel: label, path: `/bills/${r.billId}`, at: r.votedAt,
-        line: voteLine({ position: v.position, kind: r.kind, name, result: r.result, yea: r.yea, nay: r.nay, question: r.question, chamber: r.chamber, billType: r.billType, tallyUnderReview: review.has(r.id) }) } });
+      const said = (as: string) => voteLine({ position: v.position, kind: r.kind, name: as, result: r.result, yea: r.yea, nay: r.nay, question: r.question, chamber: r.chamber, billType: r.billType, tallyUnderReview: review.has(r.id) });
+      out.push({ voteId: r.id, memberId: v.politicianId, vote: { billLabel: label, path: `/bills/${r.billId}`, at: r.votedAt, line: said(name), vote: said(thisMeasure(r.billType)) },
+        bill: { id: r.billId, number: label, title: r.billTitle, billType: r.billType } });
     }
   }
   return out;
@@ -82,8 +87,9 @@ async function newTexas(db: Db, now: number, members: readonly string[]): Promis
     for (const mv of await db.select().from(txMemberVotes).where(and(inArray(txMemberVotes.voteId, part), isNotNull(txMemberVotes.personId), inArray(txMemberVotes.personId, ids)))) {
       const v = meaningful.find(x => x.id === mv.voteId)!, counts = v.counts as Record<string, number> | null;
       const name = plainBillName({ title: v.title, billType: "hb", label: v.identifier }).text;
-      out.push({ voteId: v.id, memberId: mv.personId!, vote: { billLabel: v.identifier, path: `/texas/bills/${v.billId}`, at: Date.parse(v.date) || now,
-        line: txVoteLine({ option: mv.option, kind: v.kind, name, result: v.result, yes: counts?.yes, no: counts?.no, tallyOk: v.tallyOk === 1 }) } });
+      const said = (as: string) => txVoteLine({ option: mv.option, kind: v.kind, name: as, result: v.result, yes: counts?.yes, no: counts?.no, tallyOk: v.tallyOk === 1 });
+      out.push({ voteId: v.id, memberId: mv.personId!, vote: { billLabel: v.identifier, path: `/texas/bills/${v.billId}`, at: Date.parse(v.date) || now, line: said(name), vote: said("this bill") },
+        bill: { id: null, number: v.identifier, title: v.title } });
     }
   return out;
 }
@@ -95,8 +101,12 @@ export async function runVoteAlerts(db: Db, now = Date.now(), deps: AlertDeps = 
   for (const part of chunks(users)) for (const f of await db.select().from(userFollows).where(inArray(userFollows.userId, part))) follows.set(f.userId, [...(follows.get(f.userId) ?? []), f.politicianId]);
   const followed = [...new Set([...follows.values()].flat())];
   // Both lists are read on every run, with or without followers, so the markers always move on and old votes are never announced late.
-  const votes = [...(await newFederal(db, now, followed)), ...(await newTexas(db, now, followed))];
-  if (!votes.length) return out;
+  const found = [...(await newFederal(db, now, followed)), ...(await newTexas(db, now, followed))];
+  if (!found.length) return out;
+  // 20 Nov 2026: the email says what each bill is first, as a vote row on the site does. Approved words only; a read that fails leaves official titles.
+  const ids = [...new Set(found.flatMap(v => (v.bill.id ? [v.bill.id] : [])))];
+  const summaries = deps.summaries && ids.length ? await deps.summaries(ids).catch(() => new Map<string, RowSummary>()) : new Map<string, RowSummary>();
+  const votes = found.map(v => ({ ...v, vote: { ...v.vote, row: billRowText({ number: v.bill.number, title: v.bill.title, summary: v.bill.id ? summaries.get(v.bill.id) : null, billType: v.bill.billType }) } }));
   const names = new Map((await membersById(db, followed)).map(m => [m.id, m.short]));
   const site = deps.site ?? "", cap = deps.emailCap ?? ALERT_EMAIL_CAP;
   for (const userId of users) {
