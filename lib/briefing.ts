@@ -22,6 +22,8 @@ export type Briefing = { kind: "daily" | "weekly"; periodLabel: string; congress
 
 const DAY = 86400e3, MAX = 5;
 const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+/** The date of a vote as Washington had it. 20 Nov 2026: an evening vote was dated a day late, because 7 p.m. in Washington is already the next day by the UTC clock. */
+export const voteDay = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 export const passedResult = (r: string | null) => /pass|agreed|adopted|confirmed|invoked/i.test(r ?? "") && !/not agreed|rejected|failed/i.test(r ?? "");
 export const failedResult = (r: string | null) => /fail|rejected|not agreed|not invoked|not sustained/i.test(r ?? "");
 
@@ -40,7 +42,7 @@ export async function buildBriefing(now = Date.now()): Promise<Briefing> {
     billType: officialBills.billType, number: officialBills.number })
     .from(officialRollCalls).leftJoin(officialBills, eq(officialBills.id, officialRollCalls.billId)).where(gte(officialRollCalls.votedAt, from)).orderBy(desc(officialRollCalls.votedAt));
   const item = (r: typeof rolls[number], note: string): BriefItem => ({ label: r.billType ? billLabel(r.billType, r.number!) : r.documentLabel ?? "Vote", title: r.billTitle ?? r.title ?? r.question,
-    href: r.billId ? `/bills/${r.billId}` : "/moving", date: iso(r.votedAt), note: `${r.chamber === "senate" ? "Senate" : "House"}, ${r.yea}–${r.nay}. ${note}`,
+    href: r.billId ? `/bills/${r.billId}` : "/moving", date: voteDay(r.votedAt), note: `${r.chamber === "senate" ? "Senate" : "House"}, ${r.yea}–${r.nay}. ${note}`,
     billId: r.billId ?? null, voteId: r.id, chamber: r.chamber === "senate" ? "senate" : "house" });
   const congress: BriefSection = { name: "Congress", inSession: congressInSession, passed: [], failed: [], blocked: [], coming: [] };
   for (const r of rolls) {

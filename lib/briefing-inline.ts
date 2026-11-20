@@ -79,6 +79,9 @@ export function inlineProblems(t: InlineText): string[] {
   // do is point at another part of the page, which the reader of a briefing does not have.
   for (const [name, line] of [["Today", t.today], ["This bill", t.thisBill]] as const)
     if (/\b(?:see|as noted|as described|described|mentioned|explained) (?:above|below|earlier)\b|\bthe (?:above|following)\b/i.test(line)) out.push(`“${name}” refers to another part of the page.`);
+  // The summary page lists its sources; a briefing item does not, so a line may not speak of them.
+  for (const [name, line] of [["Today", t.today], ["This bill", t.thisBill]] as const)
+    if (/\bthe sources?\b|\bsource text\b/i.test(line)) out.push(`“${name}” speaks of sources, which a reader of the briefing does not have in front of them.`);
   const parts = [t.headline, t.today, t.thisBill];
   const acr = unexplainedAcronyms(parts); if (acr.length) out.push(`Initials the item does not explain: ${acr.join(", ")}.`);
   const jar = unexplainedJargon(parts); if (jar.length) out.push(`Terms the item does not explain: ${[...new Set(jar.map(j => j.term))].join(", ")}.`);
@@ -105,25 +108,27 @@ export function pickItems(candidates: readonly BriefPick[], hasSummary: (billKey
 }
 
 const TALLY = /^(House|Senate), (\d+)–(\d+)\./;
-/**
- * What the record says just happened, with the count: "The House passed it 417–3 on November 19, 2026." Null for
- * something scheduled, or when the briefing holds no count for it. Built from the briefing's own note
- * ("House, 417–3. On Passage"), which comes from the official roll call.
- */
-export function eventSentence(p: Pick<BriefPick, "event" | "note" | "date">): string | null {
+function voteSentence(p: Pick<BriefPick, "event" | "note" | "date">, dateText: string | null): string | null {
   const m = TALLY.exec(p.note.trim());
   if (!m || p.event === "coming" || p.event === "hearing") return null;
-  const [, ch, yea, nay] = m, d = longDate(p.date), on = d ? ` on ${d}` : "";
+  const [, ch, yea, nay] = m, on = dateText ? ` on ${dateText}` : "";
   if (p.event === "passed") return `The ${ch} passed it ${yea}–${nay}${on}.`;
   // A vote can fail with more votes for than against (some need two thirds), so the count is given without "voted it down".
   if (p.event === "failed") return `It failed in the ${ch}${on}: ${yea} for, ${nay} against.${Number(yea) > Number(nay) ? " That vote needed more than a simple majority." : ""}`;
   return `A procedural vote in the ${ch} stopped it${on}, ${yea}–${nay}. That was not a vote on the bill itself.`;
 }
+/**
+ * What the record says just happened, with the count: "The House passed it 417–3 on November 19, 2026." Null for
+ * something scheduled, or when the briefing holds no count for it. Built from the briefing's own note
+ * ("House, 417–3. On Passage"), which comes from the official roll call.
+ */
+export const eventSentence = (p: Pick<BriefPick, "event" | "note" | "date">): string | null => voteSentence(p, longDate(p.date));
 
 /**
  * The "Where it stands" line: what just happened (with the count), then where the bill is now. `where` is the line the
- * bill page prints in "Can this bill still be changed?". The stored stage can lag a vote by a day; when it has not
- * caught up with the vote the briefing reports, the vote alone is given rather than a stage the vote has overtaken.
+ * bill page prints in "Can this bill still be changed?". Where that line names the same passage, the count is put into
+ * it and its date (the official action date) is kept. The stored stage can lag a vote by a day; when it has not caught
+ * up with the vote the briefing reports, the vote alone is given rather than a stage the vote has overtaken.
  */
 export function standsLine(p: Pick<BriefPick, "event" | "note" | "date">, where: string | null): string {
   const e = eventSentence(p), w = where?.trim() || null;
@@ -131,8 +136,8 @@ export function standsLine(p: Pick<BriefPick, "event" | "note" | "date">, where:
   if (!w) return e;
   const ch = TALLY.exec(p.note.trim())![1];
   if (p.event === "passed") {
-    const same = new RegExp(`^Passed the ${ch} on [^.]+\\.\\s*`);
-    if (same.test(w)) return `${e} ${w.replace(same, "")}`.trim();
+    const same = new RegExp(`^Passed the ${ch} on ([^.]+)\\.\\s*`).exec(w);
+    if (same) return `${voteSentence(p, same[1])} ${w.slice(same[0].length)}`.trim();
     return /^(?:Passed both|Became law|Sent to the President|Vetoed)/.test(w) ? `${e} ${w}` : e;
   }
   if (p.event === "blocked" && /^Passed the (?:House|Senate) on /.test(w)) return `${sentencesOf(w)[0]} ${e}`;

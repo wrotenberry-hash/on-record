@@ -5,7 +5,7 @@ import { getCursor, setCursor } from "@/lib/federal/ingest";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { voteKind } from "@/lib/federal/vote-kinds";
 import { billLabel } from "@/components/federal/badges";
-import { buildBriefing, failedResult, latestBriefing, passedResult, type Briefing, type BriefItem } from "@/lib/briefing";
+import { buildBriefing, failedResult, latestBriefing, passedResult, voteDay, type Briefing, type BriefItem } from "@/lib/briefing";
 import { candidates, inlineBriefing } from "@/lib/briefing-items";
 import { itemText, CAUGHT_UP } from "@/lib/briefing-inline";
 
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const to = passedResult(r.result) ? passed : failedResult(r.result) ? failed : null;
     if (!to) continue;
     seen.add(r.billId);
-    to.push({ label: billLabel(r.billType, r.number), title: r.title, href: `/bills/${r.billId}`, date: new Date(r.votedAt).toISOString().slice(0, 10),
+    to.push({ label: billLabel(r.billType, r.number), title: r.title, href: `/bills/${r.billId}`, date: voteDay(r.votedAt),
       note: `${r.chamber === "senate" ? "Senate" : "House"}, ${r.yea}–${r.nay}. ${r.question}`, billId: r.billId, voteId: r.rollId, chamber: r.chamber === "senate" ? "senate" : "house" });
     if (seen.size >= EXAMPLES) break;
   }

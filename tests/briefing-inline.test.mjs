@@ -67,6 +67,7 @@ test("an item must stand on its own: no pointer to the rest of the page, no unex
   assert.ok(inlineProblems({ ...ok, thisBill: "One. Two. Three." }).some(p => /one or two sentences/.test(p)));
   assert.ok(inlineProblems({ ...ok, today: "Unchanged." }).some(p => /“Today” is 1 words/.test(p)));
   assert.ok(inlineProblems({ ...ok, thisBill: `They keep ${"very ".repeat(80)}much more.` }).some(p => /“This bill” is \d+ words/.test(p)));
+  assert.ok(inlineProblems({ ...ok, today: "The department created the unit in April 2026, but the sources do not say it is written into law." }).some(p => /speaks of sources/.test(p)));
   assert.ok(inlineProblems({ ...ok, today: "The CRDP rule takes away about $2,275 a month of their pay." }).some(p => /Initials the item does not explain: CRDP/.test(p)));
 });
 
@@ -92,6 +93,8 @@ test("where it stands says what just happened, with the count, then where the bi
   assert.equal(eventSentence(v("coming", "On the House floor schedule for the week")), null);
   // The stage line names the same passage without the count: the count is put into it, nothing is said twice.
   assert.equal(standsLine(v("passed"), "Passed the House on November 19, 2026. The Senate has it now."), "The House passed it 417–3 on November 19, 2026. The Senate has it now.");
+  // The official action date in the stage line is the one kept.
+  assert.equal(standsLine(v("passed"), "Passed the House on November 18, 2026. The Senate has it now."), "The House passed it 417–3 on November 18, 2026. The Senate has it now.");
   // The stored stage has not caught up with the vote: the vote is given, not the stage it overtook.
   assert.equal(standsLine(v("passed"), "On the House floor schedule this week."), "The House passed it 417–3 on November 19, 2026.");
   assert.equal(standsLine(v("passed", "Senate, 90–5. On Passage"), "Passed the House on April 27, 2026. The Senate has it now."), "The Senate passed it 90–5 on November 19, 2026.");
@@ -103,6 +106,17 @@ test("where it stands says what just happened, with the count, then where the bi
   assert.equal(standsLine(v("coming", "On the Senate floor schedule for the week"), "Passed the House on April 27, 2026. The Senate has it now. It is on the Senate floor schedule this week."), "Passed the House on April 27, 2026. The Senate has it now. It is on the Senate floor schedule this week.");
   assert.equal(standsLine(v("coming", "On the House floor schedule for the week"), null), "Coming up: On the House floor schedule for the week.");
   assert.equal(standsLine(v("passed"), null), "The House passed it 417–3 on November 19, 2026.");
+});
+
+test("a vote is dated by Washington's calendar, not the UTC clock", () => {
+  const b = read("lib/briefing.ts");
+  assert.match(b, /export const voteDay = \(ms: number\) => new Date\(ms\)\.toLocaleDateString\("en-CA", \{ timeZone: "America\/New_York" \}\);/);
+  assert.match(b, /date: voteDay\(r\.votedAt\), note:/);
+  // 6:45 p.m. in Washington on 17 November is 23:45 UTC the same day; 7:30 p.m. is already 18 November by UTC.
+  const voteDay = ms => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  assert.equal(voteDay(Date.UTC(2026, 10, 18, 0, 30)), "2026-11-17");
+  assert.equal(voteDay(Date.UTC(2026, 10, 17, 23, 45)), "2026-11-17");
+  assert.equal(voteDay(Date.UTC(2026, 6, 14, 3, 0)), "2026-07-13");
 });
 
 test("the text a reader gets: every line labelled, the link called Full explanation, and the closing line", () => {
