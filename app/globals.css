@@ -271,6 +271,9 @@ h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middl
 .change-queue .gate { margin: 10px 0 14px; }
 .change-queue .review-actions button { min-height: 44px; }
 .change-queue .review-actions input:not([type=hidden]) { min-height: 44px; }
+.change-queue > p { margin: 10px 0; line-height: 1.5; }
+.change-queue .lede a { display: inline-block; padding: 6px 0; }
+.change-options .review-actions input:not([type=hidden]) { flex: 1 1 100%; }
 .change-links { margin: 4px 0; }
 .change-links a { display: inline-flex; align-items: center; min-height: 44px; margin-right: 18px; color: #163b3c; text-decoration: underline; text-underline-offset: 2px; }
 .change-group h3 { font: 600 19px/1.3 Georgia, serif; margin: 6px 0 4px; }
