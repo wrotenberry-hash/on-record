@@ -84,6 +84,8 @@ test("which measures get a summary: bills, joint resolutions, and resolutions th
   assert.equal(s("119-hres-1247", "Providing for consideration of the bill (H.R. 2102) to amend title 10"), "debate_rule");
   for (const t of ["Honoring the life of a former member", "Recognizing National Nurses Week", "Electing Members to certain standing committees", "Providing for a conditional adjournment of the House", "Supporting the goals and ideals of a day", "Expressing condolences to the families"])
     assert.equal(s("119-hres-10", t), "ceremonial", t);
+  assert.equal(s("119-hres-1252", "Resolution memorializing law enforcement officers killed in the line of duty."), "ceremonial");
+  assert.equal(s("119-sconres-33", "A concurrent resolution setting forth the congressional budget for the United States Government"), "summarised");
   assert.equal(s("119-hr-10", "Honoring Our Veterans Act"), "summarised", "a bill is always summarised, whatever its name");
   assert.equal(s("ocd-bill/1", "Relating to public education."), "summarised", "a Texas bill is not decided here");
   const g = read("lib/analysis/generate.ts");

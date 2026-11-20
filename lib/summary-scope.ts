@@ -21,7 +21,7 @@ export const SUMMARY_TYPES = ["hr", "s", "hjres", "sjres", ...RESOLUTION_TYPES] 
 // How a purely ceremonial or housekeeping resolution's title opens. A resolution that takes a position on policy
 // ("Condemning …", "Expressing the sense of the House that …") is not on this list: it does say something of its own.
 const CEREMONIAL = new RegExp("^(?:" + [
-  "honoring", "recognizing", "commemorating", "congratulating", "celebrating", "commending", "mourning", "remembering", "saluting", "thanking",
+  "honoring", "recognizing", "commemorating", "congratulating", "celebrating", "commending", "mourning", "remembering", "memorializing", "saluting", "thanking",
   "expressing (?:the )?(?:condolences|gratitude|appreciation|sympathy)", "expressing support for (?:the )?(?:designation|goals)", "supporting the (?:goals and ideals|designation)",
   "designating", "electing", "ranking (?:a )?(?:certain )?members?", "providing for (?:a |an )?(?:conditional )?(?:adjournment|recess)", "providing for a joint session",
   "providing for the printing", "authorizing the printing", "authorizing the use of (?:the )?(?:capitol|rotunda|emancipation hall)", "permitting the use of",
@@ -34,7 +34,8 @@ const typeOf = (v: { billType?: string | null; billId?: string | null }) => (v.b
 export function summaryScope(v: { billType?: string | null; billId?: string | null; title?: string | null }): SummaryScope {
   const type = typeOf(v);
   if (!(RESOLUTION_TYPES as readonly string[]).includes(type)) return "summarised";
-  const title = String(v.title ?? "").replace(/\s+/g, " ").trim();
+  // Some official titles open with the kind of measure ("Resolution memorializing …", "A concurrent resolution honoring …").
+  const title = String(v.title ?? "").replace(/\s+/g, " ").trim().replace(/^(?:a |an )?(?:house |senate )?(?:concurrent |simple )?resolution (?=[a-z])/i, "");
   if (isDebateRule({ billType: type, title })) return "debate_rule";
   return CEREMONIAL.test(title) ? "ceremonial" : "summarised";
 }
