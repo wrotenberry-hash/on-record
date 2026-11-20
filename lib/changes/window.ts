@@ -121,6 +121,12 @@ export type FederalFacts = {
   floorChambers: readonly Chamber[]; floorUrl?: string | null;
   /** For a bill stopped by a floor vote (failed, not taken up, debate not ended): the chamber of that vote, when known. */
   stalledIn: Chamber | null;
+  /**
+   * A floor vote that failed after the stored stage (20 Nov 2026): a vote to take the bill up, or to end debate, in
+   * the chamber that has it now. The stored stage still says "passed one chamber", but the bill is not moving, and
+   * the page must not read as if it were.
+   */
+  blocked?: { chamber: Chamber; date: string; what: "take_up" | "end_debate" | "end_debate_take_up" } | null;
   /** The bill's "all actions" page on Congress.gov. */
   actionsUrl: string;
   now: number;
@@ -169,6 +175,10 @@ export function federalWindow(f: FederalFacts): BillWindow | null {
   if (f.stage === "passed_second") return make("resolving", "narrow", "Passed both the House and the Senate.", CHANGES.passedBoth("President"));
   if (f.stage === "passed_first") {
     const floor = f.floorChambers.includes(other);
+    if (f.blocked && f.blocked.chamber === other && !floor) {
+      const what = f.blocked.what === "take_up" ? `a ${X} vote to take it up failed` : f.blocked.what === "end_debate" ? `a ${X} vote to end debate on it failed` : `a ${X} vote to end debate on taking it up failed`;
+      return make("other_chamber", "narrow", `Passed the ${O}${on(f.stageDate)}. The ${X} has it, but ${what}${on(f.blocked.date)}.`, CHANGES.stalled(X));
+    }
     return make("other_chamber", "open", `Passed the ${O}${on(f.stageDate)}. The ${X} has it now.${floor ? ` It is on the ${X} floor schedule this week.` : ""}`, CHANGES.otherChamber(X, O), floor ? floorSource() : []);
   }
 

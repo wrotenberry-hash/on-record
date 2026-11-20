@@ -10,8 +10,8 @@
  * temporary database built from the migrations.
  */
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
-import { officialBillActions, officialBillCommittees, officialBillDepth, officialBills, officialCommittees, officialFloorSchedule, txBillActions, txBills, txEvents } from "../../db/schema.ts";
-import { floorVoteOf, weekOf } from "../federal/depth-parse.ts";
+import { officialBillActions, officialBillCommittees, officialBillDepth, officialBills, officialCommittees, officialFloorSchedule, officialRollCalls, txBillActions, txBills, txEvents } from "../../db/schema.ts";
+import { floorVoteFromRollCall, floorVoteOf, weekOf } from "../federal/depth-parse.ts";
 import { meetingBillIds, meetingNamesBill } from "../federal/meetings-parse.ts";
 import { TX_RULES, txToday } from "../texas/calendar.ts";
 import { TX_SESSIONS, txEventBillIds } from "../texas/parse.ts";
@@ -64,7 +64,21 @@ async function federal(db: Db, id: string, now: number, s: Shared): Promise<Bill
       if (v && !v.passed) { stalledIn = v.chamber; break; }
     }
   }
-  return federalWindow({ stage, stageDate: bill.stageDate, congress: bill.congress, billType: bill.billType,
+  // 20 Nov 2026: a bill one chamber passed, where the other chamber then voted not to take it up or not to end debate.
+  // The stored stage does not change for such a vote, so the latest floor vote on file after that stage is read here:
+  // if it failed, the bill is stalled there; a later vote that carried clears it.
+  let blocked: { chamber: Chamber; date: string; what: "take_up" | "end_debate" | "end_debate_take_up" } | null = null;
+  if (stage === "passed_first") {
+    const rolls = await db.select({ id: officialRollCalls.id, chamber: officialRollCalls.chamber, rollNumber: officialRollCalls.rollNumber, votedAt: officialRollCalls.votedAt,
+      question: officialRollCalls.question, title: officialRollCalls.title, result: officialRollCalls.result, yea: officialRollCalls.yea, nay: officialRollCalls.nay })
+      .from(officialRollCalls).where(eq(officialRollCalls.billId, id));
+    const votes = rolls.map(r => floorVoteFromRollCall(r)).filter((v): v is NonNullable<typeof v> => !!v && (v.chamber === "house" || v.chamber === "senate"))
+      .filter(v => ["proceed", "cloture", "cloture_proceed"].includes(v.kind) && (!bill.stageDate || v.date >= bill.stageDate.slice(0, 10)))
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.rollNumber ?? 0) - (b.rollNumber ?? 0));
+    const last = votes[votes.length - 1];
+    if (last && !last.passed) blocked = { chamber: last.chamber as Chamber, date: last.date, what: last.kind === "proceed" ? "take_up" : last.kind === "cloture" ? "end_debate" : "end_debate_take_up" };
+  }
+  return federalWindow({ stage, stageDate: bill.stageDate, congress: bill.congress, billType: bill.billType, blocked,
     // Full committees only: "HSII" is a committee, "HSII24" one of its subcommittees. The first letter is the chamber.
     committees: committees.filter(c => /^[HSJ][A-Z]{3}$/.test(c.committeeId)).map(c => ({ name: c.name, chamber: c.committeeId[0] === "H" ? "house" : c.committeeId[0] === "S" ? "senate" : "joint", referredAt: c.referredAt, reportedAt: c.reportedAt })),
     meetings: meetingFacts(id, s, now),
