@@ -12,7 +12,7 @@ import { HAND_CORRECTIONS, HAND_CORRECTIONS_APPROVED } from "../lib/analysis/han
 import { ABOUT_SOURCES } from "../lib/analysis/facts.ts";
 import { EXTENDED_PARTS } from "../lib/analysis/tiers.ts";
 import { saysWhatItIs } from "../lib/briefing-inline.ts";
-import { HEADLINE_VERBS } from "../lib/analysis/standard.ts";
+import { HEADLINE_VERBS, isCommonKnowledge } from "../lib/analysis/standard.ts";
 
 const read = p => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const words = s => s.trim().split(/\s+/).length;
@@ -99,5 +99,7 @@ test("a name the headline itself explains is not counted as unexplained", () => 
   assert.equal(saysWhatItIs("Thomas Paine", "Lets a Thomas Paine memorial be placed near the National Mall."), false);
   assert.equal(saysWhatItIs("Emergency Conservation Program", "Raises aid under the Emergency Conservation Program (help for farms after disasters)."), true);
   assert.equal(saysWhatItIs("", "anything"), false);
-  assert.match(read("lib/briefing-test.ts"), /\.filter\(w => !headline \|\| !saysWhatItIs\(w, headline\)\)/);
+  assert.match(read("lib/briefing-test.ts"), /!isCommonKnowledge\(w\) && \(!headline \|\| !saysWhatItIs\(w, headline\)\)/);
+  for (const w of ["Iran", "United States Armed Forces", "the armed forces", "war"]) assert.equal(isCommonKnowledge(w), true, w);
+  for (const w of ["War Powers Resolution", "Barona Band", "hostilities", "cloture"]) assert.equal(isCommonKnowledge(w), false, w);
 });

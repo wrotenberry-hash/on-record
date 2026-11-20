@@ -9,6 +9,7 @@ import { analysisLimits } from "@/lib/analysis/generate";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { summaryForBill } from "@/lib/analysis/queries";
 import { getCursor, setCursor } from "@/lib/federal/ingest";
+import { isCommonKnowledge } from "@/lib/analysis/standard";
 import { inlineFromSummary, inlineProblems, INLINE_VERSION, saysWhatItIs, type InlineText } from "@/lib/briefing-inline";
 
 /**
@@ -72,14 +73,14 @@ export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChang
     const v = judge[k]?.verdict;
     if (v !== "correct") out.push(`A reader of the item alone got ${name} ${v === "wrong" ? "wrong" : "only roughly"}: ${(judge[k]?.why ?? "").slice(0, 160)}`);
   }
-  const words = (reader.wordsNotUnderstood ?? []).map(w => w.trim()).filter(Boolean);
+  const words = (reader.wordsNotUnderstood ?? []).map(w => w.trim()).filter(w => w && !isCommonKnowledge(w)); // the same everyday list the summaries' own reader test uses
   if (words.length) out.push(`Words a reader did not understand: ${words.slice(0, 5).join(", ")}.`);
   // Owner, 20 Nov 2026: "A headline must make sense alone: say who or what a named group is … and avoid unexplained terms."
   // 20 Nov 2026, first run of this rule: the test reader also listed names from the other lines ("Forest Service") and U.S. states
   // ("California"). Only a name that is in the headline itself counts, and a state is a name everyone knows.
   const STATES = /^(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|puerto rico|america|united states)$/i;
   const names = (reader.namesNotExplained ?? []).map(w => w.trim()).filter(w => w && !STATES.test(w) && (!headline || headline.toLowerCase().includes(w.toLowerCase())))
-    .filter(w => !headline || !saysWhatItIs(w, headline)); // a name the headline itself explains is not unexplained
+    .filter(w => !isCommonKnowledge(w) && (!headline || !saysWhatItIs(w, headline))); // not a thing everyone knows (the armed forces, a country), and not a name the headline itself explains
   if (names.length) out.push(`The headline does not make sense alone: it names ${names.slice(0, 4).join(", ")} without saying what that is.`);
   return out;
 }

@@ -180,13 +180,19 @@ test("the reader test: the item alone, judged against the approved summary, kept
   assert.ok(!readdirSync(new URL("../drizzle/", import.meta.url)).some(f => /brief.*inline|inline.*brief|brief_item/i.test(f)));
 });
 
+const good0 = () => ({ howItWorksToday: { verdict: "correct", why: "" }, whatWouldChange: { verdict: "correct", why: "" } });
 test("the verdict: both answers must be correct and no word left not understood", async (t) => {
   // lib/briefing-test.ts imports the database, so its pure verdict is checked through a copy of its text.
   const src = read("lib/briefing-test.ts"), from = src.indexOf("export function readerVerdict"), to = src.indexOf("const monthStart");
   assert.ok(from > 0 && to > from);
   const body = src.slice(from, to).replace("export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[]; namesNotExplained?: string[] } | null,\n  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null, headline = \"\"): string[] {", "function readerVerdict(reader, judge, headline = \"\") {")
     .replace("const out: string[] = [];", "const out = [];").replace(" as const)", ")");
-  const readerVerdict = new Function(`${body}; return readerVerdict;`)();
+  // The verdict uses two pure helpers from other files (the everyday-words list; a name the headline itself explains).
+  const { isCommonKnowledge } = await import("../lib/analysis/standard.ts"), { saysWhatItIs } = await import("../lib/briefing-inline.ts");
+  const readerVerdict = new Function("isCommonKnowledge", "saysWhatItIs", `${body}; return readerVerdict;`)(isCommonKnowledge, saysWhatItIs);
+  assert.deepEqual(readerVerdict({ wordsNotUnderstood: [], namesNotExplained: ["United States Armed Forces", "Iran"] }, good0(), "Directs the President to remove United States Armed Forces from hostilities against Iran."), [], "the armed forces and a country are things everyone knows");
+  assert.deepEqual(readerVerdict({ wordsNotUnderstood: [], namesNotExplained: ["Barona Band"] }, good0(), "Adds about 847 federal acres to the reservation of a California tribe, the Barona Band."), [], "the headline says what it is");
+  assert.equal(readerVerdict({ wordsNotUnderstood: [], namesNotExplained: ["Barona Band"] }, good0(), "Lets the Barona Band add 847 federal acres to its reservation.").length, 1);
   const good = { howItWorksToday: { verdict: "correct", why: "" }, whatWouldChange: { verdict: "correct", why: "" } };
   assert.deepEqual(readerVerdict({ howItWorksToday: "a", whatWouldChange: "b", wordsNotUnderstood: [] }, good), []);
   assert.equal(readerVerdict({ wordsNotUnderstood: [] }, { ...good, whatWouldChange: { verdict: "vague", why: "lost the amount" } }).length, 1);

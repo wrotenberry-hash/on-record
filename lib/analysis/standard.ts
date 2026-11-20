@@ -243,10 +243,14 @@ export const COMMON_KNOWLEDGE = new Set(("congress house senate senator senators
   "tribal tribe tribes grant grants loan loans rebate rebates penalty penalties fine fines fraud calendar committee committees agency agencies city cities county counties " +
   // 20 Nov 2026 (fix D, owner: "Yes to fixes A through E"): summaries were stopped because the test reader listed these everyday things.
   "visa visas september 11 9/11 speed camera cameras chaplain chaplains embassy embassies college colleges university universities bank banks airport airports " +
-  "weather storm storms terrorism terrorist attack attacks trial lawsuit prison prisons jail border borders immigration citizen citizens citizenship").split(" "));
+  "weather storm storms terrorism terrorist attack attacks trial lawsuit prison prisons jail border borders immigration citizen citizens citizenship " +
+  // 20 Nov 2026, later: the briefing's test reader listed "United States Armed Forces" and "Iran" as names it was not told about.
+  // The armed forces, a war and the countries in the news are things an adult knows.
+  "armed forces army navy marines soldier soldiers war wars ally allies country countries nation nations " +
+  "iran iraq russia china israel ukraine mexico canada afghanistan syria korea cuba venezuela japan germany france britain england india pakistan egypt turkey taiwan europe").split(" "));
 export function isCommonKnowledge(flag: string): boolean {
   const bare = flag.toLowerCase().replace(/\(.*?\)/g, " ").replace(/["“”'’.,:;]/g, " ").trim();
-  const t = bare.replace(/\b(?:the|a|an|of|in|for|to|and|or|federal|health|u s|us)\b/g, " ").trim().split(/\s+/).filter(Boolean);
+  const t = bare.replace(/\bunited states\b/g, " ").replace(/\b(?:the|a|an|of|in|for|to|and|or|federal|health|u s|us)\b/g, " ").trim().split(/\s+/).filter(Boolean);
   // 18 Nov: "federal" on its own left nothing to look up, so it was counted as a word the reader did not know.
   if (!t.length) return bare.length > 0;
   return t.length <= 3 && t.every(w => COMMON_KNOWLEDGE.has(w) || COMMON_KNOWLEDGE.has(w.replace(/s$/, "")));
