@@ -35,7 +35,10 @@ export function analysisLimits() {
   // Master plan (16 Nov): summaries are capped by money, $25 a month (ANALYSIS_SPEND_CAP_USD), alert at 75%.
   // Owner, 17 Nov ("Go coverage", after 4 of the 5 test summaries passed): the limit rises from 5 to 40, enough for every bill
   // voted on in the last 90 days (31 that day) with room for new votes. The monthly spend cap is unchanged.
-  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 50), // owner, 19 Nov 2026: 40 to 50 for the one-time catch-up (about $2, inside the $25 monthly cap)
+  return { spendCapUsd: num(process.env.ANALYSIS_SPEND_CAP_USD, 25), maxSummaries: num(process.env.ANALYSIS_MAX_SUMMARIES, 75), // owner, 19 Nov 2026: 40 to 50 for the one-time catch-up; 20 Nov: 50 to 75 ("Yes to the last-90-days group")
+    // Owner, 20 Nov 2026: "Do NOT run the older 118 yet … I want the pass rate up before paying for more attempts." A summary is
+    // written for the first time only for a bill with a recorded vote in the last this-many days. 0 = no such limit.
+    freshWindowDays: num(process.env.ANALYSIS_FRESH_WINDOW_DAYS, 90),
     model: process.env.OPENAI_SUMMARY_MODEL?.trim() || process.env.OPENAI_EXTRACT_MODEL?.trim() || "gpt-5.4-mini",
     // Owner decision, 17 Nov ("Try the stronger model"): after two real runs in which the low-cost model passed nothing and misread
     // the rule behind S.J.Res. 197, the WRITER is the stronger model, as a trial on the five test summaries (the cap stays 5).
@@ -112,7 +115,7 @@ MISTAKES THAT FAILED THE CHECK IN EARLIER RUNS (do not repeat them):
 - whatChangesForYou starts with a kind of person or business and says what happens to them: "A nurse saving in a 403(b) plan could …".`;
 
 type Candidate = { id: string; congress: number; billType: string; number: number; title: string; latestActionText: string | null; latestActionAt: string | null;
-  sponsorName: string | null; categorySlug: string };
+  sponsorName: string | null; categorySlug: string; /** When the bill was last voted on in a roll call; null when never. */ lastVote?: number | null };
 
 /** Bills ready to explain: complete record, a lawmaking bill type, sorted by category, no summary yet. Voted-on bills first. */
 async function candidates(limit = 60): Promise<Candidate[]> {
@@ -400,8 +403,9 @@ export async function runAnalysisBatch({ budgetMs, trigger = "scheduled", max }:
       .groupBy(issueCategories.slug).orderBy(asc(issueCategories.slug));
     // The first 5 (the review set) are spread across issues; after that, the bills behind the most recent votes come first.
     const ranked = await candidates();
-    const queue = existing < CHECKPOINT_SUMMARIES ? spreadAcrossCategories(ranked, new Map(coveredRows.map(r => [r.slug, Number(r.n)]))) : ranked;
-    let stoppedBy: string | null = queue.length || stale.length ? null : "no bill ready (needs a complete, categorised record)";
+    const recentOnly = limits.freshWindowDays > 0 ? ranked.filter(c => c.lastVote != null && Number(c.lastVote) >= started - limits.freshWindowDays * 86_400_000) : ranked;
+    const queue = existing < CHECKPOINT_SUMMARIES ? spreadAcrossCategories(ranked, new Map(coveredRows.map(r => [r.slug, Number(r.n)]))) : recentOnly;
+    let stoppedBy: string | null = queue.length || stale.length ? null : ranked.length ? `no bill voted on in the last ${limits.freshWindowDays} days is waiting (older bills wait for the owner's go-ahead)` : "no bill ready (needs a complete, categorised record)";
     // Summaries written by an older version of the generator are rewritten first (they do not count against the summary cap).
     for (const old of stale) {
       // 17 Nov: S.J.Res. 197 went last, with time for one draft only. A summary starts only when its full cycle fits; the rest wait for the next run.

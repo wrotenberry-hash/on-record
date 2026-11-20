@@ -187,6 +187,7 @@ async function lastAlert() {
  */
 export async function GET(request: Request) {
   const tick = Boolean(process.env.AUTOMATION_TICK_SECRET?.trim()), cron = Boolean(process.env.CRON_SECRET?.trim());
+  const asked = new URL(request.url).searchParams.get("only")?.split(",").map(k => k.trim()).filter(Boolean) ?? [], wants = (k: string) => asked.includes(k);
   const body: Record<string, unknown> = { service: "on-record", status: "reachable", tickSecretConfigured: tick, cronSecretConfigured: cron,
     openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()), editorAllowlistConfigured: Boolean((process.env.EDITOR_EMAILS ?? process.env.EDITOR_USER_IDS ?? "").trim()),
     database: databaseSettings().source, databaseHost: databaseHost(), lastRun: await lastRun(),
@@ -194,6 +195,8 @@ export async function GET(request: Request) {
     rhythm: await rhythm(), throughput: await throughput(), federal: await federal(),
     intakeHoursUtc: intakeHours(process.env.STATEMENT_INTAKE_HOURS_UTC), recentRuns: await recentRuns(), recentAlerts: await recentAlerts(),
     openaiSpend: await openaiSpend(), analysis: await analysis(),
+    // 20 Nov 2026: why each written summary that readers cannot see was stopped, in the checks' own words. Asked for by name only (?only=summaryFailures).
+    summaryFailures: wants("summaryFailures") ? await import("@/lib/analysis/failure-report").then(m => m.summaryFailures()).catch(() => "unavailable" as const) : undefined,
     // 20 Nov 2026: of the bills in legislators' vote lists (a recorded vote in the last 12 months), how many have a summary readers can see. Counts only.
     voteRows: await import("@/lib/analysis/vote-list-coverage").then(m => m.voteListCoverage()).catch(() => "unavailable" as const),
     intakePause: await intakePauseState().catch(() => "unavailable" as const),
