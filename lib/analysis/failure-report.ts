@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { READER_HOLDS } from "./reader-holds.ts";
-import { generatorNumber } from "./prompt-order";
-import { PUBLIC_MIN_PROMPT } from "./publish-gate";
+import { onShowToReaders } from "./publish-gate";
 
 /**
  * Why a written summary is not on show (owner, 20 Nov 2026: "tell me why 32 of this month's 50 summaries were not
@@ -11,7 +10,7 @@ import { PUBLIC_MIN_PROMPT } from "./publish-gate";
  * it makes no model call and changes nothing. The reasons are about wording, never about a person.
  */
 export async function summaryFailures() {
-  const db = getDb(), gate = generatorNumber(PUBLIC_MIN_PROMPT);
+  const db = getDb();
   const rows = await db.all<{ id: string; billId: string; billType: string; number: number; status: string; promptVersion: string; attempts: number; queue: string | null; queueStatus: string | null;
     failures: string | null; warnings: string | null; readerPassed: number | null; readerReasons: string | null; readerTests: number }>(sql`
     select s.id as id, s.bill_id as billId, b.bill_type as billType, b.number as number, s.status as status, s.prompt_version as promptVersion, s.attempts as attempts,
@@ -24,10 +23,11 @@ export async function summaryFailures() {
     from analysis_bill_summaries s join official_bills b on b.id = s.bill_id order by s.sequence`);
   const list = (v: string | null): string[] => { try { const a = JSON.parse(v ?? "[]"); return Array.isArray(a) ? a.map(String) : []; } catch { return []; } };
   const out = rows.map(r => {
-    const n = generatorNumber(r.promptVersion), hidden = READER_HOLDS[r.billId] ?? null;
-    const onShow = gate !== null && r.status === "visible" && n !== null && n >= gate && !hidden;
+    const hidden = READER_HOLDS[r.billId] ?? null, onShow = onShowToReaders(r);
+    // Passed every automatic check but not yet read against its sources: hidden until it is (lib/analysis/reader-read.ts).
+    const awaitingReading = !onShow && !hidden && r.status === "visible";
     return { bill: `${r.billType}-${r.number}`, onShow, status: r.status, queue: r.queue, queueStatus: r.queueStatus, attempts: Number(r.attempts), generator: r.promptVersion.split("-")[0],
-      hiddenAfterReading: hidden, ruleFailures: list(r.failures).map(x => x.slice(0, 400)), readerTest: r.readerPassed === null ? "not run" : Number(r.readerPassed) ? "pass" : "fail",
+      hiddenAfterReading: hidden, awaitingReading, ruleFailures: list(r.failures).map(x => x.slice(0, 400)), readerTest: r.readerPassed === null ? "not run" : Number(r.readerPassed) ? "pass" : "fail",
       readerReasons: Number(r.readerPassed) ? [] : list(r.readerReasons).map(x => x.slice(0, 400)), readerTests: Number(r.readerTests) };
   });
   return { written: out.length, onShow: out.filter(x => x.onShow).length, notOnShow: out.filter(x => !x.onShow) };

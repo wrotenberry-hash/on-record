@@ -1,8 +1,6 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { heldBillIds } from "./reader-holds.ts";
-import { generatorNumber } from "./prompt-order";
-import { PUBLIC_MIN_PROMPT } from "./publish-gate";
+import { onShowToReaders } from "./publish-gate";
 import { meaningfulVote, RECENT_VOTE_MS } from "@/lib/flow/votes";
 import { summaryScope } from "@/lib/summary-scope";
 import { isDebateRule } from "@/lib/procedural";
@@ -33,13 +31,8 @@ export async function voteListCoverage(now = Date.now()) {
     db.all<{ billId: string; status: string; promptVersion: string }>(sql`select bill_id as billId, status as status, prompt_version as promptVersion from analysis_bill_summaries`),
     db.get<{ n: number }>(sql`select count(distinct v.bill_id) as n from tx_votes v where v.date >= ${new Date(since).toISOString().slice(0, 10)}`).catch(() => null),
   ]);
-  const gate = generatorNumber(PUBLIC_MIN_PROMPT), hidden = new Set(heldBillIds());
   const approved = new Set<string>(), written = new Set<string>();
-  for (const s of summaries) {
-    written.add(s.billId);
-    const n = generatorNumber(s.promptVersion);
-    if (gate !== null && s.status === "visible" && n !== null && n >= gate && !hidden.has(s.billId)) approved.add(s.billId);
-  }
+  for (const s of summaries) { written.add(s.billId); if (onShowToReaders(s)) approved.add(s.billId); }
   type Bill = { last: number; type: string | null; complete: boolean; onCards: boolean; rule: boolean; scope: ReturnType<typeof summaryScope>; lawmaking: boolean; title: string };
   const bills = new Map<string, Bill>();
   for (const r of rolls) {

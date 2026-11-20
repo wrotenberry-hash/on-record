@@ -2,6 +2,7 @@ import { and, eq, notInArray, sql, type SQL } from "drizzle-orm";
 import { analysisBillSummaries } from "@/db/schema";
 import { generatorNumber, generatorNumberSql } from "./prompt-order";
 import { heldBillIds, READER_HOLDS } from "./reader-holds.ts";
+import { READ_FROM_GENERATOR, readAndSoundIds } from "./reader-read.ts";
 export { READER_HOLDS };
 
 /**
@@ -35,14 +36,23 @@ const MIN_GENERATOR = generatorNumber(PUBLIC_MIN_PROMPT);
 
 // The list of summaries hidden after a reading against their sources, and why: lib/analysis/reader-holds.ts.
 const HELD_IDS = heldBillIds();
+const READ_IDS = readAndSoundIds(), readList = READ_IDS.map(id => `'${id}'`).join(", ");
 const heldList = HELD_IDS.map(id => `'${id}'`).join(", ");
 
 export function readerVisible(): SQL {
   if (MIN_GENERATOR === null) return sql`0 = 1`;
   return and(eq(analysisBillSummaries.status, "visible"), sql`cast(substr(${analysisBillSummaries.promptVersion}, 2) as integer) >= ${MIN_GENERATOR}`,
-    ...(HELD_IDS.length ? [notInArray(analysisBillSummaries.billId, HELD_IDS)] : []))!;
+    ...(HELD_IDS.length ? [notInArray(analysisBillSummaries.billId, HELD_IDS)] : []),
+    // Owner, 20 Nov 2026: nothing unread is shown. A summary by generator b12 or later needs its reading (lib/analysis/reader-read.ts).
+    sql.raw(`(cast(substr(analysis_bill_summaries.prompt_version, 2) as integer) < ${READ_FROM_GENERATOR}${READ_IDS.length ? ` or analysis_bill_summaries.bill_id in (${readList})` : ""})`))!;
 }
 
 /** The same gate for raw subqueries that alias analysis_bill_summaries as "s". */
 export const READER_S = MIN_GENERATOR === null ? sql.raw("0 = 1")
-  : sql.raw(`s.status = 'visible' and ${generatorNumberSql("s.prompt_version")} >= ${MIN_GENERATOR}${HELD_IDS.length ? ` and s.bill_id not in (${heldList})` : ""}`);
+  : sql.raw(`s.status = 'visible' and ${generatorNumberSql("s.prompt_version")} >= ${MIN_GENERATOR}${HELD_IDS.length ? ` and s.bill_id not in (${heldList})` : ""} and (${generatorNumberSql("s.prompt_version")} < ${READ_FROM_GENERATOR}${READ_IDS.length ? ` or s.bill_id in (${readList})` : ""})`);
+
+/** Whether a stored summary is one readers can see, for code that already holds the row (the counts in the health probe). Same rule as readerVisible(). */
+export function onShowToReaders(s: { billId: string; status: string; promptVersion: string }): boolean {
+  const n = generatorNumber(s.promptVersion);
+  return MIN_GENERATOR !== null && s.status === "visible" && n !== null && n >= MIN_GENERATOR && !HELD_IDS.includes(s.billId) && (n < READ_FROM_GENERATOR || READ_IDS.includes(s.billId));
+}
