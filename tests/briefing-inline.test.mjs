@@ -184,7 +184,7 @@ test("the verdict: both answers must be correct and no word left not understood"
   // lib/briefing-test.ts imports the database, so its pure verdict is checked through a copy of its text.
   const src = read("lib/briefing-test.ts"), from = src.indexOf("export function readerVerdict"), to = src.indexOf("const monthStart");
   assert.ok(from > 0 && to > from);
-  const body = src.slice(from, to).replace("export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[]; namesNotExplained?: string[] } | null,\n  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null): string[] {", "function readerVerdict(reader, judge) {")
+  const body = src.slice(from, to).replace("export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[]; namesNotExplained?: string[] } | null,\n  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null, headline = \"\"): string[] {", "function readerVerdict(reader, judge, headline = \"\") {")
     .replace("const out: string[] = [];", "const out = [];").replace(" as const)", ")");
   const readerVerdict = new Function(`${body}; return readerVerdict;`)();
   const good = { howItWorksToday: { verdict: "correct", why: "" }, whatWouldChange: { verdict: "correct", why: "" } };

@@ -65,7 +65,7 @@ export const readerItem = (t: InlineText) => `${t.headline}\nToday: ${t.today}\n
 
 /** Why the reader's answers fail the item (empty when it passes). Pure. */
 export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[]; namesNotExplained?: string[] } | null,
-  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null): string[] {
+  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null, headline = ""): string[] {
   if (!reader || !judge) return ["The reader test gave no usable answer."];
   const out: string[] = [];
   for (const [name, k] of [["how things work today", "howItWorksToday"], ["what would change", "whatWouldChange"]] as const) {
@@ -75,7 +75,10 @@ export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChang
   const words = (reader.wordsNotUnderstood ?? []).map(w => w.trim()).filter(Boolean);
   if (words.length) out.push(`Words a reader did not understand: ${words.slice(0, 5).join(", ")}.`);
   // Owner, 20 Nov 2026: "A headline must make sense alone: say who or what a named group is … and avoid unexplained terms."
-  const names = (reader.namesNotExplained ?? []).map(w => w.trim()).filter(Boolean);
+  // 20 Nov 2026, first run of this rule: the test reader also listed names from the other lines ("Forest Service") and U.S. states
+  // ("California"). Only a name that is in the headline itself counts, and a state is a name everyone knows.
+  const STATES = /^(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|puerto rico|america|united states)$/i;
+  const names = (reader.namesNotExplained ?? []).map(w => w.trim()).filter(w => w && !STATES.test(w) && (!headline || headline.toLowerCase().includes(w.toLowerCase())));
   if (names.length) out.push(`The headline does not make sense alone: it names ${names.slice(0, 4).join(", ")} without saying what that is.`);
   return out;
 }
@@ -115,7 +118,7 @@ export async function runInlineTests(now = Date.now(), o: { max?: number; ask?: 
       spent += a.costUsd + j.costUsd; out.costUsd += a.costUsd + j.costUsd;
       let reader = null, judge = null;
       try { reader = JSON.parse(a.text); judge = JSON.parse(j.text); } catch { /* an unreadable answer is a fail, below */ }
-      const reasons = readerVerdict(reader, judge);
+      const reasons = readerVerdict(reader, judge, text.headline);
       await save(!reasons.length, reasons, "reader");
     } catch (e) { out.stoppedBy = `a model call failed: ${(e instanceof Error ? e.message : "error").slice(0, 120)}`; break; }
   }
