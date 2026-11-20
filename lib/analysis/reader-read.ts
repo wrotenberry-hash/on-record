@@ -11,6 +11,8 @@
  */
 export const READ_FROM_GENERATOR = 12;
 export const READ_AND_SOUND: Record<string, string> = {
+  // Read claim by claim on 20 Nov 2026, corrected by hand from its sources, and the corrected text approved by the owner the same day (lib/analysis/hand-corrections.ts).
+  "119-hconres-93": "2026-11-20",
 };
 
 /** The listed bill ids that are well formed (anything else is ignored rather than put into a query). */

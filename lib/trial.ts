@@ -9,7 +9,10 @@ import { BRAND } from "@/lib/brand";
 
 /** Invite-only trial (owner decision 2026-11-15): 25 revocable links, opening on their own. */
 export const TRIAL_COOKIE = "or_trial";
-export const TRIAL_INVITES = 25;
+// Owner, 20 Nov 2026: "Give me 10 new trial invite links, one person per link, numbered 1 to 10, each revocable on its own."
+// Invites 26 to 35; they are created the next time the editor opens the invites page.
+export const ORIGINAL_INVITES = 25;
+export const TRIAL_INVITES = 35;
 export const TRIAL_COOKIE_MAX_AGE_S = 60 * 24 * 3600;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 

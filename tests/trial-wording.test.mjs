@@ -63,13 +63,15 @@ test("a summary that failed a reading against its sources is hidden by the reade
   for (const id of ["119-hr-1118", "119-hr-9612"]) assert.ok(ids.includes(id), id);
   assert.ok(ids.includes("119-s-307"), "a Senate bill id is well formed too"); assert.ok(ids.includes("119-hr-2140"));
   // 20 Nov 2026: the trial of generator b12 added three (H.R. 7128, S.J.Res. 197, H.Con.Res. 93); H.R. 1181 stays, for new reasons.
-  for (const id of ["119-hr-7128", "119-sjres-197", "119-hconres-93"]) assert.ok(ids.includes(id), id);
+  for (const id of ["119-hr-7128", "119-sjres-197"]) assert.ok(ids.includes(id), id);
   // 20 Nov 2026, later: all 18 on show were read claim by claim; the owner hid the eight with a misstatement in the core
   // ("Hide now … H.R. 7008, 8823, 8897, 4464, 915 and 1013 … H.R. 8483 and 9600 stay hidden only until I approve their corrections").
-  for (const id of ["119-hr-7008", "119-hr-8823", "119-hr-8897", "119-hr-4464", "119-hr-915", "119-hr-1013", "119-hr-8483", "119-hr-9600"]) assert.ok(ids.includes(id), id);
+  for (const id of ["119-hr-7008", "119-hr-8823", "119-hr-8897", "119-hr-4464", "119-hr-915", "119-hr-1013"]) assert.ok(ids.includes(id), id);
+  // Later still: the owner approved the corrected text of H.R. 8483, H.R. 9600 and H.Con.Res. 93; the three are shown again.
+  for (const id of ["119-hr-8483", "119-hr-9600", "119-hconres-93"]) assert.ok(!ids.includes(id), id);
   // Same day: the check of four summaries was finished against bill text fetched for it; H.R. 9770 has a core line the text does not support.
   assert.ok(ids.includes("119-hr-9770"));
-  assert.equal(ids.length, 25);
+  assert.equal(ids.length, 22);
   // Left on show: the ten with looser wording only, or a fault only outside the core.
   for (const id of ["119-hr-7401", "119-hr-3978", "119-hjres-210", "119-hr-2102"]) assert.ok(!ids.includes(id), id);
   for (const id of ["119-hr-8278", "119-hr-7757", "119-hr-9576", "119-hr-2478", "119-s-629"]) assert.ok(!ids.includes(id), id);

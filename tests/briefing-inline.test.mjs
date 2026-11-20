@@ -20,8 +20,8 @@ const HR2102 = {
   ],
 };
 
-test("it is off until the owner has seen three real items", () => {
-  assert.equal(BRIEFING_INLINE_LIVE, false);
+test("it was off until the owner had seen three real items; on from 20 Nov 2026", () => {
+  assert.equal(BRIEFING_INLINE_LIVE, true); // owner, 20 Nov 2026, after reading the three corrected items: "turn the briefing on"
   const page = read("app/briefing/page.tsx");
   assert.match(page, /preview = !!access\.editor && sp\.preview === "1", inline = BRIEFING_INLINE_LIVE \|\| preview/, "readers get the new format only when it is live; the preview is the editor's");
   assert.ok(page.includes('preview ? "editor" : "reader").catch(() => null) : null;'), "a reader is never given the editor's view");

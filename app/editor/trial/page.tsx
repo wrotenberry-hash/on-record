@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireEditorUser } from "@/lib/auth";
 import { shortDate } from "@/components/federal/badges";
-import { ensureInvites, inviteLinks, trialCounts } from "@/lib/trial";
+import { ensureInvites, inviteLinks, ORIGINAL_INVITES, trialCounts } from "@/lib/trial";
+import { inviteUseSummary, linksBlock, numberRanges } from "@/lib/trial-summary";
+import { CopyAll } from "./copy-all";
 import { eventTotals } from "@/lib/events";
 import { labelInvite, setInviteRevoked } from "./actions";
 import { CopyLink } from "./copy-link";
@@ -11,12 +13,13 @@ import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
-/** The invite-only trial: 25 links to copy on the phone, each revocable, with counts only. */
+/** The invite-only trial: links to copy on the phone, each revocable, with counts only. The first 25, and ten more from 20 Nov 2026. */
 export default async function TrialAdminPage() {
   await requireEditorUser("/editor/trial");
   await ensureInvites();
   const [links, counts, events, feedback] = await Promise.all([inviteLinks(), trialCounts(), eventTotals(7).catch(() => []), feedbackList().catch(() => [])]);
   const trialViews = events.filter(e => e.name === "page_view" && e.dim.startsWith("trial:"));
+  const first = inviteUseSummary(links.filter(l => l.number <= ORIGINAL_INVITES)), fresh = links.filter(l => l.number > ORIGINAL_INVITES);
   return <>
     <header className="topbar"><Link className="brand" href="/"><Wordmark /><i/></Link>
       <nav><Link href="/editor">Cases</Link><Link href="/editor/analysis">Bill summaries</Link><small>PRIVATE CHECKING INSTRUMENT</small></nav></header>
@@ -27,8 +30,13 @@ export default async function TrialAdminPage() {
       <p className={counts.gate.open ? "gate gate-open" : "gate gate-closed"} role="status"><b>{counts.gate.open ? "Open." : "Not open yet."}</b> {counts.gate.open ? "The links below work now." : "The links work once OpenAI calls succeed in production; you will get one email when that happens."} <span className="meta">({counts.gate.reason})</span></p>
       <p>Send one link per person. Each opens Politicians, Issues, bills with their summaries, Follow and the trust pages. Public reading stays off. Revoke a link and it stops on that person&apos;s next visit.</p>
       <p className="meta">Used: {counts.used} of {counts.invites} · active in the last 7 days: {counts.activeLast7Days} · used on 2 or more days: {counts.usedOnTwoOrMoreDays} · returning this week: {counts.returningLast7Days} · revoked: {counts.revoked}. Per link we record only the days it was used, never which pages.</p>
+      <p role="status"><b>The first {first.total} links.</b> Opened: {first.opened.length} (numbers {numberRanges(first.opened)}). Came back on a later day: {first.cameBack.length} (numbers {numberRanges(first.cameBack)}). Not opened: {numberRanges(first.notOpened)}. Revoked: {numberRanges(first.revoked)}.
+        {" "}<span className="meta">A link counts as opened when the site was loaded through it; a phone&apos;s link preview can do that too, so &ldquo;came back&rdquo; is the surer sign of a person.</span></p>
+      {fresh.length > 0 && <div className="fed-section"><h2>Ten new links</h2>
+        <p>One person per link. Number {1} here is invite {ORIGINAL_INVITES + 1} in the list below, and so on; each can be revoked on its own there.</p>
+        <CopyAll text={linksBlock(fresh.map(l => l.url))} inputId="new-invites" rows={Math.max(10, fresh.length * 2)} /></div>}
       <ol className="invite-list">{links.map(l => <li key={l.id} className={l.revokedAt ? "revoked" : ""}>
-        <div className="invite-head"><b>Invite {l.number}</b>
+        <div className="invite-head"><b>Invite {l.number}{l.number > ORIGINAL_INVITES ? ` (new link ${l.number - ORIGINAL_INVITES})` : ""}</b>
           <span className="meta">{l.revokedAt ? "Revoked" : l.firstSeenAt ? `Used on ${l.activeDays} day${l.activeDays === 1 ? "" : "s"}, last ${shortDate(l.lastSeenAt)}` : "Not used yet"}</span></div>
         {l.url ? <CopyLink url={l.url} inputId={`invite-${l.number}`} /> : <p className="meta">Sign-in secret missing; links cannot be shown.</p>}
         <div className="invite-actions">

@@ -14,7 +14,8 @@ import { longDate } from "./changes/window.ts";
 import { byReach, type Reach } from "./briefing-reach.ts";
 
 /** Off until the owner has seen three real items ("Show me three real briefing items in the new format before it goes live to trial readers"). */
-export const BRIEFING_INLINE_LIVE = false;
+// Owner, 20 Nov 2026, after reading the three corrected items: "Apply all three … confirm live, and turn the briefing on."
+export const BRIEFING_INLINE_LIVE = true;
 /** Bumped when the way an item is cut from a summary changes, so each summary's item is tested again. */
 export const INLINE_VERSION = "i3"; // i2 (20 Nov 2026): the headline must make sense alone, so every item is tested again; i3: only names in the headline itself count
 export const MAX_ITEMS = 5;
