@@ -155,7 +155,9 @@ export const HEADLINE_VERBS: Record<string, string> = { Blocks: "blocking", Rais
   Gives: "giving", Adds: "adding", Removes: "removing", Bars: "barring", Expands: "expanding", Restores: "restoring", Pays: "paying", Delays: "delaying", Repeals: "repealing",
   Renames: "renaming", Keeps: "keeping", Makes: "making", Changes: "changing", Cancels: "cancelling", Forces: "forcing", Speeds: "speeding", Opens: "opening", Closes: "closing",
   Doubles: "doubling", Increases: "increasing", Reduces: "reducing", Protects: "protecting", Names: "naming", Orders: "ordering", Starts: "starting", Moves: "moving",
-  Tightens: "tightening", Loosens: "loosening", Shortens: "shortening", Lengthens: "lengthening", Caps: "capping", Taxes: "taxing", Exempts: "exempting", Punishes: "punishing" };
+  Tightens: "tightening", Loosens: "loosening", Shortens: "shortening", Lengthens: "lengthening", Caps: "capping", Taxes: "taxing", Exempts: "exempting", Punishes: "punishing",
+  // 20 Nov 2026: a word with an exact meaning is carried over as written. A resolution that "directs" was headlined "Requires" because "Directs" was not allowed here.
+  Directs: "directing", Authorizes: "authorizing", Approves: "approving", Urges: "urging", Places: "placing", Transfers: "transferring" };
 
 /** Acronyms an average reader does know. Everything else in capitals must be spelled out. */
 export const EVERYDAY_ACRONYMS = new Set(["ID", "US", "U.S.", "TV", "DC", "D.C.", "OK", "AM", "PM"]);

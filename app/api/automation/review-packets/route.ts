@@ -28,10 +28,13 @@ export async function GET(request: Request) {
   const rows = recheck ? [] : await db.select({ billId: analysisBillSummaries.billId }).from(analysisBillSummaries)
     .where(and(readerVisible(), eq(analysisBillSummaries.status, "visible"), gte(analysisBillSummaries.createdAt, now - hours * 3600_000)))
     .orderBy(desc(analysisBillSummaries.createdAt)).limit(PER_RUN).offset(skip);
-  const ids = recheck ? (await import("@/lib/analysis/quality").then(m => m.wronglyHeldBillIds()).catch(() => [] as string[])).slice(skip, skip + PER_RUN) : rows.map(r => r.billId);
+  // ?bills=119-s-32,119-hr-7128: instead, the named bills' summaries whether or not they are on show, so a rewrite can be
+  // read against its sources BEFORE it goes on show (20 Nov 2026: "Nothing unread is shown to trial readers"). Bill ids only.
+  const named = (url.searchParams.get("bills") ?? "").split(",").map(x => x.trim().toLowerCase()).filter(x => /^\d{2,3}-[a-z]{1,7}-\d{1,5}$/.test(x)).slice(0, PER_RUN);
+  const ids = named.length ? named : recheck ? (await import("@/lib/analysis/quality").then(m => m.wronglyHeldBillIds()).catch(() => [] as string[])).slice(skip, skip + PER_RUN) : rows.map(r => r.billId);
   const { relogSources } = await import("@/lib/analysis/generate");
   const sources = await relogSources(ids, 70_000).catch(() => ({ logged: [] as string[], missing: ids }));
   const packets = await import("@/lib/analysis/report").then(m => m.logReviewPackets(ids, 30_000)).catch(() => ({ logged: 0, lines: 0 }));
-  console.log(`REVIEW_RELOG | ${ids.length} summaries ${recheck ? "taken down by the old re-check" : `on show from the last ${hours} hours`} (skip ${skip}) | sources ${sources.logged.length} | packets ${packets.logged}`);
+  console.log(`REVIEW_RELOG | ${ids.length} summaries ${named.length ? "named in the request" : recheck ? "taken down by the old re-check" : `on show from the last ${hours} hours`} (skip ${skip}) | sources ${sources.logged.length} | packets ${packets.logged}`);
   return Response.json({ service: "on-record", ran: true, summaries: ids.length, sourcesLogged: sources.logged, sourcesMissing: sources.missing.length, packetsLogged: packets.logged }, { headers: { "Cache-Control": "no-store" } });
 }

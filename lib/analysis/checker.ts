@@ -179,12 +179,25 @@ export const plainWords = (text: string) => text.toLowerCase().replace(/[’‘]
 
 export function bannedWordsIn(input: string, factSources: readonly string[] = []): string[] {
   const text = input.replace(OFFICIAL_DISASTER, " ");
-  const corpus = factSources.join(" \n ").toLowerCase().replace(/\s+/g, " ");
+  const raw = factSources.join(" \n ").replace(/\s+/g, " "), corpus = raw.toLowerCase();
   const found = new Set<string>();
+  const capital = (w?: string) => !!w && /^[A-Z]/.test(w);
   for (const word of BANNED_WORDS) {
     const body = word.replace(/[-\s]/g, m => (m === "-" ? "-" : "\\s+"));
     const pattern = new RegExp(`(^|[^a-z-])${body}($|[^a-z-])`, "i");
     if (!pattern.test(text)) continue;
+    if (raw) {
+      // 20 Nov 2026: “Common Sense” is the title of Thomas Paine's pamphlet, and the list read it as a judgement. A use is a
+      // name, not a judgement, when it is written with capitals and a source prints the same capitalised words: the phrase
+      // itself (“Common Sense”) or the word with a capitalised neighbour (“National Historic Preservation Act”).
+      const uses = [...text.matchAll(new RegExp(`(?:([A-Za-z0-9’'-]+)\\s+)?\\b(${body})\\b(?:\\s+([A-Za-z0-9’'-]+))?`, "gi"))];
+      const named = uses.length > 0 && uses.every(m => {
+        const w = m[2].replace(/\s+/g, " ");
+        if (!w.split(/[\s-]+/).every(capital)) return false;
+        return [/[\s-]/.test(w) ? w : "", capital(m[1]) ? `${m[1]} ${w}` : "", capital(m[3]) ? `${w} ${m[3]}` : ""].some(ph => ph && raw.includes(ph));
+      });
+      if (named) continue;
+    }
     if (corpus && FACT_CAPABLE.has(word)) {
       // Every use must be a phrase the sources use: the word with the word before it, or with the word after it.
       const uses = [...text.matchAll(new RegExp(`(?:([A-Za-z0-9’'-]+)\\s+)?\\b${body}\\b(?:\\s+([A-Za-z0-9’'-]+))?`, "gi"))];
@@ -324,7 +337,8 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
   d.unknowns.forEach((u, i) => { if (wc(u) > LIMITS.unknownWords) fail(`What we don't know point ${i + 1} is ${wc(u)} words; the limit is ${LIMITS.unknownWords}.`); });
 
   const prose = proseOf(d), all = [...prose, ...d.caseFor.map(a => a.attribution), ...d.caseAgainst.map(a => a.attribution)].join(" ");
-  const banned = bannedWordsIn(all, (sources?.docs ?? []).filter(x => !/^FLOOR/i.test(x.id)).map(x => x.text));
+  // The bill's own text is a fact source too (a title of a work it names, a term it uses).
+  const banned = bannedWordsIn(all, sources ? [...sources.docs.filter(x => !/^FLOOR/i.test(x.id)).map(x => x.text), opts.fullText ?? ""] : []);
   if (banned.length) fail(`Loaded words: ${banned.join(", ")}. Even in a reason credited to a member, restate it in neutral words: say what the member says would happen, without the label.`);
   for (const [re, label] of OPINION_PATTERNS) if (re.test(all)) fail(`Contains ${label}.`);
   // Owner, 18 Nov 2026 (point 7): calm, specific, no outrage wording, no adjectives about legislators.

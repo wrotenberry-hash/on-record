@@ -3,6 +3,7 @@ import { callCost, priceTable } from "@/lib/model-cost";
 import { pageTestResult, readerTestResult, type JudgeResult, type PageAnswers, type PageVerdicts, type ReaderAnswers } from "@/lib/analysis/standard";
 import type { SummaryDraft } from "@/lib/analysis/checker";
 import { TONE_JUDGE_ADDITION } from "./tone.ts";
+import { rowLabels } from "./row-labels.ts";
 
 /**
  * The automated average-reader test (owner instruction, 17 Nov 2026). It runs on every summary before it can publish.
@@ -73,23 +74,25 @@ async function ask<T>(key: string, model: string, name: string, instructions: st
 export const readerNote = (d: Pick<SummaryDraft, "headline" | "plainEnglish">) => `${d.headline.trim()}\n\n${(d.plainEnglish ?? "").trim()}`;
 
 /** What the second reader sees: the page from the headline through "Who it affects". Primers are one tap away, so they are not included. */
-export function readerPage(d: SummaryDraft): string {
+export function readerPage(d: SummaryDraft, opts: { enacted?: boolean } = {}): string {
+  // 20 Nov 2026: "If this passes" on a law already signed made a correct page read as vague (S. 32). The labels follow the bill's status (lib/analysis/row-labels.ts).
+  const L = rowLabels({ enacted: !!opts.enacted, threeStates: false });
   return [d.headline.trim(), `In plain English\n${(d.plainEnglish ?? "").trim()}`,
-    `What would change\n${(d.changes ?? []).map(r => `- ${r.label ?? ""}\n${r.before?.trim() ? `  Before the new rule: ${r.before}\n` : ""}  ${r.before?.trim() ? "Now, under the new rule" : "Today"}: ${r.today}\n  If this passes: ${r.ifPassed}`).join("\n")}`,
+    `${L.heading}\n${(d.changes ?? []).map(r => { const l = rowLabels({ enacted: !!opts.enacted, threeStates: !!r.before?.trim() }); return `- ${r.label ?? ""}\n${r.before?.trim() ? `  ${l.before}: ${r.before}\n` : ""}  ${l.today}: ${r.today}\n  ${l.ifPassed}: ${r.ifPassed}`; }).join("\n")}`,
     `How it works today\n${(d.howItWorksToday ?? []).map(p => `- ${p.text}`).join("\n")}`,
     `Why now\n${(d.whyNow ?? "").trim()}`, `Who it affects\n${d.whoItAffects.map(p => `- ${p.text}`).join("\n")}`].join("\n\n");
 }
 
-export async function runReaderTest(key: string, model: string, summaryId: string, draft: SummaryDraft, sourcesText: string, timeoutMs = 60_000): Promise<ReaderTest> {
+export async function runReaderTest(key: string, model: string, summaryId: string, draft: SummaryDraft, sourcesText: string, timeoutMs = 60_000, opts: { enacted?: boolean } = {}): Promise<ReaderTest> {
   const m = readerModel(model);
   const reader = await ask<ReaderAnswers>(key, m, "average_reader", READER_INSTRUCTIONS, `The note:\n\n${readerNote(draft)}`, readerSchema, summaryId, timeoutMs);
   const hasPage = (draft.howItWorksToday?.length ?? 0) > 0;
-  const page = hasPage ? await ask<PageAnswers>(key, m, "page_reader", PAGE_READER_INSTRUCTIONS, `The page:\n\n${readerPage(draft)}`, pageReaderSchema, summaryId, timeoutMs) : null;
+  const page = hasPage ? await ask<PageAnswers>(key, m, "page_reader", PAGE_READER_INSTRUCTIONS, `The page:\n\n${readerPage(draft, opts)}`, pageReaderSchema, summaryId, timeoutMs) : null;
   const args = [...draft.caseFor.map((a, i) => ({ side: "for", index: i, ...a })), ...draft.caseAgainst.map((a, i) => ({ side: "against", index: i, ...a }))];
   // Everything a reader sees, for the tone check: the page, both cases with who they are credited to, and what is not known.
-  const seen = [readerPage(draft), `The case for\n${draft.caseFor.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`, `The case against\n${draft.caseAgainst.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`,
+  const seen = [readerPage(draft, opts), `The case for\n${draft.caseFor.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`, `The case against\n${draft.caseAgainst.map(x => `- ${x.argument} (${x.attribution})`).join("\n")}`,
     `What changes for you\n${draft.whatChangesForYou ?? ""}`, `What we don't know\n${draft.unknowns.map(u => `- ${u}`).join("\n")}`].join("\n\n");
-  const judgeInput = [`OFFICIAL SOURCES:\n${sourcesText}`, `THE READER'S ANSWERS:\n${JSON.stringify({ whatItDoes: reader.value.whatItDoes, whoIsAffected: reader.value.whoIsAffected, dailyLifeChange: reader.value.dailyLifeChange })}`,
+  const judgeInput = [`OFFICIAL SOURCES:\n${sourcesText}`, ...(opts.enacted ? ["NOTE: this bill has already become law. The page describes what the law changed; \"what would change\" means what this law changed."] : []), `THE READER'S ANSWERS:\n${JSON.stringify({ whatItDoes: reader.value.whatItDoes, whoIsAffected: reader.value.whoIsAffected, dailyLifeChange: reader.value.dailyLifeChange })}`,
     `THE SECOND READER'S "PAGE" ANSWERS:\n${JSON.stringify(page?.value ?? { howItWorksToday: "", whatChanges: "", whoIsAffected: "" })}`,
     `ARGUMENTS TO CHECK (each has side, index, the reason, who it is credited to, and the id of the source it cites):\n${JSON.stringify(args)}`,
     `THE PAGE (for the tone check only):\n${seen}`].join("\n\n");

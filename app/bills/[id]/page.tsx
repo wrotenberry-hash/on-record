@@ -9,6 +9,8 @@ import { AnalysisBadge, OpinionBadge, OfficialBadge, PositionPill, billLabel, me
 import { entryViewer, currentAppUserId } from "@/lib/viewer";
 import { followedIds, getBill } from "@/lib/federal/queries";
 import { costEstimates, followedVotes, summaryForBill } from "@/lib/analysis/queries";
+import { rowLabels } from "@/lib/analysis/row-labels";
+import { SECTION_NAME } from "@/lib/analysis/tiers";
 import { toggleBillFollow } from "./actions";
 import { billAmendments, billTimeline, floorThisWeek, rollCallParties } from "@/lib/federal/bill-depth";
 import { cosponsorPartyCounts } from "@/lib/federal/legislators";
@@ -128,20 +130,26 @@ export default async function BillPage({ params, searchParams }: { params: Promi
   // how it works today, what would change, why now, (status), who it affects, cost, what changes for you, the cases,
   // what we don't know, sources. Older summaries keep the "Explain more" layer.
   const st = s ? analysis?.structure ?? null : null;
+  // Two tiers (owner, 20 Nov 2026): an extended section that has not passed "is simply absent, with no 'coming' placeholder".
+  // It is stored empty; `off` says which, so its heading is left out too (and "No public statement of reasons found" is never
+  // said of reasons that exist but are not shown). The reasons for and against are one section: both sides or neither.
+  const off = new Set<string>(analysis?.withheld ?? []), has = (part: string) => !off.has(part);
+  // "If this passes" is wrong for a law already signed (lib/analysis/row-labels.ts).
+  const isLaw = changeWindow?.settled === "law";
   const primers = (st?.primers ?? []).map(primerById).filter((p): p is NonNullable<typeof p> => !!p && p.reviewed);
   const lastFloor = timeline ? [...timeline.steps].reverse().find(x => "floor" in x) as { label?: string; meaning?: string } | undefined : undefined;
   const primerBox = (p: (typeof primers)[number]) => <details key={p.id} className="primer"><summary>{p.kind === "process" ? "How this works: " : "Background: "}{p.title}</summary>
     <ul className="analysis-list">{p.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
     {p.kind === "process" && lastFloor?.label && <p><b>In this case:</b> {lastFloor.label}. {lastFloor.meaning}</p>}
     <p className="meta">Sources: {p.sources.map((x, i) => <span key={x.url}>{i ? " · " : ""}<a href={x.url} target="_blank" rel="noopener noreferrer">{x.label}</a></span>)}. Checked {shortDate(p.lawAsOf)}.</p></details>;
-  const whoBlock = s && <>
+  const whoBlock = s && has("whoItAffects") && <>
     <div className="fed-section"><h2>Who it affects <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.whoItAffects.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
   </>;
-  const youBlock = s && <>
+  const youBlock = s && has("whatChangesForYou") && <>
         <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
   </>;
-  const caseBlock = s && <>
+  const caseBlock = s && has("caseFor") && has("caseAgainst") && <>
         <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2>
           <div className="case-grid">
             <div><h3>For</h3>{s.caseFor.length ? <ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
@@ -149,7 +157,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           </div>
           <p className="meta">{analysis?.details ? `Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not ${BRAND.name}'s view.` : `Both sides are written to the same length and standard. They describe arguments people make; they are not ${BRAND.name}'s view.`}</p></div>
   </>;
-  const unknownBlock = s && <>
+  const unknownBlock = s && has("unknowns") && <>
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
   </>;
@@ -169,19 +177,20 @@ export default async function BillPage({ params, searchParams }: { params: Promi
 
       {s && analysis?.details?.plainEnglish && <div className="fed-section plain-english"><h2>In plain English <AnalysisBadge /></h2><p>{analysis.details.plainEnglish}</p></div>}
 
+      {access.editor && off.size > 0 && <div className="held-note" role="note"><b>Not shown to readers yet:</b> {[...new Set([...off].map(p => SECTION_NAME[p as keyof typeof SECTION_NAME] ?? p))].join("; ")}. Each of these sections did not pass its own check, so it is left out until it does. First reason: {Object.values(analysis?.withheldReasons ?? {}).flat()[0] ?? "see the check record"}</div>}
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until {heldByReading ? "it is rewritten" : "an editor approves it"}{heldByReading ? `: it was read against its sources and misstates a detail. ${heldByReading}` : analysis?.queue ? ` (${queueReason(analysis.queue.reason)}).` : "."} <Link href="/editor/analysis">Review it</Link></div>}
 
       {st && <>
         {/* Owner review, 17 Nov: the old rule, the new rule and what this bill would do come first; background follows. */}
-        <div className="fed-section"><h2>{st.changes.some(r => r.before?.trim()) ? "What the new rule changed, and what this bill would do" : "What would change"} <AnalysisBadge /></h2>
-          <ul className="change-rows">{st.changes.map((r, i) => <li key={i}>{r.label && <h3>{r.label}</h3>}
-            {r.before?.trim() && <p><b>Before the new rule:</b> {r.before}</p>}
-            <p><b>{r.before?.trim() ? "Now, under the new rule:" : "Today:"}</b> {r.today}</p><p><b>If this passes:</b> {r.ifPassed} {cite(r.source)}</p></li>)}</ul></div>
+        <div className="fed-section"><h2>{rowLabels({ enacted: isLaw, threeStates: st.changes.some(r => r.before?.trim()) }).heading} <AnalysisBadge /></h2>
+          <ul className="change-rows">{st.changes.map((r, i) => { const l = rowLabels({ enacted: isLaw, threeStates: !!r.before?.trim() }); return <li key={i}>{r.label && <h3>{r.label}</h3>}
+            {r.before?.trim() && <p><b>{l.before}:</b> {r.before}</p>}
+            <p><b>{l.today}:</b> {r.today}</p><p><b>{l.ifPassed}:</b> {r.ifPassed} {cite(r.source)}</p></li>; })}</ul></div>
         <div className="fed-section"><h2>How it works today <AnalysisBadge /></h2>
           <ul className="analysis-list">{st.howItWorksToday.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul>
-          {primers.filter(p => p.kind === "topic").map(primerBox)}</div>
-        <div className="fed-section"><h2>Why now <AnalysisBadge /></h2><p>{st.whyNow}</p>
-          {primers.filter(p => p.kind === "process").map(primerBox)}</div>
+          {primers.filter(p => p.kind === "topic" || !(has("whyNow") && st.whyNow?.trim())).map(primerBox)}</div>
+        {has("whyNow") && st.whyNow?.trim() ? <div className="fed-section"><h2>Why now <AnalysisBadge /></h2><p>{st.whyNow}</p>
+          {primers.filter(p => p.kind === "process").map(primerBox)}</div> : null}
       </>}
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
@@ -202,8 +211,8 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       {s && !st && <details className="explain-more" open={!analysis?.details?.plainEnglish}>
         <summary>Explain more <span className="meta">background, details, the case for and against</span></summary>
         {analysis?.details?.background && <div className="fed-section"><h2>Background <AnalysisBadge /></h2><p>{analysis.details.background} {analysis.details.backgroundSources.map(id => <span key={id}>{cite(id)} </span>)}</p></div>}
-        <div className="fed-section"><h2>What it does <AnalysisBadge /></h2>
-          <ul className="analysis-list">{s.whatItDoes.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
+        {has("whatItDoes") && <div className="fed-section"><h2>What it does <AnalysisBadge /></h2>
+          <ul className="analysis-list">{s.whatItDoes.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>}
         {whoBlock}
         {youBlock}
         {caseBlock}

@@ -37,7 +37,7 @@ test("fix A: a row about a place or a thing is concrete without a number", () =>
 
 test("fix C: a credited reason carries the source's exact words, checked against the source and the speaker", () => {
   const g = read("lib/analysis/generate.ts"), c = read("lib/analysis/checker.ts");
-  assert.match(g, /required: \["argument", "attribution", "source", "quote"\]/);
+  assert.match(g, /required: \["argument", "attribution", "source", "quote", "facts"\]/); // b13: each reason also names the fact that holds its quote
   assert.match(g, /Each argument also has "quote": 6 to 25 words in a row copied exactly/);
   assert.match(c, /quotes words that are not in \$\{src\}/);
   assert.match(c, /but the words it quotes were said by someone else/);
@@ -46,7 +46,7 @@ test("fix C: a credited reason carries the source's exact words, checked against
 
 test("fix B and the headline rule are in the writer's instructions", () => {
   const g = read("lib/analysis/generate.ts");
-  assert.match(g, /export const PROMPT_VERSION = "b12-2026-11-20";/);
+  assert.match(g, /export const PROMPT_VERSION = "b13-2026-11-21";/); // 20 Nov, later: facts first, two tiers, repair mode (tests/two-tiers.test.mjs)
   assert.match(g, /CURRENT LAW comes only from a passage in a source, never from general knowledge/);
   assert.match(g, /a declared "disaster" is not an "emergency"; "authorizes" or "allows up to" is not "funds"/);
   assert.match(g, /The headline must make sense to someone who reads nothing else\./);
@@ -64,7 +64,7 @@ test("fix D: everyday things are not words a reader failed to understand", () =>
 test("only the bills the owner named are rewritten, each once, and never the three that need a hand-written explainer", () => {
   const g = read("lib/analysis/generate.ts");
   assert.match(g, /export const REWRITE_TRIAL = \["119-s-32", "119-hr-7128", "119-hr-4541", "119-hr-1181", "119-sjres-197"\];/);
-  assert.match(g, /export const REWRITE_FOR_BRIEFING = \["119-hr-8483", "119-hr-9600"\];/);
+  assert.match(g, /export const REWRITE_FOR_BRIEFING: string\[\] = \[\];/, "the briefing items are corrected by hand and shown to the owner first");
   assert.match(g, /export const NEEDS_HAND_EXPLAINER = \["119-hr-8800", "119-hr-8595", "119-hr-3106"\];/);
   assert.match(g, /where\(and\(inArray\(analysisBillSummaries\.billId, ids\), sql`\$\{analysisBillSummaries\.promptVersion\} <> \$\{PROMPT_VERSION\}`/, "a new writer no longer rewrites every summary");
   assert.doesNotMatch(g, /heldBeforeFix|heldByOctober/, "nothing else is picked up for a rewrite");

@@ -8,6 +8,8 @@ import { currentShape } from "@/lib/analysis/prompt-order";
 import { judgedByWrongRules, RECHECK_MISTAKE } from "@/lib/analysis/recheck-rules";
 import { billLabel } from "@/components/federal/badges";
 import { BRAND } from "@/lib/brand";
+import { getCursor } from "@/lib/federal/ingest";
+import { partsOfFailure, readSectionState, sectionsKey } from "./tiers.ts";
 
 /**
  * Round F quality checks.
@@ -50,6 +52,9 @@ export async function runRereview(now = Date.now(), budgetMs = 60_000, maxPerRun
       // summary from generator 10 on was therefore checked by the rules for the oldest format (a headline starting
       // "Would", exactly two arguments a side, no source citations) and 4 of the first 5 sampled were taken off the page.
       failures = checkSummary(draftOf(s), parsed.sections, { truncated: parsed.chars > MAX_TEXT_CHARS || !!s.truncated, subject, fullText: parsed.text, b5Shape: currentShape(s.promptVersion) }).failures;
+      // Two tiers (20 Nov 2026): a section withheld from readers is stored empty on purpose; its emptiness is not a fault of the summary.
+      const off = readSectionState(await getCursor(db, sectionsKey(s.id)).catch(() => null), s.promptVersion).withheld as string[];
+      if (off.length) failures = failures.filter(f => { const parts = partsOfFailure(f); return !parts || !parts.every(p => off.includes(p)); });
     } catch (e) { error = (e instanceof Error ? e.message : "fetch failed").slice(0, 200); }
     const passed = !error && !failures.length;
     await db.insert(analysisRereviews).values({ id: crypto.randomUUID(), summaryId: s.id, at: Date.now(), passed: passed ? 1 : 0, failures, promptVersion: s.promptVersion, action: error || passed ? "none" : "held", error });

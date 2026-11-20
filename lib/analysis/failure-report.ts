@@ -30,5 +30,10 @@ export async function summaryFailures() {
       hiddenAfterReading: hidden, awaitingReading, ruleFailures: list(r.failures).map(x => x.slice(0, 400)), readerTest: r.readerPassed === null ? "not run" : Number(r.readerPassed) ? "pass" : "fail",
       readerReasons: Number(r.readerPassed) ? [] : list(r.readerReasons).map(x => x.slice(0, 400)), readerTests: Number(r.readerTests) };
   });
-  return { written: out.length, onShow: out.filter(x => x.onShow).length, notOnShow: out.filter(x => !x.onShow) };
+  // Two tiers (20 Nov 2026): for a summary by the current writer, the extended sections that did not pass and are left out.
+  const { getCursor } = await import("@/lib/federal/ingest"), { readSectionState, sectionsKey } = await import("./tiers.ts");
+  const withheld = new Map<string, string[]>();
+  for (const r of rows) withheld.set(`${r.billType}-${r.number}`, readSectionState(await getCursor(db, sectionsKey(r.id)).catch(() => null), r.promptVersion).withheld);
+  const notOnShow = out.filter(x => !x.onShow).map(x => ({ ...x, withheldSections: withheld.get(x.bill) ?? [] }));
+  return { written: out.length, onShow: out.filter(x => x.onShow).length, notOnShow, withheldOnShow: out.filter(x => x.onShow && (withheld.get(x.bill) ?? []).length).map(x => ({ bill: x.bill, withheldSections: withheld.get(x.bill) })) };
 }

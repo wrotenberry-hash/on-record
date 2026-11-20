@@ -108,13 +108,15 @@ export function parseCommitteeReport(html: string, maxPart = 3500) {
   // parse safely, so the views are attributed to the committee minority as a group, with the report cited.
   return { committee, chamber, purpose: part(["PURPOSE AND SUMMARY", "PURPOSE OF LEGISLATION", "PURPOSE"]),
     background: part(["BACKGROUND AND NEED FOR LEGISLATION", "BACKGROUND AND NEED", "BACKGROUND"]),
-    cbo: part(["CONGRESSIONAL BUDGET OFFICE COST ESTIMATE", "CONGRESSIONAL BUDGET OFFICE ESTIMATE", "NEW BUDGET AUTHORITY AND CBO COST ESTIMATE", "CBO COST ESTIMATE", "COMMITTEE COST ESTIMATE"]), minority: part(["MINORITY VIEWS", "DISSENTING VIEWS"]), additional: part(["ADDITIONAL VIEWS"]) };
+    cbo: part(["CONGRESSIONAL BUDGET OFFICE COST ESTIMATE", "CONGRESSIONAL BUDGET OFFICE ESTIMATE", "NEW BUDGET AUTHORITY AND CBO COST ESTIMATE", "CBO COST ESTIMATE", "COMMITTEE COST ESTIMATE"]), minority: part(["MINORITY VIEWS", "DISSENTING VIEWS"]),
+    // Which of the two the report itself calls them: dissenting views can be one member's, of either party.
+    minorityKind: (marks.find(x => x.name === "MINORITY VIEWS" || x.name === "DISSENTING VIEWS")?.name === "DISSENTING VIEWS" ? "dissenting" : "minority") as "dissenting" | "minority", additional: part(["ADDITIONAL VIEWS"]) };
 }
 
 export function committeeReportDoc(citation: string, url: string, r: ReturnType<typeof parseCommitteeReport>): SourceDoc {
   const by = r.committee ? `${r.chamber ? `${r.chamber} ` : ""}${r.committee}` : "the committee";
   const text = [`${citation}, from the ${by}.`, r.purpose && `Purpose: ${r.purpose}`, r.background && `Background: ${r.background}`,
-    r.cbo && `CBO cost estimate as printed in the report: ${r.cbo}`, r.minority && `Minority or dissenting views: ${r.minority}`, r.additional && `Additional views: ${r.additional}`]
+    r.cbo && `CBO cost estimate as printed in the report: ${r.cbo}`, r.minority && `${r.minorityKind === "dissenting" ? "Dissenting views (the views of the member or members who signed them)" : "Minority views"}: ${r.minority}`, r.additional && `Additional views: ${r.additional}`]
     .filter(Boolean).join("\n");
   return { id: "REPORT", kind: "committee_report", label: `${SOURCE_LABELS.committee_report}: ${citation} (${by})`, url, text };
 }

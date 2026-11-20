@@ -3,6 +3,8 @@ import { cleanSummaryText } from "@/lib/analysis/unrepair";
 import { getDb } from "@/db";
 import { readerVisible } from "@/lib/analysis/publish-gate";
 import { heldBillIds } from "@/lib/analysis/reader-holds";
+import { getCursor } from "@/lib/federal/ingest";
+import { readSectionState, sectionsKey } from "./tiers.ts";
 import { analysisBillSummaries, analysisChecks, analysisReaderTests, analysisSummaryDetails, analysisSummaryStructure, analysisReviewQueue, ingestRuns, officialBills, officialCostEstimates, officialMemberVotes, officialPoliticians } from "@/db/schema";
 
 /**
@@ -27,7 +29,9 @@ export async function summaryForBill(billId: string, includeHeld: boolean) {
     structure: structure && structure.promptVersion === summary.promptVersion ? structure : null };
   // 18 Nov: an explanation the repair step attached to the wrong word is never shown, whatever is stored (lib/analysis/unrepair.ts).
   cleanSummaryText(out.summary, out.details, out.structure);
-  return out;
+  // Two tiers (20 Nov 2026): the extended sections that did not pass are stored empty; this says which, so the page leaves the section out altogether.
+  const sections = readSectionState(await getCursor(db, sectionsKey(summary.id)).catch(() => null), summary.promptVersion);
+  return { ...out, withheld: sections.withheld, withheldReasons: sections.reasons };
 }
 
 export async function costEstimates(billId: string) {

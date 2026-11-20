@@ -80,7 +80,9 @@ export async function gatherSources(input: { title: string; billType: string; nu
     if (committee) {
       agencies.push(committee, r.committee!);
       if (r.purpose) allowedFor.push(`the ${committee} (majority, ${citation})`);
-      if (r.minority) allowedAgainst.push(`the ${committee} minority (minority views, ${citation})`);
+      // 20 Nov 2026: H.R. 7128's "dissenting views" were one member's, of the majority party, and were credited to "the committee minority".
+      // The report's own heading decides the wording; who signed them is for the facts list to name.
+      if (r.minority) allowedAgainst.push(r.minorityKind === "dissenting" ? `members of the ${committee} who signed dissenting views (${citation})` : `the ${committee} minority (minority views, ${citation})`);
     }
   }
 
@@ -149,10 +151,17 @@ export function sourcesBlock(g: Gathered): string {
     "OFFICIAL SOURCES (cite by the id in brackets; use nothing else):", list || "(none beyond the bill text)",
     g.notes.length ? `Not available: ${g.notes.join(" ")}` : "",
     g.primers.some(p => p.kind === "topic") ? "A reviewed PRIMER on this subject is among the sources. Build \"How it works today\" on it and do not contradict it; add what current law or the current rule says on the exact points this bill touches." : "",
+    creditLines(g),
+  ].filter(Boolean).join("\n\n");
+}
+
+/** Who may be credited with a reason on each side, as the writer is told it (also given alone when a summary is corrected in place). */
+export function creditLines(g: Gathered): string {
+  return [
     `Who may be credited with a reason FOR the bill (use one of these, worded as given, and only for a reason that person or body actually gave in the source you cite; a floor speaker belongs on the side they spoke for): ${g.context.allowedFor.length ? g.context.allowedFor.map(x => `"${x}"`).join("; ") : "nobody in the record; leave caseFor empty"}.`,
     `Who may be credited with a reason AGAINST the bill (same rule): ${g.context.allowedAgainst.length ? g.context.allowedAgainst.map(x => `"${x}"`).join("; ") : "nobody in the record; leave caseAgainst empty"}.`,
     "If the sources hold no stated reason for a side, leave that side empty. Never invent one.",
-  ].filter(Boolean).join("\n\n");
+  ].join("\n\n");
 }
 
 /** Log lines carrying each source, for the editor's review from the runtime log (1,500 characters a line). */

@@ -112,6 +112,8 @@ export async function carouselSlides(billId: string): Promise<Slide[] | null> {
   const bill = await db.select().from(officialBills).where(eq(officialBills.id, billId)).get();
   const s = await db.select().from(analysisBillSummaries).where(and(eq(analysisBillSummaries.billId, billId), readerVisible())).orderBy(desc(analysisBillSummaries.createdAt)).limit(1).get();
   if (!bill || !s) return null;
+  // Two tiers (20 Nov 2026): a section that did not pass is stored empty and never shown; without both there is no set of slides.
+  if (!(s.whatItDoes as unknown[] | null)?.length || !(s.whoItAffects as unknown[] | null)?.length) return null;
   const idx = await db.select().from(officialBillIndex).where(eq(officialBillIndex.billId, billId)).get();
   const vote = await db.select().from(officialRollCalls).where(eq(officialRollCalls.billId, billId)).orderBy(desc(officialRollCalls.votedAt)).limit(1).get();
   // The count is left off while the member votes on file do not add up to the official totals.
