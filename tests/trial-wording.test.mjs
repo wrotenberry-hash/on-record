@@ -62,7 +62,9 @@ test("a summary that failed a reading against its sources is hidden by the reade
   // Late on 19 Nov: two the weekly re-check had taken down, read before anyone approves them, also misstate details.
   for (const id of ["119-hr-1118", "119-hr-9612"]) assert.ok(ids.includes(id), id);
   assert.ok(ids.includes("119-s-307"), "a Senate bill id is well formed too"); assert.ok(ids.includes("119-hr-2140"));
-  assert.equal(ids.length, 13);
+  // 20 Nov 2026: the trial of generator b12 added three (H.R. 7128, S.J.Res. 197, H.Con.Res. 93); H.R. 1181 stays, for new reasons.
+  for (const id of ["119-hr-7128", "119-sjres-197", "119-hconres-93"]) assert.ok(ids.includes(id), id);
+  assert.equal(ids.length, 16);
   // Left on show, each read against its sources: seven sound and three with a small point.
   for (const id of ["119-hr-8823", "119-hr-8483", "119-hjres-210"]) assert.ok(!ids.includes(id), id);
   // The bills read and found sound stay on show.
