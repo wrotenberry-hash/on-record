@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { billRowText, EXPLANATION_COMING, isBareBillNumber, numberFromBillId, officialMain, summaryPlanned, TITLE_NOT_ON_FILE, typeFromBillId, WHAT_THIS_BILL_DOES, whatItDoesSentence } from "../lib/bill-row.ts";
+import { billRowText, EXPLANATION_COMING, isBareBillNumber, numberFromBillId, officialMain, TITLE_NOT_ON_FILE, typeFromBillId, WHAT_THIS_BILL_DOES, whatItDoesSentence } from "../lib/bill-row.ts";
 import { fedCardVote, txCardVote } from "../lib/flow/cards.ts";
 
 const read = p => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -49,11 +49,13 @@ test("with no approved summary: the official title and “Plain-English explanat
   assert.equal(billRowText({ number: "H.R. 1", title: "x", summary: { headline: "  " } }).label, "Official", "an empty headline is no summary");
 });
 
-test("a resolution no summary is written for does not promise one", () => {
-  for (const t of ["hres", "sres", "hconres", "sconres"]) assert.equal(summaryPlanned(t), false);
-  for (const t of ["hr", "s", "hjres", "sjres", null, undefined]) assert.equal(summaryPlanned(t), true);
-  const r = billRowText({ number: "H.Res. 1247", title: "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code.", billType: "hres" });
-  assert.equal(r.coming, false); assert.equal(r.does, null); assert.equal(r.label, "Official");
+test("a measure that will never get a summary does not promise one; one that will, does", () => {
+  const rule = billRowText({ number: "H.Res. 1247", title: "Providing for consideration of the bill (H.R. 2102) to amend title 10, United States Code.", billType: "hres" });
+  assert.equal(rule.coming, false); assert.equal(rule.does, null); assert.equal(rule.label, "Official");
+  assert.equal(billRowText({ number: "H.Res. 9", title: "Honoring the life of a former member", billType: "hres" }).coming, false, "purely ceremonial");
+  // Owner, 20 Nov 2026: a resolution that does something itself is summarised like any bill.
+  assert.equal(billRowText({ number: "H.Con.Res. 93", title: "Directing the President, pursuant to section 5(c) of the War Powers Resolution, to remove United States Armed Forces from hostilities with Iran.", billType: "hconres" }).coming, true);
+  assert.equal(billRowText({ number: "H.Res. 1655", title: "Impeaching Peter Brian Hegseth, Secretary of Defense, for high crimes and misdemeanors", billType: "hres" }).coming, true);
 });
 
 test("a title that is not a title says so; a long one is cut at a word", () => {

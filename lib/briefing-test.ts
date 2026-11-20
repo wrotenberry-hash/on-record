@@ -38,6 +38,7 @@ Answer from the item alone, in your own everyday words, one or two sentences eac
 - howItWorksToday: how do things work today, before this bill?
 - whatWouldChange: what exactly would change if this bill passed?
 - wordsNotUnderstood: any word or phrase in the item you did not understand (an empty list if none).
+- namesNotExplained: look at the FIRST LINE only (the headline). List any named group, tribe, place, organization, program or special term in it that the first line itself does not explain and that most adults would not already know. Names nearly everyone knows (Congress, the Senate, a U.S. state, the National Mall, Social Security, the Army) do not count. An empty list if none.
 If the item does not tell you, answer exactly "It doesn't say." Do not guess.`;
 const JUDGE = `You check whether a reader understood a short briefing item about a bill. You are given the fuller approved summary the item was cut from, and the reader's two answers. The reader saw only the item.
 
@@ -47,8 +48,8 @@ For each answer give a verdict:
 - "wrong": it says something the summary does not, or the opposite.
 Give one short reason for each.`;
 const verdict = { type: "object", additionalProperties: false, required: ["verdict", "why"], properties: { verdict: { type: "string", enum: ["correct", "wrong", "vague"] }, why: { type: "string" } } };
-const READER_SCHEMA = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatWouldChange", "wordsNotUnderstood"],
-  properties: { howItWorksToday: { type: "string" }, whatWouldChange: { type: "string" }, wordsNotUnderstood: { type: "array", items: { type: "string" } } } };
+const READER_SCHEMA = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatWouldChange", "wordsNotUnderstood", "namesNotExplained"],
+  properties: { howItWorksToday: { type: "string" }, whatWouldChange: { type: "string" }, wordsNotUnderstood: { type: "array", items: { type: "string" } }, namesNotExplained: { type: "array", items: { type: "string" } } } };
 const JUDGE_SCHEMA = { type: "object", additionalProperties: false, required: ["howItWorksToday", "whatWouldChange"], properties: { howItWorksToday: verdict, whatWouldChange: verdict } };
 
 type Ask = (name: string, instructions: string, input: string, schema: unknown, refId: string) => Promise<{ text: string; costUsd: number }>;
@@ -63,7 +64,7 @@ const askModel: Ask = async (name, instructions, input, schema, refId) => {
 export const readerItem = (t: InlineText) => `${t.headline}\nToday: ${t.today}\nThis bill: ${t.thisBill}`;
 
 /** Why the reader's answers fail the item (empty when it passes). Pure. */
-export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[] } | null,
+export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[]; namesNotExplained?: string[] } | null,
   judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null): string[] {
   if (!reader || !judge) return ["The reader test gave no usable answer."];
   const out: string[] = [];
@@ -73,6 +74,9 @@ export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChang
   }
   const words = (reader.wordsNotUnderstood ?? []).map(w => w.trim()).filter(Boolean);
   if (words.length) out.push(`Words a reader did not understand: ${words.slice(0, 5).join(", ")}.`);
+  // Owner, 20 Nov 2026: "A headline must make sense alone: say who or what a named group is … and avoid unexplained terms."
+  const names = (reader.namesNotExplained ?? []).map(w => w.trim()).filter(Boolean);
+  if (names.length) out.push(`The headline does not make sense alone: it names ${names.slice(0, 4).join(", ")} without saying what that is.`);
   return out;
 }
 

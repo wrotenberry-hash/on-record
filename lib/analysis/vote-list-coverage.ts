@@ -4,7 +4,7 @@ import { heldBillIds } from "./reader-holds.ts";
 import { generatorNumber } from "./prompt-order";
 import { PUBLIC_MIN_PROMPT } from "./publish-gate";
 import { meaningfulVote, RECENT_VOTE_MS } from "@/lib/flow/votes";
-import { summaryPlanned } from "@/lib/bill-row";
+import { summaryScope } from "@/lib/summary-scope";
 import { isDebateRule } from "@/lib/procedural";
 
 /**
@@ -40,19 +40,27 @@ export async function voteListCoverage(now = Date.now()) {
     const n = generatorNumber(s.promptVersion);
     if (gate !== null && s.status === "visible" && n !== null && n >= gate && !hidden.has(s.billId)) approved.add(s.billId);
   }
-  type Bill = { last: number; type: string | null; complete: boolean; onCards: boolean; rule: boolean };
+  type Bill = { last: number; type: string | null; complete: boolean; onCards: boolean; rule: boolean; scope: ReturnType<typeof summaryScope>; lawmaking: boolean; title: string };
   const bills = new Map<string, Bill>();
   for (const r of rolls) {
     const type = r.billType ?? r.billId.match(/^\d+-([a-z]+)-\d+$/)?.[1] ?? null;
-    const b = bills.get(r.billId) ?? { last: 0, type, complete: !!Number(r.complete), onCards: false, rule: isDebateRule({ billId: r.billId, billType: type, title: r.billTitle ?? r.title }) };
+    const b = bills.get(r.billId) ?? { last: 0, type, complete: !!Number(r.complete), onCards: false, rule: isDebateRule({ billId: r.billId, billType: type, title: r.billTitle ?? r.title }),
+      scope: summaryScope({ billId: r.billId, billType: type, title: r.billTitle ?? r.title }), title: String(r.billTitle ?? r.title ?? "").slice(0, 110), lawmaking: ["hr", "s", "hjres", "sjres"].includes(String(type)) };
     b.last = Math.max(b.last, Number(r.votedAt));
     if (r.billTitle !== null && meaningfulVote({ question: r.question, result: r.result, title: r.title, billTitle: r.billTitle, hasBill: true })) b.onCards = true;
     bills.set(r.billId, b);
   }
-  const last90 = empty(), older = empty(), resolutions = { bills: 0, last90: 0, /** Of them: resolutions that only set debate rules, collapsed into "Procedural votes (N)" in every list. */ debateRules: 0 };
+  const last90 = empty(), older = empty(), resolutions = { bills: 0, last90: 0, /** Resolutions that only set debate rules: collapsed into "Procedural votes (N)" in every list. */ debateRules: 0,
+    /** Purely ceremonial or housekeeping: no summary. */ ceremonial: 0,
+    /** Resolutions that do something themselves (owner, 20 Nov 2026): summarised like a bill. */ doSomething: 0, doSomethingLast90: 0, doSomethingApproved: 0, doSomethingWritten: 0, doSomethingRecordNotLoaded: 0,
+    /** Which they are, and which were set aside as ceremonial, so the sorting can be read (official titles, cut short). */ doSomethingList: [] as string[], ceremonialList: [] as string[] };
   for (const [id, b] of bills) {
-    // A simple or concurrent resolution (a House rule for debate, for one) is not a bill a summary is written for.
-    if (!summaryPlanned(b.type)) { resolutions.bills++; if (b.last >= d90) resolutions.last90++; if (b.rule) resolutions.debateRules++; continue; }
+    if (!b.lawmaking) {
+      resolutions.bills++; if (b.last >= d90) resolutions.last90++;
+      if (b.scope === "debate_rule") resolutions.debateRules++; else if (b.scope === "ceremonial") { resolutions.ceremonial++; resolutions.ceremonialList.push(`${id}: ${b.title}`); }
+      else { resolutions.doSomething++; resolutions.doSomethingList.push(`${id}${b.last >= d90 ? " (90d)" : ""}: ${b.title}`); if (b.last >= d90) resolutions.doSomethingLast90++; if (approved.has(id)) resolutions.doSomethingApproved++; else if (written.has(id)) resolutions.doSomethingWritten++; if (!b.complete) resolutions.doSomethingRecordNotLoaded++; }
+      continue;
+    }
     const g = b.last >= d90 ? last90 : older, ok = approved.has(id);
     g.bills++;
     if (ok) g.approved++; else { g.notApproved++; if (written.has(id)) g.writtenNotOnShow++; else { g.neverWritten++; if (!b.complete) g.recordNotLoaded++; } }
@@ -60,8 +68,8 @@ export async function voteListCoverage(now = Date.now()) {
   }
   const all = { bills: last90.bills + older.bills, approved: last90.approved + older.approved, notApproved: last90.notApproved + older.notApproved };
   return { asOf: new Date(now).toISOString(), months: 12, federal: { ...all, last90Days: last90, days91To12Months: older },
-    // Listed in vote lists too, with their official title and no promise of a summary.
-    resolutionsNotSummarised: resolutions,
+    // Simple and concurrent resolutions in vote lists, by what they are (lib/summary-scope.ts).
+    resolutions,
     // Texas summaries are not on show to readers (lib/analysis/publish-gate.ts), so every Texas bill in a vote list has none.
     texas: { billsWithARecordVote: Number(tx?.n ?? 0), approved: 0 } };
 }

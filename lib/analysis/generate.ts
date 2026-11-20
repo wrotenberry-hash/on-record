@@ -10,6 +10,9 @@ import { checkSummary, routeSummary, spreadAcrossCategories, type CheckResult, t
 import { callCost, maxCallCost, priceTable } from "@/lib/model-cost";
 import { summarySpendSince } from "@/lib/model-calls";
 import { LAWMAKING_TYPES } from "@/lib/federal/parse";
+import { SUMMARY_TYPES, summaryScope } from "@/lib/summary-scope";
+import { READER_HOLDS } from "@/lib/analysis/reader-holds";
+import { getCursor, setCursor } from "@/lib/federal/ingest";
 import { billLabel } from "@/components/federal/badges";
 import { CHECKPOINT_SUMMARIES } from "@/lib/analysis/report-format";
 import { gatherSources, sourcePacketLines, sourcesBlock, type Gathered } from "@/lib/analysis/gather";
@@ -25,7 +28,9 @@ import { BRAND } from "@/lib/brand";
  * model; the official title, status, cost estimate, votes and sources come
  * from government records and are shown as Official.
  */
-export const PROMPT_VERSION = "b11-2026-11-17";
+// b12 (owner, 20 Nov 2026: "Yes to fixes A through E"): current law only from a named passage; a credited reason carries the source's exact words;
+// a headline that makes sense alone; resolutions that do something themselves are summarised like bills.
+export const PROMPT_VERSION = "b12-2026-11-20";
 const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
 const MAX_OUTPUT_TOKENS = 6000;
 
@@ -48,7 +53,7 @@ export function analysisLimits() {
 }
 
 const point = z.object({ text: z.string(), section: z.string() });
-const argument = z.object({ argument: z.string(), attribution: z.string(), source: z.string() });
+const argument = z.object({ argument: z.string(), attribution: z.string(), source: z.string(), quote: z.string() });
 const changeRow = z.object({ label: z.string(), before: z.string(), today: z.string(), ifPassed: z.string(), source: z.string() });
 const draftShape = z.object({ headline: z.string(), plainEnglish: z.string(), howItWorksToday: z.array(point), changes: z.array(changeRow), whyNow: z.string(),
   background: z.string(), backgroundSources: z.array(z.string()), question: z.string(), whatItDoes: z.array(point), whoItAffects: z.array(point), whatChangesForYou: z.string(),
@@ -56,7 +61,7 @@ const draftShape = z.object({ headline: z.string(), plainEnglish: z.string(), ho
   confidence: z.enum(["high", "medium", "low"]), confidenceReason: z.string() });
 
 const pointSchema = { type: "object", additionalProperties: false, required: ["text", "section"], properties: { text: { type: "string" }, section: { type: "string" } } };
-const argSchema = { type: "object", additionalProperties: false, required: ["argument", "attribution", "source"], properties: { argument: { type: "string" }, attribution: { type: "string" }, source: { type: "string" } } };
+const argSchema = { type: "object", additionalProperties: false, required: ["argument", "attribution", "source", "quote"], properties: { argument: { type: "string" }, attribution: { type: "string" }, source: { type: "string" }, quote: { type: "string" } } };
 const summarySchema = { type: "object", additionalProperties: false,
   required: ["headline", "plainEnglish", "howItWorksToday", "changes", "whyNow", "background", "backgroundSources", "question", "whatItDoes", "whoItAffects", "whatChangesForYou", "caseFor", "caseAgainst", "unknowns", "confidence", "confidenceReason"],
   properties: { headline: { type: "string" }, plainEnglish: { type: "string" }, howItWorksToday: { type: "array", items: pointSchema },
@@ -74,14 +79,18 @@ WRITING STANDARD (every field):
 2. headline: at most 15 words. Start with a clear verb in the present tense (Blocks, Raises, Cuts, Requires, Bans, Funds, Lets, Ends, Gives, Limits). Say what changes and for whom, naming the everyday thing people know ("health plans people buy on HealthCare.gov"), not the program or the agency. No abbreviations. No official program names unless the everyday version comes first.
    Bad: "Would block a 2027 HHS rule on marketplace payment parameters."
    Good: "Blocks new 2027 rules for health plans people buy on HealthCare.gov."
-3. plainEnglish: 2 or 3 sentences, at most 80 words: what it does; who feels it and what changes in their daily life (with the number, if the sources give one); and why it is being fought over right now. A separate reader who sees only the headline and this part will be asked what the bill does, who is affected and what changes in daily life, so all three answers must be here in everyday words. No procedure words: write "voted against debating it", not "rejected the motion to proceed"; "the senator who wrote it", not "the sponsor". When a bill cancels or blocks a rule or law, never stack negatives ("would stop a rule that prevents …"): first say in positive terms what the rule does to people, then say this bill would cancel it.
+   The headline must make sense to someone who reads nothing else. A named group, place, body or program most people have never heard of comes with what it is: "a California tribe, the Barona Band", not "the Barona Band"; "a memorial to Thomas Paine, a writer of the American Revolution". No term of art from the bill ("major memorial zone", "covered adult", "production facility"): say the plain thing it means ("the central area of the National Mall", "people 65 or older"). The same holds for plainEnglish and for every "today" and "ifPassed" line: a reader may see one of them with nothing else beside it.
+3. plainEnglish: exactly 2 or 3 sentences, at most 80 words (count them; aim for 60 to 75, because 81 fails): what it does; who feels it and what changes in their daily life (with the number, if the sources give one); and why it is being fought over right now. A separate reader who sees only the headline and this part will be asked what the bill does, who is affected and what changes in daily life, so all three answers must be here in everyday words. No procedure words: write "voted against debating it", not "rejected the motion to proceed"; "the senator who wrote it", not "the sponsor". When a bill cancels or blocks a rule or law, never stack negatives ("would stop a rule that prevents …"): first say in positive terms what the rule does to people, then say this bill would cancel it.
 4. Specifics over generalities. Use the concrete facts in the sources: dollar amounts, numbers of people, dates, exactly what changes. Never write filler such as "would affect payment and program standards", "certain provisions", "and for other purposes" or "conforming changes". If the sources truly do not say what changes, say so plainly in unknowns and set confidence to "low". Never pad.
 5. Jargon. Replace every technical term with plain words, or explain it in parentheses the first time: "a vote to end debate (called cloture)". Never leave one unexplained. The checker fails any unexplained use of these and similar terms: ${JARGON.map(t => t.term).join(", ")}. Spell out every abbreviation the first time, or avoid it.
 6. caseFor / caseAgainst: REASONS and STAKES, never the mechanics again. "For" answers: why would someone want this? "Against" answers: what would be lost or harmed? Take each reason from the official record in the sources: what a named member said on the floor (FLOOR), the agency's stated reasons in the rule (RULE), the committee report and its minority views (REPORT), the CRS summary (CRS). Credit each to the named person or body, using the wording in the input's lists, and put that source's id in "source". A number someone cites is their claim: write "Sen. X says up to 2 million people …". If the sources hold no stated reason for a side, return an empty list for that side: the page will say "No public statement of reasons found." Never invent a reason, a quote or a position. 1 or 2 arguments a side, each 15 to 35 words.
+   Each argument also has "quote": 6 to 25 words in a row copied exactly, word for word, from the source you cite, taken from the place where that person or body gives this reason. It is checked by machine against that source, and for a floor speech against that member's own remarks. So: never credit one member with another member's words; never credit the committee report or the research service with something said on the floor, or the other way round; and a figure someone cites stays theirs ("Rep. X says thousands of workers …"), never a plain fact. If the floor debate is among the sources, do not say no reasons were given.
 7. The reader wants one thing first: what the rule was, what it is now, and what this bill would make it. The page reads in this order: headline, plainEnglish, changes, howItWorksToday, whyNow, whoItAffects, cost, whatChangesForYou, the cases, unknowns, sources.
 8. Never say something goes up, down, longer or shorter without the number. Not "it raises the most some buyers can owe" but "it raises the most one person can owe in a year from $12,000 to $15,600".
 
 THE SUBJECT FROM ZERO (required):
+- CURRENT LAW comes only from a passage in a source, never from general knowledge and never from what "must" be true. The passages that show it: the bill's own text (a section that strikes, amends or adds to existing law shows what that law says today: "by striking 'Galveston' and inserting 'Galveston and Texas City'" means court sits in Galveston today), a law or rule among the sources, the committee report, the research service's summary. Before you write a "today" line or a howItWorksToday bullet, find the passage; cite the source that holds it. If no source says what the law is today on a point, say only what the bill's text shows it replaces or adds, keep the line that narrow, and put the gap in unknowns. Never write "the sources do not say" (or "do not show") in the headline, plainEnglish, a "today" line or an "ifPassed" line.
+- Words that mean something exact keep their exact meaning: a declared "disaster" is not an "emergency"; "authorizes" or "allows up to" is not "funds" or "gives"; a committee voting something down is not Congress rejecting it; a date or a count is copied, not rounded or recalled. When two sources or two members give different figures, give both and say whose each is.
 - howItWorksToday: 3 to 5 short bullets, each at most 40 words and each citing its source id. Explain the subject from scratch: what the thing is, who uses it, how it is run and paid for, the key numbers, and what current law or the current rule says on exactly the points this bill touches. When a PRIMER is among the sources, build on it.
 - changes: 2 to 6 rows, one per change, each { label, before, today, ifPassed, source }. "label" names the thing that changes in a few words ("The fee insurers pay"). "today" is the rule or arrangement now; "ifPassed" is what it would be. Concrete, with the numbers and dates in the sources. No vague row: never "some rules would change". If the sources do not say what would replace something, say that plainly instead of guessing.
   When the bill acts on a rule or law that itself changed things recently (for example a resolution that cancels a new rule), every row has three states: "before" is the old rule, "today" is the new rule now in force, "ifPassed" is what this bill would make it. Otherwise "before" is "".
@@ -127,12 +136,16 @@ async function candidates(limit = 60): Promise<Candidate[]> {
     categorySlug: sql<string>`(select bc.category_slug from bill_categories bc join issue_categories ic on ic.slug = bc.category_slug where bc.bill_id = ${officialBills.id} order by ic.sort_order limit 1)` })
     .from(officialBills).leftJoin(officialPoliticians, eq(officialPoliticians.id, officialBills.sponsorId))
     // Test-ready build: a bill with a roll-call vote is covered even when it has no issue category yet (international affairs, law, …).
-    .where(and(eq(officialBills.detailStatus, "complete"), inArray(officialBills.billType, [...LAWMAKING_TYPES]), notExists(hasSummary),
+    .where(and(eq(officialBills.detailStatus, "complete"), inArray(officialBills.billType, [...SUMMARY_TYPES]), notExists(hasSummary),
       sql`(exists (select 1 from ${billCategories} where ${billCategories.billId} = ${officialBills.id}) or exists (select 1 from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id}))`))
     .orderBy(sql`(select max(${officialRollCalls.votedAt}) from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id}) is null`,
       desc(sql`(select max(${officialRollCalls.votedAt}) from ${officialRollCalls} where ${officialRollCalls.billId} = ${officialBills.id})`), desc(officialBills.latestActionAt))
     .limit(limit);
-  return rows.map(r => ({ ...r, sponsorName: r.sponsorName ?? null, categorySlug: r.categorySlug ?? "" }));
+  // Owner, 20 Nov 2026: a resolution that does something itself is summarised like a bill; a debate rule or a purely
+  // ceremonial one never is (lib/summary-scope.ts). Until the owner has seen the count and the cost, only the
+  // resolutions named in RESOLUTIONS_NOW are written; bills and joint resolutions are unaffected.
+  return rows.map(r => ({ ...r, sponsorName: r.sponsorName ?? null, categorySlug: r.categorySlug ?? "" }))
+    .filter(r => summaryScope({ billType: r.billType, title: r.title }) === "summarised" && ((LAWMAKING_TYPES as readonly string[]).includes(r.billType) || RESOLUTIONS_NOW.includes(r.id)));
 }
 
 /** Summaries the current generator has not written (an older PROMPT_VERSION), oldest first, at most ANALYSIS_REGEN_PER_RUN. */
@@ -152,16 +165,32 @@ export const CHECK_FIXED_AT = Date.UTC(2026, 10, 18, 14, 30);
 // summaries whose stored failures name that false alarm get another try; the rest were held for other reasons and are left.
 export const OCTOBER_FIXED_AT = Date.UTC(2026, 10, 18, 20, 45);
 
+/**
+ * The summaries the current writer rewrites, by the owner's word only (20 Nov 2026). A new writer used to rewrite every
+ * summary; that would spend about $11 and could take approved summaries off show. Now only the bills named here are
+ * rewritten, each once: the five-summary trial of the fixes ("Yes to fixes A through E and the five-summary trial"),
+ * then the two briefing items whose headlines must stand alone. "Do not retry the 19 until I've seen them."
+ */
+export const REWRITE_TRIAL = ["119-s-32", "119-hr-7128", "119-hr-4541", "119-hr-1181", "119-sjres-197"];
+export const REWRITE_FOR_BRIEFING = ["119-hr-8483", "119-hr-9600"];
+const list = (v: string | undefined, d: string[]) => (v === undefined ? d : v.split(",").map(x => x.trim()).filter(Boolean));
+export const REWRITE_NOW = list(process.env.ANALYSIS_REWRITE_BILLS, [...REWRITE_TRIAL, ...REWRITE_FOR_BRIEFING]);
+/** Resolutions written now (owner: "Write H.Con.Res. 93 now, inside the caps"). The rest wait for the owner's yes to the count and the cost. */
+export const RESOLUTIONS_NOW = list(process.env.ANALYSIS_RESOLUTIONS_NOW, ["119-hconres-93"]);
+/** Fix E: bills too large for the format (a defense bill, a spending bill). They are not rewritten; they wait for an explainer written by hand. */
+export const NEEDS_HAND_EXPLAINER = ["119-hr-8800", "119-hr-8595", "119-hr-3106"];
+const triedKey = (billId: string) => `rewrite:tried:${billId}`;
+
 async function staleSummaries() {
-  const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? "5");
-  const heldBeforeFix = sql`(${analysisBillSummaries.status} = 'held' and coalesce((select max(${analysisChecks.createdAt}) from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id}), 0) < ${CHECK_FIXED_AT})`;
-  const heldByOctober = sql`(${analysisBillSummaries.status} = 'held' and exists (select 1 from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id} and ${analysisChecks.createdAt} < ${OCTOBER_FIXED_AT} and ${analysisChecks.failures} like '%names \\"October\\"%')
-    and not exists (select 1 from ${analysisChecks} where ${analysisChecks.summaryId} = ${analysisBillSummaries.id} and ${analysisChecks.createdAt} >= ${OCTOBER_FIXED_AT}))`;
-  const rows = await getDb().select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence })
-    .from(analysisBillSummaries).where(and(sql`(${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION} or ${heldBeforeFix} or ${heldByOctober})`, sql`${analysisBillSummaries.status} <> 'rejected'`))
-    .orderBy(asc(analysisBillSummaries.sequence)).limit(50);
-  const first = (id: string) => (PRIORITY_BILLS.includes(id) ? 0 : 1);
-  return rows.sort((a, b) => first(a.billId) - first(b.billId) || a.sequence - b.sequence).slice(0, Number.isInteger(per) && per >= 0 ? per : 5);
+  const per = Number(process.env.ANALYSIS_REGEN_PER_RUN ?? "5"), ids = REWRITE_NOW.filter(id => !NEEDS_HAND_EXPLAINER.includes(id));
+  if (!ids.length) return [];
+  const db = getDb();
+  const rows = await db.select({ id: analysisBillSummaries.id, billId: analysisBillSummaries.billId, sequence: analysisBillSummaries.sequence })
+    .from(analysisBillSummaries).where(and(inArray(analysisBillSummaries.billId, ids), sql`${analysisBillSummaries.promptVersion} <> ${PROMPT_VERSION}`, sql`${analysisBillSummaries.status} <> 'rejected'`));
+  // A rewrite that failed while the earlier summary stayed on show is not tried again by the same writer.
+  const fresh: typeof rows = [];
+  for (const r of rows) if ((await getCursor(db, triedKey(r.billId))) !== PROMPT_VERSION) fresh.push(r);
+  return fresh.sort((a, b) => ids.indexOf(a.billId) - ids.indexOf(b.billId)).slice(0, Number.isInteger(per) && per >= 0 ? per : 5);
 }
 
 async function candidateFor(billId: string): Promise<Candidate | null> {
@@ -340,6 +369,19 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
     confidenceReason: d.confidenceReason, checkPassed: final.check.passed ? 1 : 0, attempts: attempts.length, status: route.status, model: writer,
     promptVersion: PROMPT_VERSION, inputTokens: inTok, outputTokens: outTok, costUsd: Math.round((cost + readerCost) * 1_000_000) / 1_000_000, sources }; // drafts plus the reader test
   let firstAttempt = 1;
+  if (existing && route.status !== "visible") {
+    // 20 Nov 2026: a rewrite that does not pass must not take a summary readers can see off show. The earlier summary
+    // stays exactly as it is; what the new draft failed on goes to the log, and this writer does not try this bill again.
+    const old = await db.select({ status: analysisBillSummaries.status }).from(analysisBillSummaries).where(eq(analysisBillSummaries.id, existing.id)).get();
+    if (old?.status === "visible" && !READER_HOLDS[c.id]) {
+      await setCursor(db, triedKey(c.id), PROMPT_VERSION);
+      console.log(`SUMMARY_REWRITE kept on show | ${c.id} | the new draft did not pass: ${[...final.check.failures, ...(final.reader?.reasons ?? [])].slice(0, 6).join(" | ").slice(0, 1500)}`);
+      console.log(`SUMMARY_REWRITE draft not used | ${c.id} | ${JSON.stringify({ headline: d.headline, plainEnglish: d.plainEnglish, changes: d.changes }).slice(0, 3000)}`);
+      return { billId: c.id, label: billLabel(c.billType, c.number), category: c.categorySlug, status: "visible", queue: null, attempts: attempts.length, checkPassed: false, confidence: d.confidence,
+        costUsd: Math.round((cost + readerCost) * 10000) / 10000, readerTestCostUsd: Math.round(readerCost * 10000) / 10000, readerTest: final.reader ? (final.reader.passed ? "pass" : "fail") : "not run", inputTokens: inTok, outputTokens: outTok,
+        readingGrade: final.check.metrics.readingGrade, totalWords: final.check.metrics.totalWords, regenerated: false };
+    }
+  }
   if (existing) {
     // Keep what the summary said before, then rewrite the live row in place.
     const old = await db.select().from(analysisBillSummaries).where(eq(analysisBillSummaries.id, existing.id)).get();

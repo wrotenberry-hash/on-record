@@ -56,7 +56,7 @@ export function citeSupports(pointText: string, cite: string, sections: readonly
 
 export type Point = { text: string; section: string };
 /** source: the id of the official source the argument comes from (b5+; e.g. "RULE", "REPORT", "CRS", "BILL"). */
-export type Argument = { argument: string; attribution: string; source?: string };
+export type Argument = { argument: string; attribution: string; source?: string; /** b12: words copied from the cited source, where this person or body gives the reason. Checked word for word; not shown to readers. */ quote?: string };
 export type SummaryDraft = {
   headline: string;
   /** b5+ (owner review, 16 Nov): 2–3 sentences anyone could repeat to a friend. */
@@ -168,12 +168,30 @@ const NO_CHANGE_UNLESS = /\bmost (people|americans|readers)\b[^.]*\b(no|not)\b[^
 /** "A federally declared disaster" and "disaster relief" are terms of law, not a label on the bill (18 Nov, H.R. 9500: the check forced "declared emergency", which the law does not say). */
 const OFFICIAL_DISASTER = /\b(?:(?:federally |presidentially |state[- ])?declared |major |natural )disasters?\b|\bdisasters? (?:relief|declarations?|areas?|assistance|loans?|aid|recovery|zones?)\b/gi;
 
-export function bannedWordsIn(input: string): string[] {
+// 20 Nov 2026 (owner: "Yes to fixes A through E"): four words on the list are also plain facts ("the September 11
+// attacks", "extreme weather", "a public health crisis" in a statute's own name). One of them passes when it stands in a
+// two-word phrase that an official source other than a floor speech uses itself. A member's label for a bill stays refused.
+const FACT_CAPABLE = new Set(["attack", "attacks", "disaster", "crisis", "extreme"]);
+
+/** `factSources`: the texts of the official sources that are not floor speeches; leave out to apply the list with no exception. */
+/** Text reduced to its words, for comparing a quotation with its source: lower case, no punctuation, single spaces. */
+export const plainWords = (text: string) => text.toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9$%']+/g, " ").trim();
+
+export function bannedWordsIn(input: string, factSources: readonly string[] = []): string[] {
   const text = input.replace(OFFICIAL_DISASTER, " ");
+  const corpus = factSources.join(" \n ").toLowerCase().replace(/\s+/g, " ");
   const found = new Set<string>();
   for (const word of BANNED_WORDS) {
-    const pattern = new RegExp(`(^|[^a-z-])${word.replace(/[-\s]/g, m => (m === "-" ? "-" : "\\s+"))}($|[^a-z-])`, "i");
-    if (pattern.test(text)) found.add(word);
+    const body = word.replace(/[-\s]/g, m => (m === "-" ? "-" : "\\s+"));
+    const pattern = new RegExp(`(^|[^a-z-])${body}($|[^a-z-])`, "i");
+    if (!pattern.test(text)) continue;
+    if (corpus && FACT_CAPABLE.has(word)) {
+      // Every use must be a phrase the sources use: the word with the word before it, or with the word after it.
+      const uses = [...text.matchAll(new RegExp(`(?:([A-Za-z0-9’'-]+)\\s+)?\\b${body}\\b(?:\\s+([A-Za-z0-9’'-]+))?`, "gi"))];
+      const factual = uses.length > 0 && uses.every(m => [m[1] ? `${m[1]} ${word}` : "", m[2] ? `${word} ${m[2]}` : ""].some(ph => ph && corpus.includes(ph.toLowerCase())));
+      if (factual) continue;
+    }
+    found.add(word);
   }
   return [...found];
 }
@@ -277,6 +295,15 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
         else if (!citeExists(src, sections)) fail(`${label} argument ${i + 1} cites "${src}", which is not one of the sources provided.`);
         else if (citeSupports(a.argument, src, sections) === false) fail(`${label} argument ${i + 1} shares no key words with ${src}; base it on what that source says.`);
         const speaker = (sources.speakers ?? []).find(sp => new RegExp(`\\b${sp.name.split(" of ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(who));
+        // b12 (fix C, 20 Nov 2026): the reason carries the source's own words. They must be in the cited source, and for a
+        // floor speech in that member's own remarks: five of the thirteen summaries hidden after a reading credited a
+        // reason to the wrong person or the wrong source.
+        if (a.quote !== undefined && src && citeExists(src, sections)) {
+          const q = plainWords(a.quote), n = q ? q.split(" ").length : 0, doc = sources.docs.find(x => x.id.toLowerCase() === src.toLowerCase());
+          if (n < 6) fail(`${label} argument ${i + 1} gives no exact words from ${src}; copy 6 to 25 words in a row from where ${who || "the source"} gives this reason.`);
+          else if (doc && !plainWords(doc.text).includes(q)) fail(`${label} argument ${i + 1} quotes words that are not in ${src}: “${a.quote.trim().slice(0, 120)}”. Copy them exactly from that source, or cite the source they are in.`);
+          else if (speaker && /^FLOOR/i.test(src) && !plainWords(speaker.text).includes(q)) fail(`${label} argument ${i + 1} is credited to ${speaker.name}, but the words it quotes were said by someone else. Credit the member who said them, or use what ${speaker.name} said.`);
+        }
         if (speaker && /^FLOOR/i.test(src)) {
           const said = contentWords(speaker.text), arg = [...contentWords(a.argument)];
           if (arg.length && arg.filter(w => said.has(w)).length / arg.length < 0.34) fail(`${label} argument ${i + 1} is credited to ${speaker.name}, but most of its words are not in what ${speaker.name} said on the floor. Use a reason they actually gave.`);
@@ -297,7 +324,7 @@ export function checkSummary(d: SummaryDraft, sectionsIn: readonly Section[], op
   d.unknowns.forEach((u, i) => { if (wc(u) > LIMITS.unknownWords) fail(`What we don't know point ${i + 1} is ${wc(u)} words; the limit is ${LIMITS.unknownWords}.`); });
 
   const prose = proseOf(d), all = [...prose, ...d.caseFor.map(a => a.attribution), ...d.caseAgainst.map(a => a.attribution)].join(" ");
-  const banned = bannedWordsIn(all);
+  const banned = bannedWordsIn(all, (sources?.docs ?? []).filter(x => !/^FLOOR/i.test(x.id)).map(x => x.text));
   if (banned.length) fail(`Loaded words: ${banned.join(", ")}. Even in a reason credited to a member, restate it in neutral words: say what the member says would happen, without the label.`);
   for (const [re, label] of OPINION_PATTERNS) if (re.test(all)) fail(`Contains ${label}.`);
   // Owner, 18 Nov 2026 (point 7): calm, specific, no outrage wording, no adjectives about legislators.
@@ -552,6 +579,25 @@ function initialsIn(corpus: string): Set<string> {
   return out;
 }
 
+/**
+ * 20 Nov 2026 (fix A): a bill writes an amount in full ("$235,500,000") and a summary rightly says "$235.5 million".
+ * The figure is supported when the claim gives it with thousand, million, billion or trillion and the sources hold the
+ * same amount written out, with or without commas.
+ */
+const UNITS: Record<string, number> = { thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12 };
+export function figureInFull(term: string, claim: string, corpus: string): boolean {
+  const n = term.replace(/^\$/, "").replace(/,/g, "");
+  if (!/^\d+(?:\.\d+)?$/.test(n)) return false;
+  const esc2 = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const m of claim.matchAll(new RegExp(`${esc2}\\s+(thousand|million|billion|trillion)\\b`, "gi"))) {
+    const [whole, frac = ""] = n.split("."), zeros = String(UNITS[m[1].toLowerCase()]).length - 1;
+    if (frac.length > zeros) continue;
+    const digits = `${whole}${frac.padEnd(zeros, "0")}`.replace(/^0+(?=\d)/, ""), commas = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    if (corpus.includes(commas) || corpus.includes(digits)) return true;
+  }
+  return false;
+}
+
 /** Terms in `claim` that no official source supports, once agency names are masked on both sides. */
 /** The fixed explanations of the jargon list, exactly as the repair step writes them. */
 const OWN_EXPLANATIONS = new Set(JARGON.map(t => t.plain));
@@ -577,7 +623,7 @@ export function unsupportedClaims(claim: string, sources: readonly string[], age
       if (names.length && names.every(part => new RegExp(`\\b${esc(part.toLowerCase().replace(/(ies|es|s)$/, ""))}`).test(corpus))) return false;
     }
     const l = t.toLowerCase();
-    if (/^[\d$]/.test(t)) return !corpus.includes(l.replace(/^\$/, "")) ;
+    if (/^[\d$]/.test(t)) return !corpus.includes(l.replace(/^\$/, "")) && !figureInFull(t, claimed, corpus);
     const stem = l.replace(/(ies|es|s)$/, "");
     return !new RegExp(`\\b${esc(stem)}`).test(corpus);
   });

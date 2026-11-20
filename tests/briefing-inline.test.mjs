@@ -55,7 +55,8 @@ test("a summary in the older format gives no inline lines, and nothing is made u
   assert.equal(inlineFromSummary({ headline: "An older summary.", changes: [], howItWorksToday: [] }), null);
   assert.equal(inlineFromSummary({ headline: "Only today known.", changes: [], howItWorksToday: [{ text: "Things work this way." }] }), null);
   const items = read("lib/briefing-items.ts");
-  assert.match(items, /if \(!s\) \{ out\.push\(plain\("no_summary", SUMMARY_COMING\)\); continue; \}/, "no approved summary: title, stage, and 'a summary is coming'");
+  // 20 Nov 2026: "a summary is coming" only for a measure that will get one (lib/summary-scope.ts); nothing for a debate rule or a ceremonial resolution.
+  assert.match(items, /if \(!s\) \{ out\.push\(plain\("no_summary", summaryScope\(\{ billId: p\.billKey, title: p\.title \}\) === "summarised" \? SUMMARY_COMING : null\)\); continue; \}/, "no approved summary: title, stage, and 'a summary is coming' when one is");
   assert.equal(SUMMARY_COMING, "A plain-English summary of this bill is coming.");
   assert.doesNotMatch(items + read("lib/briefing-inline.ts"), /responseRequest|openai|max_output_tokens/i, "composing a briefing calls no model");
 });
@@ -160,7 +161,7 @@ test("a reader sees the two lines only after the item passed the written rules a
   // Where it stands is the record's own line, and legislators are the reader's own, for the chamber that voted.
   assert.match(s, /const stands = standsLine\(p, window \? window\.where : null\);/);
   // More than five items is possible only in the editor's log of examples.
-  assert.match(s, /pickItems\(all, k => approved\.has\(k\), audience === "editor" \? o\.max \?\? MAX_ITEMS : MAX_ITEMS\)/);
+  assert.match(s, /pickItems\(all, k => approved\.has\(k\), audience === "editor" \? o\.max \?\? MAX_ITEMS : MAX_ITEMS,\n\s+\{ ownVote: c => !!c\.voteId && cast\.has\(c\.voteId\), reach: c => reachOf\(/);
   assert.match(s, /const voters = mine\.filter\(m => m\.chamber === p\.chamber\);/);
 });
 
@@ -183,7 +184,7 @@ test("the verdict: both answers must be correct and no word left not understood"
   // lib/briefing-test.ts imports the database, so its pure verdict is checked through a copy of its text.
   const src = read("lib/briefing-test.ts"), from = src.indexOf("export function readerVerdict"), to = src.indexOf("const monthStart");
   assert.ok(from > 0 && to > from);
-  const body = src.slice(from, to).replace("export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[] } | null,\n  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null): string[] {", "function readerVerdict(reader, judge) {")
+  const body = src.slice(from, to).replace("export function readerVerdict(reader: { howItWorksToday?: string; whatWouldChange?: string; wordsNotUnderstood?: string[]; namesNotExplained?: string[] } | null,\n  judge: { howItWorksToday?: { verdict?: string; why?: string }; whatWouldChange?: { verdict?: string; why?: string } } | null): string[] {", "function readerVerdict(reader, judge) {")
     .replace("const out: string[] = [];", "const out = [];").replace(" as const)", ")");
   const readerVerdict = new Function(`${body}; return readerVerdict;`)();
   const good = { howItWorksToday: { verdict: "correct", why: "" }, whatWouldChange: { verdict: "correct", why: "" } };

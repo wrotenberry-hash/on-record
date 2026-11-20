@@ -15,6 +15,7 @@
  */
 import { sentencesOf } from "./briefing-inline.ts";
 import { clip } from "./flow/votes.ts";
+import { summaryScope } from "./summary-scope.ts";
 
 /** The owner's wording. */
 export const WHAT_THIS_BILL_DOES = "What this bill does";
@@ -60,20 +61,15 @@ export function officialMain(title: string | null | undefined): string {
   return clip(t, 140);
 }
 
-// The bill types a summary is written for: bills and joint resolutions, which can become law (lib/federal/parse.ts
-// LAWMAKING_TYPES). A simple or concurrent resolution (a House rule for debate, for one) gets none, so its row does
-// not promise one.
-const SUMMARISED_TYPES = new Set(["hr", "s", "hjres", "sjres"]);
-export const summaryPlanned = (billType: string | null | undefined) => billType == null || SUMMARISED_TYPES.has(billType.toLowerCase());
-
 /**
  * The row for one bill. `summary` is the newest summary a reader may see, or null. `billType` is the federal type
- * ("hr", "hres", …) when known; leave it out for a Texas bill.
+ * ("hr", "hres", …) when known; leave it out for a Texas bill. A measure that will never get a summary (a debate rule,
+ * a purely ceremonial resolution: lib/summary-scope.ts) does not say one is coming.
  */
 export function billRowText(b: { number: string; title: string | null | undefined; summary?: RowSummary | null; billType?: string | null }): BillRowText {
   const headline = String(b.summary?.headline ?? "").replace(/\s+/g, " ").trim();
   if (b.summary && headline) return { main: headline, does: whatItDoesSentence(b.summary), coming: false, label: "Analysis", number: b.number };
-  return { main: officialMain(b.title), does: null, coming: summaryPlanned(b.billType), label: "Official", number: b.number };
+  return { main: officialMain(b.title), does: null, coming: summaryScope({ billType: b.billType, title: b.title }) === "summarised", label: "Official", number: b.number };
 }
 
 const TYPE_LABELS: Record<string, string> = { hr: "H.R.", s: "S.", hres: "H.Res.", sres: "S.Res.", hjres: "H.J.Res.", sjres: "S.J.Res.", hconres: "H.Con.Res.", sconres: "S.Con.Res." };

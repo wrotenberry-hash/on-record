@@ -11,11 +11,12 @@
 import { unexplainedAcronyms, unexplainedJargon } from "./analysis/standard.ts";
 import { toneProblems } from "./analysis/tone.ts";
 import { longDate } from "./changes/window.ts";
+import { byReach, type Reach } from "./briefing-reach.ts";
 
 /** Off until the owner has seen three real items ("Show me three real briefing items in the new format before it goes live to trial readers"). */
 export const BRIEFING_INLINE_LIVE = false;
 /** Bumped when the way an item is cut from a summary changes, so each summary's item is tested again. */
-export const INLINE_VERSION = "i1";
+export const INLINE_VERSION = "i2"; // i2 (20 Nov 2026): the headline must make sense alone, so every item is tested again
 export const MAX_ITEMS = 5;
 export const CAUGHT_UP = "You're caught up.";
 export const SUMMARY_COMING = "A plain-English summary of this bill is coming.";
@@ -96,14 +97,18 @@ export type BriefPick = { key: string; system: "federal" | "texas"; billKey: str
 
 const EVENT_ORDER: Record<BriefEvent, number> = { passed: 0, failed: 1, blocked: 2, coming: 3, hearing: 4 };
 /**
- * At most five items, each bill once. Bills with an approved summary come first (they are the ones a reader can
- * finish here); within that, what was decided comes before what is coming, newest first.
+ * At most five items, each bill once, in the owner's order (20 Nov 2026; the rule is written out in
+ * lib/briefing-reach.ts): first the items on which the reader's own legislators cast a vote, then by how many people
+ * the bill affects, then what was decided before what is coming, newest first. `ownVote` and `reach` are left out by
+ * callers that know neither; the order is then by summary, event and date, as it was.
  */
-export function pickItems(candidates: readonly BriefPick[], hasSummary: (billKey: string) => boolean, max = MAX_ITEMS): BriefPick[] {
+export function pickItems(candidates: readonly BriefPick[], hasSummary: (billKey: string) => boolean, max = MAX_ITEMS,
+  o: { ownVote?: (c: BriefPick) => boolean; reach?: (c: BriefPick) => Reach } = {}): BriefPick[] {
   const seen = new Set<string>(), unique: BriefPick[] = [];
   for (const c of candidates) { const k = c.billKey ?? c.key; if (seen.has(k)) continue; seen.add(k); unique.push(c); }
-  const rank = (c: BriefPick) => (c.billKey && hasSummary(c.billKey) ? 0 : 1);
-  return unique.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || EVENT_ORDER[a.c.event] - EVENT_ORDER[b.c.event] || b.c.date.localeCompare(a.c.date) || a.i - b.i)
+  const rank = (c: BriefPick) => (c.billKey && hasSummary(c.billKey) ? 0 : 1), own = (c: BriefPick) => (o.ownVote?.(c) ? 0 : 1), none: Reach = { tier: 0, people: null };
+  return unique.map((c, i) => ({ c, i })).sort((a, b) => own(a.c) - own(b.c) || (o.reach ? byReach(o.reach(a.c) ?? none, o.reach(b.c) ?? none) : 0)
+    || rank(a.c) - rank(b.c) || EVENT_ORDER[a.c.event] - EVENT_ORDER[b.c.event] || b.c.date.localeCompare(a.c.date) || a.i - b.i)
     .slice(0, Math.max(0, max)).map(x => x.c);
 }
 

@@ -7,6 +7,10 @@ import { billWindow } from "@/lib/changes/window-store";
 import { ownLegislators, placeOf, type Place } from "@/lib/loop/people";
 import { memberLines, type MemberVote } from "@/lib/loop/rules";
 import { inlineTestFor } from "@/lib/briefing-test";
+import { reachOf } from "@/lib/briefing-reach";
+import { rowSummaries } from "@/lib/bill-row-store";
+import type { RowSummary } from "@/lib/bill-row";
+import { summaryScope } from "@/lib/summary-scope";
 import { inlineFromSummary, inlineProblems, pickItems, standsLine, MAX_ITEMS, NO_SUMMARY_YET, SHORT_NOT_READY, SUMMARY_COMING, type BriefEvent, type BriefPick, type InlineItem } from "@/lib/briefing-inline";
 import type { Briefing, BriefItem, BriefSection } from "@/lib/briefing";
 
@@ -43,9 +47,17 @@ export async function inlineBriefing(b: Briefing, userId: string | null, audienc
   const db = getDb(), all = candidates(b);
   const fedKeys = [...new Set(all.filter(c => c.system === "federal" && c.billKey).map(c => c.billKey!))];
   const approved = new Set(fedKeys.length ? (await db.select({ billId: analysisBillSummaries.billId }).from(analysisBillSummaries).where(and(readerVisible(), inArray(analysisBillSummaries.billId, fedKeys)))).map(r => r.billId) : []);
-  const picks = pickItems(all, k => approved.has(k), audience === "editor" ? o.max ?? MAX_ITEMS : MAX_ITEMS);
   const place = o.place ?? (userId ? await placeOf(db, userId).catch(() => null) : null);
   const mine = place ? (await ownLegislators(db, place).catch(() => [])).filter(m => m.level === "federal") : [];
+  // Owner, 20 Nov 2026: items on which the reader's own legislators cast a vote come first, then by how many people the
+  // bill affects (lib/briefing-reach.ts has the rule). Both are read here, before the five are chosen.
+  const voteIds = [...new Set(all.flatMap(c => (c.system === "federal" && c.voteId ? [c.voteId] : [])))];
+  const cast = new Set(voteIds.length && mine.length ? (await db.select({ voteId: officialMemberVotes.rollCallId, position: officialMemberVotes.position }).from(officialMemberVotes)
+    .where(and(inArray(officialMemberVotes.rollCallId, voteIds), inArray(officialMemberVotes.politicianId, mine.map(m => m.id)))).catch(() => []))
+    .filter(r => /^(?:yea|nay|aye|no|yes|present)$/i.test(r.position.trim())).map(r => r.voteId) : []);
+  const words = await rowSummaries(fedKeys).catch(() => new Map<string, RowSummary>());
+  const picks = pickItems(all, k => approved.has(k), audience === "editor" ? o.max ?? MAX_ITEMS : MAX_ITEMS,
+    { ownVote: c => !!c.voteId && cast.has(c.voteId), reach: c => reachOf(c.billKey && approved.has(c.billKey) ? words.get(c.billKey) ?? null : null) });
   const out: ComposedItem[] = [];
   for (const p of picks) {
     const window = p.billKey ? await billWindow(p.billKey).catch(() => null) : null;
@@ -64,7 +76,8 @@ export async function inlineBriefing(b: Briefing, userId: string | null, audienc
     const plain = (state: ItemState, note: string | null, reasons: string[] = []): ComposedItem => ({ ...base, headline: p.title, today: null, thisBill: null, note, state, reasons });
     if (p.system !== "federal" || !p.billKey) { out.push(plain("no_summary", p.billKey ? NO_SUMMARY_YET : null)); continue; }
     const s = approved.has(p.billKey) ? await summaryForBill(p.billKey, false).catch(() => null) : null;
-    if (!s) { out.push(plain("no_summary", SUMMARY_COMING)); continue; }
+    // Owner, 20 Nov 2026: "Never show 'summary coming' for something that will not get one" (a debate rule, a purely ceremonial resolution).
+    if (!s) { out.push(plain("no_summary", summaryScope({ billId: p.billKey, title: p.title }) === "summarised" ? SUMMARY_COMING : null)); continue; }
     const text = s.structure ? inlineFromSummary({ headline: s.summary.headline, changes: s.structure.changes, howItWorksToday: s.structure.howItWorksToday }) : null;
     // An approved summary in the older format has a plain-English headline and no "today / if this passes" rows.
     if (!text) { out.push({ ...plain("older_format", SHORT_NOT_READY), headline: s.summary.headline }); continue; }

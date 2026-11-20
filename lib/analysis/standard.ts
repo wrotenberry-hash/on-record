@@ -238,7 +238,10 @@ export const COMMON_KNOWLEDGE = new Set(("congress house senate senator senators
   "insurance plan plans coverage doctor doctors retirement retiree retirees veteran veterans military troops disability pay payment payments income cost costs budget debt " +
   "photo id identification passport license mail spouse spouses children dependent court courts judge police school schools job jobs worker workers employer employers " +
   // 18 Nov: the reader model listed these as "not understood" in four tests each while answering correctly about them.
-  "tribal tribe tribes grant grants loan loans rebate rebates penalty penalties fine fines fraud calendar committee committees agency agencies city cities county counties").split(" "));
+  "tribal tribe tribes grant grants loan loans rebate rebates penalty penalties fine fines fraud calendar committee committees agency agencies city cities county counties " +
+  // 20 Nov 2026 (fix D, owner: "Yes to fixes A through E"): summaries were stopped because the test reader listed these everyday things.
+  "visa visas september 11 9/11 speed camera cameras chaplain chaplains embassy embassies college colleges university universities bank banks airport airports " +
+  "weather storm storms terrorism terrorist attack attacks trial lawsuit prison prisons jail border borders immigration citizen citizens citizenship").split(" "));
 export function isCommonKnowledge(flag: string): boolean {
   const bare = flag.toLowerCase().replace(/\(.*?\)/g, " ").replace(/["“”'’.,:;]/g, " ").trim();
   const t = bare.replace(/\b(?:the|a|an|of|in|for|to|and|or|federal|health|u s|us)\b/g, " ").trim().split(/\s+/).filter(Boolean);
@@ -341,13 +344,21 @@ export function unquantifiedChanges(text: string): string[] {
 const CONTRAST = /\b(?:may|can|could|must|have to|has to|need|allowed|required|banned|barred|legal|illegal|no law|no limit|no rule|cannot|not)\b/i;
 const VAGUE_ROW = /\b(?:some|certain|various|several|a number of|other|different|new|updated|revised|additional)\s+(?:rules|changes|provisions|requirements|standards|policies|limits|conditions|terms)\b|\b(?:would|will) (?:change|be changed|be updated|be affected|differ)\b\.?$|^(?:n\/?a|none|same|unchanged|no change|not applicable|status quo)\.?$/i;
 
+// 20 Nov 2026 (fix A): some bills change a place or a thing, not a figure (S. 32: where a federal court may sit). A row
+// is concrete when one side names a place, body or thing by its proper name that the other side does not.
+const properNames = (text: string) => new Set(text.split(/(?<=[.!?;:])\s+/).flatMap(sentence => sentence.trim().split(/\s+/).slice(1)).map(w => w.replace(/^[("“‘']+|[)"”’',.;:!?]+$/g, "")).filter(w => /^[A-Z][a-z]{2,}/.test(w)));
+function namesADifferentThing(today: string, ifPassed: string): boolean {
+  const a = properNames(today), b = properNames(ifPassed);
+  return [...b].some(w => !a.has(w)) || [...a].some(w => !b.has(w));
+}
+
 /** Why a "Today → If this passes" row is too vague to keep, or null when it is concrete. */
 export function vagueChangeRow(row: ChangeRow): string | null {
   const t = `${row.before?.trim() ? `${row.before.trim()} ` : ""}${row.today.trim()}`.trim(), p = row.ifPassed.trim();
   if (t.split(/\s+/).length < 4 || p.split(/\s+/).length < 4) return "each side needs a full statement";
   if (t.toLowerCase() === p.toLowerCase()) return "both sides say the same thing";
   if (VAGUE_ROW.test(t) || VAGUE_ROW.test(p) || fillerIn(`${t} . ${p}`).length) return "it does not say exactly what changes";
-  if (!HAS_SPECIFIC.test(`${t} ${p}`) && !(CONTRAST.test(t) || CONTRAST.test(p))) return "it has no number, date or clear rule (may / may not, must / need not)";
+  if (!HAS_SPECIFIC.test(`${t} ${p}`) && !(CONTRAST.test(t) || CONTRAST.test(p)) && !namesADifferentThing(t, p)) return "it has no number, date or clear rule (may / may not, must / need not)";
   return null;
 }
 
