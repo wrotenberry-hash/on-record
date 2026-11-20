@@ -171,7 +171,7 @@ async function researchOneWaitingCase(): Promise<{ status: string; representatio
   return { status: draft.status ?? "COMPLETE", representationId: pending.id };
 }
 
-async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown; loop?: unknown; hearings?: unknown }> {
+async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { status: "FAILED"; error: string }) & { texas?: unknown; loop?: unknown; hearings?: unknown; changes?: unknown }> {
   let federal: IngestSummary | { status: "FAILED"; error: string };
   const started = Date.now(), fedBudget = Math.max(20_000, Math.round(budgetMs * 0.75));
   try { federal = await runFederalIngest({ budgetMs: fedBudget, trigger: "scheduled" }); }
@@ -193,7 +193,10 @@ async function federalStep(budgetMs = 150_000): Promise<(IngestSummary | { statu
   // Persuasion and retention round (18 Nov): tell readers what happened to the bills they answered or follow. Safe on every
   // update: one notice per reader, bill and event, and only the run that writes a notice sends it.
   const loop = await import("@/lib/loop/run").then(m => m.runLoop()).catch(error => ({ error: (error instanceof Error ? error.message : "loop notices failed").slice(0, 200) }));
-  return { ...federal, texas, loop, hearings };
+  // Suggest changes (20 Nov 2026): menus of changes are drafted in a run of their own (its own time and its own monthly
+  // limit), started here once the bills and hearing dates are fresh. One request; it never starts another.
+  const changes = await import("@/lib/changes/fire").then(m => m.fireChangeMenus(origin)).catch(() => false);
+  return { ...federal, texas, loop, hearings, changes };
 }
 
 /**

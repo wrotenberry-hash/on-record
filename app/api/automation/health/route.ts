@@ -198,6 +198,8 @@ export async function GET(request: Request) {
     casesArchived: await archivedCount().catch(() => "unavailable" as const),
     feedback: await feedbackCounts().catch(() => "unavailable" as const),
     ownerEmails: (await import("@/lib/monitoring-runtime")).ownerEmailsEnabled() ? "on" : "off", contactEmailConfigured: !!process.env.PUBLIC_CONTACT_EMAIL?.trim(),
+    // Suggest changes (20 Nov 2026): menus drafted and waiting for the editor, the month's spend against its own limit. Counts only.
+    changes: await import("@/lib/changes/run").then(m => m.changeCounts()).catch(() => "unavailable" as const),
     // Round F: summary quality (re-review over 90 days) and party parity.
     quality: await import("@/lib/analysis/quality").then(async m => { const [r, p] = await Promise.all([m.rereviewSummary(90), m.parityReport()]);
       return { rereview90d: { checked: r.checked, passed: r.passed, held: r.held, heldByWrongRules: r.heldByWrongRules, stillDownByWrongRules: await m.wronglyHeldBillIds().catch(() => [] as string[]), errors: r.errors, topPatterns: r.patterns.slice(0, 3) }, parity: { summaries: p.summaries, enough: p.enough, findings: p.findings, byParty: p.stats } }; }).catch(() => "unavailable" as const),

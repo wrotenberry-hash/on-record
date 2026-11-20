@@ -41,7 +41,7 @@ const askModel: Ask = async (model, name, instructions, input, schema, purpose, 
   const key = process.env.OPENAI_API_KEY?.trim() || "";
   if (!key) throw Error("no model key");
   const response = await responseRequest(key, model, { instructions, input, max_output_tokens: maxOutputTokens, timeoutMs: 100_000, text: { format: { type: "json_schema", name, strict: true, schema } } }, { purpose, refId });
-  return { text: outputText(response).map(x => x.text ?? "").join(""), costUsd: callCost(model, response.usage, 0, priceTable(process.env.OPENAI_PRICES_JSON)) };
+  return { text: outputText(response).map(x => x.text ?? "").join(""), costUsd: callCost(model, response.usage, 0, priceTable(process.env.OPENAI_PRICES_JSON)).usd };
 };
 
 export type MenuOutcome = { billKey: string; label: string; status: "review" | "closed" | "failed" | "skipped"; groups: number; options: number; costUsd: number; notes: string[] };
