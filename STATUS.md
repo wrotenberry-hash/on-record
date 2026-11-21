@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-21 12:05 UTC (the fixes for what the trial showed are built and not run; the second summary trial was run at 11:14 UTC and failed: 0 of 5 cores passed; nothing readers see changed and the wider run is not started; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-21 11:45 UTC (the fixes for what the trial showed are built and not run; the second summary trial was run at 11:14 UTC and failed: 0 of 5 cores passed; nothing readers see changed and the wider run is not started; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
