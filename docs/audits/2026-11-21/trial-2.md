@@ -32,15 +32,16 @@ against their full sources a second time, because none passed.
    findings. A bill's text says what it adds or strikes; it rarely says how things stand now. The written rules demand
    a "today" side (and, for a bill that cancels a rule, a "before the rule" side). The reading rejects whatever is
    written there: "The bill adds this as a new requirement.", "The authorization ends in 2026." (the bill says only
-   "striking 2026 and inserting 2031"). Two of the owner's rules pull against each other here; the writer cannot
-   satisfy both.
+   "striking 2026 and inserting 2031"). The writer had been told to write exactly that first line, and the reading had been told to reject any
+   description of today that no passage states: the build's two instructions disagreed (found after the trial; O-219).
 2. **The reading counts a fair plain paraphrase as a fault.** 3 of 5 (H.R. 7128, H.R. 4541, H.R. 1181), 5 findings.
    "the Senate sent it to a health committee" for "referred to the Committee on Health, Education, Labor, and
    Pensions"; "other payment platforms" for "other P2P platforms"; "a federal backup that pays part of private
    insurers' losses" for "covers a portion of losses incurred by private insurers".
 3. **The reading counts a plain-words explanation of a term as a fault.** 1 of 5 (S.J.Res. 197), 5 findings.
-   "enrollments (the number of people signed up)"; "State-run health plan websites" for "State Exchanges". The rule
-   that every term be explained pulls against the rule that nothing be said that no passage says.
+   "enrollments (the number of people signed up)"; "State-run health plan websites" for "State Exchanges". Found after the
+   trial: these explanations are not the writer's. A program attaches them from the site's reviewed list, and the
+   reading should not have been given them (O-219).
 4. **Corrections copied the source's legal wording, and the text then broke the plain-language limits.** 4 of 5. The
    reading's "Correct it to" lines were long and legal ("inserts 'and College Station' in 28 U.S.C. 124(b)(2)"); the
    writer used them. In plain English ran over 80 words in 3; a bullet or row ran long in 2; an abbreviation came in
