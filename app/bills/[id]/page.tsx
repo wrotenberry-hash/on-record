@@ -183,16 +183,30 @@ export default async function BillPage({ params, searchParams }: { params: Promi
       {held && <div className="held-note" role="note"><b>Held for review.</b> Readers will not see this summary until {heldByReading ? "it is rewritten" : "an editor approves it"}{heldByReading ? `: it was read against its sources and misstates a detail. ${heldByReading}` : analysis?.queue ? ` (${queueReason(analysis.queue.reason)}).` : "."} <Link href="/editor/analysis">Review it</Link></div>}
 
       {st && <>
-        {/* Owner review, 17 Nov: the old rule, the new rule and what this bill would do come first; background follows. */}
+        {/* Owner, 21 Nov 2026: "Order of the open sections must be: headline, plain-English part, how it works today, what would
+            change, where it stands, the reader's question. 'Today' always comes before 'what would change'." (Earlier, 17 Nov,
+            what would change came first.) */}
+        <div className="fed-section"><h2>How it works today <AnalysisBadge /></h2>
+          <ul className="analysis-list">{st.howItWorksToday.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul>
+          {primers.filter(p => p.kind === "topic" || !(has("whyNow") && st.whyNow?.trim())).map(primerBox)}</div>
         <div className="fed-section"><h2>{rowLabels({ enacted: isLaw, threeStates: st.changes.some(r => r.before?.trim()) }).heading} <AnalysisBadge /></h2>
           <ul className="change-rows">{st.changes.map((r, i) => { const l = rowLabels({ enacted: isLaw, threeStates: !!r.before?.trim() }); return <li key={i}>{r.label && <h3>{r.label}</h3>}
             {r.before?.trim() && <p><b>{l.before}:</b> {r.before}</p>}
             <p><b>{l.today}:</b> {r.today}</p><p><b>{l.ifPassed}:</b> {r.ifPassed} {cite(r.source)}</p></li>; })}</ul></div>
-        <div className="fed-section"><h2>How it works today <AnalysisBadge /></h2>
-          <ul className="analysis-list">{st.howItWorksToday.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul>
-          {primers.filter(p => p.kind === "topic" || !(has("whyNow") && st.whyNow?.trim())).map(primerBox)}</div>
       </>}
 
+      {/* Owner, 21 Nov 2026: "fold the step-by-step status list too, leaving one line on where the bill stands." */}
+      <div className="fed-section" id="stands"><h2>Where it stands <OfficialBadge /></h2>
+        {changeWindow ? <p className="stands-line">{changeWindow.where}</p>
+          : bill.latestActionText ? <p className="stands-line"><Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
+          : <p className="meta">No action recorded yet.</p>}
+      </div>
+
+      {/* Owner, 21 Nov 2026: the core stays open (headline, plain English, what would change, how it works today, where it
+          stands, the reader's question); every other section is one tappable heading with a short hint. */}
+      {voice && voiceAsk && <VoteBox billKey={bill.id} question={voiceAsk.question} plain={voiceAsk.plain} settledLine={voiceAsk.line} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/bills/${bill.id}`} foldTotals />}
+      <div className="fold-first" />
+      <Fold id="steps" title="Every step so far" count={timeline ? timeline.steps.length : null} hint="and whether this bill can still be changed" badge={<OfficialBadge />}>
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
         <WindowBlock w={changeWindow} />
         {/* Shown only when the text is stored here, section by section (today: bills a menu of changes was drafted for). */}
@@ -203,12 +217,7 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           : <p className="meta">No action recorded yet.</p>}
         {sponsor && <p className="meta">Sponsor: {shared ? sponsor.fullName : <Link href={`/politicians/${sponsor.id}`}>{sponsor.fullName}</Link>}{cosponsors?.sponsor ? ` (${cosponsors.sponsor.party})` : ""}{cosponsors && cosponsors.total > 0 ? <> · {cosponsors.total} cosponsor{cosponsors.total === 1 ? "" : "s"}: {Object.entries(cosponsors.byParty).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${partyName(p)} ${n}`).join(", ")}{cosponsors.withdrawn ? ` (${cosponsors.withdrawn} withdrew)` : ""}</> : ""}</p>}
         {bill.introducedAt && <p className="meta">Introduced {shortDate(bill.introducedAt)}</p>}
-      </div>
-
-      {/* Owner, 21 Nov 2026: the core stays open (headline, plain English, what would change, how it works today, where it
-          stands, the reader's question); every other section is one tappable heading with a short hint. */}
-      {voice && voiceAsk && <VoteBox billKey={bill.id} question={voiceAsk.question} plain={voiceAsk.plain} settledLine={voiceAsk.line} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/bills/${bill.id}`} foldTotals />}
-      <div className="fold-first" />
+      </div></Fold>
       {st ? <>
         {has("whyNow") && st.whyNow?.trim() ? <Fold id="why-now" title="Why now" hint={wordsHint(st.whyNow)} badge={<AnalysisBadge />}><div className="fed-section"><h2>Why now</h2><p>{st.whyNow}</p>
           {primers.filter(p => p.kind === "process").map(primerBox)}</div></Fold> : null}

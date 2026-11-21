@@ -20,14 +20,15 @@ test("the hint beside a closed heading: a count for a list, the first words for 
 test("the core stays open and in order; the reader's question comes right after where the bill stands", () => {
   const page = read("app/bills/[id]/page.tsx");
   const at = x => { const i = page.indexOf(x); assert.ok(i > 0, x); return i; };
-  const order = [at('<h1 className="bill-headline">'), at("<h2>In plain English"), at("rowLabels({ enacted: isLaw, threeStates: st.changes.some"), at("<h2>How it works today"), at("<h2>Status <OfficialBadge /></h2>"), at("<VoteBox billKey={bill.id}"), at('<Fold id="cost"')];
+  // Owner, 21 Nov 2026: "headline, plain-English part, how it works today, what would change, where it stands, the reader's question. 'Today' always comes before 'what would change'."
+  const order = [at('<h1 className="bill-headline">'), at("<h2>In plain English"), at("<h2>How it works today"), at("rowLabels({ enacted: isLaw, threeStates: st.changes.some"), at("<h2>Where it stands <OfficialBadge /></h2>"), at("<VoteBox billKey={bill.id}"), at('<Fold id="steps"'), at('<Fold id="cost"')];
   assert.deepEqual([...order].sort((a, b) => a - b), order);
-  for (const open of ["<h2>In plain English", "<h2>How it works today", "<h2>Status <OfficialBadge /></h2>"]) assert.doesNotMatch(page, new RegExp(`<Fold[^>]*>\\s*<div className="fed-section">${open.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`), `${open} is never inside a fold`);
+  for (const open of ["<h2>In plain English", "<h2>How it works today", "<h2>Where it stands <OfficialBadge /></h2>"]) assert.doesNotMatch(page, new RegExp(`<Fold[^>]*>\\s*<div className="fed-section">${open.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`), `${open} is never inside a fold`);
 });
 
 test("every other section is one tappable heading with a hint", () => {
   const page = read("app/bills/[id]/page.tsx");
-  for (const id of ["why-now", "who", "cost", "you", "reasons", "unknowns", "versions", "amendments", "contact", "votes", "share", "sources"]) assert.match(page, new RegExp(`<Fold id="${id}" title=`), id);
+  for (const id of ["steps", "why-now", "who", "cost", "you", "reasons", "unknowns", "versions", "amendments", "contact", "votes", "share", "sources"]) assert.match(page, new RegExp(`<Fold id="${id}" title=`), id);
   assert.match(page, /<Fold id="reasons" title="Reasons for and against" count=\{s\.caseFor\.length \+ s\.caseAgainst\.length\}/, "“Reasons for and against (4)”");
   assert.match(page, /<Fold id="who" title="Who it affects" count=\{s\.whoItAffects\.length\}/);
   assert.match(read("components/bills/fold.tsx"), /\{title\}\{count != null \? ` \(\$\{count\}\)` : ""\}/, "the count sits beside the title");
@@ -63,4 +64,15 @@ test("the residents' totals fold on the bill page; why now sits with the other f
   assert.match(page, /<VoteBox billKey=\{bill\.id\}[^\n]* foldTotals \/>\}/);
   assert.match(box, /foldTotals \? <Fold id="residents" title="What residents say"/);
   assert.ok(page.indexOf('<Fold id="why-now"') > page.indexOf("<VoteBox billKey={bill.id}"), "why now is below the reader's question");
+});
+
+test("where it stands is one line; the step-by-step list folds with the rest of the status", () => {
+  const page = read("app/bills/[id]/page.tsx");
+  assert.match(page, /<h2>Where it stands <OfficialBadge \/><\/h2>\s*\{changeWindow \? <p className="stands-line">\{changeWindow\.where\}<\/p>/);
+  const fold = page.slice(page.indexOf('<Fold id="steps"'), page.indexOf("</Fold>", page.indexOf('<Fold id="steps"')));
+  for (const inside of ["<WindowBlock w={changeWindow} />", "<Timeline steps={timeline.steps}", "Sponsor:", "Introduced {shortDate(bill.introducedAt)}"]) assert.ok(fold.includes(inside), inside);
+  assert.match(page, /<Fold id="steps" title="Every step so far" count=\{timeline \? timeline\.steps\.length : null\}/);
+  // The Texas bill page keeps the same order of the two sections.
+  const tx = read("components/texas/summary.tsx");
+  assert.ok(tx.indexOf("<h2>How it works today") < tx.indexOf("<h2>What would change"), "today before what would change, there too");
 });
