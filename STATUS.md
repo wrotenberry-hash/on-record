@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-21 11:20 UTC (the second summary trial is being run now, started between the two scheduled updates, not at 13:00 UTC; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-21 11:45 UTC (the second summary trial was run at 11:14 UTC and failed: 0 of 5 cores passed; nothing readers see changed and the wider run is not started; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
@@ -12,6 +12,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Done
 
+- **The second summary trial failed: 0 of 5 cores passed (21 Nov, 11:14 to 11:33 UTC; O-218; docs/audits/2026-11-21/trial-2.md).** The owner's rule was at least 4 of 5. Listing the facts first worked, correcting in place worked, and the reasons for and against passed in all five. The cores failed because the claim-by-claim reading is stricter than the writing rules allow: it rejects the "today" side of a change (a bill's text rarely says how things stand now), a fair plain paraphrase, and a plain explanation of a term, and its corrections come back in legal wording that breaks the length limits. Cost $3.33 (estimate about $2); summaries have used $16.98 of their $25 this month. Nothing readers see changed: 12 on show, the five still hidden. The wider run is not started.
 - **A summary run can be started between the two scheduled updates (owner, 21 Nov: "Run the second summary trial now instead of waiting for the 13:00 UTC run"; O-217).** A paced start (one every 10 minutes) for the same chain the 13:00 run starts. It takes neither of the day's two automatic runs, and it is held by the same caps. The second trial of the same five bills was started with it.
 - **Address entry: "Check address", the matched address shown back, and who the address goes to (owner, 21 Nov, trial feedback; O-214; pull request 21).** No suggestions as you type and no new service: the form says so, the button reads "Check address", and the address the Census Bureau matched is shown for a yes before it is saved. Under the field: "Your address is checked once against the U.S. Census Bureau and is never sent to an advertiser or data company."
 - **Bill page: the core open, everything else one tappable heading; 90-day sign-in (owner, 21 Nov, trial feedback; O-212, O-213; pull request 20).** A bill page now shows the headline, plain English, how it works today, what would change, one line on where it stands and the reader's question; fourteen other sections are each one heading with a short hint, and a reader's open or closed choices are remembered on their device. For H.R. 2102 the page went from about 10 phone screens to 6. A trial reader stays signed in for 90 days from the latest visit.
