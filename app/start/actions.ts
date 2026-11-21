@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { refresh, revalidatePath } from "next/cache";
 import { viewerAccess, currentAppUserId } from "@/lib/viewer";
-import { currentLocation, saveLocation, type Location } from "@/lib/location";
+import { currentLocation, decodeLocation, encodeLocation, saveLocation, type Location } from "@/lib/location";
 import { federalLegislators, geocodeAddress, geocodePoint } from "@/lib/federal/legislators";
 import { pinInRange, roundPin } from "@/lib/map-rules";
 import { txLegislatorsFor } from "@/lib/texas/queries";
@@ -26,7 +26,16 @@ import { followAllAt, markIssuesAsked } from "@/lib/follow-defaults";
 const NEXT = new Set(["/start", "/legislators", "/"]);
 const nextPath = (v: unknown) => (NEXT.has(String(v)) ? String(v) : "/start");
 
-export type PlaceState = { error: PlaceError | null; message: string | null; zip: string; street: string; n: number };
+export type PlaceState = { error: PlaceError | null; message: string | null; zip: string; street: string; n: number;
+  /** The address the Census Bureau matched, shown back to the reader to confirm before anything is saved. */ confirm?: { matched: string } | null };
+
+/**
+ * Owner, 21 Nov 2026 (a trial reader typed his address and waited for suggestions; option A, no new key): a "Check
+ * address" button, and "showing the matched address back for confirmation". The match waits here, on the reader's own
+ * device, for ten minutes: only the ZIP and the district ids, never the address. Saying yes saves it without asking the
+ * Census Bureau a second time, so "checked once" stays true.
+ */
+const PENDING_COOKIE = "or_place_pending";
 
 /**
  * ZIP alone, or ZIP and street address. The street address is sent once to the Census Bureau's geocoder to find the
@@ -39,6 +48,20 @@ export async function findPlace(prev: PlaceState, formData: FormData): Promise<P
   const fail = (error: PlaceError): PlaceState => ({ error, message: PLACE_ERRORS[error], zip: typedZip, street: typedStreet, n: (prev?.n ?? 0) + 1 });
   const access = await viewerAccess();
   if (!access.allowed) return fail("closed");
+  // "Yes, that is my address": save the match that was shown, as it was found.
+  if (formData.get("confirm") === "1") {
+    const jar = await cookies(), [pendingZip, encoded] = (jar.get(PENDING_COOKIE)?.value ?? "").split("~"), pending = decodeLocation(encoded), okZip = cleanZip(pendingZip ?? "");
+    if (pending && okZip) {
+      jar.delete(PENDING_COOKIE);
+      const uid = access.invite || access.editor ? await currentAppUserId(true) : null, hadPlace = !!(await currentLocation(uid).catch(() => null));
+      await saveLocation(uid, pending); await rememberZip(okZip);
+      await countEvent("lookup_address_confirmed", access.audience);
+      if (!hadPlace) { await countEvent("onboarding_zip", access.audience); await countEvent("flow_zip", access.audience); }
+      if (await everyoneFound(pending)) await countEvent("flow_address", access.audience);
+      redirect(nextPath(formData.get("next")));
+    }
+    // The ten minutes ran out, or the device kept nothing: the address is simply checked again below.
+  }
   const zip = cleanZip(typedZip), place = zip ? await zipPlace(zip) : null;
   if (!zip || !place) { await countEvent("lookup_zip_failed", access.audience); return fail(zip ? "unknown_zip" : "need_zip"); }
   const userId = access.invite || access.editor ? await currentAppUserId(true) : null;
@@ -56,6 +79,11 @@ export async function findPlace(prev: PlaceState, formData: FormData): Promise<P
       source: / & /.test(d.matchedAddress ?? "") ? "nearby" : "address" };
     // 20 Nov 2026: counted apart, so "the address matched but named no House district" can be told from "it did not match".
     if (!loc.congressional) await countEvent("lookup_address_no_district", access.audience);
+    // Show the reader what was matched before it is saved. Nothing is kept on the site yet.
+    if (d.matchedAddress?.trim()) {
+      (await cookies()).set(PENDING_COOKIE, `${zip}~${encodeLocation(loc)}`, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 600 });
+      return { error: null, message: null, zip: typedZip, street: typedStreet, n: (prev?.n ?? 0) + 1, confirm: { matched: d.matchedAddress.trim() } };
+    }
   } else {
     await countEvent("lookup_zip_ok", access.audience);
     loc = { state: place.state, congressional: place.congressional, stateUpper: null, stateLower: null, source: "zip" };

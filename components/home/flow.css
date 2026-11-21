@@ -92,3 +92,9 @@
 @media(max-width:700px){.flow-landing{padding:10px 0 20px}.flow-landing h1{font-size:28px}.flow-landing .lede{font-size:17px}}
 .personal h2{font:600 21px/1.3 Georgia,serif;margin:22px 0 8px;text-wrap:balance}
 @media(max-width:700px){.personal{padding:0}}
+
+/* 21 Nov 2026: the matched address shown back to confirm (components/home/place-form.tsx). */
+.place-form .place-promise{margin:4px 0 8px}
+.place-confirm{margin:0 0 12px;padding:12px 14px}.place-confirm p{margin:0 0 6px}.place-matched{font-size:17px}
+.place-confirm-actions{display:flex;flex-wrap:wrap;gap:10px}.place-confirm-actions button{margin-top:4px}
+.place-form button.secondary{background:#fff;color:#163b3c;border:2px solid #163b3c}

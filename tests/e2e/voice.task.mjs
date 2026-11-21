@@ -73,7 +73,8 @@ export const tasks = [
     run: withTexas(async t => {
       await t.start();
       await t.type("input[name=zip]", "78701"); await t.type("input[name=street]", "1100 Congress Ave");
-      await t.tap(".place-form button[type=submit]", "Show my legislators");
+      await t.tap(".place-form button[type=submit]", "Check address");
+      await t.tap(".place-confirm button[name=confirm]", "Yes, show my legislators"); // 21 Nov 2026: the matched address is confirmed first
       await t.page.locator(".flow-cards .flow-card, .place-form [role=alert]").first().waitFor({ timeout: 30_000 });
       await t.page.goto(`/texas/bills/${SENATE_BILL}`, { waitUntil: "load" });
       await t.see("#your-view", "the voting box on a Texas bill");

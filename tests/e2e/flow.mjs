@@ -115,6 +115,8 @@ async function run(name, number, { zip, street, expectCards, chooseDistrict }) {
   await page.locator("input[name=zip]").first().pressSequentially(zip, { delay: TYPE_DELAY });
   if (street) await page.locator("input[name=street]").first().pressSequentially(street, { delay: TYPE_DELAY });
   await page.locator(".place-form button[type=submit]").first().tap(); taps++;
+  // 21 Nov 2026: a street address is shown back as the Census Bureau matched it, and saved on "Yes".
+  if (street) { await page.locator(".place-confirm button[name=confirm]").tap({ timeout: 60_000 }); taps++; }
   await page.locator(".flow-cards .flow-card").first().waitFor({ timeout: 60_000 });
   const legislatorsAt = seconds(t0), tapsToLegislators = taps;
   const lines = await page.locator(".flow-cards .flow-card .br-vote, .flow-cards .flow-card .flow-none").allInnerTexts();

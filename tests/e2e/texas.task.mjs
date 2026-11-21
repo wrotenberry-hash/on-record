@@ -95,7 +95,8 @@ async function lookUp(t) {
   await t.start();
   await t.type("input[name=zip]", "78701");
   await t.type("input[name=street]", "1100 Congress Ave");
-  await t.tap(".place-form button[type=submit]", "Show my legislators");
+  await t.tap(".place-form button[type=submit]", "Check address");
+  await t.tap(".place-confirm button[name=confirm]", "Yes, show my legislators"); // 21 Nov 2026: the matched address is confirmed first
   await t.page.locator(".flow-cards .flow-card, .place-form [role=alert]").first().waitFor({ timeout: 30_000 });
   const alert = await t.text(".place-form [role=alert]").catch(() => "");
   if (/did not answer/.test(alert)) t.blocked("The Census geocoder did not answer: run without --base (the runner's local stand-in answers it) or point the server's CENSUS_GEOCODER_BASE at a stand-in.", "needs keys");
@@ -108,7 +109,7 @@ const withTexas = run => async t => {
 };
 
 export const tasks = [
-  { id: "tx-find", name: "Texas: find my state senator and state representative from a street address", target: { taps: 1, seconds: 30 }, reader: "new",
+  { id: "tx-find", name: "Texas: find my state senator and state representative from a street address", target: { taps: 2, seconds: 30 }, reader: "new",
     run: withTexas(async (t, who) => {
       await lookUp(t);
       const names = (await t.page.locator(".flow-cards .flow-card:not(.flow-placeholder) .flow-name").allInnerTexts()).map(s => s.trim());
