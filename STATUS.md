@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-21 10:30 UTC (the bill page is shorter: the core open, the rest one tappable heading each; the second summary trial runs at 13:00 UTC today; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
+Updated 2026-11-21 11:20 UTC (the second summary trial is being run now, started between the two scheduled updates, not at 13:00 UTC; see the first entry under Done). Plain-language state of the On Record build. Technical detail lives in docs/BUILD_STATUS.md. Standing rules for every session: docs/OPERATING_RULES.md.
 
 ## Goal
 
@@ -12,6 +12,7 @@ A private checking instrument for political representations: a source's exact qu
 
 ## Done
 
+- **A summary run can be started between the two scheduled updates (owner, 21 Nov: "Run the second summary trial now instead of waiting for the 13:00 UTC run"; O-217).** A paced start (one every 10 minutes) for the same chain the 13:00 run starts. It takes neither of the day's two automatic runs, and it is held by the same caps. The second trial of the same five bills was started with it.
 - **Address entry: "Check address", the matched address shown back, and who the address goes to (owner, 21 Nov, trial feedback; O-214; pull request 21).** No suggestions as you type and no new service: the form says so, the button reads "Check address", and the address the Census Bureau matched is shown for a yes before it is saved. Under the field: "Your address is checked once against the U.S. Census Bureau and is never sent to an advertiser or data company."
 - **Bill page: the core open, everything else one tappable heading; 90-day sign-in (owner, 21 Nov, trial feedback; O-212, O-213; pull request 20).** A bill page now shows the headline, plain English, how it works today, what would change, one line on where it stands and the reader's question; fourteen other sections are each one heading with a short hint, and a reader's open or closed choices are remembered on their device. For H.R. 2102 the page went from about 10 phone screens to 6. A trial reader stays signed in for 90 days from the latest visit.
 - **Briefing on; three corrected summaries shown again; corrections page lists 22; ten new invites (owner, 20 Nov; O-208 to O-210; pull request 19).** The corrected text of H.R. 8483, H.R. 9600 and H.Con.Res. 93 is applied and the three are on show (12 of 161). The briefing's new format is on for readers. The corrections page lists the 13 hidden on 19 Nov and the 9 from 20 Nov, two of them now corrected. Ten new invite links (invites 26 to 35) are on Editor, Trial invites, in one box to copy.
