@@ -37,6 +37,12 @@ import { BRAND } from "@/lib/brand";
 // anything is written), two tiers (the core goes on show when it passes; each extended section only when it passes), and repair mode
 // (a named fault is corrected in place and only what changed is checked again).
 export const PROMPT_VERSION = "b13-2026-11-21";
+/**
+ * The version of the instructions that make the list of facts (EXTRACT_INSTRUCTIONS). It changes only when they do, so
+ * a new wording of the writer or of the reading does not pay for every bill's list again: in the second trial
+ * (21 Nov 2026) every passage of all five lists was found word for word, and the lists were not what failed.
+ */
+export const FACTS_VERSION = "b13-2026-11-21";
 /** A summary is written only from a list of at least this many facts whose passages were found in their sources. */
 export const MIN_FACTS = 8;
 const USER_AGENT = `${BRAND.userAgentName}/0.2 (+https://on-record-wrotenberry.vercel.app)`;
@@ -387,8 +393,8 @@ async function summarise(key: string, c: Candidate, limits: ReturnType<typeof an
   // picked up by the next run without paying for the list again. `tries` stops that from going round for ever.
   const factsKey = `summary:facts:${c.id}`, textVersion = version.code || version.packageId;
   const kept = await getCursor(db, factsKey).then(v => (v ? JSON.parse(v) as { v: string; text: string; facts: Fact[]; tries: number } : null)).catch(() => null);
-  const earlier = kept && kept.v === PROMPT_VERSION && kept.text === textVersion ? kept : null;
-  const tries = earlier?.tries ?? 0, remember = (list: Fact[], n: number) => setCursor(db, factsKey, JSON.stringify({ v: PROMPT_VERSION, text: textVersion, facts: list, tries: n })).catch(() => undefined);
+  const earlier = kept && kept.v === FACTS_VERSION && kept.text === textVersion ? kept : null;
+  const tries = earlier?.tries ?? 0, remember = (list: Fact[], n: number) => setCursor(db, factsKey, JSON.stringify({ v: FACTS_VERSION, text: textVersion, facts: list, tries: n })).catch(() => undefined);
   const again = earlier?.facts?.length ? verifiedFacts(earlier.facts, gathered.docs, parsed.text).kept : [];
   let facts: Fact[] = again.length >= MIN_FACTS ? again : [];
   if (facts.length) console.log(`SUMMARY_FACTS ${label} | ${facts.length} facts from the list made earlier (try ${tries + 1})`);

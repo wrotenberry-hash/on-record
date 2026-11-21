@@ -9,6 +9,7 @@
  * list and read a draft against it are in lib/analysis/claim-read.ts; what they are told is here, so the wording is
  * tested. Pure (one relative import), so node's test runner loads it: tests/two-tiers.test.mjs.
  */
+import { JARGON } from "./standard.ts";
 import { PART_LABEL, type Part } from "./tiers.ts";
 
 export type Fact = { id: string; fact: string; source: string; passage: string; /** A condition, exception, limit or "as estimated by" the source attaches to the fact; "" when none. */ qualifier: string;
@@ -67,7 +68,7 @@ export const FACT_RULES = `HOW TO USE THE FACTS LIST (required):
 - "exact words" keep their meaning. Use the word as written ("directs", "may", "shall", "authorizes", "every two years", "held in trust"), or keep it and add a plain explanation in parentheses. Never swap it for a near word: not "requires" for "directs", not "lets" for "shall", not "yearly" for "every other", not "public" for a report to committees, not "funds" for "authorizes".
 - A fact "said by" a person or body is theirs: credit it to exactly that person or body wherever it appears on the page, in their own terms ("Rep. X said …"; "one member's dissenting views in the committee report say …"), never to a wider body ("the committee minority") and never as a plain fact.
 - Never write about "the sources", "the records" or "the provided text". If the facts do not settle something, say so only in unknowns, in plain words ("It is not known whether …").
-- When no fact states what the law or rule is today on a point, the "today" line says only what the bill's own text shows ("The bill adds this as a new requirement."), never a guess about current law.
+- The "today" side of a "what would change" row (and "before the rule", for a bill that cancels a rule). Use a fact that states the current law or rule when the list has one. The bill's own amending words also show it: "by striking '2026' and inserting '2031'" shows the law says 2026 today, so write "The law says 2026." and name that fact. When the bill adds new words to a law ("by adding at the end", "by inserting after") and no fact states a current rule on the point, write exactly: "The law this bill amends has no such requirement today." (or "no such rule today" when the new words are not a requirement). When the bill's provision stands on its own and amends no law, write exactly: "The bill adds this as a new requirement." When a rule-cancelling bill's sources do not state the earlier rule on a point, write exactly: "The earlier rule on this point is not known." Never anything else about today that no passage shows.
 - No example, consequence or prediction that is not on the list. whatChangesForYou uses a kind of person a fact names (a borrower, a tribe's members, a federal employee) and says only what a fact says happens to them.
 - Each caseFor and caseAgainst argument names in "facts" the one fact whose passage holds its quote, and is credited to that fact's "said by", worded as the input's list of who may be credited gives it.`;
 
@@ -97,15 +98,22 @@ export const FACTS_SCHEMA = { type: "object", additionalProperties: false, requi
 /** What the model that reads a draft claim by claim is told. */
 export const READ_INSTRUCTIONS = `You check a plain-language summary of a U.S. bill, claim by claim. You get the FACTS list (each fact with the exact words of its official source) and the summary's items, each with the ids of the facts it rests on. The passages are the only truth. Use no outside knowledge, and assume nothing the passages do not say.
 For every item, compare each statement in it with the passages (and "keep with it" lines) of the facts it names. Report a problem when:
-- unsupported: the item states something its passages do not say: a consequence, an example, a prediction, a number, a purpose, an order of events, a description of how things are today.
+- unsupported: the item states something its passages do not say: a consequence, an example, a prediction, a number, a purpose, an order of events, a description of how things are today that neither a passage nor the bill's amending words show.
 - condition_dropped: a passage or its "keep with it" line carries a condition, exception, limit or "approximately", and the item states the fact without it, so it says more than the source.
-- word_swapped: a word with an exact meaning is replaced by a different one: "requires" for "directs"; "lets" for "shall"; "must" where the text says a person certifies that they will; "yearly" for "every two years"; "public" for a report to committees; "gives" or "transfers" for "held in trust"; "funds" for "authorizes"; a different name for a named thing.
+- word_swapped: a word with an exact meaning is replaced by a different one: "requires" for "directs"; "lets" for "shall"; "must" where the text says a person certifies that they will; "yearly" for "every two years"; "public" for a report to committees; "gives" or "transfers" for "held in trust"; "funds" for "authorizes"; a wrong name for a named thing (plain words for it are fine).
 - wrong_credit: something a person or body said (a fact with "said by") is stated as plain fact, or is credited to someone else, or to a wider or different body ("the committee", "the minority", "supporters", "Congress").
 - estimate_as_fact: an estimate or projection is stated as fact, without whose estimate it is.
 - about_sources: the item talks about "the sources", "the records", "the text provided" or what they do or do not say.
 An item with no fact ids (a line of "what we don't know", the voting question) is checked against the whole list: report it only when it asserts something no passage supports, swaps an exact word, or talks about the sources.
-A plain everyday paraphrase that keeps the meaning is NOT a problem. Do not report style, length, reading level or missing detail. A short explanation of a term in parentheses is fine when it adds no fact.
-For each problem give: part; index (the item's position in its list, counting from 0; -1 for a part that is one text); kind; "says": the item's words that are wrong; "fix": the corrected wording in plain words, using only the passages, or "remove" when no passage supports it.
+JUDGE MEANING, NOT WORDING. The summary is written for a reader with no background, in shorter and plainer words than its sources; that is its job. Report a problem only when a careful reader would come away believing something the passages do not say, or more than they say. These are right, not problems:
+- plainer words for the same thing: "sent it to a health committee" for "referred to the Committee on Health, Education, Labor, and Pensions"; "other payment platforms" for "other P2P platforms"; "pays part of private insurers' losses" for "covers a portion of losses incurred by private insurers"; "bars" or "bans" for "may not"; a short name for a long one once the long one has been given.
+- less detail: a list shortened, a section number left out, a date given without its year when the year is plain. Leaving something out is a problem only when it is a condition, exception, limit or "approximately" that changes who or what is covered (condition_dropped).
+- what the bill's own amending words show about the law today: "by striking '2026' and inserting '2031'" supports "The law says 2026 today"; "by adding at the end the following" or "by inserting after" supports the fixed line "The law this bill amends has no such requirement today." (or "no such rule today"). The fixed line "The bill adds this as a new requirement." is supported when the fact it names is the bill's own text.
+- a plain statement that something is not known ("It is not known whether …", "The earlier rule on this point is not known."): report it only when a passage on the list does answer it.
+- a state, country or everyday fact any adult knows, added to a place or body the passage names ("College Station, Texas" where the passage gives the Southern District of Texas).
+word_swapped is only for a word whose change alters what someone must do, may do, gets or when: the examples above. It is not for a plainer synonym.
+Do not report style, length, reading level or missing detail. A short explanation of a term in parentheses is fine when it adds no fact about this bill.
+For each problem give: part; index (the item's position in its list, counting from 0; -1 for a part that is one text); kind; "says": the item's words that are wrong; "fix": the corrected wording, or "remove" when no passage supports it. Write every fix the way the summary is written: plain everyday words, no longer than the words it replaces, no section or code numbers ("28 U.S.C. 124(b)(2)", "Section 399NN(h)"), no abbreviation that is not spelled out, and never the source's sentence copied whole.
 coreWrong: true only when the headline or the plain-English part describes a different bill from the one the facts describe (it gets wrong what the bill does at all, not a detail). Otherwise false, with coreWrongWhy "".`;
 
 const PARTS_ENUM = ["headline", "plainEnglish", "howItWorksToday", "changes", "whatItDoes", "whoItAffects", "whatChangesForYou", "caseFor", "caseAgainst", "unknowns", "whyNow", "question"];
@@ -130,16 +138,30 @@ export function claimFailures(problems: readonly ReadProblem[], read: readonly P
   return out;
 }
 
+/**
+ * 21 Nov 2026 (second trial, S.J.Res. 197): the reading reported "enrollments (the number of people signed up)" and
+ * "risk adjustment (moving money from insurers with healthier customers to insurers with sicker ones)" as saying
+ * something no passage says. Those words are not the writer's: a program attaches them from the site's reviewed list
+ * of explanations (lib/analysis/standard.ts, lib/analysis/repair.ts). They explain a term; they claim nothing about
+ * the bill. So they are taken out of what the reading is given, and only the summary's own statements are read.
+ */
+const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export function withoutReviewedExplanations(text: string): string {
+  let out = text;
+  for (const t of JARGON) out = out.replace(new RegExp(`\\s*\\(${escapeRe(t.plain)}\\)`, "gi"), "");
+  return out;
+}
+
 /** What the reader of a draft is given: the facts, then the items of the parts to read, each beside its fact ids. */
 export function readingInput(d: Record<string, unknown>, facts: readonly Fact[], parts: readonly Part[]): string {
-  const items: Array<Record<string, unknown>> = itemsOf(d).filter(i => parts.includes(i.part)).map(i => ({ part: i.part, index: i.index, text: i.text, ...(i.creditedTo ? { creditedTo: i.creditedTo } : {}), facts: i.facts }));
-  if (parts.includes("unknowns")) (Array.isArray(d.unknowns) ? d.unknowns : []).forEach((u, i) => items.push({ part: "unknowns", index: i, text: String(u), facts: [] }));
+  const items: Array<Record<string, unknown>> = itemsOf(d).filter(i => parts.includes(i.part)).map(i => ({ part: i.part, index: i.index, text: withoutReviewedExplanations(i.text), ...(i.creditedTo ? { creditedTo: i.creditedTo } : {}), facts: i.facts }));
+  if (parts.includes("unknowns")) (Array.isArray(d.unknowns) ? d.unknowns : []).forEach((u, i) => items.push({ part: "unknowns", index: i, text: withoutReviewedExplanations(String(u)), facts: [] }));
   if (parts.includes("question") && typeof d.question === "string" && d.question.trim()) items.push({ part: "question", index: -1, text: d.question, facts: [] });
   return `${factsBlock(facts)}\n\nITEMS TO CHECK (JSON; "creditedTo" is who a reason is credited to on the page):\n${JSON.stringify(items)}`;
 }
 
 /** Repair mode (owner, 20 Nov 2026): "correct that item in place from the source and re-check only what changed." */
-export const REPAIR_PREFACE = `REPAIR MODE. You are given a summary that is already written, the FACTS list it rests on, and the problems found in it. Correct ONLY the items the problems name, in place, from the passages on the FACTS list. Where a problem gives a correction, use it, shortened if a length limit needs it. Where it says to take something out, take it out, and write nothing in its place that is not on the list.
+export const REPAIR_PREFACE = `REPAIR MODE. You are given a summary that is already written, the FACTS list it rests on, and the problems found in it. Correct ONLY the items the problems name, in place, from the passages on the FACTS list. Where a problem gives a correction, use its meaning in the summary's own plain words; a correction never lifts a limit. Count the words of each item you change: the plain-English part stays at 80 words or fewer, a "how it works today" bullet at 40, each side of a "what would change" row at 38. If a correction would pass a limit, drop a lesser detail from the same item. Bring in no abbreviation, section number or code citation ("U.S.C.") with a correction. Where it says to take something out, take it out, and write nothing in its place that is not on the list.
 Return the whole summary in the schema. Every part with no problem is copied exactly as it is, character for character. Do not reword, reorder or improve anything else; a program throws away every change outside the named parts.
 The writing standard below still applies to what you correct.
 

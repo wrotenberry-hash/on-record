@@ -175,7 +175,7 @@ test("what the writer, the reader of the draft and the corrector are told", () =
   assert.match(EXTRACT_INSTRUCTIONS, /passage: 8 to 60 words copied EXACTLY and in a row from that source/);
   assert.match(EXTRACT_INSTRUCTIONS, /the signer or signers of dissenting, minority or additional views, by name/);
   for (const kind of ["unsupported", "condition_dropped", "word_swapped", "wrong_credit", "estimate_as_fact", "about_sources"]) assert.match(READ_INSTRUCTIONS, new RegExp(`- ${kind}:`));
-  assert.match(READ_INSTRUCTIONS, /A plain everyday paraphrase that keeps the meaning is NOT a problem\./);
+  assert.match(READ_INSTRUCTIONS, /JUDGE MEANING, NOT WORDING\./);
   assert.match(REPAIR_PREFACE, /Correct ONLY the items the problems name, in place, from the passages on the FACTS list\./);
   const input = readingInput(draftOf({ unknowns: ["It is not known when."], caseFor: [{ argument: "Congress never approved it.", attribution: "Rep. Meeks", source: "FLOOR", quote: "q", facts: ["F8"] }] }), FACTS, ["headline", "caseFor", "unknowns"]);
   assert.match(input, /"part":"headline","index":-1/); assert.match(input, /"creditedTo":"Rep\. Meeks"/); assert.match(input, /"part":"unknowns","index":0/);
