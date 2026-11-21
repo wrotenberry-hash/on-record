@@ -68,7 +68,7 @@ test("the residents' totals fold on the bill page; why now sits with the other f
 
 test("where it stands is one line; the step-by-step list folds with the rest of the status", () => {
   const page = read("app/bills/[id]/page.tsx");
-  assert.match(page, /<h2>Where it stands <OfficialBadge \/><\/h2>\s*\{changeWindow \? <p className="stands-line">\{changeWindow\.where\}<\/p>/);
+  assert.match(page, /<h2>Where it stands <OfficialBadge \/><\/h2>\s*\{changeWindow \? <p className="stands-line">\{standsLine\(changeWindow\)\}<\/p>/);
   const fold = page.slice(page.indexOf('<Fold id="steps"'), page.indexOf("</Fold>", page.indexOf('<Fold id="steps"')));
   for (const inside of ["<WindowBlock w={changeWindow} />", "<Timeline steps={timeline.steps}", "Sponsor:", "Introduced {shortDate(bill.introducedAt)}"]) assert.ok(fold.includes(inside), inside);
   assert.match(page, /<Fold id="steps" title="Every step so far" count=\{timeline \? timeline\.steps\.length : null\}/);

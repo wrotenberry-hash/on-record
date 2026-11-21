@@ -156,7 +156,8 @@ export function federalWindow(f: FederalFacts): BillWindow | null {
   const sources: Source[] = [{ label: "All actions on this bill (Congress.gov)", url: f.actionsUrl }, ...h.sources];
   const floorSource = (): Source[] => (f.floorUrl ? [{ label: "This week's floor schedule", url: f.floorUrl }] : []);
   const make = (place: WindowPlace, state: WindowState, where: string, changes: string, extra: Source[] = []): BillWindow =>
-    ({ place, state, where, changes, hearing: h.hearing, hearingAt: h.hearingAt, sources: [...sources, ...extra].filter((s, i, a) => a.findIndex(x => x.url === s.url) === i) });
+    ({ place, state, where, changes, hearing: h.hearing, hearingAt: h.hearingAt, sources: [...sources, ...extra].filter((s, i, a) => a.findIndex(x => x.url === s.url) === i),
+      ...(place === "committee" || place === "hearing_scheduled" ? { chamber: O } : {}) });
 
   if (f.stage === "law") return { ...make("final", "closed", `Became law${on(f.stageDate)}.`, CHANGES.law), settled: "law" };
   if (f.stage === "vetoed") return { ...make("final", "closed", `Vetoed by the President${on(f.stageDate)}.`, CHANGES.vetoed("Congress")), settled: "not_law" };
@@ -271,7 +272,7 @@ export function texasWindow(f: TexasFacts): BillWindow | null {
     if (f.reportedOut) return make("out_of_committee", "open", `Out of committee, waiting for a vote by the full ${C ?? "chamber"}.`, CHANGES.floor(C ?? "chamber"));
     // The committee's name is free text from the bill's history: use it only when it reads as a plain name.
     const name = f.committee && /^[A-Za-z][A-Za-z&,.'’ -]{2,79}$/.test(f.committee.name.trim()) ? f.committee.name.trim() : null;
-    return make("committee", "open", name ? `In committee: the ${C ? `${C} ` : ""}committee on ${name} has it.` : C ? `In committee in the ${C}.` : "In committee.", CHANGES.committee);
+    return { ...make("committee", "open", name ? `In committee: the ${C ? `${C} ` : ""}committee on ${name} has it.` : C ? `In committee in the ${C}.` : "In committee.", CHANGES.committee), ...(C ? { chamber: C } : {}) };
   }
   return make("introduced", "open", O ? `Filed in the ${O}. No committee has it yet.` : "Filed. No committee has it yet.", CHANGES.introduced);
 }

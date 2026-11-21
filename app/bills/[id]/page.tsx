@@ -35,6 +35,7 @@ import { READER_HOLDS } from "@/lib/analysis/publish-gate";
 import { billWindow } from "@/lib/changes/window-store"; // Suggest changes (20 Nov 2026): where the bill is and whether it can still be changed
 import { WindowBlock } from "@/components/changes/window-block";
 import { Fold } from "@/components/bills/fold";
+import { standsLine } from "@/lib/changes/stands-line";
 import { countHint, wordsHint } from "@/lib/fold-hint";
 
 export const dynamic = "force-dynamic";
@@ -195,9 +196,11 @@ export default async function BillPage({ params, searchParams }: { params: Promi
             <p><b>{l.today}:</b> {r.today}</p><p><b>{l.ifPassed}:</b> {r.ifPassed} {cite(r.source)}</p></li>; })}</ul></div>
       </>}
 
-      {/* Owner, 21 Nov 2026: "fold the step-by-step status list too, leaving one line on where the bill stands." */}
+      {/* Owner, 21 Nov 2026: "fold the step-by-step status list too, leaving one line on where the bill stands." Later the same
+          day: that line "must also say whether it can still be changed, and the hearing date when one is confirmed"
+          (lib/changes/stands-line.ts). */}
       <div className="fed-section" id="stands"><h2>Where it stands <OfficialBadge /></h2>
-        {changeWindow ? <p className="stands-line">{changeWindow.where}</p>
+        {changeWindow ? <p className="stands-line">{standsLine(changeWindow)}</p>
           : bill.latestActionText ? <p className="stands-line"><Glossed text={bill.latestActionText} /> <span className="meta">({shortDate(bill.latestActionAt)})</span></p>
           : <p className="meta">No action recorded yet.</p>}
       </div>
