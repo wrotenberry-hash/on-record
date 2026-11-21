@@ -297,9 +297,9 @@ test("only four places ask the narrower switch, and each shared view drops what 
     assert.match(t, /if \(!access\.allowed\) return <EntryShell current="\/[a-z]+" access=\{access\} page="[^"]+">\{null\}<\/EntryShell>;/, `${p} shows the private notice when closed`);
     assert.match(t, /const voice = shared \? null : await voteBoxData\(/, `${p}: no vote box and no reader's totals for a shared visitor`);
     assert.match(t, /<TakePart \/>/, `${p}: a plain line on how to take part instead`);
-    assert.match(t, /\{?!?shared \? <TakePart \/> : <ContactForTxBill|\{!shared && <ContactForBill/, `${p}: no contact panel for a shared visitor`);
+    assert.match(t, /\{?!?shared \? <TakePart \/> : <ContactForTxBill|\{!shared && <ContactForBill|\{!shared && <Fold id="contact"[^>]*><ContactForBill/, `${p}: no contact panel for a shared visitor`);
   }
-  assert.match(read("app/bills/[id]/page.tsx"), /\{!shared && <BillShareMenu/);
+  assert.match(read("app/bills/[id]/page.tsx"), /\{!shared && <Fold id="share"[^>]*><BillShareMenu/); // 21 Nov 2026: one tappable heading, like every section outside the core
   const shell = read("components/share/entry-shell.tsx");
   assert.match(shell, /if \(!access\.shared\) return <PublicShell current=\{current\} access=\{access\} page=\{page\}>\{children\}<\/PublicShell>;/, "everyone else gets the usual frame, private notice included");
   assert.doesNotMatch(shell.split("await countEvent")[1], /VisitMarker|SwRegister|FeedbackPrompt|mobile-nav/, "the shared frame has no menu and no reader features");

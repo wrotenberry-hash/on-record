@@ -225,11 +225,11 @@ test("false alarm 2: a law already signed is not “if this passes”", () => {
 test("a section that has not passed is simply absent: no heading, no placeholder", () => {
   const page = read("app/bills/[id]/page.tsx"), q = read("lib/analysis/queries.ts");
   assert.match(q, /return \{ \.\.\.out, withheld: sections\.withheld, withheldReasons: sections\.reasons \};/);
-  assert.match(page, /const whoBlock = s && has\("whoItAffects"\) && <>/);
-  assert.match(page, /const youBlock = s && has\("whatChangesForYou"\) && <>/);
-  assert.match(page, /const caseBlock = s && has\("caseFor"\) && has\("caseAgainst"\) && <>/, "both sides or neither; never “no reasons found” for reasons that are only withheld");
-  assert.match(page, /const unknownBlock = s && has\("unknowns"\) && <>/);
-  assert.match(page, /\{has\("whyNow"\) && st\.whyNow\?\.trim\(\) \? <div className="fed-section"><h2>Why now/);
+  assert.match(page, /const whoBlock = s && has\("whoItAffects"\) && <Fold id="who"/);
+  assert.match(page, /const youBlock = s && has\("whatChangesForYou"\) && <Fold id="you"/);
+  assert.match(page, /const caseBlock = s && has\("caseFor"\) && has\("caseAgainst"\) && <Fold id="reasons"/, "both sides or neither; never “no reasons found” for reasons that are only withheld");
+  assert.match(page, /const unknownBlock = s && has\("unknowns"\) && <Fold id="unknowns"/);
+  assert.match(page, /\{has\("whyNow"\) && st\.whyNow\?\.trim\(\) \? <Fold id="why-now" title="Why now"/);
   assert.doesNotMatch(page, /section (?:is )?coming|coming soon/i);
   assert.match(page, /\{access\.editor && off\.size > 0 && <div className="held-note" role="note"><b>Not shown to readers yet:<\/b>/, "only the editor is told what is missing");
   assert.match(read("lib/share-cards.ts"), /if \(!\(s\.whatItDoes as unknown\[\] \| null\)\?\.length \|\| !\(s\.whoItAffects as unknown\[\] \| null\)\?\.length\) return null;/);

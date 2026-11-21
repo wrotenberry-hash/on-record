@@ -119,7 +119,7 @@ export default async function PrivacyPage() {
         <Answer>A few things expire on their own. Everything else stays until you delete your account.</Answer>
         <ul>
           <li>A sign-in link works once, for 30 minutes.</li>
-          <li>You stay signed in on a device for 90 days. An invite link keeps a device in the trial for 60 days.</li>
+          <li>You stay signed in on a device for 90 days. An invite link keeps a device in the trial for 90 days after your latest visit.</li>
           <li>The records that limit repeated use are deleted after 48 hours.</li>
           <li>With verification on: the scrambled network range and device recorded at sign-up are cleared after 30 days, and the phone-number cookie lasts 10 minutes.</li>
           <li>Your email address, answers, the history of your answers, follows and, with verification on, your encrypted address have no end date in the code. They stay until you delete your account.</li>

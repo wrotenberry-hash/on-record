@@ -34,6 +34,8 @@ import { ContactForBill } from "@/components/contact/contact-section"; // contac
 import { READER_HOLDS } from "@/lib/analysis/publish-gate";
 import { billWindow } from "@/lib/changes/window-store"; // Suggest changes (20 Nov 2026): where the bill is and whether it can still be changed
 import { WindowBlock } from "@/components/changes/window-block";
+import { Fold } from "@/components/bills/fold";
+import { countHint, wordsHint } from "@/lib/fold-hint";
 
 export const dynamic = "force-dynamic";
 
@@ -142,25 +144,25 @@ export default async function BillPage({ params, searchParams }: { params: Promi
     <ul className="analysis-list">{p.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
     {p.kind === "process" && lastFloor?.label && <p><b>In this case:</b> {lastFloor.label}. {lastFloor.meaning}</p>}
     <p className="meta">Sources: {p.sources.map((x, i) => <span key={x.url}>{i ? " · " : ""}<a href={x.url} target="_blank" rel="noopener noreferrer">{x.label}</a></span>)}. Checked {shortDate(p.lawAsOf)}.</p></details>;
-  const whoBlock = s && has("whoItAffects") && <>
+  const whoBlock = s && has("whoItAffects") && <Fold id="who" title="Who it affects" count={s.whoItAffects.length} badge={<AnalysisBadge />}>
     <div className="fed-section"><h2>Who it affects <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.whoItAffects.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul></div>
-  </>;
-  const youBlock = s && has("whatChangesForYou") && <>
+  </Fold>;
+  const youBlock = s && has("whatChangesForYou") && <Fold id="you" title="What changes for you" hint={wordsHint(s.whatChangesForYou)} badge={<AnalysisBadge />}>
         <div className="fed-section"><h2>What changes for you <AnalysisBadge /></h2><p>{s.whatChangesForYou}</p></div>
-  </>;
-  const caseBlock = s && has("caseFor") && has("caseAgainst") && <>
+  </Fold>;
+  const caseBlock = s && has("caseFor") && has("caseAgainst") && <Fold id="reasons" title="Reasons for and against" count={s.caseFor.length + s.caseAgainst.length} badge={<AnalysisBadge />}>
         <div className="fed-section"><h2>The case for and against <AnalysisBadge /></h2>
           <div className="case-grid">
             <div><h3>For</h3>{s.caseFor.length ? <ul className="analysis-list">{s.caseFor.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
             <div><h3>Against</h3>{s.caseAgainst.length ? <ul className="analysis-list">{s.caseAgainst.map((a, i) => <li key={i}>{a.argument} <span className="attrib">({a.attribution})</span>{(a as { source?: string }).source ? <> {cite((a as { source?: string }).source!)}</> : null}</li>)}</ul> : <p className="meta">{sideNote}</p>}</div>
           </div>
           <p className="meta">{analysis?.details ? `Each argument is credited to who makes it in the official record and links to that source. Both sides are held to the same standard. They are not ${BRAND.name}'s view.` : `Both sides are written to the same length and standard. They describe arguments people make; they are not ${BRAND.name}'s view.`}</p></div>
-  </>;
-  const unknownBlock = s && has("unknowns") && <>
+  </Fold>;
+  const unknownBlock = s && has("unknowns") && <Fold id="unknowns" title="What we don't know" count={s.unknowns.length} badge={<AnalysisBadge />}>
         <div className="fed-section"><h2>What we don&apos;t know <AnalysisBadge /></h2>
           <ul className="analysis-list">{s.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul></div>
-  </>;
+  </Fold>;
 
   return <EntryShell current="/issues" access={access} page="/bills/[id]">
     <section className="fed-page bill-page">
@@ -189,8 +191,6 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         <div className="fed-section"><h2>How it works today <AnalysisBadge /></h2>
           <ul className="analysis-list">{st.howItWorksToday.map((p, i) => <li key={i}>{p.text} {cite(p.section)}</li>)}</ul>
           {primers.filter(p => p.kind === "topic" || !(has("whyNow") && st.whyNow?.trim())).map(primerBox)}</div>
-        {has("whyNow") && st.whyNow?.trim() ? <div className="fed-section"><h2>Why now <AnalysisBadge /></h2><p>{st.whyNow}</p>
-          {primers.filter(p => p.kind === "process").map(primerBox)}</div> : null}
       </>}
 
       <div className="fed-section"><h2>Status <OfficialBadge /></h2>
@@ -204,6 +204,15 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         {sponsor && <p className="meta">Sponsor: {shared ? sponsor.fullName : <Link href={`/politicians/${sponsor.id}`}>{sponsor.fullName}</Link>}{cosponsors?.sponsor ? ` (${cosponsors.sponsor.party})` : ""}{cosponsors && cosponsors.total > 0 ? <> · {cosponsors.total} cosponsor{cosponsors.total === 1 ? "" : "s"}: {Object.entries(cosponsors.byParty).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${partyName(p)} ${n}`).join(", ")}{cosponsors.withdrawn ? ` (${cosponsors.withdrawn} withdrew)` : ""}</> : ""}</p>}
         {bill.introducedAt && <p className="meta">Introduced {shortDate(bill.introducedAt)}</p>}
       </div>
+
+      {/* Owner, 21 Nov 2026: the core stays open (headline, plain English, what would change, how it works today, where it
+          stands, the reader's question); every other section is one tappable heading with a short hint. */}
+      {voice && voiceAsk && <VoteBox billKey={bill.id} question={voiceAsk.question} plain={voiceAsk.plain} settledLine={voiceAsk.line} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/bills/${bill.id}`} foldTotals />}
+      <div className="fold-first" />
+      {st ? <>
+        {has("whyNow") && st.whyNow?.trim() ? <Fold id="why-now" title="Why now" hint={wordsHint(st.whyNow)} badge={<AnalysisBadge />}><div className="fed-section"><h2>Why now</h2><p>{st.whyNow}</p>
+          {primers.filter(p => p.kind === "process").map(primerBox)}</div></Fold> : null}
+      </> : null}
 
       {/* Owner, 17 Nov: layers. Headline, then plain English, then "Explain more", then sources. A reader who stops
           after the plain-English part should still understand the bill; an older summary with no plain-English part opens the details. */}
@@ -219,33 +228,32 @@ export default async function BillPage({ params, searchParams }: { params: Promi
         {unknownBlock}
       </details>}
 
-      <div className="fed-section"><h2>Cost <OfficialBadge /></h2>
+      <Fold id="cost" title="Cost" hint={cbo.length ? `budget office estimate ${countHint(cbo.length)}` : "no estimate published"} badge={<OfficialBadge />}><div className="fed-section"><h2>Cost</h2>
         {cbo.length ? <ul className="analysis-list">{cbo.map(e => <li key={e.url}><a href={e.url} target="_blank" rel="noopener noreferrer">Congressional Budget Office estimate</a>, {shortDate(e.pubDate)}{e.description ? `: ${e.description}` : ""}</li>)}</ul>
           : <p className="meta">{s ? "No Congressional Budget Office cost estimate has been published for this bill." : "Cost estimates are read when the summary is written."}</p>}
-      </div>
+      </div></Fold>
 
       {s && st && <>{youBlock}{caseBlock}{unknownBlock}</>}
 
 
-      {changes && <div className="fed-section"><h2>What changed between versions {changes.bullets ? <AnalysisBadge /> : <OfficialBadge />}</h2>
+      {changes && <Fold id="versions" title="What changed between versions" hint={`${changes.fromType.toLowerCase()} to ${changes.toType.toLowerCase()}`} badge={changes.bullets ? <AnalysisBadge /> : <OfficialBadge />}><div className="fed-section"><h2>What changed between versions</h2>
         <p className="meta">From the {changes.fromType.toLowerCase()} text to the {changes.toType.toLowerCase()} text.</p>
         {Array.isArray(changes.bullets) && changes.bullets.length > 0 && <ul className="analysis-list">{(changes.bullets as Array<{ text: string; section: string }>).map((b, i) => <li key={i}>{b.text} {cite(b.section)}</li>)}</ul>}
-        <p className="meta"><OfficialBadge /> Sections added: {(changes.added as string[] | null)?.length ? (changes.added as string[]).map(n => `Sec. ${n}`).join(", ") : "none"} · changed: {(changes.changed as string[] | null)?.length ? (changes.changed as string[]).map(n => `Sec. ${n}`).join(", ") : "none"} · removed: {(changes.removed as string[] | null)?.length ? (changes.removed as string[]).map(n => `Sec. ${n}`).join(", ") : "none"}.</p></div>}
+        <p className="meta"><OfficialBadge /> Sections added: {(changes.added as string[] | null)?.length ? (changes.added as string[]).map(n => `Sec. ${n}`).join(", ") : "none"} · changed: {(changes.changed as string[] | null)?.length ? (changes.changed as string[]).map(n => `Sec. ${n}`).join(", ") : "none"} · removed: {(changes.removed as string[] | null)?.length ? (changes.removed as string[]).map(n => `Sec. ${n}`).join(", ") : "none"}.</p></div></Fold>}
 
-      {amendments.length > 0 && <div className="fed-section"><h2>Amendments <OfficialBadge /></h2>
+      {amendments.length > 0 && <Fold id="amendments" title="Amendments" count={amendments.length} badge={<OfficialBadge />}><div className="fed-section"><h2>Amendments</h2>
         <ul className="analysis-list">{amendments.map(a => <li key={a.id}><b>{a.chamber === "house" ? "House" : "Senate"} amendment {a.number}</b> · <span className={`amd-${a.outcome}`}>{a.outcome === "adopted" ? "Adopted" : a.outcome === "failed" ? "Not adopted" : a.outcome === "withdrawn" ? "Withdrawn" : "Pending"}</span><br />{a.line}{a.latestActionDate ? <span className="meta"> ({shortDate(a.latestActionDate)})</span> : null}</li>)}</ul>
-        <p className="meta">One-line descriptions are the official purpose or description from Congress.gov.</p></div>}
+        <p className="meta">One-line descriptions are the official purpose or description from Congress.gov.</p></div></Fold>}
 
       {!s && access.editor && <div className="fed-section placeholder"><h2>Plain-language summary <AnalysisBadge /></h2><p className="meta">Not written yet. Summaries are generated by the scheduled run within their test caps; see <Link href="/editor/analysis">Bill summaries</Link>.</p></div>}
 
-      {voice && voiceAsk && <VoteBox billKey={bill.id} question={voiceAsk.question} plain={voiceAsk.plain} settledLine={voiceAsk.line} officialTitle={bill.title} data={voice} code={(await searchParams).c} back={`/bills/${bill.id}`} />}
       {shared && <TakePart />}
 
       {/* BEGIN contact-your-legislator (test-ready build): the reader's own legislators, official phone and form, an editable message. */}
-      {!shared && <ContactForBill bill={bill} votes={votes} />}
+      {!shared && <Fold id="contact" title="Contact your legislators" hint="phone, contact form, a message you can edit"><ContactForBill bill={bill} votes={votes} /></Fold>}
       {/* END contact-your-legislator */}
 
-      <div className="fed-section"><h2>{shared ? "Recorded votes" : "How your politicians voted"} <OfficialBadge /></h2>
+      <Fold id="votes" title={shared ? "Recorded votes" : "How your politicians voted"} hint={votes.length ? `${votes.length} recorded vote${votes.length === 1 ? "" : "s"}` : "no recorded vote yet"} badge={<OfficialBadge />}><div className="fed-section"><h2>Recorded votes</h2>
         {shared ? null : mine.length ? <ul className="vote-list">{mine.map(m => <li key={`${m.rollCallId}-${m.id}`} className="vote-row"><div className="vote-main">
           <b><Link href={`/politicians/${m.id}`}>{m.fullName}</Link>{yours.has(m.id) && <span className="your-tag"> · your legislator</span>}</b>{(() => { const rc = votes.find(v => v.id === m.rollCallId); const k = rc ? voteKind(rc.question, rc.title ?? bill.title) : "other";
             return <><span className="vote-position">{positionLine(m.position, k)}</span><small>{memberLine(m)} · {KIND_LABEL[k]}{rc ? ` · ${rc.question}, ${shortDate(rc.votedAt)}` : ""}</small>
@@ -259,18 +267,18 @@ export default async function BillPage({ params, searchParams }: { params: Promi
           <b><Glossed text={v.question} /></b><VoteExplainer question={v.question} /><YesNo question={v.question} title={v.title ?? bill.title} />{!underReview.has(v.id) && <PartySplit parties={parties.get(v.id)} />}<small>{underReview.has(v.id) ? <><span className="tally-review">Tally under review</span>: the member votes on file do not add up to the official totals</> : <>{v.result ?? "Result not stated"} · Yea {v.yea} · Nay {v.nay}{v.notVoting ? ` · Not voting ${v.notVoting}` : ""}</>} · <a className="src-link" href={v.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>{/* contact-your-legislator: */}{!shared && <> · <Link className="src-link" href={`/bills/${bill.id}?vote=${v.id}#contact`}>Contact about this vote</Link></>}</small></div></li>)}</ul>
           : <p className="meta">No roll-call votes on this bill yet.</p>}
         {votes.length > 0 && <p className="meta">Plain-language vote descriptions follow the <a href={GLOSSARY_URL} target="_blank" rel="noopener noreferrer">congressional glossary</a>; the official wording is shown with each vote.</p>}
-      </div>
+      </div></Fold>
 
       {/* One sourced fact per card (18 Nov 2026). Not shown to a visitor reading one shared page: the share screen is for readers. */}
-      {!shared && <BillShareMenu billId={bill.id} billTitle={bill.title} hasSummary={!!s} votes={votes} totals={voice?.totals} />}
+      {!shared && <Fold id="share" title="Share one fact from this bill" hint="cards that carry their source and date"><BillShareMenu billId={bill.id} billTitle={bill.title} hasSummary={!!s} votes={votes} totals={voice?.totals} /></Fold>}
 
-      <div className="fed-section"><h2>Sources</h2><ul className="source-list">
+      <Fold id="sources" title="Sources" count={s ? s.sources.length : null} hint={s ? null : "the official record"}><div className="fed-section"><h2>Sources</h2><ul className="source-list">
         {s ? s.sources.map(src => <li key={src.url}><a href={src.url} target="_blank" rel="noopener noreferrer">{src.label}</a></li>)
           : <li><a href={bill.congressUrl} target="_blank" rel="noopener noreferrer">This bill on Congress.gov</a></li>}
         <li>Record {bill.detailStatus === "complete" ? "completed from the Congress.gov API" : "created from a roll-call vote"}, retrieved {shortDate(bill.retrievedAt)}.</li>
         {subjects.length > 0 && <li>Congress.gov subjects: {subjects.slice(0, 12).join(", ")}{subjects.length > 12 ? "…" : ""}</li>}
         {s && <li>Analysis written {shortDate(s.createdAt)} by {s.model} from the {s.textVersionLabel.toLowerCase()} text{s.truncated ? " (long bill: the first part was read)" : ""}, checked by {BRAND.name}&apos;s rule checker{latestCheck ? ` (${latestCheck.passed ? "passed" : "did not pass"}, reading grade ${latestCheck.metrics.readingGrade})` : ""}. Confidence: {s.confidence}. {s.confidenceReason}</li>}
-      </ul></div>
+      </ul></div></Fold>
     </section>
   </EntryShell>;
 }

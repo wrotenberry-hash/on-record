@@ -208,7 +208,7 @@ test("every cookie the code sets is on the privacy page, and nothing is listed t
 
 test("cookie lifetimes on the privacy page are the ones in the code", () => {
   const lasts = name => COOKIES.find(c => c.name === name).lasts;
-  assert.match(read("lib/trial.ts"), /TRIAL_COOKIE_MAX_AGE_S = 60 \* 24 \* 3600/); assert.equal(lasts("or_trial"), "60 days");
+  assert.match(read("lib/trial.ts"), /TRIAL_COOKIE_MAX_AGE_S = 90 \* 24 \* 3600/); assert.equal(lasts("or_trial"), "90 days after your latest visit"); // owner, 21 Nov 2026: 90 days, renewed on each visit
   assert.match(read("lib/accounts.ts"), /READER_SESSION_MS = 90 \* 24 \* 3600 \* 1000/); assert.equal(lasts("or_reader"), "90 days");
   assert.match(read("lib/accounts.ts"), /LINK_TTL_MS = 30 \* 60 \* 1000/);
   assert.match(read("lib/auth.ts"), /SESSION_TTL_MS = 30 \* 24 \* 60 \* 60 \* 1000/); assert.equal(lasts("on_record_session"), "30 days");

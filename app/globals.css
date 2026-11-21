@@ -313,3 +313,18 @@ h2 .src-link{font:600 15px Arial,sans-serif;margin-left:8px;vertical-align:middl
 /* A reader outside Texas: one line where state content would be (20 Nov 2026). */
 .state-coming-line { margin: 12px 0; padding: 10px 12px; background: #f3f5f3; border-left: 3px solid #51605d; }
 .preview-banner.state-coming { border-left: 3px solid #51605d; }
+
+/* Bill page, 21 Nov 2026: every section outside the core is one tappable heading with a short hint (components/bills/fold.tsx). */
+.fold{border-top:1px solid #d9d6cc;margin-top:0}.fold:last-of-type{border-bottom:1px solid #d9d6cc}
+.fold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:6px 2px;cursor:pointer;list-style:none}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::after{content:"+";font-size:22px;line-height:1;color:#163b3c;flex:none;width:24px;text-align:center}
+.fold[open]>summary::after{content:"–"}
+.fold-head{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fold-title{font-size:17px;line-height:1.3;margin:0;font-weight:700}
+.fold-hint{font-size:14px;color:#55524a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fold[open] .fold-hint{display:none}
+.fold-body{padding:0 2px 14px}.fold-body>.fed-section{margin-top:0}
+.fold-body>.fed-section>h2:first-child{display:none}
+.fold>summary:focus-visible{outline:3px solid #163b3c;outline-offset:2px}
+.fold-first{margin-top:22px}

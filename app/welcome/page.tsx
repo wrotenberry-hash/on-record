@@ -38,7 +38,7 @@ export default async function WelcomePage() {
         <li>You do not need an account. We ask for an email only if you want to follow someone, get alerts or have your answers counted.</li>
         <li>Your answers are private. Totals for a district are shown only once {MIN_SHOWN} counted residents of that district have answered. Counted residents are people whose home address has been matched.</li>
         <li>Facts marked Official come from government records. Text marked Analysis is written by us from those records and checked before you see it. <Link href="/method">How this works</Link>.</li>
-        <li>This is a trial: please do not share your invite link. It works on your devices for 60 days.</li>
+        <li>This is a trial: please do not share your invite link. It keeps a device signed in for 90 days after your latest visit.</li>
       </ul>
 
       <div className="landing-actions"><Link className="cta" href="/">Start: find my legislators</Link></div>

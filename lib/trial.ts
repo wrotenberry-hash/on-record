@@ -13,7 +13,9 @@ export const TRIAL_COOKIE = "or_trial";
 // Invites 26 to 35; they are created the next time the editor opens the invites page.
 export const ORIGINAL_INVITES = 25;
 export const TRIAL_INVITES = 35;
-export const TRIAL_COOKIE_MAX_AGE_S = 60 * 24 * 3600;
+// Owner, 21 Nov 2026: "Recommend a length; default 90 days." 90 days, counted from the reader's latest visit (the visit marker renews
+// it), the same length as an email sign-in. A reader who comes back at least once in 90 days never has to find the link again.
+export const TRIAL_COOKIE_MAX_AGE_S = 90 * 24 * 3600;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://on-record-wrotenberry.vercel.app";
 
 function secret() { return process.env.EDITOR_ACCESS_KEY?.trim() || ""; }

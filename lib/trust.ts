@@ -274,7 +274,7 @@ export type Cookie = {
 };
 
 export const COOKIES: Cookie[] = [
-  { name: "or_trial", kind: "cookie", who: "everyone", purpose: "Lets you in as an invited trial reader.", holds: "The code from your invite link.", lasts: "60 days" },
+  { name: "or_trial", kind: "cookie", who: "everyone", purpose: "Lets you in as an invited trial reader.", holds: "The code from your invite link.", lasts: "90 days after your latest visit" },
   { name: "or_reader", kind: "cookie", who: "everyone", purpose: "Keeps you signed in after you tap the link in your email.", holds: "A signed token naming your account.", lasts: "90 days" },
   { name: "or_loc", kind: "cookie", who: "everyone", purpose: "Remembers which legislators are yours.", holds: "Your state and district codes, such as TX and TX-37, and how they were found (a ZIP code, an address, a cross street, a spot on the map, or your own choice). Not your address, and not the spot.", lasts: "400 days" },
   { name: "or_zip", kind: "cookie", who: "everyone", purpose: "Keeps the ZIP code you typed so you do not have to type it again.", holds: "Your ZIP code. It is kept in your browser; the site does not save it in its database.", lasts: "400 days" },

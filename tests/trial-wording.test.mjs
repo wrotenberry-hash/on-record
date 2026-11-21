@@ -18,7 +18,7 @@ test("with counting off, the bill page says only that counting has not started",
   const box = read("components/voice/vote-box.tsx");
   // The promise line already says counting is off; the totals section then shows the one sentence and nothing else.
   assert.match(box, /"Counting is not switched on yet, so no answer is added to a total today\."/);
-  const off = box.slice(box.indexOf("{!data.verificationOn ?"), box.indexOf(": <>", box.indexOf("{!data.verificationOn ?")));
+  const off = box.slice(box.indexOf("!data.verificationOn ?"), box.indexOf(": <>", box.indexOf("!data.verificationOn ?"))); // 21 Nov 2026: the section may be folded on the bill page; its words are the same
   assert.match(off, /<p className="meta">\{COUNTING_OFF\}<\/p>/); assert.doesNotMatch(off, /TotalsList|appear here after you answer|Address-matched means/);
   // The totals, the "after you answer" line and the explanation of address matching are drawn only while counting is on.
   const on = box.slice(box.indexOf(": <>", box.indexOf("{!data.verificationOn ?")));
