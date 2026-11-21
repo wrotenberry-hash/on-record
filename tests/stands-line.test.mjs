@@ -16,6 +16,20 @@ test("the owner's three examples", () => {
   assert.equal(standsLine(w({ place: "final", state: "closed", where: "Became law on July 12, 2026.", changes: CHANGES.law })), "Became law on July 12, 2026. It can no longer be changed.");
 });
 
+test("on the President's desk the text is final, but the bill is not finished", () => {
+  const base = { congress: 119, billType: "hr", committees: [], meetings: [], floorChambers: [], stalledIn: null, blocked: null, actionsUrl: "https://www.congress.gov/x/all-actions", now: Date.parse("2026-11-21T12:00:00Z") };
+  // Owner, 21 Nov 2026, word for word.
+  assert.equal(standsLine(federalWindow({ ...base, stage: "president", stageDate: "2026-11-13" })), "Sent to the President on November 13, 2026. The text is final; the President can still sign or veto it.");
+  // "Use 'It can no longer be changed' only once it is law, vetoed without override, or dead."
+  assert.equal(standsLine(federalWindow({ ...base, stage: "law", stageDate: "2026-07-12" })), "Became law on July 12, 2026. It can no longer be changed.");
+  assert.equal(standsLine(federalWindow({ ...base, stage: "vetoed", stageDate: "2026-10-02" })), "Vetoed by the President on October 2, 2026. The text is final; Congress can still override the veto.");
+  assert.equal(standsLine(federalWindow({ ...base, stage: "vetoed", stageDate: "2026-10-02", now: Date.parse("2027-02-01T00:00:00Z") })), "Vetoed by the President on October 2, 2026. It can no longer be changed.", "that Congress has ended: no override is possible");
+  assert.equal(standsLine(federalWindow({ ...base, stage: "failed", stageDate: "2026-11-19", stalledIn: "senate" })), "Failed a vote in the Senate on November 19, 2026. It can no longer be changed.");
+  assert.equal(standsLine(federalWindow({ ...base, stage: "committee", stageDate: "2026-01-02", now: Date.parse("2027-02-01T00:00:00Z") })), "Congress ended before it became law. It can no longer be changed.");
+  assert.equal(shortChange({ state: "closed", changes: CHANGES.governor }), "The text is final; the Governor can still sign or veto it.");
+  assert.equal(shortChange({ state: "closed", changes: CHANGES.sessionOver("June 2, 2027") }), "It can no longer be changed.");
+});
+
 test("a hearing date is given only when it was confirmed", () => {
   assert.equal(shortHearing(w({})), null);
   assert.equal(shortHearing(w({ hearing: "A committee meeting on this bill is listed, but its date could not be confirmed. The date isn't known.", hearingAt: null })), null, "listed but not confirmed: no date");
@@ -65,8 +79,9 @@ test("real windows from the record's own rules stay short: two lines on a phone 
   for (const f of cases) {
     const win = federalWindow(f); assert.ok(win, f.stage);
     const line = standsLine(win);
-    assert.ok(line.length <= 90, `${f.stage}: ${line.length} characters: ${line}`);
-    assert.match(line, /It can (?:still be changed|no longer be changed|be changed only|not be changed yet)|It cannot be changed yet/, line);
+    // The line for a bill on the President's desk, and for a veto that can still be overridden, is the owner's own wording and is a little longer.
+    assert.ok(line.length <= (/^The text is final/.test(line.split(". ").at(-1)) ? 104 : 90), `${f.stage}: ${line.length} characters: ${line}`);
+    assert.match(line, /It can (?:still be changed|no longer be changed|be changed only|not be changed yet)|It cannot be changed yet|The text is final; /, line);
     assert.doesNotMatch(line, /Hearing:|Vote on changes:|Committee meeting:/, "no meeting was confirmed in these");
   }
   assert.equal(standsLine(federalWindow(cases[6])), "Became law on July 12, 2026. It can no longer be changed.");

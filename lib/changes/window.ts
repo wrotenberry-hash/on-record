@@ -36,6 +36,8 @@ export const CHANGES = {
   governor: "The window is closed: both chambers passed the same text, and the Governor can sign it, veto it, or let it become law without signing.",
   law: "The window is closed: it is law. Changing it now would take a new bill.",
   vetoed: (body: string) => `The window is closed: ${body} can vote to override a veto, but cannot change the bill.`,
+  // 21 Nov 2026: once the Congress that passed it has ended, a veto can no longer be overridden.
+  vetoedFinal: "The window is closed: the veto was not overridden before that Congress ended, so the bill goes no further.",
   failed: (chamber: string) => `The window is closed: it failed a vote, and it goes no further unless ${chamber} votes on it again.`,
   expired: "The window is closed: a bill that has not become law when a Congress ends goes no further. It would have to be introduced again as a new bill.",
   sessionOver: (date: string) => `The window is closed: the session ended on ${date}. A bill that had not passed both chambers by then goes no further.`,
@@ -160,7 +162,7 @@ export function federalWindow(f: FederalFacts): BillWindow | null {
       ...(place === "committee" || place === "hearing_scheduled" ? { chamber: O } : {}) });
 
   if (f.stage === "law") return { ...make("final", "closed", `Became law${on(f.stageDate)}.`, CHANGES.law), settled: "law" };
-  if (f.stage === "vetoed") return { ...make("final", "closed", `Vetoed by the President${on(f.stageDate)}.`, CHANGES.vetoed("Congress")), settled: "not_law" };
+  if (f.stage === "vetoed") return { ...make("final", "closed", `Vetoed by the President${on(f.stageDate)}.`, f.now >= congressEnd(f.congress).ms ? CHANGES.vetoedFinal : CHANGES.vetoed("Congress")), settled: "not_law" };
   if (f.stage === "president") return make("final", "closed", `Sent to the President${on(f.stageDate)}.`, CHANGES.president);
   // Everything below is a bill that is still alive only while its Congress is.
   const end = congressEnd(f.congress);

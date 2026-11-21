@@ -40,7 +40,17 @@ export function shortWhere(w: Pick<W, "place" | "where" | "chamber">): string {
 export function shortChange(w: Pick<W, "state" | "changes">): string {
   if (w.state === "open") return "It can still be changed.";
   if (w.state === "not_open_yet") return "It cannot be changed yet.";
-  if (w.state === "closed") return "It can no longer be changed.";
+  if (w.state === "closed") {
+    // Owner, 21 Nov 2026: "For a bill sent to the President and not yet signed or vetoed, the status line should read: 'Sent to the
+    // President on [date]. The text is final; the President can still sign or veto it.' Use 'It can no longer be changed' only once
+    // it is law, vetoed without override, or dead." The same holds for a Texas bill on the Governor's desk, and a veto that the
+    // body that passed the bill can still override is not yet the end either.
+    const signer = w.changes.match(/\band the (President|Governor) can sign it\b/)?.[1];
+    if (signer) return `The text is final; the ${signer} can still sign or veto it.`;
+    const overrider = w.changes.match(/^The window is closed: (.+?) can vote to override a veto\b/)?.[1];
+    if (overrider) return `The text is final; ${overrider} can still override the veto.`;
+    return "It can no longer be changed.";
+  }
   return /^It is not moving\b/.test(w.changes) ? "It can be changed only if it is taken up again." : "It can be changed only in a narrow way.";
 }
 
